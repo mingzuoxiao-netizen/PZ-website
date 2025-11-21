@@ -241,7 +241,10 @@ const GlobalCapacity: React.FC = () => {
                 <Factory className="text-[#a16207]" size={32} />
                 <span className="text-stone-400 text-xs uppercase tracking-widest">HQ & Main Factory</span>
               </div>
-              <h2 className="font-serif text-3xl text-stone-900 mb-4">Zhaoqing, China</h2>
+              <h2 className="font-serif text-3xl text-stone-900 mb-2">Zhaoqing, China</h2>
+              <p className="text-xs text-stone-500 mb-4 uppercase tracking-wide leading-relaxed font-bold">
+                 Deqing Industrial Zone, Zhaoqing City,<br/>Guangdong Province, China
+              </p>
               <p className="text-stone-600 mb-6 leading-relaxed text-sm">
                 Our primary campus focusing on R&D, complex joinery, and mixed-material fabrication. Home to our master artisans and automated finishing lines.
               </p>
@@ -263,7 +266,7 @@ const GlobalCapacity: React.FC = () => {
               </div>
               <h2 className="font-serif text-3xl text-stone-900 mb-2">Kandal Province, Cambodia</h2>
               <p className="text-xs text-stone-500 mb-4 uppercase tracking-wide leading-relaxed font-bold">
-                 Svay Chhrum Village, Baek Chan Commune, <br/>Ang Snuol District
+                 Svay Chhrum Village, Baek Chan Commune,<br/>Ang Snuol District, Kandal Province
               </p>
               <p className="text-stone-600 mb-6 leading-relaxed text-sm">
                 Established in 2021 to provide tariff-advantaged manufacturing for high-volume orders. Mirroring our China quality standards with scalable production lines.
@@ -291,7 +294,7 @@ const GlobalCapacity: React.FC = () => {
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                {/* Standard Robinson Projection Map (Stable PNG) */}
                <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg" 
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/BlankMap-World6.svg/2000px-BlankMap-World6.svg.png" 
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />

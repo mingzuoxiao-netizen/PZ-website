@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -9,6 +10,7 @@ import Materials from './pages/Materials';
 import GlobalCapacity from './pages/GlobalCapacity';
 import Inquire from './pages/Inquire';
 import AdminDashboard from './pages/AdminDashboard';
+import AuthGuard from './components/AuthGuard';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -23,19 +25,21 @@ const ScrollToTop = () => {
 
 const App: React.FC = () => {
   return (
-    <HashRouter>
-      <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Layout><Home /></Layout>} />
-        <Route path="/about" element={<Layout><About /></Layout>} />
-        <Route path="/studio" element={<Layout><TheStudio /></Layout>} />
-        <Route path="/collections" element={<Layout><Collections /></Layout>} />
-        <Route path="/materials" element={<Layout><Materials /></Layout>} />
-        <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />
-        <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
-        <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
-      </Routes>
-    </HashRouter>
+    <AuthGuard>
+      <HashRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Layout><Home /></Layout>} />
+          <Route path="/about" element={<Layout><About /></Layout>} />
+          <Route path="/studio" element={<Layout><TheStudio /></Layout>} />
+          <Route path="/collections" element={<Layout><Collections /></Layout>} />
+          <Route path="/materials" element={<Layout><Materials /></Layout>} />
+          <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />
+          <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
+          <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
+        </Routes>
+      </HashRouter>
+    </AuthGuard>
   );
 };
 
