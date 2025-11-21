@@ -23,25 +23,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isHome = location.pathname === '/';
 
   // High-End Color Logic
-  // Scrolled/Inner: Deep Charcoal Text + Muted Bronze Accent
-  // Home/Transparent: White Text + Champagne Gold Accent
-  const textColor = isHome && !isScrolled ? 'text-white' : 'text-[#1c1917]';
-  const accentColor = isHome && !isScrolled ? 'text-[#d4b996]' : 'text-[#a16207]';
-  const navTextColor = isHome && !isScrolled ? 'text-stone-200 hover:text-white' : 'text-stone-600 hover:text-[#1c1917]';
-  const navHoverColor = isHome && !isScrolled ? 'bg-white' : 'bg-[#a16207]';
+  // Force dark theme elements if:
+  // 1. We are scrolled
+  // 2. We are NOT on home page
+  // 3. The mobile menu is OPEN (needs contrast against light menu bg)
+  const useDarkNav = isScrolled || !isHome || isMobileMenuOpen;
+
+  const textColor = !useDarkNav ? 'text-white' : 'text-[#1c1917]';
+  const accentColor = !useDarkNav ? 'text-[#d4b996]' : 'text-[#a16207]';
+  const navTextColor = !useDarkNav ? 'text-stone-200 hover:text-white' : 'text-stone-600 hover:text-[#1c1917]';
+  const navHoverColor = !useDarkNav ? 'bg-white' : 'bg-[#a16207]';
+
+  // Determine Header Background Class
+  const getHeaderBackground = () => {
+    if (isMobileMenuOpen) return 'bg-[#F5F0EB] py-4 shadow-none'; // Match mobile menu bg, no border/shadow for seamless look
+    if (useDarkNav) return 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 py-4 shadow-sm';
+    return 'bg-transparent py-8';
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 font-sans transition-colors duration-500">
       {/* Navigation */}
       <header 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled || !isHome 
-            ? 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 py-4 shadow-sm' 
-            : 'bg-transparent py-8'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${getHeaderBackground()}`}
       >
         <div className="container mx-auto px-6 md:px-12 flex justify-between items-center relative z-50">
-          <Link to="/" className="group">
+          <Link to="/" className="group" onClick={() => setIsMobileMenuOpen(false)}>
             <div className="flex flex-col">
               <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline ${textColor} transition-colors duration-300`}>
                 PENG ZHAN
@@ -71,7 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* Mobile Menu Toggle */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`lg:hidden focus:outline-none ${isHome && !isScrolled && !isMobileMenuOpen ? 'text-white' : 'text-stone-900'}`}
+            className={`lg:hidden focus:outline-none transition-colors duration-300 ${!useDarkNav ? 'text-white' : 'text-stone-900'}`}
           >
             {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
