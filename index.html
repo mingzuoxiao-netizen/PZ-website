@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peng Zhan Furniture Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Lato', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+            },
+            colors: {
+              stone: {
+                50: '#FDFCF8', /* Warm Cream - Like raw maple */
+                100: '#F5F0EB', /* Oatmeal / Light Sand - Like sanded ash */
+                200: '#E6DDD5', /* Darker Sand */
+                300: '#D7CCC8',
+                400: '#BCAAA4',
+                500: '#A1887F',
+                600: '#8D6E63',
+                700: '#5D4037', /* Medium Wood */
+                800: '#4E342E', /* Deep Brown */
+                900: '#3E2723', /* Dark Espresso - Main Text Color */
+                950: '#281815', /* Blackened Brown - Deepest dark */
+              },
+              amber: {
+                50: '#FFF8E1',
+                100: '#FFECB3',
+                200: '#FFE082',
+                600: '#C68C53', /* Warm Oak Accent */
+                700: '#9C6644', /* Rich Walnut Accent */
+                800: '#795548',
+                900: '#3E2723',
+              }
+            },
+            animation: {
+              'slow-pan': 'pan 30s linear infinite alternate',
+              'fade-in': 'fadeIn 1s ease-out forwards',
+              'fade-in-up': 'fadeInUp 1s ease-out forwards',
+            },
+            keyframes: {
+              pan: {
+                '0%': { transform: 'scale(1.05) translate(0, 0)' },
+                '100%': { transform: 'scale(1.15) translate(-2%, -2%)' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      /* Custom scrollbar - Warm Wood Theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #F5F0EB;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #A1887F;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #8D6E63;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-stone-50 text-stone-900 antialiased selection:bg-amber-200 selection:text-stone-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
