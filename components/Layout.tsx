@@ -86,7 +86,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Mobile Nav Overlay */}
         {/* Fixed layout using padding-top and overflow-auto to prevent clipping on small screens */}
-        <div className={`fixed inset-0 bg-[#F5F0EB] z-40 transform transition-transform duration-500 ease-in-out lg:hidden pt-32 pb-10 flex flex-col items-center overflow-y-auto ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className={`fixed inset-0 bg-[#F5F0EB] z-40 transform transition-transform duration-500 ease-in-out lg:hidden pt-32 pb-10 flex flex-col items-center overflow-y-auto will-change-transform ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <nav className="flex flex-col space-y-8 text-center">
             {NAV_ITEMS.map((item) => (
               <Link
@@ -120,9 +120,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 Bridging California Design with Precision Manufacturing. We create high-end solid wood furniture for global brands, designers, and commercial projects.
               </p>
               <div className="flex space-x-4 text-[#8D6E63] text-sm">
-                 <span>Zhaoqing, CN</span>
+                 <span>Zhaoqing, China</span>
                  <span>|</span>
-                 <span>Kandal, KH</span>
+                 <span>Kandal, Cambodia</span>
                  <span>|</span>
                  <span>Est. 2014</span>
               </div>

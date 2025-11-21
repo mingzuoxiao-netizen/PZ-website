@@ -294,7 +294,7 @@ const GlobalCapacity: React.FC = () => {
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                {/* Standard Robinson Projection Map (Stable PNG) */}
                <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/BlankMap-World6.svg/2000px-BlankMap-World6.svg.png" 
+                src="https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg" 
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />

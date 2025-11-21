@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Layers, Globe, Hammer } from 'lucide-react';
+import { ArrowRight, Layers, Globe, Hammer, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {
@@ -137,6 +137,51 @@ const Home: React.FC = () => {
                 <p className="text-stone-600 font-light leading-relaxed">
                   Combining 5-axis CNC precision with traditional joinery techniques to create furniture that is both structurally sound and beautiful.
                 </p>
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Locations / Contact Band */}
+      <section className="py-24 bg-[#281815] text-[#E6DDD5] border-t border-stone-800">
+        <div className="container mx-auto px-6 md:px-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+             <div>
+                <h3 className="text-[#d4b996] font-bold tracking-widest uppercase text-xs mb-6">Visit Us</h3>
+                <h2 className="font-serif text-3xl text-white mb-8">Global Manufacturing Hubs</h2>
+                <p className="text-stone-400 leading-relaxed mb-8">
+                  Our dual-shore strategy ensures we can meet any volume or tariff requirement. Contact us to schedule a factory tour or audit.
+                </p>
+                <Link to="/inquire" className="text-[#d4b996] hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center">
+                   Start a Project <ArrowRight size={16} className="ml-2" />
+                </Link>
+             </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
+                <div>
+                   <div className="flex items-center text-white mb-4">
+                      <MapPin className="text-[#d4b996] mr-2" size={18} />
+                      <h4 className="font-serif text-xl">Zhaoqing, China</h4>
+                   </div>
+                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">HQ & Main Facility</p>
+                   <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
+                      Deqing Industrial Zone,<br/>
+                      Zhaoqing City,<br/>
+                      Guangdong Province, China
+                   </address>
+                </div>
+                <div>
+                   <div className="flex items-center text-white mb-4">
+                      <MapPin className="text-[#d4b996] mr-2" size={18} />
+                      <h4 className="font-serif text-xl">Kandal, Cambodia</h4>
+                   </div>
+                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">Tariff-Free Factory</p>
+                   <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
+                      Svay Chhrum Village,<br/>
+                      Baek Chan Commune,<br/>
+                      Ang Snuol District,<br/>
+                      Kandal Province
+                   </address>
+                </div>
              </div>
           </div>
         </div>
