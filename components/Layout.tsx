@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ArrowRight } from 'lucide-react';
@@ -23,10 +24,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isHome = location.pathname === '/';
 
   // High-End Color Logic
-  // Force dark theme elements if:
-  // 1. We are scrolled
-  // 2. We are NOT on home page
-  // 3. The mobile menu is OPEN (needs contrast against light menu bg)
   const useDarkNav = isScrolled || !isHome || isMobileMenuOpen;
 
   const textColor = !useDarkNav ? 'text-white' : 'text-[#1c1917]';
@@ -36,23 +33,57 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Determine Header Background Class
   const getHeaderBackground = () => {
-    if (isMobileMenuOpen) return 'bg-[#F5F0EB] py-4 shadow-none'; // Match mobile menu bg, no border/shadow for seamless look
-    if (useDarkNav) return 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 py-4 shadow-sm';
-    return 'bg-transparent py-8';
+    // Immediate override when menu is open
+    if (isMobileMenuOpen) return 'bg-[#F5F0EB] shadow-none border-transparent';
+    
+    // Scrolled or Inner Page state
+    if (useDarkNav) return 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 shadow-sm';
+    
+    // Default transparent (Home Top)
+    return 'bg-transparent border-b border-transparent';
+  };
+
+  // Determine Logo Text Color specifically
+  const getLogoColor = () => {
+    // If menu is open, always dark (to contrast with oatmeal bg)
+    if (isMobileMenuOpen) return 'text-[#1c1917]';
+    // If on home hero (unscrolled), white
+    if (isHome && !isScrolled) return 'text-white';
+    // Otherwise dark
+    return 'text-[#1c1917]';
+  };
+  
+  const getAccentColor = () => {
+    if (isMobileMenuOpen) return 'text-[#a16207]';
+    if (isHome && !isScrolled) return 'text-[#d4b996]';
+    return 'text-[#a16207]';
+  };
+
+  const getMenuButtonColor = () => {
+     if (isMobileMenuOpen) return 'text-[#1c1917]';
+     if (isHome && !isScrolled) return 'text-white';
+     return 'text-[#1c1917]';
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 font-sans transition-colors duration-500">
-      {/* Navigation */}
-      <header 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${getHeaderBackground()}`}
+      {/* Navigation - Expanding Header Concept */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 overflow-hidden
+          transition-[height,background-color] duration-[800ms] ease-[cubic-bezier(0.32,0.72,0,1)]
+          ${getHeaderBackground()}
+          ${isMobileMenuOpen ? 'h-screen' : 'h-[80px]'}
+        `}
       >
-        <div className="container mx-auto px-6 md:px-12 flex justify-between items-center relative z-50">
+        <div className="container mx-auto px-6 md:px-12 h-[80px] flex justify-between items-center relative z-50">
+          {/* Logo */}
           <Link to="/" className="group" onClick={() => setIsMobileMenuOpen(false)}>
             <div className="flex flex-col">
-              <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline ${textColor} transition-colors duration-300`}>
+              <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline transition-colors duration-500 ${getLogoColor()}`}>
                 PENG ZHAN
-                <span className={`text-4xl leading-none ml-0.5 ${accentColor} transition-colors duration-300`}>.</span>
+                <span className={`text-4xl leading-none ml-0.5 transition-colors duration-500 ${getAccentColor()}`}>
+                  .
+                </span>
               </h1>
             </div>
           </Link>
@@ -64,40 +95,70 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 className={`text-xs font-bold tracking-[0.2em] uppercase transition-colors duration-300 relative group ${
-                  location.pathname === item.path 
-                    ? (isHome && !isScrolled ? 'text-white' : 'text-[#a16207]')
+                  location.pathname === item.path
+                    ? isHome && !isScrolled
+                      ? "text-white"
+                      : "text-[#a16207]"
                     : navTextColor
                 }`}
               >
                 {item.label}
-                <span className={`absolute -bottom-2 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${navHoverColor} ${location.pathname === item.path ? 'w-full' : ''}`}></span>
+                <span
+                  className={`absolute -bottom-2 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${navHoverColor} ${
+                    location.pathname === item.path ? "w-full" : ""
+                  }`}
+                ></span>
               </Link>
             ))}
           </nav>
 
           {/* Mobile Menu Toggle */}
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`lg:hidden focus:outline-none transition-colors duration-300 ${!useDarkNav ? 'text-white' : 'text-stone-900'}`}
+            className={`lg:hidden focus:outline-none transition-colors duration-300 ${getMenuButtonColor()}`}
+            aria-label="Toggle navigation"
           >
             {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>
 
-        {/* Mobile Nav Overlay */}
-        {/* Fixed layout using padding-top and overflow-auto to prevent clipping on small screens */}
-        <div className={`fixed inset-0 bg-[#F5F0EB] z-40 transform transition-transform duration-500 ease-in-out lg:hidden pt-32 pb-10 flex flex-col items-center overflow-y-auto will-change-transform ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <nav className="flex flex-col space-y-8 text-center">
-            {NAV_ITEMS.map((item) => (
+        {/* Mobile Nav Content Container */}
+        {/* We keep this mounted but hide it via opacity/translate for the animation effect */}
+        <div 
+          className={`
+            absolute inset-0 top-[80px] z-40 flex flex-col justify-center items-center pb-20
+            transition-all duration-700 delay-100 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
+            ${isMobileMenuOpen ? 'opacity-100 translate-y-0 scale-100 visible' : 'opacity-0 translate-y-12 scale-95 invisible'}
+          `}
+        >
+          <nav className="flex flex-col space-y-6 text-center">
+            {NAV_ITEMS.map((item, idx) => (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="text-3xl font-serif text-stone-900 hover:text-[#a16207] transition-colors"
+                className="group relative overflow-hidden inline-block p-2"
+                style={{ transitionDelay: `${idx * 50}ms` }} 
               >
-                {item.label}
+                <span className={`
+                  block font-serif text-4xl md:text-5xl transition-colors duration-300
+                  ${location.pathname === item.path ? "text-[#a16207]" : "text-[#1c1917] group-hover:text-[#a16207]"}
+                `}>
+                  {item.label}
+                </span>
               </Link>
             ))}
+            
+            <div className="pt-8 flex flex-col items-center space-y-4">
+               <div className="w-12 h-px bg-[#a16207]/30"></div>
+               <Link 
+                 to="/inquire" 
+                 onClick={() => setIsMobileMenuOpen(false)}
+                 className="text-xs font-bold tracking-[0.2em] uppercase text-[#a16207] hover:text-[#1c1917] transition-colors"
+               >
+                 Inquire Now
+               </Link>
+            </div>
           </nav>
         </div>
       </header>
@@ -120,9 +181,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 Bridging California Design with Precision Manufacturing. We create high-end solid wood furniture for global brands, designers, and commercial projects.
               </p>
               <div className="flex space-x-4 text-[#8D6E63] text-sm">
-                 <span>Zhaoqing, China</span>
+                 <span>China</span>
                  <span>|</span>
-                 <span>Kandal, Cambodia</span>
+                 <span>Cambodia</span>
                  <span>|</span>
                  <span>Est. 2014</span>
               </div>

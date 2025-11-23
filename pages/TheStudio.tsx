@@ -15,7 +15,7 @@ const TheStudio: React.FC = () => {
        <div className="grid grid-cols-1 lg:grid-cols-2">
          <div className="h-[500px] lg:h-[700px]">
             <img 
-              src="https://images.unsplash.com/photo-1581092921461-eab62e97a782?q=80&w=1000&auto=format&fit=crop" 
+              src="https://github.com/mingzuoxiao-netizen/pz-picture/blob/main/design.jpg?raw=true" 
               alt="Workshop Design" 
               className="w-full h-full object-cover"
             />
