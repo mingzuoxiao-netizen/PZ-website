@@ -1,13 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send, CheckCircle, AlertCircle, Loader2, BookOpen } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const INQUIRY_API = 'https://pz-inquiry-api.mingzuoxiao29.workers.dev';
 
+// 🔴 IMPORTANT: Replace with your actual Cloudflare Turnstile Site Key
+const TURNSTILE_SITE_KEY = '0x4AAAAAACCcwDofTxqfYxSe'; 
+
+// TypeScript definition for window.turnstile
+declare global {
+  interface Window {
+    turnstile: any;
+  }
+}
+
 const Inquire: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { t, language } = useLanguage();
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -15,14 +26,15 @@ const Inquire: React.FC = () => {
     email: '',
     type: 'General',
     message: '',
-    website: typeof window !== 'undefined' ? window.location.href : '', // ✅ 更稳
+    website: typeof window !== 'undefined' ? window.location.href : '',
   });
 
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // URL ?subject=Catalog 自动填充
+  // Auto-fill subject from URL
   useEffect(() => {
     const subject = searchParams.get('subject');
     if (subject === 'Catalog') {
@@ -34,25 +46,64 @@ const Inquire: React.FC = () => {
     }
   }, [searchParams]);
 
-  // ======================================
-  //  改动 1：handleChange 使用函数式更新 
-  // ======================================
+  // Render Turnstile Widget
+  useEffect(() => {
+    // Function to render the widget
+    const renderTurnstile = () => {
+      if (window.turnstile && turnstileContainerRef.current) {
+        // Clear previous instance if any (though usually handled by react unmount)
+        turnstileContainerRef.current.innerHTML = '';
+        
+        window.turnstile.render(turnstileContainerRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          theme: 'light',
+          callback: (token: string) => {
+            setTurnstileToken(token);
+            setError(''); // Clear error if they fix the captcha
+          },
+          'expired-callback': () => {
+            setTurnstileToken('');
+            setError('Security check expired. Please verify again.');
+          },
+        });
+      }
+    };
+
+    // If script is already loaded
+    if (window.turnstile) {
+      renderTurnstile();
+    } else {
+      // If script loads later (though index.html loads it, this is a safety check)
+      const interval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(interval);
+          renderTurnstile();
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, []);
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value })); // ✅ 更安全
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ==================================================================
-  //                            提交
-  // ==================================================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // 1. Verify Turnstile Token exists on client side
+    if (!turnstileToken) {
+        setError(language === 'zh' ? '请完成安全验证' : 'Please complete the security check.');
+        setLoading(false);
+        return;
+    }
 
     try {
       const response = await fetch(INQUIRY_API, {
@@ -66,8 +117,9 @@ const Inquire: React.FC = () => {
           company: formData.company,
           product_type: formData.type,
           message: formData.message,
-          website: formData.website, // 🚀 已添加
+          website: formData.website,
           source: 'website',
+          'cf-turnstile-response': turnstileToken, // Send token to backend
         }),
       });
 
@@ -75,7 +127,7 @@ const Inquire: React.FC = () => {
         throw new Error('Network response was not ok');
       }
 
-      // 本地 Admin demo 同步
+      // Local storage backup for Admin Dashboard demo
       const newInquiry = {
         id: Math.random().toString(36).substring(2, 9),
         ...formData,
@@ -99,14 +151,18 @@ const Inquire: React.FC = () => {
     } catch (err) {
       console.error('Error submitting inquiry:', err);
       setError(
-        'There was a problem sending your inquiry. Please try again or contact us directly.'
+        language === 'zh' 
+          ? '发送失败，请稍后重试或直接联系我们。' 
+          : 'There was a problem sending your inquiry. Please try again or contact us directly.'
       );
+      // Reset Turnstile on error so user can try again
+      if (window.turnstile) window.turnstile.reset();
+      setTurnstileToken('');
     } finally {
       setLoading(false);
     }
   };
 
-  // 成功页面
   if (submitted) {
     return (
       <div className="bg-stone-50 min-h-screen pt-32 flex items-center justify-center">
@@ -126,8 +182,9 @@ const Inquire: React.FC = () => {
                 email: '',
                 type: 'General',
                 message: '',
-                website: typeof window !== 'undefined' ? window.location.href : '', // ❗ 保持一致
+                website: typeof window !== 'undefined' ? window.location.href : '',
               });
+              setTurnstileToken('');
             }}
             className="text-stone-500 underline hover:text-stone-900"
           >
@@ -138,12 +195,11 @@ const Inquire: React.FC = () => {
     );
   }
 
-  // 表单页面
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       <div className="container mx-auto px-6 md:px-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          {/* 左侧介绍部分 */}
+          {/* Left Side Content */}
           <div>
             <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-8">
               {t.inquire.title}
@@ -188,13 +244,12 @@ const Inquire: React.FC = () => {
             </div>
           </div>
 
-          {/* 右侧表单 */}
+          {/* Right Side Form */}
           <div
             className="bg-white p-8 md:p-12 border border-stone-200 shadow-xl"
             id="inquiry-form"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 隐藏输入：website */}
               <input type="hidden" name="website" value={formData.website} />
 
               {error && (
@@ -204,7 +259,7 @@ const Inquire: React.FC = () => {
                 </div>
               )}
 
-              {/* 姓名 + 公司 */}
+              {/* Name & Company */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">
@@ -234,7 +289,7 @@ const Inquire: React.FC = () => {
                 </div>
               </div>
 
-              {/* 邮箱 */}
+              {/* Email */}
               <div>
                 <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">
                   {t.inquire.form.email}
@@ -249,7 +304,7 @@ const Inquire: React.FC = () => {
                 />
               </div>
 
-              {/* 类型 */}
+              {/* Type */}
               <div>
                 <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">
                   {t.inquire.form.type}
@@ -267,7 +322,7 @@ const Inquire: React.FC = () => {
                 </select>
               </div>
 
-              {/* 内容 */}
+              {/* Message */}
               <div>
                 <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">
                   {t.inquire.form.message}
@@ -282,7 +337,12 @@ const Inquire: React.FC = () => {
                 ></textarea>
               </div>
 
-              {/* 提交按钮 */}
+              {/* Turnstile Security Check */}
+              <div className="pt-2">
+                 <div ref={turnstileContainerRef} className="min-h-[65px]"></div>
+              </div>
+
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
