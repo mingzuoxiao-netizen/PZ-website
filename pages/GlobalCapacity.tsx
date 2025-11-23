@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, Truck, MapPin, Factory, X, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // 1. Data Structure for Map Pins
 interface MapLocationDetails {
@@ -173,6 +174,7 @@ const LocationMarker: React.FC<{ location: MapLocation; onClick: (loc: MapLocati
 
 const GlobalCapacity: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+  const { t } = useLanguage();
 
   return (
     <div className="bg-stone-50 pt-32 pb-20">
@@ -226,10 +228,10 @@ const GlobalCapacity: React.FC = () => {
 
        <div className="container mx-auto px-6 md:px-12">
          <div className="max-w-3xl mb-20">
-           <h3 className="text-[#a16207] font-bold tracking-widest uppercase text-xs mb-4">Manufacturing Footprint</h3>
-           <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-8">Global Scale, <br/>Local Precision</h1>
+           <h3 className="text-[#a16207] font-bold tracking-widest uppercase text-xs mb-4">{t.capacity.footprint}</h3>
+           <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-8">{t.capacity.title}</h1>
            <p className="text-stone-600 text-lg leading-relaxed">
-             Peng Zhan operates a strategic dual-shore manufacturing network. With massive facilities in both China and Cambodia, plus a domestic warehouse in Los Angeles, we offer a resilient supply chain immune to single-point failures.
+             {t.capacity.desc}
            </p>
          </div>
 
@@ -239,7 +241,7 @@ const GlobalCapacity: React.FC = () => {
             <div className="bg-white p-10 border border-stone-200 shadow-lg hover:border-[#a16207]/30 transition-all group">
               <div className="flex items-start justify-between mb-8">
                 <Factory className="text-[#a16207]" size={32} />
-                <span className="text-stone-400 text-xs uppercase tracking-widest">HQ & Main Factory</span>
+                <span className="text-stone-400 text-xs uppercase tracking-widest">{t.home.chinaLoc}</span>
               </div>
               <h2 className="font-serif text-3xl text-stone-900 mb-2">Zhaoqing, China</h2>
               <p className="text-xs text-stone-500 mb-4 uppercase tracking-wide leading-relaxed font-bold">
@@ -262,7 +264,7 @@ const GlobalCapacity: React.FC = () => {
             <div className="bg-white p-10 border border-stone-200 shadow-lg hover:border-[#a16207]/30 transition-all group">
               <div className="flex items-start justify-between mb-8">
                 <Factory className="text-[#a16207]" size={32} />
-                <span className="text-stone-400 text-xs uppercase tracking-widest">Tariff-Free Expansion</span>
+                <span className="text-stone-400 text-xs uppercase tracking-widest">{t.home.cambodiaLoc}</span>
               </div>
               <h2 className="font-serif text-3xl text-stone-900 mb-2">Kandal Province, Cambodia</h2>
               <p className="text-xs text-stone-500 mb-4 uppercase tracking-wide leading-relaxed font-bold">
@@ -285,9 +287,9 @@ const GlobalCapacity: React.FC = () => {
          {/* Client Distribution Section */}
          
          <div className="mb-24">
-            <h2 className="font-serif text-3xl text-stone-900 mb-8 text-center">Global Client Distribution</h2>
+            <h2 className="font-serif text-3xl text-stone-900 mb-8 text-center">{t.capacity.clientDist}</h2>
             <p className="text-stone-600 text-center max-w-2xl mx-auto mb-12">
-               We serve clients across North America, Europe, and the Middle East, with a strong concentration in the USA and Canada. Click on the map markers for details.
+               {t.capacity.clientDesc}
             </p>
             
             {/* 1. Stable Map Container using aspect-ratio */}
@@ -310,19 +312,19 @@ const GlobalCapacity: React.FC = () => {
          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-24 border-y border-stone-200 py-12 bg-white">
             <div className="text-center md:text-left px-6">
               <span className="block text-5xl font-serif text-stone-900 mb-2">1M+</span>
-              <span className="text-xs uppercase tracking-widest text-stone-500">Total Sq.Ft Capacity</span>
+              <span className="text-xs uppercase tracking-widest text-stone-500">{t.capacity.stats.sqft}</span>
             </div>
             <div className="text-center md:text-left px-6">
               <span className="block text-5xl font-serif text-stone-900 mb-2">30+</span>
-              <span className="text-xs uppercase tracking-widest text-stone-500">Major US Brands</span>
+              <span className="text-xs uppercase tracking-widest text-stone-500">{t.capacity.stats.brands}</span>
             </div>
             <div className="text-center md:text-left px-6">
               <span className="block text-5xl font-serif text-stone-900 mb-2">50k</span>
-              <span className="text-xs uppercase tracking-widest text-stone-500">Monthly Unit Capacity</span>
+              <span className="text-xs uppercase tracking-widest text-stone-500">{t.capacity.stats.units}</span>
             </div>
             <div className="text-center md:text-left px-6">
               <span className="block text-5xl font-serif text-stone-900 mb-2">LA</span>
-              <span className="text-xs uppercase tracking-widest text-stone-500">US Logistics Hub</span>
+              <span className="text-xs uppercase tracking-widest text-stone-500">{t.capacity.stats.logistics}</span>
             </div>
          </div>
 
@@ -330,24 +332,24 @@ const GlobalCapacity: React.FC = () => {
          <div className="relative overflow-hidden bg-stone-900 text-white rounded-xl p-12 md:p-20">
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                <div>
-                 <h2 className="font-serif text-3xl text-white mb-8">Supply Chain Solutions</h2>
+                 <h2 className="font-serif text-3xl text-white mb-8">{t.capacity.supplyChain}</h2>
                  <p className="text-stone-400 mb-8 leading-relaxed">
-                   We don't just make furniture; we deliver it. From FOB manufacturing in Southeast Asia to Last-Mile capability in the United States.
+                   {t.capacity.supplyChainDesc}
                  </p>
                  
                  <div className="space-y-8">
                     <div className="flex items-start">
                        <Globe className="text-[#a16207] mt-1 mr-4" size={24} />
                        <div>
-                         <h4 className="text-white font-bold text-sm uppercase tracking-wide mb-2">Flexible Export</h4>
-                         <p className="text-stone-500 text-sm">Choose between China or Cambodia origin based on your tariff strategy and lead time requirements.</p>
+                         <h4 className="text-white font-bold text-sm uppercase tracking-wide mb-2">{t.capacity.flexible}</h4>
+                         <p className="text-stone-500 text-sm">{t.capacity.flexibleDesc}</p>
                        </div>
                     </div>
                     <div className="flex items-start">
                        <Truck className="text-[#a16207] mt-1 mr-4" size={24} />
                        <div>
-                         <h4 className="text-white font-bold text-sm uppercase tracking-wide mb-2">US Warehouse (Los Angeles)</h4>
-                         <p className="text-stone-500 text-sm">129,000 sq.ft warehouse in California allowing for domestic replenishment and drop-ship programs.</p>
+                         <h4 className="text-white font-bold text-sm uppercase tracking-wide mb-2">{t.capacity.warehouse}</h4>
+                         <p className="text-stone-500 text-sm">{t.capacity.warehouseDesc}</p>
                        </div>
                     </div>
                  </div>

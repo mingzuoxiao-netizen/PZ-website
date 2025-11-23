@@ -1,8 +1,11 @@
 import React from 'react';
 import { ArrowRight, Layers, Globe, Hammer, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Home: React.FC = () => {
+  const { t, language } = useLanguage();
+
   return (
     <>
       {/* Hero Section */}
@@ -23,19 +26,19 @@ const Home: React.FC = () => {
           {/* Brand Name Centered */}
           <div className="relative mb-8 animate-fade-in-up">
              <h1 className="font-serif text-6xl md:text-8xl lg:text-9xl text-white font-bold tracking-tight leading-none drop-shadow-lg flex items-baseline justify-center">
-               PENG ZHAN
+               {language === 'zh' ? '鹏 展' : 'PENG ZHAN'}
                {/* Champagne Gold Accent */}
                <span className="text-[#d4b996] text-6xl md:text-8xl lg:text-9xl leading-none ml-2">.</span>
              </h1>
              <p className="text-[#d4b996] uppercase tracking-[0.5em] text-xs md:text-sm font-bold mt-4 md:mt-6 text-center shadow-sm">
-               Furniture Manufacturing
+               {t.home.subtitle}
              </p>
           </div>
           
           <div className="h-px w-24 bg-[#d4b996]/60 my-8 animate-fade-in-up delay-100"></div>
 
           <h2 className="text-[#E6DDD5] text-lg md:text-2xl font-serif italic max-w-3xl mb-12 font-light animate-fade-in-up delay-200 drop-shadow-md">
-            "Bridging California Design with Precision Manufacturing."
+            {t.home.heroQuote}
           </h2>
 
           <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 animate-fade-in-up delay-300">
@@ -43,13 +46,13 @@ const Home: React.FC = () => {
               to="/collections" 
               className="group bg-[#F5F0EB] text-stone-900 px-10 py-4 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-white transition-colors shadow-lg"
             >
-              View Wood Library <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
+              {t.home.viewLibrary} <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link 
               to="/capacity" 
               className="group border border-[#F5F0EB] text-[#F5F0EB] px-10 py-4 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-[#F5F0EB] hover:text-stone-900 transition-colors shadow-lg"
             >
-              Factory Profile
+              {t.home.factoryProfile}
             </Link>
           </div>
         </div>
@@ -60,31 +63,31 @@ const Home: React.FC = () => {
         <div className="container mx-auto px-6 md:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
             <div>
-              <h3 className="text-[#a16207] font-bold tracking-[0.2em] uppercase text-xs mb-6">Factory Strength</h3>
+              <h3 className="text-[#a16207] font-bold tracking-[0.2em] uppercase text-xs mb-6">{t.home.factoryStrength}</h3>
               <h2 className="font-serif text-4xl md:text-5xl text-stone-900 mb-10 leading-tight">
-                Engineered for <br/>High-End Retail.
+                {t.home.strengthTitle}
               </h2>
               <p className="text-stone-700 mb-6 leading-relaxed text-lg font-light">
-                Peng Zhan is not just a factory; we are a specialized solid wood studio operating at an industrial scale. We bridge the gap between the boutique quality required by leading US brands and the volume capabilities of Asian manufacturing.
+                {t.home.strengthDesc1}
               </p>
               <p className="text-stone-700 mb-12 leading-relaxed text-lg font-light">
-                From our signature Butcher Block surfaces to intricate mortise-and-tenon joinery, our output is defined by warmth, depth, and precision.
+                {t.home.strengthDesc2}
               </p>
               
               <div className="flex items-center space-x-8 mb-8">
                  <div className="text-center">
                     <span className="block text-3xl font-serif text-stone-900">2</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">Factories (CN + KH)</span>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.factories}</span>
                  </div>
                  <div className="w-px h-12 bg-stone-300"></div>
                  <div className="text-center">
                     <span className="block text-3xl font-serif text-stone-900">10+</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">Years Exp.</span>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.exp}</span>
                  </div>
                  <div className="w-px h-12 bg-stone-300"></div>
                  <div className="text-center">
                     <span className="block text-3xl font-serif text-stone-900">30+</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">US Partners</span>
+                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.partners}</span>
                  </div>
               </div>
             </div>
@@ -104,7 +107,7 @@ const Home: React.FC = () => {
       <section className="py-32 bg-white">
         <div className="container mx-auto px-6 md:px-12">
           <div className="text-center mb-20">
-            <h2 className="font-serif text-4xl text-stone-900 mb-4">Core Competencies</h2>
+            <h2 className="font-serif text-4xl text-stone-900 mb-4">{t.home.competencies}</h2>
             <div className="w-16 h-1 bg-[#a16207] mx-auto"></div>
           </div>
 
@@ -113,9 +116,9 @@ const Home: React.FC = () => {
                 <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
                   <Layers size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">Material Mastery</h3>
+                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp1Title}</h3>
                 <p className="text-stone-600 font-light leading-relaxed">
-                  Specializing in North American hardwoods (Walnut, White Oak, Maple) with full chain-of-custody and moisture control.
+                  {t.home.comp1Desc}
                 </p>
              </div>
 
@@ -123,9 +126,9 @@ const Home: React.FC = () => {
                 <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
                   <Globe size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">Dual-Shore Supply</h3>
+                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp2Title}</h3>
                 <p className="text-stone-600 font-light leading-relaxed">
-                  Seamlessly switching production between China and Cambodia to optimize for tariffs, lead times, and capacity.
+                  {t.home.comp2Desc}
                 </p>
              </div>
 
@@ -133,9 +136,9 @@ const Home: React.FC = () => {
                 <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
                   <Hammer size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">Advanced Joinery</h3>
+                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp3Title}</h3>
                 <p className="text-stone-600 font-light leading-relaxed">
-                  Combining 5-axis CNC precision with traditional joinery techniques to create furniture that is both structurally sound and beautiful.
+                  {t.home.comp3Desc}
                 </p>
              </div>
           </div>
@@ -147,13 +150,13 @@ const Home: React.FC = () => {
         <div className="container mx-auto px-6 md:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
              <div>
-                <h3 className="text-[#d4b996] font-bold tracking-widest uppercase text-xs mb-6">Visit Us</h3>
-                <h2 className="font-serif text-3xl text-white mb-8">Global Manufacturing Hubs</h2>
+                <h3 className="text-[#d4b996] font-bold tracking-widest uppercase text-xs mb-6">{t.home.visitUs}</h3>
+                <h2 className="font-serif text-3xl text-white mb-8">{t.home.globalHubs}</h2>
                 <p className="text-stone-400 leading-relaxed mb-8">
-                  Our dual-shore strategy ensures we can meet any volume or tariff requirement. Contact us to schedule a factory tour or audit.
+                  {t.home.globalDesc}
                 </p>
                 <Link to="/inquire" className="text-[#d4b996] hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center">
-                   Start a Project <ArrowRight size={16} className="ml-2" />
+                   {t.common.startProject} <ArrowRight size={16} className="ml-2" />
                 </Link>
              </div>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
@@ -162,7 +165,7 @@ const Home: React.FC = () => {
                       <MapPin className="text-[#d4b996] mr-2" size={18} />
                       <h4 className="font-serif text-xl">Zhaoqing, China</h4>
                    </div>
-                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">HQ & Main Facility</p>
+                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">{t.home.chinaLoc}</p>
                    <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
                       Deqing Industrial Zone,<br/>
                       Zhaoqing City,<br/>
@@ -174,7 +177,7 @@ const Home: React.FC = () => {
                       <MapPin className="text-[#d4b996] mr-2" size={18} />
                       <h4 className="font-serif text-xl">Kandal, Cambodia</h4>
                    </div>
-                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">Tariff-Free Factory</p>
+                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">{t.home.cambodiaLoc}</p>
                    <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
                       Svay Chhrum Village,<br/>
                       Baek Chan Commune,<br/>

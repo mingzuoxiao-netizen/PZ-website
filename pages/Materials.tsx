@@ -1,6 +1,9 @@
 import React from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Materials: React.FC = () => {
+  const { t } = useLanguage();
+
   const woods = [
     { name: "White Oak", desc: "Durable hardwood with distinct grain patterns and excellent stability.", color: "#C2B280" },
     { name: "Walnut", desc: "Rich dark tones with a naturally luxurious finish.", color: "#5D4037" },
@@ -15,7 +18,7 @@ const Materials: React.FC = () => {
   return (
     <div className="bg-stone-50 pt-32 pb-20 min-h-screen">
       <div className="container mx-auto px-6 md:px-12">
-        <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-12">Materials & Craft</h1>
+        <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-12">{t.materials.title}</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
            <img 
@@ -24,17 +27,17 @@ const Materials: React.FC = () => {
              className="w-full h-[400px] object-cover shadow-xl rounded-sm"
            />
            <div className="flex flex-col justify-center">
-             <h2 className="text-2xl text-stone-900 font-serif mb-6">Precision meets Handcraft</h2>
+             <h2 className="text-2xl text-stone-900 font-serif mb-6">{t.materials.precision}</h2>
              <p className="text-stone-600 mb-6 leading-relaxed">
-               We believe that the soul of furniture lies in the material. Our sourcing process is rigorous, ensuring that every board of lumber meets our standards for sustainability and durability.
+               {t.materials.precisionDesc1}
              </p>
              <p className="text-stone-600 leading-relaxed">
-               Our "Surface Program" (kitchen islands, cutting boards) utilizes food-safe finishes and robust construction methods designed to last generations.
+               {t.materials.precisionDesc2}
              </p>
            </div>
         </div>
 
-        <h3 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-8">Wood Library</h3>
+        <h3 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-8">{t.materials.library}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {woods.map((wood) => (
             <div key={wood.name} className="group bg-white p-4 shadow-sm hover:shadow-lg transition-shadow">

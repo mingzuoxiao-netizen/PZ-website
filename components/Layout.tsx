@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Globe } from 'lucide-react';
 import { NAV_ITEMS } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { language, setLanguage, t } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,6 +53,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         setIsSearchOpen(false);
         setSearchQuery('');
     }
+  };
+  
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
   };
 
   const isHome = location.pathname === '/';
@@ -111,7 +116,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link to="/" className="group" onClick={() => { setIsMobileMenuOpen(false); setIsSearchOpen(false); }}>
             <div className="flex flex-col">
               <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline transition-colors duration-500 ${getLogoColor()}`}>
-                PENG ZHAN
+                {language === 'zh' ? '鹏 展' : 'PENG ZHAN'}
                 <span className={`text-4xl leading-none ml-0.5 transition-colors duration-500 ${getAccentColor()}`}>
                   .
                 </span>
@@ -133,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     : navTextColor
                 }`}
               >
-                {item.label}
+                {language === 'zh' ? item.label_zh : item.label}
                 <span
                   className={`absolute -bottom-2 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${navHoverColor} ${
                     location.pathname === item.path ? "w-full" : ""
@@ -143,8 +148,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             ))}
           </nav>
 
-          {/* Actions: Search & Mobile Toggle */}
+          {/* Actions: Language, Search & Mobile Toggle */}
           <div className="flex items-center space-x-6">
+            
+            {/* Language Switcher */}
+            <button
+                onClick={toggleLanguage}
+                className={`text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors duration-300 ${getMenuButtonColor()} hover:text-[#a16207]`}
+            >
+                {language === 'en' ? '中' : 'EN'}
+            </button>
+
             {/* Search Toggle */}
             <button 
                 onClick={() => {
@@ -196,7 +210,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   block font-serif text-4xl md:text-5xl transition-colors duration-300
                   ${location.pathname === item.path ? "text-[#a16207]" : "text-[#1c1917] group-hover:text-[#a16207]"}
                 `}>
-                  {item.label}
+                  {language === 'zh' ? item.label_zh : item.label}
                 </span>
               </Link>
             ))}
@@ -208,7 +222,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                  onClick={() => setIsMobileMenuOpen(false)}
                  className="text-xs font-bold tracking-[0.2em] uppercase text-[#a16207] hover:text-[#1c1917] transition-colors"
                >
-                 Inquire Now
+                 {language === 'zh' ? '立即咨询' : 'Inquire Now'}
                </Link>
             </div>
           </nav>
@@ -233,14 +247,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="container mx-auto px-6 md:px-12 py-10 md:py-14">
                 <form onSubmit={handleSearchSubmit} className="relative max-w-4xl mx-auto">
                     <label htmlFor="search-input" className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-500 mb-4 ml-1">
-                        Search Catalog
+                        {t.common.search}
                     </label>
                     <div className="relative group">
                         <input 
                             id="search-input"
                             ref={searchInputRef}
                             type="text" 
-                            placeholder="Type to search products..."
+                            placeholder={t.common.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-transparent text-2xl md:text-4xl font-serif text-[#281815] placeholder-stone-400/60 placeholder:italic border-b-[2px] border-stone-300 pb-3 focus:border-[#a16207] focus:outline-none transition-all"
@@ -252,12 +266,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         >
                             <ArrowRight size={32} />
                         </button>
-                    </div>
-                    <div className="mt-4 flex space-x-6 text-[10px] font-bold uppercase tracking-widest text-stone-400">
-                        <span>Popular:</span>
-                        <button type="button" onClick={() => setSearchQuery('Walnut')} className="hover:text-[#a16207] transition-colors">Walnut</button>
-                        <button type="button" onClick={() => setSearchQuery('Dining')} className="hover:text-[#a16207] transition-colors">Dining</button>
-                        <button type="button" onClick={() => setSearchQuery('Table')} className="hover:text-[#a16207] transition-colors">Table</button>
                     </div>
                 </form>
             </div>
@@ -275,11 +283,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div className="col-span-1 md:col-span-2">
               <h2 className="font-serif text-2xl text-[#E6DDD5] mb-6 tracking-tight flex items-baseline">
-                PENG ZHAN
+                {language === 'zh' ? '鹏 展' : 'PENG ZHAN'}
                 <span className="text-[#a16207] text-3xl leading-none ml-0.5">.</span>
               </h2>
               <p className="text-[#BCAAA4] max-w-md mb-6 leading-relaxed font-light">
-                Bridging California Design with Precision Manufacturing. We create high-end solid wood furniture for global brands, designers, and commercial projects.
+                {t.home.heroQuote} {t.home.strengthDesc1}
               </p>
               <div className="flex space-x-4 text-[#8D6E63] text-sm">
                  <span>China</span>
@@ -291,12 +299,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">Explore</h3>
+              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">{t.common.explore}</h3>
               <ul className="space-y-4">
                 {NAV_ITEMS.slice(0, 4).map(item => (
                   <li key={item.path}>
                     <Link to={item.path} className="text-[#BCAAA4] hover:text-white transition-colors text-sm">
-                      {item.label}
+                      {language === 'zh' ? item.label_zh : item.label}
                     </Link>
                   </li>
                 ))}
@@ -304,19 +312,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">Connect</h3>
+              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">{t.common.connect}</h3>
               <ul className="space-y-4">
                 <li>
                   <Link to="/inquire" className="text-[#BCAAA4] hover:text-white transition-colors flex items-center group text-sm">
-                    Start a Project <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    {t.common.startProject} <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </li>
                 <li>
-                  <a href="#" className="text-[#BCAAA4] hover:text-white transition-colors text-sm">Trade Program</a>
+                  <a href="#" className="text-[#BCAAA4] hover:text-white transition-colors text-sm">{t.common.tradeProgram}</a>
                 </li>
                 <li>
                   <Link to="/admin" className="text-[#8D6E63] hover:text-[#BCAAA4] transition-colors text-xs">
-                    Admin Access
+                    {t.common.adminAccess}
                   </Link>
                 </li>
               </ul>
@@ -324,10 +332,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <div className="border-t border-stone-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-[#8D6E63] tracking-wider">
-            <p>&copy; {new Date().getFullYear()} Peng Zhan Furniture Studio. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Peng Zhan Furniture Studio. {t.common.rights}</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <span>Privacy Policy</span>
-              <span>Terms of Service</span>
+              <span>{t.common.privacy}</span>
+              <span>{t.common.terms}</span>
             </div>
           </div>
         </div>

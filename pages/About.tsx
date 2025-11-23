@@ -1,32 +1,34 @@
 import React, { useState } from 'react';
 import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X } from 'lucide-react';
-
-const galleryImages = [
-  {
-    url: "https://github.com/MingzuoXiao/PZ-website/blob/main/lumber.png?raw=true",
-    title: "Raw Lumber Selection",
-    desc: "We source only FAS grade lumber, ensuring minimal knots and consistent grain patterns for high-end furniture."
-  },
-  {
-    url: "https://github.com/MingzuoXiao/PZ-website/blob/main/cnc.png?raw=true",
-    title: "Precision Milling",
-    desc: "Advanced CNC machinery ensures every joint and curve meets precise tolerances before hand assembly."
-  },
-  {
-    url: "https://github.com/MingzuoXiao/PZ-website/blob/main/human.jpg?raw=true",
-    title: "Hand Finishing",
-    desc: "Despite our automation, the final touch is always human. Our artisans sand and finish every piece to perfection."
-  },
-  {
-    url: "https://images.unsplash.com/photo-1581092921461-eab62e97a782?q=80&w=2500&auto=format&fit=crop",
-    title: "Quality Control",
-    desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
-  }
-];
+import { useLanguage } from '../contexts/LanguageContext';
 
 const About: React.FC = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { t } = useLanguage();
+
+  const galleryImages = [
+    {
+      url: "https://github.com/MingzuoXiao/PZ-website/blob/main/lumber.png?raw=true",
+      title: "Raw Lumber Selection",
+      desc: "We source only FAS grade lumber, ensuring minimal knots and consistent grain patterns for high-end furniture."
+    },
+    {
+      url: "https://github.com/MingzuoXiao/PZ-website/blob/main/cnc.png?raw=true",
+      title: "Precision Milling",
+      desc: "Advanced CNC machinery ensures every joint and curve meets precise tolerances before hand assembly."
+    },
+    {
+      url: "https://github.com/MingzuoXiao/PZ-website/blob/main/human.jpg?raw=true",
+      title: "Hand Finishing",
+      desc: "Despite our automation, the final touch is always human. Our artisans sand and finish every piece to perfection."
+    },
+    {
+      url: "https://images.unsplash.com/photo-1581092921461-eab62e97a782?q=80&w=2500&auto=format&fit=crop",
+      title: "Quality Control",
+      desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
+    }
+  ];
 
   const nextImage = () => setActiveImage((prev) => (prev + 1) % galleryImages.length);
   const prevImage = () => setActiveImage((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
@@ -85,13 +87,12 @@ const About: React.FC = () => {
 
       {/* Header */}
       <div className="container mx-auto px-6 md:px-12 mb-20 text-center">
-        <h3 className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-6">Since 2014</h3>
+        <h3 className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-6">{t.about.since}</h3>
         <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-8 leading-tight">
-          The Invisible Force Behind <br />
-          <span className="italic text-stone-500">Global Design Brands</span>
+          {t.about.title}
         </h1>
         <p className="text-stone-600 max-w-3xl mx-auto text-lg leading-relaxed font-light">
-          Peng Zhan Furniture Studio is a design-led manufacturing partner serving the top 30 US furniture brands. From our origins in Southern China to our expansion into Cambodia, we bridge the gap between California design aesthetics and industrial-grade precision.
+          {t.about.intro}
         </p>
       </div>
 
@@ -106,7 +107,7 @@ const About: React.FC = () => {
         />
         <div className="absolute bottom-12 left-6 md:left-12 z-20">
            <div className="bg-white/90 backdrop-blur-sm p-6 shadow-lg">
-             <p className="text-stone-900 font-serif text-2xl italic">"Craftsmanship at Scale."</p>
+             <p className="text-stone-900 font-serif text-2xl italic">{t.about.bannerText}</p>
            </div>
         </div>
       </div>
@@ -116,23 +117,23 @@ const About: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           <div className="border-l-2 border-amber-700/30 pl-8">
              <Award className="text-amber-700 mb-6" size={32} />
-             <h3 className="text-xl font-serif text-stone-900 mb-4">Elite Partnerships</h3>
+             <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.elite}</h3>
              <p className="text-stone-600 text-sm leading-relaxed">
-               We have established long-term OEM/ODM relationships with the most prestigious names in American furniture retail. Our understanding of "High Street" quality standards is unmatched in the region.
+               {t.about.pillars.eliteDesc}
              </p>
           </div>
           <div className="border-l-2 border-amber-700/30 pl-8">
              <Globe className="text-amber-700 mb-6" size={32} />
-             <h3 className="text-xl font-serif text-stone-900 mb-4">China + Cambodia</h3>
+             <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.dual}</h3>
              <p className="text-stone-600 text-sm leading-relaxed">
-               With fully owned facilities in both China (Zhaoqing) and Cambodia (Kandal), we offer our partners strategic flexibility against tariffs. A resilient "Dual-Shore" strategy.
+               {t.about.pillars.dualDesc}
              </p>
           </div>
           <div className="border-l-2 border-amber-700/30 pl-8">
              <Warehouse className="text-amber-700 mb-6" size={32} />
-             <h3 className="text-xl font-serif text-stone-900 mb-4">US Logistics</h3>
+             <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.logistics}</h3>
              <p className="text-stone-600 text-sm leading-relaxed">
-               Our 129,167 sq.ft Los Angeles warehouse enables American Domestic Fulfillment and drop-ship programs, ensuring your products are always within reach of the customer.
+               {t.about.pillars.logisticsDesc}
              </p>
           </div>
         </div>
@@ -143,9 +144,9 @@ const About: React.FC = () => {
         <div className="container mx-auto px-6 md:px-12">
           <div className="flex flex-wrap justify-between items-end mb-12 gap-4">
             <div>
-               <h3 className="text-amber-700 font-bold tracking-widest uppercase text-xs mb-4">The Process</h3>
-               <h2 className="font-serif text-3xl md:text-4xl text-stone-900">Inside the Factory</h2>
-               <p className="text-stone-500 mt-2 text-sm italic">Click images to expand</p>
+               <h3 className="text-amber-700 font-bold tracking-widest uppercase text-xs mb-4">{t.about.process.label}</h3>
+               <h2 className="font-serif text-3xl md:text-4xl text-stone-900">{t.about.process.title}</h2>
+               <p className="text-stone-500 mt-2 text-sm italic">{t.about.process.clickExpand}</p>
             </div>
             <div className="flex space-x-4">
                <button onClick={prevImage} className="p-3 rounded-full border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors">
@@ -195,7 +196,7 @@ const About: React.FC = () => {
       {/* Timeline / Milestones */}
       <div className="bg-stone-50 py-12">
         <div className="container mx-auto px-6 md:px-12">
-          <h2 className="font-serif text-3xl text-stone-900 mb-16 text-center">Our Journey</h2>
+          <h2 className="font-serif text-3xl text-stone-900 mb-16 text-center">{t.about.journey}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
              {/* Line */}
@@ -204,29 +205,29 @@ const About: React.FC = () => {
              <div className="relative pt-12 text-center md:text-left group">
                 <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-amber-700 rounded-full ring-4 ring-stone-50"></div>
                 <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2014</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">Foundation</h4>
-                <p className="text-stone-600 text-xs">Established in Zhaoqing, Guangdong with a focus on pure solid wood craftsmanship.</p>
+                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2014'].title}</h4>
+                <p className="text-stone-600 text-xs">{t.about.milestones['2014'].desc}</p>
              </div>
 
              <div className="relative pt-12 text-center md:text-left group">
                 <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
                 <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2018</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">US Expansion</h4>
-                <p className="text-stone-600 text-xs">Launched Los Angeles warehouse and fulfillment center.</p>
+                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2018'].title}</h4>
+                <p className="text-stone-600 text-xs">{t.about.milestones['2018'].desc}</p>
              </div>
 
              <div className="relative pt-12 text-center md:text-left group">
                 <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
                 <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2021</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">Cambodia Facility</h4>
-                <p className="text-stone-600 text-xs">Opened factory in Kandal Province to expand capacity and offer tariff-free solutions.</p>
+                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2021'].title}</h4>
+                <p className="text-stone-600 text-xs">{t.about.milestones['2021'].desc}</p>
              </div>
 
              <div className="relative pt-12 text-center md:text-left group">
                 <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
                 <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2024</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">Automation</h4>
-                <p className="text-stone-600 text-xs">Focusing on sustainable mixed-materials and advanced automated finishing lines.</p>
+                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2024'].title}</h4>
+                <p className="text-stone-600 text-xs">{t.about.milestones['2024'].desc}</p>
              </div>
           </div>
         </div>

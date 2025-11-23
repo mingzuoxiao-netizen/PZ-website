@@ -1,14 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const TheStudio: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="bg-stone-50 min-h-screen">
        {/* Header */}
        <div className="pt-40 pb-20 container mx-auto px-6 md:px-12 text-center">
-         <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6">The Studio</h1>
-         <p className="text-stone-500 text-xl font-light tracking-wide">Where Engineering Meets Artistry</p>
+         <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6">{t.studio.title}</h1>
+         <p className="text-stone-500 text-xl font-light tracking-wide">{t.studio.subtitle}</p>
        </div>
 
        {/* Section 1 */}
@@ -21,13 +24,13 @@ const TheStudio: React.FC = () => {
             />
          </div>
          <div className="flex flex-col justify-center p-12 lg:p-24 bg-white">
-            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">Design & R&D</h2>
-            <h3 className="font-serif text-3xl text-stone-900 mb-6">Original Design Capability</h3>
+            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.design}</h2>
+            <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.studio.designTitle}</h3>
             <p className="text-stone-600 leading-relaxed mb-6">
-              Peng Zhan is distinguished by a high degree of automation paired with a robust self-research and design capability. We maintain stable cooperation with American design teams, ensuring that every curve, joint, and finish meets the sophisticated demands of the western market.
+              {t.studio.designDesc1}
             </p>
             <p className="text-stone-600 leading-relaxed">
-              Our process bridges the gap between conceptual sketches and mass production, optimizing for cost without sacrificing the integrity of the design.
+              {t.studio.designDesc2}
             </p>
          </div>
        </div>
@@ -35,10 +38,10 @@ const TheStudio: React.FC = () => {
        {/* Section 2 */}
        <div className="grid grid-cols-1 lg:grid-cols-2">
          <div className="flex flex-col justify-center p-12 lg:p-24 bg-stone-100 order-2 lg:order-1">
-            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">Engineering</h2>
-            <h3 className="font-serif text-3xl text-stone-900 mb-6">Material Expertise</h3>
+            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.eng}</h2>
+            <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.studio.engTitle}</h3>
             <p className="text-stone-600 leading-relaxed mb-6">
-              We excel in complex material integration. From our signature Butcher Block solid wood surfaces to mixed-material pieces combining powder-coated metals and natural timber. 
+              {t.studio.engDesc}
             </p>
             <ul className="space-y-3 text-stone-600">
               <li className="flex items-center"><span className="w-2 h-2 bg-amber-700 rounded-full mr-3"></span>Pure Solid Wood Fabrication</li>
@@ -58,11 +61,10 @@ const TheStudio: React.FC = () => {
        {/* Section 3 - Material Focus */}
        <div className="py-24 bg-white">
          <div className="container mx-auto px-6 md:px-12 text-center">
-            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">Raw Materials</h2>
-            <h3 className="font-serif text-3xl md:text-4xl text-stone-900 mb-8">Sourcing the World's Best Timber</h3>
+            <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.raw}</h2>
+            <h3 className="font-serif text-3xl md:text-4xl text-stone-900 mb-8">{t.studio.rawTitle}</h3>
             <p className="text-stone-600 max-w-2xl mx-auto mb-16 leading-relaxed font-light">
-              Our studio works exclusively with premium hardwoods sourced from sustainable forests in North America and Europe. 
-              Understanding the distinct properties of each species—from the tannin content of White Oak to the density of Hard Maple—is crucial to our engineering process.
+              {t.studio.rawDesc}
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -87,7 +89,7 @@ const TheStudio: React.FC = () => {
               to="/materials" 
               className="inline-flex items-center border-b border-stone-900 pb-1 text-stone-900 uppercase tracking-widest text-xs font-bold hover:text-amber-700 hover:border-amber-700 transition-colors"
             >
-              Explore Material Library <ArrowRight size={14} className="ml-2" />
+              {t.studio.exploreMat} <ArrowRight size={14} className="ml-2" />
             </Link>
          </div>
        </div>
