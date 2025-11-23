@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, ArrowRight, Search } from 'lucide-react';
 import { NAV_ITEMS } from '../types';
 
 interface LayoutProps {
@@ -11,7 +11,12 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,10 +26,38 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Lock Body Scroll when Search or Menu is Open
+  useEffect(() => {
+    if (isSearchOpen || isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isSearchOpen, isMobileMenuOpen]);
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [isSearchOpen]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+        navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+        setIsSearchOpen(false);
+        setSearchQuery('');
+    }
+  };
+
   const isHome = location.pathname === '/';
 
   // High-End Color Logic
-  const useDarkNav = isScrolled || !isHome || isMobileMenuOpen;
+  const useDarkNav = isScrolled || !isHome || isMobileMenuOpen || isSearchOpen;
 
   const textColor = !useDarkNav ? 'text-white' : 'text-[#1c1917]';
   const accentColor = !useDarkNav ? 'text-[#d4b996]' : 'text-[#a16207]';
@@ -35,6 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getHeaderBackground = () => {
     // Immediate override when menu is open
     if (isMobileMenuOpen) return 'bg-[#F5F0EB] shadow-none border-transparent';
+    if (isSearchOpen) return 'bg-[#F5F0EB] shadow-none border-b border-stone-300'; // Match overlay BG
     
     // Scrolled or Inner Page state
     if (useDarkNav) return 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 shadow-sm';
@@ -45,22 +79,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Determine Logo Text Color specifically
   const getLogoColor = () => {
-    // If menu is open, always dark (to contrast with oatmeal bg)
-    if (isMobileMenuOpen) return 'text-[#1c1917]';
-    // If on home hero (unscrolled), white
+    if (isMobileMenuOpen || isSearchOpen) return 'text-[#1c1917]';
     if (isHome && !isScrolled) return 'text-white';
-    // Otherwise dark
     return 'text-[#1c1917]';
   };
   
   const getAccentColor = () => {
-    if (isMobileMenuOpen) return 'text-[#a16207]';
+    if (isMobileMenuOpen || isSearchOpen) return 'text-[#a16207]';
     if (isHome && !isScrolled) return 'text-[#d4b996]';
     return 'text-[#a16207]';
   };
 
   const getMenuButtonColor = () => {
-     if (isMobileMenuOpen) return 'text-[#1c1917]';
+     if (isMobileMenuOpen || isSearchOpen) return 'text-[#1c1917]';
      if (isHome && !isScrolled) return 'text-white';
      return 'text-[#1c1917]';
   };
@@ -70,14 +101,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Navigation - Expanding Header Concept */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 overflow-hidden
-          transition-[height,background-color] duration-[800ms] ease-[cubic-bezier(0.32,0.72,0,1)]
+          transition-[height,background-color] duration-[400ms] ease-out
           ${getHeaderBackground()}
           ${isMobileMenuOpen ? 'h-screen' : 'h-[80px]'}
         `}
       >
         <div className="container mx-auto px-6 md:px-12 h-[80px] flex justify-between items-center relative z-50">
           {/* Logo */}
-          <Link to="/" className="group" onClick={() => setIsMobileMenuOpen(false)}>
+          <Link to="/" className="group" onClick={() => { setIsMobileMenuOpen(false); setIsSearchOpen(false); }}>
             <div className="flex flex-col">
               <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline transition-colors duration-500 ${getLogoColor()}`}>
                 PENG ZHAN
@@ -89,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex space-x-8 xl:space-x-12">
+          <nav className={`hidden lg:flex items-center space-x-8 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300`}>
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.path}
@@ -112,18 +143,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             ))}
           </nav>
 
-          {/* Mobile Menu Toggle */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`lg:hidden focus:outline-none transition-colors duration-300 ${getMenuButtonColor()}`}
-            aria-label="Toggle navigation"
-          >
-            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-          </button>
+          {/* Actions: Search & Mobile Toggle */}
+          <div className="flex items-center space-x-6">
+            {/* Search Toggle */}
+            <button 
+                onClick={() => {
+                    if (isSearchOpen) {
+                      setIsSearchOpen(false);
+                    } else {
+                      setIsSearchOpen(true);
+                      if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                    }
+                }}
+                className={`focus:outline-none transition-colors duration-300 ${getMenuButtonColor()} hover:text-[#a16207]`}
+                aria-label="Toggle search"
+            >
+                {isSearchOpen ? <X size={24} /> : <Search size={24} />}
+            </button>
+
+            {/* Mobile Menu Toggle */}
+            <button
+                onClick={() => {
+                    setIsMobileMenuOpen(!isMobileMenuOpen);
+                    if (isSearchOpen) setIsSearchOpen(false);
+                }}
+                className={`lg:hidden focus:outline-none transition-colors duration-300 ${getMenuButtonColor()}`}
+                aria-label="Toggle navigation"
+            >
+                {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Nav Content Container */}
-        {/* We keep this mounted but hide it via opacity/translate for the animation effect */}
         <div 
           className={`
             absolute inset-0 top-[80px] z-40 flex flex-col justify-center items-center pb-20
@@ -162,6 +214,55 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </nav>
         </div>
       </header>
+
+      {/* FIXED Search Overlay System */}
+      {/* 1. The Backdrop (Covers everything below header) */}
+      <div 
+        className={`fixed inset-0 top-[80px] z-40 bg-stone-900/40 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        onClick={() => setIsSearchOpen(false)}
+      >
+        {/* 2. The Search Bar Container */}
+        <div 
+            onClick={(e) => e.stopPropagation()} // Prevent click from closing when clicking inside the bar
+            className={`
+                bg-[#F5F0EB] w-full border-b border-stone-300 shadow-2xl 
+                transform transition-all duration-500 ease-out origin-top
+                ${isSearchOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
+            `}
+        >
+            <div className="container mx-auto px-6 md:px-12 py-10 md:py-14">
+                <form onSubmit={handleSearchSubmit} className="relative max-w-4xl mx-auto">
+                    <label htmlFor="search-input" className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-500 mb-4 ml-1">
+                        Search Catalog
+                    </label>
+                    <div className="relative group">
+                        <input 
+                            id="search-input"
+                            ref={searchInputRef}
+                            type="text" 
+                            placeholder="Type to search products..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-transparent text-2xl md:text-4xl font-serif text-[#281815] placeholder-stone-400/60 placeholder:italic border-b-[2px] border-stone-300 pb-3 focus:border-[#a16207] focus:outline-none transition-all"
+                            autoComplete="off"
+                        />
+                        <button 
+                            type="submit" 
+                            className="absolute right-0 top-1/2 -translate-y-1/2 text-[#a16207] hover:text-[#281815] transition-colors p-2"
+                        >
+                            <ArrowRight size={32} />
+                        </button>
+                    </div>
+                    <div className="mt-4 flex space-x-6 text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                        <span>Popular:</span>
+                        <button type="button" onClick={() => setSearchQuery('Walnut')} className="hover:text-[#a16207] transition-colors">Walnut</button>
+                        <button type="button" onClick={() => setSearchQuery('Dining')} className="hover:text-[#a16207] transition-colors">Dining</button>
+                        <button type="button" onClick={() => setSearchQuery('Table')} className="hover:text-[#a16207] transition-colors">Table</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="flex-grow">

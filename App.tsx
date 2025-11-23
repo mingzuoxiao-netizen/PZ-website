@@ -10,6 +10,7 @@ import Materials from './pages/Materials';
 import GlobalCapacity from './pages/GlobalCapacity';
 import Inquire from './pages/Inquire';
 import AdminDashboard from './pages/AdminDashboard';
+import SearchResults from './pages/SearchResults';
 import AuthGuard from './components/AuthGuard';
 
 // Scroll to top on route change
@@ -37,6 +38,7 @@ const App: React.FC = () => {
           <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />
           <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
           <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
+          <Route path="/search" element={<Layout><SearchResults /></Layout>} />
         </Routes>
       </HashRouter>
     </AuthGuard>

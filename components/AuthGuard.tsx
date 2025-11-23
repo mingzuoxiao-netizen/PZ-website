@@ -7,7 +7,7 @@ interface AuthGuardProps {
 }
 
 // CONFIGURATION
-const PASSWORD = "PengZhan"; // Change this to your desired password
+const PASSWORD = "Intravast"; // Change this to your desired password
 const SESSION_KEY = "pz_auth_token";
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
