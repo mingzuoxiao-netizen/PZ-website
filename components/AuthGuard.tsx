@@ -17,18 +17,27 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check session storage on mount
-    const isAuth = sessionStorage.getItem(SESSION_KEY);
-    if (isAuth === 'true') {
-      setIsAuthenticated(true);
+    try {
+      // Check session storage on mount
+      const isAuth = sessionStorage.getItem(SESSION_KEY);
+      if (isAuth === 'true') {
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      console.warn("Session storage access denied");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (input === PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, 'true');
+      try {
+        sessionStorage.setItem(SESSION_KEY, 'true');
+      } catch (e) {
+        console.warn("Could not save session");
+      }
       setIsAuthenticated(true);
       setError(false);
     } else {

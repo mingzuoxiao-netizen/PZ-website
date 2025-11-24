@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, ArrowRight, Lock } from 'lucide-react';
 
@@ -15,17 +16,25 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    // 检查会话存储中是否有管理员 Token
-    const isAuth = sessionStorage.getItem(ADMIN_SESSION_KEY);
-    if (isAuth === 'true') {
-      setIsAuthenticated(true);
+    try {
+      // 检查会话存储中是否有管理员 Token
+      const isAuth = sessionStorage.getItem(ADMIN_SESSION_KEY);
+      if (isAuth === 'true') {
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      console.warn("Session storage access denied");
     }
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (input === ADMIN_PASSWORD) {
-      sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+      try {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+      } catch (e) {
+        console.warn("Could not save admin session");
+      }
       setIsAuthenticated(true);
       setError(false);
     } else {
