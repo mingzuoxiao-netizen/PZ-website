@@ -322,9 +322,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <li>
                   <a href="#" className="text-[#BCAAA4] hover:text-white transition-colors text-sm">{t.common.tradeProgram}</a>
                 </li>
-                <li>
+                <li className="flex space-x-4">
                   <Link to="/admin" className="text-[#8D6E63] hover:text-[#BCAAA4] transition-colors text-xs">
-                    {t.common.adminAccess}
+                    Admin
+                  </Link>
+                  <span className="text-[#8D6E63]">/</span>
+                  <Link to="/creator" className="text-[#8D6E63] hover:text-[#BCAAA4] transition-colors text-xs">
+                    Operator
                   </Link>
                 </li>
               </ul>

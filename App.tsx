@@ -10,6 +10,7 @@ import GlobalCapacity from './pages/GlobalCapacity';
 import Inquire from './pages/Inquire';
 import AdminDashboard from './pages/AdminDashboard';
 import SearchResults from './pages/SearchResults';
+import CreatorPortal from './pages/CreatorPortal';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -43,6 +44,13 @@ const App: React.FC = () => {
               <Layout>
                 <AdminGuard>
                   <AdminDashboard />
+                </AdminGuard>
+              </Layout>
+            } />
+            <Route path="/creator" element={
+              <Layout>
+                <AdminGuard>
+                  <CreatorPortal />
                 </AdminGuard>
               </Layout>
             } />

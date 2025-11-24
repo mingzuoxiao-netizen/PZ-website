@@ -1,14 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, ChevronRight, LayoutGrid, Home } from 'lucide-react';
-import { Category, SubCategory } from '../types';
+import { Category, SubCategory, ProductVariant } from '../types';
 import { Link } from 'react-router-dom';
-import { categories } from '../data/inventory';
+import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const Collections: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeSubCategory, setActiveSubCategory] = useState<SubCategory | null>(null);
   const { t, language } = useLanguage();
+
+  // Dynamic Data Logic: Merge Static Inventory with Custom Items from Creator Portal
+  const mergedCategories = useMemo(() => {
+    // 1. Deep copy static data to avoid mutation issues
+    const baseData = JSON.parse(JSON.stringify(staticCategories)) as Category[];
+
+    try {
+        // 2. Fetch custom items from LocalStorage
+        const customItems = JSON.parse(localStorage.getItem('pz_custom_inventory') || '[]');
+        
+        if (Array.isArray(customItems) && customItems.length > 0) {
+            customItems.forEach((item: any) => {
+                // Find matching main category
+                const cat = baseData.find(c => c.id === item.categoryId);
+                if (cat) {
+                    // Find matching subcategory by name
+                    const sub = cat.subCategories.find(s => s.name === item.subCategoryName);
+                    if (sub) {
+                        // Ensure variants array exists
+                        if (!sub.variants) sub.variants = [];
+                        
+                        // Add new variant to the BEGINNING of the list (so it shows first)
+                        sub.variants.unshift({
+                            name: item.name,
+                            name_zh: item.name_zh,
+                            description: item.description,
+                            description_zh: item.description_zh,
+                            image: item.image
+                        });
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.error("Error loading custom inventory", e);
+    }
+
+    return baseData;
+  }, [staticCategories]); // Recalculate if static source changes (rare) or component remounts triggers this
+
+  // Update activeCategory if we were viewing one and data updated (optional, keeps UI in sync)
+  useEffect(() => {
+      if(activeCategory) {
+          const updatedCat = mergedCategories.find(c => c.id === activeCategory.id);
+          if(updatedCat) setActiveCategory(updatedCat);
+          
+          if(activeSubCategory) {
+              const updatedSub = updatedCat?.subCategories.find(s => s.name === activeSubCategory.name);
+              if(updatedSub) setActiveSubCategory(updatedSub);
+          }
+      }
+  }, [mergedCategories]);
+
 
   // Scroll to top when switching main categories
   useEffect(() => {
@@ -23,9 +76,8 @@ const Collections: React.FC = () => {
   };
 
   const handleSubCategoryClick = (sub: SubCategory) => {
-    if (sub.variants && sub.variants.length > 0) {
-        setActiveSubCategory(sub);
-    }
+    // Allow clicking even if no variants (for custom items added to empty cats), but mostly check structure
+    setActiveSubCategory(sub);
   };
 
   const resetToOverview = () => {
@@ -90,7 +142,7 @@ const Collections: React.FC = () => {
         {/* Level 1: Main Grid View (Overview) */}
         {!activeCategory && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {categories.map((cat) => (
+            {mergedCategories.map((cat) => (
               <div 
                 key={cat.id} 
                 onClick={() => handleCategoryClick(cat)}
@@ -108,7 +160,7 @@ const Collections: React.FC = () => {
                 
                 {/* Content Overlay */}
                 <div className="absolute inset-0 z-20 flex flex-col justify-end p-8 bg-gradient-to-t from-stone-950/90 via-stone-950/40 to-transparent opacity-90 hover:opacity-100 transition-opacity">
-                   <span className="text-amber-200 text-[10px] uppercase tracking-[0.2em] font-bold mb-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">0{categories.indexOf(cat) + 1} — {t.collections.collection}</span>
+                   <span className="text-amber-200 text-[10px] uppercase tracking-[0.2em] font-bold mb-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">0{mergedCategories.indexOf(cat) + 1} — {t.collections.collection}</span>
                    <h2 className="text-white font-serif text-2xl md:text-3xl mb-2 leading-tight">{getStr(cat, 'title')}</h2>
                    <p className="text-stone-300 text-xs font-light mb-6 opacity-80 line-clamp-2">{getStr(cat, 'subtitle')}</p>
                    
@@ -147,17 +199,16 @@ const Collections: React.FC = () => {
                                 <button
                                     key={idx}
                                     onClick={() => handleSubCategoryClick(sub)}
-                                    disabled={!sub.variants} // Disable if no variants to show? Or maybe just show details. 
+                                    // Enable click if it has variants OR if we just added custom ones (difficult to check in map, so just enable all)
                                     className={`text-left px-4 py-3 text-sm transition-all border-l-2 flex justify-between items-center group
                                         ${activeSubCategory?.name === sub.name
                                             ? 'border-stone-900 text-stone-900 bg-white shadow-sm font-bold'
                                             : 'border-transparent text-stone-600 hover:text-stone-900 hover:bg-stone-100'
                                         }
-                                        ${!sub.variants ? 'opacity-50 cursor-default' : ''}
                                     `}
                                 >
                                     {getStr(sub, 'name')}
-                                    {sub.variants && (
+                                    {(sub.variants || []).length > 0 && (
                                         <ChevronRight size={12} className={`opacity-0 group-hover:opacity-100 transition-opacity ${activeSubCategory?.name === sub.name ? 'opacity-100 text-amber-700' : ''}`} />
                                     )}
                                 </button>
@@ -187,7 +238,7 @@ const Collections: React.FC = () => {
                         >
                             {t.collections.overview}
                         </button>
-                        {activeCategory.subCategories.map((sub, idx) => sub.variants && (
+                        {activeCategory.subCategories.map((sub, idx) => (
                             <button
                                 key={idx}
                                 onClick={() => handleSubCategoryClick(sub)}
@@ -212,24 +263,30 @@ const Collections: React.FC = () => {
 
                             <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">{t.collections.availableSpecs}</h3>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {activeSubCategory.variants?.map((variant, idx) => (
-                                    <div key={idx} className="bg-white group border border-stone-100 hover:border-amber-700/20 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full">
-                                        <div className="aspect-[4/3] w-full overflow-hidden bg-stone-100 relative">
-                                            <img 
-                                                src={variant.image} 
-                                                alt={variant.name} 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+                            {(activeSubCategory.variants && activeSubCategory.variants.length > 0) ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {activeSubCategory.variants.map((variant, idx) => (
+                                        <div key={idx} className="bg-white group border border-stone-100 hover:border-amber-700/20 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full">
+                                            <div className="aspect-[4/3] w-full overflow-hidden bg-stone-100 relative">
+                                                <img 
+                                                    src={variant.image} 
+                                                    alt={variant.name} 
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+                                            </div>
+                                            <div className="p-6 flex-grow flex flex-col justify-center">
+                                                <h3 className="font-serif text-xl text-stone-900 mb-2">{getStr(variant, 'name')}</h3>
+                                                <p className="text-stone-500 text-sm leading-relaxed">{getStr(variant, 'description')}</p>
+                                            </div>
                                         </div>
-                                        <div className="p-6 flex-grow flex flex-col justify-center">
-                                            <h3 className="font-serif text-xl text-stone-900 mb-2">{getStr(variant, 'name')}</h3>
-                                            <p className="text-stone-500 text-sm leading-relaxed">{getStr(variant, 'description')}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-12 text-center bg-stone-50 border border-stone-200 border-dashed">
+                                    <p className="text-stone-500 italic">No products currently listed in this category.</p>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         // Level 2: Subcategories Grid (Overview)
@@ -244,7 +301,7 @@ const Collections: React.FC = () => {
                                  <div 
                                     key={idx} 
                                     onClick={() => handleSubCategoryClick(sub)}
-                                    className={`group bg-white border border-stone-100 shadow-sm transition-all duration-300 ${sub.variants ? 'cursor-pointer hover:shadow-xl hover:border-amber-700/30' : 'opacity-80'}`}
+                                    className={`group bg-white border border-stone-100 shadow-sm transition-all duration-300 cursor-pointer hover:shadow-xl hover:border-amber-700/30`}
                                  >
                                     <div className="aspect-[4/3] overflow-hidden bg-stone-100 relative">
                                        <img 
@@ -254,7 +311,7 @@ const Collections: React.FC = () => {
                                        />
                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                                        
-                                       {sub.variants && (
+                                       {(sub.variants || []).length > 0 && (
                                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur text-stone-900 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
                                                <LayoutGrid size={16} />
                                            </div>
@@ -263,7 +320,7 @@ const Collections: React.FC = () => {
                                     <div className="p-6">
                                        <h3 className="font-serif text-xl text-stone-900 group-hover:text-amber-700 transition-colors mb-2">{getStr(sub, 'name')}</h3>
                                        <p className="text-stone-500 text-sm leading-relaxed mb-4">{getStr(sub, 'description')}</p>
-                                       {sub.variants && (
+                                       {(sub.variants || []).length > 0 && (
                                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 flex items-center group-hover:translate-x-1 transition-transform">
                                                {t.collections.viewOptions} <ChevronRight size={12} className="ml-1" />
                                            </span>
