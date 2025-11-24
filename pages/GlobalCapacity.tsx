@@ -256,7 +256,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• 50k+ Monthly Capacity</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
+                 <img src="https://github.com/MingzuoXiao/PZ-website/blob/main/factory.png?raw=true" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
               </div>
             </div>
 

@@ -5,14 +5,14 @@ const Materials: React.FC = () => {
   const { t } = useLanguage();
 
   const woods = [
-    { name: "White Oak", desc: "Durable hardwood with distinct grain patterns and excellent stability.", color: "#C2B280" },
-    { name: "Walnut", desc: "Rich dark tones with a naturally luxurious finish.", color: "#5D4037" },
-    { name: "Rubberwood", desc: "Sustainable hardwood with fine, uniform grain and eco-friendly sourcing.", color: "#E6D7B9" },
-    { name: "Ash", desc: "Light-toned hardwood known for its strength, flexibility, and striking grain.", color: "#D7CCC8" },
-    { name: "Beech", desc: "Smooth, fine-grained hardwood ideal for curved structures and warm, natural finishes.", color: "#D7CCC8" },
-    { name: "Maple", desc: "Dense, smooth-textured hardwood with a clean, modern look and excellent durability.", color: "#D7CCC8" },
-    { name: "Teak", desc: "Premium tropical hardwood with rich natural oils, exceptional durability, and timeless golden tones.", color: "#D7CCC8" },
-    { name: "Acacia", desc: "Durable hardwood with bold, contrasting grain patterns and strong visual character.", color: "#D7CCC8" },
+    { name: "White Oak", desc: "Durable hardwood with distinct grain patterns and excellent stability.", color: "#C8B78A" },
+    { name: "Walnut", desc: "Rich dark tones with a naturally luxurious finish.", color: "#5B4332" },
+    { name: "Rubberwood", desc: "Sustainable hardwood with fine, uniform grain and eco-friendly sourcing.", color: "#D9C9A3" },
+    { name: "Ash", desc: "Light-toned hardwood known for its strength, flexibility, and striking grain.", color: "#CFC8C4" },
+    { name: "Beech", desc: "Smooth, fine-grained hardwood ideal for curved structures and warm, natural finishes.", color: "#C8B1A0" },
+    { name: "Maple", desc: "Dense, smooth-textured hardwood with a clean, modern look and excellent durability.", color: "#D4C6B8" },
+    { name: "Teak", desc: "Premium tropical hardwood with rich natural oils, exceptional durability, and timeless golden tones.", color: "#B58A54" },
+    { name: "Acacia", desc: "Durable hardwood with bold, contrasting grain patterns and strong visual character.", color: "#A08A78" },
   ];
 
   return (
@@ -22,7 +22,7 @@ const Materials: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
            <img 
-             src="https://images.unsplash.com/photo-1622372738946-12a6d363fa76?q=80&w=1000&auto=format&fit=crop" 
+             src="https://github.com/mingzuoxiao-netizen/pz-picture/blob/main/wooden.jpg?raw=true" 
              alt="Craftsmanship" 
              className="w-full h-[400px] object-cover shadow-xl rounded-sm"
            />

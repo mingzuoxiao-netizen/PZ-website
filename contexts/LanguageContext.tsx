@@ -77,10 +77,10 @@ const translations = {
       },
       journey: "Our Journey",
       milestones: {
-        2014: { title: "Foundation", desc: "Established in Zhaoqing, Guangdong with a focus on pure solid wood craftsmanship." },
-        2018: { title: "US Expansion", desc: "Launched Los Angeles warehouse and fulfillment center." },
+        2014: { title: "Foundation", desc: "Established in Dongguan, Guangdong. The journey began with a focus on pure solid wood craftsmanship." },
+        2018: { title: "US Expansion", desc: "Launched Los Angeles warehouse and fulfillment center to serve North American clients directly." },
         2021: { title: "Cambodia Facility", desc: "Opened factory in Kandal Province to expand capacity and offer tariff-free solutions." },
-        2024: { title: "Automation", desc: "Focusing on sustainable mixed-materials and advanced automated finishing lines." }
+        2024: { title: "Automation", desc: "Zhaoqing HQ expansion. Focusing on sustainable mixed-materials and advanced automated finishing lines." }
       }
     },
     collections: {
@@ -233,10 +233,10 @@ const translations = {
       },
       journey: "发展历程",
       milestones: {
-        2014: { title: "成立", desc: "在广东肇庆成立，专注于纯实木工艺。" },
-        2018: { title: "美国扩张", desc: "启动洛杉矶仓库及履约中心。" },
+        2014: { title: "成立", desc: "在广东东莞成立。从专注于纯实木工艺起步，奠定品质基础。" },
+        2018: { title: "美国扩张", desc: "启动洛杉矶仓库及履约中心，直接服务北美客户。" },
         2021: { title: "柬埔寨工厂", desc: "在干拉省开设工厂以扩大产能并提供免关税解决方案。" },
-        2024: { title: "自动化", desc: "专注于可持续混合材料和先进的自动化涂装线。" }
+        2024: { title: "自动化", desc: "肇庆总部扩建。专注于可持续混合材料和先进的自动化涂装线。" }
       }
     },
     collections: {

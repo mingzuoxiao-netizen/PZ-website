@@ -20,13 +20,23 @@ const Inquire: React.FC = () => {
 
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Helper to safely get URL without triggering SecurityError in sandboxed iframes
+  const getSafeCurrentUrl = () => {
+    try {
+      return typeof window !== 'undefined' ? window.location.href : '';
+    } catch (e) {
+      // Quietly fail for sandboxed environments where location access is blocked
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     company: '',
     email: '',
     type: 'General',
     message: '',
-    website: '', // 先设空，后面用 useEffect 填
+    website: '', 
   });
 
   const [turnstileToken, setTurnstileToken] = useState('');
@@ -36,9 +46,7 @@ const Inquire: React.FC = () => {
 
   // 当前页面 URL 写入 formData.website
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setFormData(prev => ({ ...prev, website: window.location.href }));
-    }
+    setFormData(prev => ({ ...prev, website: getSafeCurrentUrl() }));
   }, []);
 
   // URL ?subject=Catalog 时自动填充
@@ -60,24 +68,33 @@ const Inquire: React.FC = () => {
         // 清掉旧的
         turnstileContainerRef.current.innerHTML = '';
 
-        window.turnstile.render(turnstileContainerRef.current, {
-          sitekey: TURNSTILE_SITE_KEY,
-          theme: 'light',
-          callback: (token: string) => {
-            console.log('[Turnstile] token callback:', token);
-            setTurnstileToken(token);
-            setError('');
-          },
-          'expired-callback': () => {
-            console.log('[Turnstile] token expired');
-            setTurnstileToken('');
-            setError(
-              language === 'zh'
-                ? '安全验证已过期，请重新验证。'
-                : 'Security check expired. Please verify again.'
-            );
-          },
-        });
+        try {
+          window.turnstile.render(turnstileContainerRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            theme: 'light',
+            appearance: 'interaction-only', // 👈 隐形模式：只在需要时显示
+            callback: (token: string) => {
+              console.log('[Turnstile] token callback:', token);
+              setTurnstileToken(token);
+              setError('');
+            },
+            'expired-callback': () => {
+              console.log('[Turnstile] token expired');
+              setTurnstileToken('');
+              setError(
+                language === 'zh'
+                  ? '安全验证已过期，请重新验证。'
+                  : 'Security check expired. Please verify again.'
+              );
+            },
+            'error-callback': (err: any) => {
+               // 捕获 Turnstile 内部错误（如环境限制）
+               console.warn('[Turnstile] Widget error:', err);
+            }
+          });
+        } catch (e) {
+           console.warn('[Turnstile] Render failed (likely sandbox restriction):', e);
+        }
       }
     };
 
@@ -113,12 +130,19 @@ const Inquire: React.FC = () => {
     console.log('Turnstile token before submit:', turnstileToken);
 
     // 1. 前端先检查 Turnstile 是否有 token
+    // 注意：interaction-only 模式通常会自动获取 token，如果失败（如网络问题），token 可能为空
     if (!turnstileToken) {
       setError(
         language === 'zh'
-          ? '请完成安全验证。'
-          : 'Please complete the security check.'
+          ? '正在进行安全验证，请稍候再试。'
+          : 'Security verification in progress, please try again in a moment.'
       );
+      
+      // 尝试手动执行验证
+      if(window.turnstile) {
+         try { window.turnstile.reset(); } catch(e) {}
+      }
+      
       setLoading(false);
       return;
     }
@@ -165,13 +189,17 @@ const Inquire: React.FC = () => {
         createdAt: new Date().toISOString(),
       };
 
-      const existingInquiries = JSON.parse(
-        localStorage.getItem('pz_inquiries') || '[]'
-      );
-      localStorage.setItem(
-        'pz_inquiries',
-        JSON.stringify([newInquiry, ...existingInquiries])
-      );
+      try {
+        const existingInquiries = JSON.parse(
+            localStorage.getItem('pz_inquiries') || '[]'
+        );
+        localStorage.setItem(
+            'pz_inquiries',
+            JSON.stringify([newInquiry, ...existingInquiries])
+        );
+      } catch (e) {
+          // ignore local storage errors
+      }
 
       setSubmitted(true);
     } catch (err) {
@@ -182,7 +210,7 @@ const Inquire: React.FC = () => {
           : 'There was a problem sending your inquiry. Please try again or contact us directly.'
       );
 
-      // 出错时重置 Turnstile，让用户重新点一次
+      // 出错时重置 Turnstile
       if (typeof window !== 'undefined' && window.turnstile) {
         try {
           window.turnstile.reset();
@@ -216,8 +244,7 @@ const Inquire: React.FC = () => {
                 email: '',
                 type: 'General',
                 message: '',
-                website:
-                  typeof window !== 'undefined' ? window.location.href : '',
+                website: getSafeCurrentUrl(),
               });
               setTurnstileToken('');
             }}
@@ -376,11 +403,11 @@ const Inquire: React.FC = () => {
                 ></textarea>
               </div>
 
-              {/* Turnstile 验证区域 */}
+              {/* Turnstile 验证区域 - 虽然是 invisible 模式，但也需要挂载点来处理弹出的 challenge */}
               <div className="pt-2">
                 <div
                   ref={turnstileContainerRef}
-                  className="min-h-[65px]"
+                  className="" // invisible 模式下不需要高度
                 ></div>
               </div>
 

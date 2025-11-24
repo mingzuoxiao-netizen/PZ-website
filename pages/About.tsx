@@ -24,7 +24,7 @@ const About: React.FC = () => {
       desc: "Despite our automation, the final touch is always human. Our artisans sand and finish every piece to perfection."
     },
     {
-      url: "https://images.unsplash.com/photo-1581092921461-eab62e97a782?q=80&w=2500&auto=format&fit=crop",
+      url: "https://github.com/mingzuoxiao-netizen/pz-picture/blob/main/qc.jpg?raw=true",
       title: "Quality Control",
       desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
     }
@@ -39,6 +39,8 @@ const About: React.FC = () => {
   };
 
   const closeModal = () => setIsModalOpen(false);
+
+  const milestoneYears = ['2014', '2018', '2021', '2024'];
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
@@ -184,7 +186,6 @@ const About: React.FC = () => {
                     className={`p-6 cursor-pointer transition-all border-l-4 shadow-sm ${activeImage === idx ? 'border-amber-700 bg-white scale-105' : 'border-transparent bg-stone-50 hover:bg-stone-100'}`}
                   >
                      <h4 className={`font-serif text-lg mb-1 ${activeImage === idx ? 'text-stone-900' : 'text-stone-500'}`}>{img.title}</h4>
-                     {/* Removed truncate to allow full text display, removed text-xs for readability if needed, kept for style consistency */}
                      <p className="text-stone-600 text-xs mt-1 leading-relaxed">{img.desc}</p>
                   </div>
                 ))}
@@ -193,41 +194,45 @@ const About: React.FC = () => {
         </div>
       </div>
 
-      {/* Timeline / Milestones */}
-      <div className="bg-stone-50 py-12">
+      {/* Timeline / Milestones - Optimized Layout */}
+      <div className="bg-stone-50 py-12 md:py-24">
         <div className="container mx-auto px-6 md:px-12">
-          <h2 className="font-serif text-3xl text-stone-900 mb-16 text-center">{t.about.journey}</h2>
+          <div className="text-center mb-16">
+            <h2 className="font-serif text-4xl text-stone-900 mb-4">{t.about.journey}</h2>
+            <div className="w-16 h-1 bg-amber-700 mx-auto"></div>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
-             {/* Line */}
-             <div className="hidden md:block absolute top-12 left-0 w-full h-[2px] bg-stone-200"></div>
+          <div className="relative">
+             {/* Desktop Horizontal Line */}
+             <div className="hidden md:block absolute top-[27px] left-0 w-full h-[2px] bg-stone-200"></div>
              
-             <div className="relative pt-12 text-center md:text-left group">
-                <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-amber-700 rounded-full ring-4 ring-stone-50"></div>
-                <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2014</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2014'].title}</h4>
-                <p className="text-stone-600 text-xs">{t.about.milestones['2014'].desc}</p>
-             </div>
+             {/* Mobile Vertical Line */}
+             <div className="md:hidden absolute top-0 bottom-0 left-[27px] w-[2px] bg-stone-200"></div>
 
-             <div className="relative pt-12 text-center md:text-left group">
-                <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
-                <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2018</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2018'].title}</h4>
-                <p className="text-stone-600 text-xs">{t.about.milestones['2018'].desc}</p>
-             </div>
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
+                {milestoneYears.map((year, idx) => {
+                  const milestone = t.about.milestones[year];
+                  return (
+                    <div key={year} className="relative pl-16 md:pl-0 md:pt-16 group">
+                      
+                      {/* Timeline Dot */}
+                      <div className="absolute left-[20px] top-0 md:top-[20px] md:left-1/2 md:-translate-x-1/2 w-4 h-4 rounded-full bg-stone-50 border-[3px] border-stone-300 group-hover:border-amber-700 group-hover:scale-125 transition-all duration-300 z-10"></div>
 
-             <div className="relative pt-12 text-center md:text-left group">
-                <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
-                <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2021</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2021'].title}</h4>
-                <p className="text-stone-600 text-xs">{t.about.milestones['2021'].desc}</p>
-             </div>
-
-             <div className="relative pt-12 text-center md:text-left group">
-                <div className="hidden md:block absolute top-[44px] left-0 w-3 h-3 bg-stone-300 rounded-full ring-4 ring-stone-50 group-hover:bg-amber-700 transition-colors"></div>
-                <span className="text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors block mb-2">2024</span>
-                <h4 className="text-stone-900 font-bold uppercase text-xs mb-2">{t.about.milestones['2024'].title}</h4>
-                <p className="text-stone-600 text-xs">{t.about.milestones['2024'].desc}</p>
+                      {/* Content Card */}
+                      <div className="md:text-center transition-transform duration-500 group-hover:-translate-y-2">
+                         <span className="block text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors mb-3">
+                           {year}
+                         </span>
+                         <h4 className="text-stone-900 font-bold uppercase text-xs mb-3 tracking-widest">
+                           {milestone.title}
+                         </h4>
+                         <p className="text-stone-600 text-sm leading-relaxed border-l-2 md:border-l-0 md:border-t-2 border-stone-100 pt-0 md:pt-4 pl-4 md:pl-0">
+                           {milestone.desc}
+                         </p>
+                      </div>
+                    </div>
+                  );
+                })}
              </div>
           </div>
         </div>
