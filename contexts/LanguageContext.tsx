@@ -161,7 +161,7 @@ const translations = {
       engDesc: "We excel in complex material integration. From our signature Butcher Block solid wood surfaces to mixed-material pieces combining powder-coated metals and natural timber.",
       raw: "Raw Materials",
       rawTitle: "Sourcing the World's Best Timber",
-      rawDesc: "Our studio works exclusively with premium hardwoods sourced from sustainable forests in North America and Europe. Understanding the distinct properties of each species is crucial.",
+      rawDesc: "Our studio works exclusively with premium hardwoods sourced from sustainable forests in the world. Understanding the distinct properties of each species is crucial.",
       exploreMat: "Explore Material Library"
     }
   },
