@@ -20,34 +20,25 @@ const Inquire: React.FC = () => {
 
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Helper to safely get URL without triggering SecurityError in iframes
-  const getSafeCurrentUrl = () => {
-    try {
-      return typeof window !== 'undefined' ? window.location.href : '';
-    } catch (e) {
-      // Quietly fail for sandboxed environments
-      return '';
-    }
-  };
-
   const [formData, setFormData] = useState({
     name: '',
     company: '',
     email: '',
     type: 'General',
     message: '',
-    website: '', 
+    website: '', // 先设空，后面用 useEffect 填
   });
 
   const [turnstileToken, setTurnstileToken] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [turnstileError, setTurnstileError] = useState(false);
 
   // 当前页面 URL 写入 formData.website
   useEffect(() => {
-    setFormData(prev => ({ ...prev, website: getSafeCurrentUrl() }));
+    if (typeof window !== 'undefined') {
+      setFormData(prev => ({ ...prev, website: window.location.href }));
+    }
   }, []);
 
   // URL ?subject=Catalog 时自动填充
@@ -65,56 +56,36 @@ const Inquire: React.FC = () => {
   // 渲染 Turnstile 小组件
   useEffect(() => {
     const renderTurnstile = () => {
-      // 1. Proactive Environment Check
-      // Turnstile often fails in sandboxed iframes (like preview environments)
-      // because it tries to access window.top.location. We check if we can access location first.
-      try {
-         const _test = window.location.href;
-      } catch (e) {
-         console.warn('[Turnstile] Environment restricted (sandboxed). Widget disabled to prevent crash.');
-         setTurnstileError(true);
-         return; // Skip rendering
-      }
-
-      // 2. Check if script is loaded
       if (window.turnstile && turnstileContainerRef.current) {
-        // Clear previous instances
+        // 清掉旧的
         turnstileContainerRef.current.innerHTML = '';
 
-        try {
-          // 3. Render Widget
-          window.turnstile.render(turnstileContainerRef.current, {
-            sitekey: TURNSTILE_SITE_KEY,
-            theme: 'light',
-            callback: (token: string) => {
-              console.log('[Turnstile] token callback:', token);
-              setTurnstileToken(token);
-              setError('');
-              setTurnstileError(false);
-            },
-            'expired-callback': () => {
-              setTurnstileToken('');
-              setError(
-                language === 'zh'
-                  ? '安全验证已过期，请重新验证。'
-                  : 'Security check expired. Please verify again.'
-              );
-            },
-            'error-callback': () => {
-               console.warn('[Turnstile] Widget internal error.');
-               setTurnstileError(true);
-            }
-          });
-        } catch (e) {
-          console.warn('[Turnstile] Render failed (likely cross-origin block):', e);
-          setTurnstileError(true);
-        }
+        window.turnstile.render(turnstileContainerRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          theme: 'light',
+          callback: (token: string) => {
+            console.log('[Turnstile] token callback:', token);
+            setTurnstileToken(token);
+            setError('');
+          },
+          'expired-callback': () => {
+            console.log('[Turnstile] token expired');
+            setTurnstileToken('');
+            setError(
+              language === 'zh'
+                ? '安全验证已过期，请重新验证。'
+                : 'Security check expired. Please verify again.'
+            );
+          },
+        });
       }
     };
 
+    // 脚本已加载
     if (typeof window !== 'undefined' && window.turnstile) {
       renderTurnstile();
     } else if (typeof window !== 'undefined') {
+      // 脚本可能稍后才加载
       const interval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(interval);
@@ -139,8 +110,10 @@ const Inquire: React.FC = () => {
     setLoading(true);
     setError('');
 
-    // 1. Check Token (unless bypassed due to error)
-    if (!turnstileToken && !turnstileError) {
+    console.log('Turnstile token before submit:', turnstileToken);
+
+    // 1. 前端先检查 Turnstile 是否有 token
+    if (!turnstileToken) {
       setError(
         language === 'zh'
           ? '请完成安全验证。'
@@ -164,22 +137,24 @@ const Inquire: React.FC = () => {
           message: formData.message,
           website: formData.website,
           source: 'website',
-          turnstileToken: turnstileToken || 'BYPASS_ERROR', // Flag for backend
+          // 🔑 关键：和 Worker 统一字段名：turnstileToken
+          turnstileToken,
         }),
       });
 
+      // 如果返回非 2xx，尝试读取后端 error 信息
       if (!response.ok) {
         let msg = 'Network response was not ok';
         try {
           const data = await response.json();
           if (data && data.error) msg = data.error;
         } catch {
-          // ignore
+          // ignore JSON parse error
         }
         throw new Error(msg);
       }
 
-      // Admin Local Demo Fallback
+      // Admin 本地 demo：写一份到 localStorage
       const newInquiry = {
         id: Math.random().toString(36).substring(2, 9),
         ...formData,
@@ -190,17 +165,13 @@ const Inquire: React.FC = () => {
         createdAt: new Date().toISOString(),
       };
 
-      try {
-        const existingInquiries = JSON.parse(
-            localStorage.getItem('pz_inquiries') || '[]'
-        );
-        localStorage.setItem(
-            'pz_inquiries',
-            JSON.stringify([newInquiry, ...existingInquiries])
-        );
-      } catch (e) {
-          console.warn("LocalStorage access denied");
-      }
+      const existingInquiries = JSON.parse(
+        localStorage.getItem('pz_inquiries') || '[]'
+      );
+      localStorage.setItem(
+        'pz_inquiries',
+        JSON.stringify([newInquiry, ...existingInquiries])
+      );
 
       setSubmitted(true);
     } catch (err) {
@@ -211,8 +182,8 @@ const Inquire: React.FC = () => {
           : 'There was a problem sending your inquiry. Please try again or contact us directly.'
       );
 
-      // Reset turnstile on error
-      if (typeof window !== 'undefined' && window.turnstile && !turnstileError) {
+      // 出错时重置 Turnstile，让用户重新点一次
+      if (typeof window !== 'undefined' && window.turnstile) {
         try {
           window.turnstile.reset();
         } catch {
@@ -232,9 +203,9 @@ const Inquire: React.FC = () => {
         <div className="text-center px-6">
           <CheckCircle className="mx-auto text-amber-700 mb-6" size={64} />
           <h2 className="text-3xl font-serif text-stone-900 mb-4">
-            {t?.inquire?.form?.success || 'Thank you'}
+            {t.inquire.form.success}
           </h2>
-          <p className="text-stone-600 mb-8">{t?.inquire?.form?.successDesc || 'Your inquiry has been received.'}</p>
+          <p className="text-stone-600 mb-8">{t.inquire.form.successDesc}</p>
 
           <button
             onClick={() => {
@@ -245,22 +216,18 @@ const Inquire: React.FC = () => {
                 email: '',
                 type: 'General',
                 message: '',
-                website: getSafeCurrentUrl(),
+                website:
+                  typeof window !== 'undefined' ? window.location.href : '',
               });
               setTurnstileToken('');
             }}
             className="text-stone-500 underline hover:text-stone-900"
           >
-            {t?.inquire?.form?.again || 'Send another message'}
+            {t.inquire.form.again}
           </button>
         </div>
       </div>
     );
-  }
-
-  // Fallback if translation not loaded yet
-  if (!t || !t.inquire) {
-      return <div className="min-h-screen bg-stone-50 pt-32 flex justify-center"><Loader2 className="animate-spin text-amber-700" /></div>;
   }
 
   // 正常表单页
@@ -317,6 +284,7 @@ const Inquire: React.FC = () => {
             id="inquiry-form"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 隐藏字段：来源网址 */}
               <input type="hidden" name="website" value={formData.website} />
 
               {error && (
@@ -408,19 +376,12 @@ const Inquire: React.FC = () => {
                 ></textarea>
               </div>
 
-              {/* Turnstile */}
+              {/* Turnstile 验证区域 */}
               <div className="pt-2">
                 <div
                   ref={turnstileContainerRef}
                   className="min-h-[65px]"
-                >
-                    {turnstileError && (
-                        <div className="flex items-center p-3 bg-stone-50 border border-stone-200 rounded">
-                           <div className="w-2 h-2 bg-amber-500 rounded-full mr-2 animate-pulse"></div>
-                           <p className="text-xs text-stone-500 italic">Security check disabled for preview environment.</p>
-                        </div>
-                    )}
-                </div>
+                ></div>
               </div>
 
               {/* Submit Button */}
