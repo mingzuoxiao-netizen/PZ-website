@@ -10,19 +10,39 @@ const Collections: React.FC = () => {
   const [activeSubCategory, setActiveSubCategory] = useState<SubCategory | null>(null);
   const { t, language } = useLanguage();
 
-  // Dynamic Data Logic: Merge Static Inventory with Custom Items from Creator Portal
+  // Dynamic Data Logic: Merge Static Categories + Custom Structure + Custom Items
   const mergedCategories = useMemo(() => {
     // 1. Deep copy static data to avoid mutation issues
-    const baseData = JSON.parse(JSON.stringify(staticCategories)) as Category[];
+    const combined = JSON.parse(JSON.stringify(staticCategories)) as Category[];
 
     try {
-        // 2. Fetch custom items from LocalStorage
+        // 2. Load Custom Structure (New Categories/SubCategories)
+        const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
+        const customStructure = JSON.parse(rawStructure) as Category[];
+
+        customStructure.forEach((customCat: Category) => {
+            const existingIdx = combined.findIndex((c) => c.id === customCat.id);
+            if (existingIdx > -1) {
+                // If category exists (ID matches), merge new subcategories
+                const existingCat = combined[existingIdx];
+                customCat.subCategories.forEach((newSub: SubCategory) => {
+                    if (!existingCat.subCategories.find((s) => s.name === newSub.name)) {
+                        existingCat.subCategories.push(newSub);
+                    }
+                });
+            } else {
+                // If category doesn't exist, append it
+                combined.push(customCat);
+            }
+        });
+
+        // 3. Load custom items from Inventory
         const customItems = JSON.parse(localStorage.getItem('pz_custom_inventory') || '[]');
         
         if (Array.isArray(customItems) && customItems.length > 0) {
             customItems.forEach((item: any) => {
                 // Find matching main category
-                const cat = baseData.find(c => c.id === item.categoryId);
+                const cat = combined.find(c => c.id === item.categoryId);
                 if (cat) {
                     // Find matching subcategory by name
                     const sub = cat.subCategories.find(s => s.name === item.subCategoryName);
@@ -30,7 +50,7 @@ const Collections: React.FC = () => {
                         // Ensure variants array exists
                         if (!sub.variants) sub.variants = [];
                         
-                        // Add new variant to the BEGINNING of the list (so it shows first)
+                        // Add new variant to the BEGINNING of the list
                         sub.variants.unshift({
                             name: item.name,
                             name_zh: item.name_zh,
@@ -46,10 +66,10 @@ const Collections: React.FC = () => {
         console.error("Error loading custom inventory", e);
     }
 
-    return baseData;
-  }, [staticCategories]); // Recalculate if static source changes (rare) or component remounts triggers this
+    return combined;
+  }, [staticCategories]);
 
-  // Update activeCategory if we were viewing one and data updated (optional, keeps UI in sync)
+  // Update activeCategory if we were viewing one and data updated
   useEffect(() => {
       if(activeCategory) {
           const updatedCat = mergedCategories.find(c => c.id === activeCategory.id);
@@ -76,7 +96,7 @@ const Collections: React.FC = () => {
   };
 
   const handleSubCategoryClick = (sub: SubCategory) => {
-    // Allow clicking even if no variants (for custom items added to empty cats), but mostly check structure
+    // Allow clicking even if no variants (for custom items added to empty cats)
     setActiveSubCategory(sub);
   };
 
@@ -142,9 +162,9 @@ const Collections: React.FC = () => {
         {/* Level 1: Main Grid View (Overview) */}
         {!activeCategory && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {mergedCategories.map((cat) => (
+            {mergedCategories.map((cat, idx) => (
               <div 
-                key={cat.id} 
+                key={cat.id || idx} 
                 onClick={() => handleCategoryClick(cat)}
                 className="group cursor-pointer relative overflow-hidden bg-white shadow-sm hover:shadow-2xl transition-all duration-500 aspect-[4/5] md:aspect-[3/4]"
               >
@@ -160,7 +180,7 @@ const Collections: React.FC = () => {
                 
                 {/* Content Overlay */}
                 <div className="absolute inset-0 z-20 flex flex-col justify-end p-8 bg-gradient-to-t from-stone-950/90 via-stone-950/40 to-transparent opacity-90 hover:opacity-100 transition-opacity">
-                   <span className="text-amber-200 text-[10px] uppercase tracking-[0.2em] font-bold mb-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">0{mergedCategories.indexOf(cat) + 1} — {t.collections.collection}</span>
+                   <span className="text-amber-200 text-[10px] uppercase tracking-[0.2em] font-bold mb-2 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">0{idx + 1} — {t.collections.collection}</span>
                    <h2 className="text-white font-serif text-2xl md:text-3xl mb-2 leading-tight">{getStr(cat, 'title')}</h2>
                    <p className="text-stone-300 text-xs font-light mb-6 opacity-80 line-clamp-2">{getStr(cat, 'subtitle')}</p>
                    
@@ -199,7 +219,6 @@ const Collections: React.FC = () => {
                                 <button
                                     key={idx}
                                     onClick={() => handleSubCategoryClick(sub)}
-                                    // Enable click if it has variants OR if we just added custom ones (difficult to check in map, so just enable all)
                                     className={`text-left px-4 py-3 text-sm transition-all border-l-2 flex justify-between items-center group
                                         ${activeSubCategory?.name === sub.name
                                             ? 'border-stone-900 text-stone-900 bg-white shadow-sm font-bold'
