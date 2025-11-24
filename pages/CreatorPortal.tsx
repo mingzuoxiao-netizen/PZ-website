@@ -6,6 +6,7 @@ import { Category, SubCategory } from '../types';
 
 // ====== API Configuration ======
 const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+const ADMIN_PASSWORD = "PZ!2025-admin-only";
 
 // Helper: Convert File to Base64 (Fallback for offline mode)
 const toBase64 = (file: File): Promise<string> => 
@@ -175,6 +176,7 @@ const CreatorPortal: React.FC = () => {
       const res = await fetch(`${API_BASE}/api/upload-image`, {
         method: 'POST',
         body: formDataObj,
+        // Note: No headers for FormData (browser sets boundary)
       });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
@@ -207,93 +209,141 @@ const CreatorPortal: React.FC = () => {
   };
 
   // --- AI Functions ---
-  const handleGenerateCopyAI = async () => {
-    try {
-      setAiLoadingCopy(true);
-      setErrorMsg('');
+const handleGenerateCopyAI = async () => {
+  setAiLoadingCopy(true);
+  setErrorMsg('');
+  setDetailedError('');
 
-      // Determine what to send to AI
-      const payload = {
-        category: isCreatingCategory ? formData.newCatTitle : activeCategory.title,
-        subCategory: isCreatingSubCategory ? formData.newSubName : formData.subCategoryName,
+  try {
+    // 当前分类 / 子分类（新建时用新名字）
+    const currentCat = isCreatingCategory
+      ? formData.newCatTitle
+      : (activeCategory?.title || '');
+
+    const currentSub = isCreatingSubCategory
+      ? formData.newSubName
+      : formData.subCategoryName;
+
+    const res = await fetch(`${API_BASE}/api/ai/generate-copy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-password": ADMIN_PASSWORD,
+      },
+      body: JSON.stringify({
+        category: currentCat,
+        subCategory: currentSub,
         name_en: formData.name,
         name_zh: formData.name_zh,
         description_en: formData.description,
         description_zh: formData.description_zh,
-      };
+      }),
+    });
 
-      const res = await fetch(`${API_BASE}/api/ai/generate-copy`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+    // 直接按 JSON 解析
+    const data = await res.json().catch(() => null);
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "AI error");
-
-      setFormData(prev => ({
-        ...prev,
-        name: data.name_en || prev.name,
-        name_zh: data.name_zh || prev.name_zh,
-        description: data.desc_en || prev.description,
-        description_zh: data.desc_zh || prev.description_zh,
-      }));
-
-      setSuccessMsg(language === 'zh'
-        ? 'AI 已生成中英文标题和描述，可继续修改。'
-        : 'AI generated EN & CN copy, you can refine it.');
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (e: any) {
-      console.error(e);
-      setErrorMsg((language === 'zh' ? 'AI 生成失败：' : 'AI generation failed: ') + (e.message || ''));
-    } finally {
-      setAiLoadingCopy(false);
+    if (!res.ok) {
+      const errMsg =
+        (data && typeof data === 'object' && (data as any).error) ||
+        `HTTP ${res.status}`;
+      throw new Error(errMsg);
     }
-  };
 
-  const handleTranslateAI = async (target: 'en' | 'zh') => {
-    const text = target === 'en' 
-        ? (formData.description || formData.description_zh) 
-        : (formData.description_zh || formData.description);
+    if (!data || typeof data !== 'object') {
+      throw new Error("Empty AI response");
+    }
 
-    if (!text) {
-      setErrorMsg(language === 'zh'
+    const result: any = data;
+
+    setFormData(prev => ({
+      ...prev,
+      name: result.name_en || prev.name,
+      name_zh: result.name_zh || prev.name_zh,
+      description: result.desc_en || prev.description,
+      description_zh: result.desc_zh || prev.description_zh,
+    }));
+
+    setSuccessMsg(
+      language === "zh"
+        ? "AI 已生成中英文标题和描述，可继续修改。"
+        : "AI generated EN & CN copy, you can refine it."
+    );
+    setTimeout(() => setSuccessMsg(""), 3000);
+  } catch (e: any) {
+    console.error("handleGenerateCopyAI error:", e);
+    setDetailedError(e?.message || String(e));
+    setErrorMsg(
+      (language === "zh" ? "AI 生成失败：" : "AI generation failed: ") +
+      (e?.message || "")
+    );
+  } finally {
+    setAiLoadingCopy(false);
+  }
+};
+
+
+const handleTranslateAI = async (target: 'en' | 'zh') => {
+  const text =
+    target === 'en'
+      ? (formData.description || formData.description_zh)
+      : (formData.description_zh || formData.description);
+
+  if (!text) {
+    setErrorMsg(
+      language === 'zh'
         ? '请先在任意一侧输入内容'
-        : 'Please fill one of the descriptions first.');
-      return;
+        : 'Please fill one of the descriptions first.'
+    );
+    return;
+  }
+
+  const setLoading = target === 'en' ? setAiLoadingEn : setAiLoadingZh;
+
+  try {
+    setLoading(true);
+    setErrorMsg('');
+    setDetailedError('');
+
+    const res = await fetch(`${API_BASE}/api/ai/translate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-password": ADMIN_PASSWORD,
+      },
+      body: JSON.stringify({ target, text }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const errMsg =
+        (data && typeof data === 'object' && (data as any).error) ||
+        `HTTP ${res.status}`;
+      throw new Error(errMsg);
     }
 
-    const setLoading = target === 'en' ? setAiLoadingEn : setAiLoadingZh;
-
-    try {
-      setLoading(true);
-      setErrorMsg('');
-
-      const res = await fetch(`${API_BASE}/api/ai/translate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ target, text }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'AI error');
-
-      if (target === 'en') {
-        setFormData(prev => ({ ...prev, description: data.text }));
-      } else {
-        setFormData(prev => ({ ...prev, description_zh: data.text }));
-      }
-    } catch (e: any) {
-      console.error(e);
-      setErrorMsg((language === 'zh' ? 'AI 翻译/润色失败：' : 'AI translate/polish failed: ') + (e.message || ''));
-    } finally {
-      setLoading(false);
+    if (!data || typeof data !== 'object' || !(data as any).text) {
+      throw new Error("Empty AI response");
     }
-  };
+
+    if (target === 'en') {
+      setFormData(prev => ({ ...prev, description: (data as any).text }));
+    } else {
+      setFormData(prev => ({ ...prev, description_zh: (data as any).text }));
+    }
+  } catch (e: any) {
+    console.error("handleTranslateAI error:", e);
+    setDetailedError(e?.message || String(e));
+    setErrorMsg(
+      (language === 'zh' ? 'AI 翻译/润色失败：' : 'AI translate/polish failed: ') +
+      (e?.message || '')
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // --- Edit Mode Logic ---
   const handleEditItem = (item: any) => {
