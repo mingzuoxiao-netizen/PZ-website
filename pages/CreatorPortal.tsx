@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Upload, Plus, Trash2, CheckCircle, Image as ImageIcon, Loader2, AlertCircle, Save, PenSquare, Search, HardDrive, X, CornerDownRight, AlertTriangle, Sparkles, Wand2 } from 'lucide-react';
+import { Upload, Plus, Trash2, CheckCircle, Image as ImageIcon, Loader2, AlertCircle, Save, PenSquare, Search, HardDrive, X, CornerDownRight, AlertTriangle } from 'lucide-react';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Category, SubCategory } from '../types';
 
 // ====== API Configuration ======
 const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
-const ADMIN_PASSWORD = "PZ!2025-admin-only";
 
 // Helper: Convert File to Base64 (Fallback for offline mode)
 const toBase64 = (file: File): Promise<string> => 
@@ -35,15 +34,11 @@ const CreatorPortal: React.FC = () => {
   const [storageUsage, setStorageUsage] = useState(0);
   const [listSearch, setListSearch] = useState('');
 
-  // AI Loading States
-  const [aiLoadingCopy, setAiLoadingCopy] = useState(false);
-  const [aiLoadingEn, setAiLoadingEn] = useState(false);
-  const [aiLoadingZh, setAiLoadingZh] = useState(false);
-
   // Management State
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Structure Management State (For Custom Categories)
   const [mergedCategories, setMergedCategories] = useState<Category[]>([]);
@@ -208,143 +203,6 @@ const CreatorPortal: React.FC = () => {
     setFormData(prev => ({ ...prev, image: '' }));
   };
 
-  // --- AI Functions ---
-const handleGenerateCopyAI = async () => {
-  setAiLoadingCopy(true);
-  setErrorMsg('');
-  setDetailedError('');
-
-  try {
-    // 当前分类 / 子分类（新建时用新名字）
-    const currentCat = isCreatingCategory
-      ? formData.newCatTitle
-      : (activeCategory?.title || '');
-
-    const currentSub = isCreatingSubCategory
-      ? formData.newSubName
-      : formData.subCategoryName;
-
-    const res = await fetch(`${API_BASE}/api/ai/generate-copy`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-password": ADMIN_PASSWORD,
-      },
-      body: JSON.stringify({
-        category: currentCat,
-        subCategory: currentSub,
-        name_en: formData.name,
-        name_zh: formData.name_zh,
-        description_en: formData.description,
-        description_zh: formData.description_zh,
-      }),
-    });
-
-    // 直接按 JSON 解析
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const errMsg =
-        (data && typeof data === 'object' && (data as any).error) ||
-        `HTTP ${res.status}`;
-      throw new Error(errMsg);
-    }
-
-    if (!data || typeof data !== 'object') {
-      throw new Error("Empty AI response");
-    }
-
-    const result: any = data;
-
-    setFormData(prev => ({
-      ...prev,
-      name: result.name_en || prev.name,
-      name_zh: result.name_zh || prev.name_zh,
-      description: result.desc_en || prev.description,
-      description_zh: result.desc_zh || prev.description_zh,
-    }));
-
-    setSuccessMsg(
-      language === "zh"
-        ? "AI 已生成中英文标题和描述，可继续修改。"
-        : "AI generated EN & CN copy, you can refine it."
-    );
-    setTimeout(() => setSuccessMsg(""), 3000);
-  } catch (e: any) {
-    console.error("handleGenerateCopyAI error:", e);
-    setDetailedError(e?.message || String(e));
-    setErrorMsg(
-      (language === "zh" ? "AI 生成失败：" : "AI generation failed: ") +
-      (e?.message || "")
-    );
-  } finally {
-    setAiLoadingCopy(false);
-  }
-};
-
-
-const handleTranslateAI = async (target: 'en' | 'zh') => {
-  const text =
-    target === 'en'
-      ? (formData.description || formData.description_zh)
-      : (formData.description_zh || formData.description);
-
-  if (!text) {
-    setErrorMsg(
-      language === 'zh'
-        ? '请先在任意一侧输入内容'
-        : 'Please fill one of the descriptions first.'
-    );
-    return;
-  }
-
-  const setLoading = target === 'en' ? setAiLoadingEn : setAiLoadingZh;
-
-  try {
-    setLoading(true);
-    setErrorMsg('');
-    setDetailedError('');
-
-    const res = await fetch(`${API_BASE}/api/ai/translate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-password": ADMIN_PASSWORD,
-      },
-      body: JSON.stringify({ target, text }),
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      const errMsg =
-        (data && typeof data === 'object' && (data as any).error) ||
-        `HTTP ${res.status}`;
-      throw new Error(errMsg);
-    }
-
-    if (!data || typeof data !== 'object' || !(data as any).text) {
-      throw new Error("Empty AI response");
-    }
-
-    if (target === 'en') {
-      setFormData(prev => ({ ...prev, description: (data as any).text }));
-    } else {
-      setFormData(prev => ({ ...prev, description_zh: (data as any).text }));
-    }
-  } catch (e: any) {
-    console.error("handleTranslateAI error:", e);
-    setDetailedError(e?.message || String(e));
-    setErrorMsg(
-      (language === 'zh' ? 'AI 翻译/润色失败：' : 'AI translate/polish failed: ') +
-      (e?.message || '')
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
-
   // --- Edit Mode Logic ---
   const handleEditItem = (item: any) => {
     setEditingId(item.id);
@@ -507,17 +365,73 @@ const handleTranslateAI = async (target: 'en' | 'zh') => {
     setItemToDelete(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!itemToDelete) return;
+    setIsDeleting(true);
     
     const id = itemToDelete;
-    const updatedList = localItems.filter(item => item.id !== id);
-    setLocalItems(updatedList);
-    localStorage.setItem('pz_custom_inventory', JSON.stringify(updatedList));
-    loadData();
-    
-    if (editingId === id) cancelEdit();
-    setItemToDelete(null);
+    const deletedItem = localItems.find(item => item.id === id);
+
+    try {
+        // 1. Attempt API Delete (if connected)
+        if (!usingOfflineMode) {
+            try {
+                await fetch(`${API_BASE}/api/products/${id}`, { method: 'DELETE' });
+            } catch (e) {
+                console.warn("API delete failed or not implemented", e);
+            }
+        }
+
+        // 2. Remove from List
+        const updatedList = localItems.filter(item => item.id !== id);
+        setLocalItems(updatedList);
+        localStorage.setItem('pz_custom_inventory', JSON.stringify(updatedList));
+
+        // 3. Smart Cleanup: Remove Empty Custom Categories
+        if (deletedItem) {
+            const { categoryId, subCategoryName } = deletedItem;
+            const rawStruct = localStorage.getItem('pz_custom_structure') || '[]';
+            let customStruct = JSON.parse(rawStruct);
+            let structChanged = false;
+
+            const catIndex = customStruct.findIndex((c: any) => c.id === categoryId);
+            if (catIndex > -1) {
+                const cat = customStruct[catIndex];
+                // Check if any *other* items use this subcategory
+                const othersInSub = updatedList.filter(i => i.categoryId === categoryId && i.subCategoryName === subCategoryName);
+                
+                if (othersInSub.length === 0) {
+                    // Remove subcategory
+                    const originalSubLength = cat.subCategories.length;
+                    cat.subCategories = cat.subCategories.filter((s: any) => s.name !== subCategoryName);
+                    if (cat.subCategories.length !== originalSubLength) {
+                        structChanged = true;
+                    }
+                    
+                    // If category has no more subcategories, remove category
+                    if (cat.subCategories.length === 0) {
+                        customStruct.splice(catIndex, 1);
+                        structChanged = true;
+                    }
+                }
+            }
+            
+            if (structChanged) {
+                localStorage.setItem('pz_custom_structure', JSON.stringify(customStruct));
+            }
+        }
+
+        loadData();
+        if (editingId === id) cancelEdit();
+        setItemToDelete(null);
+        setSuccessMsg(language === 'zh' ? '产品已删除' : 'Product Deleted');
+        setTimeout(() => setSuccessMsg(''), 3000);
+
+    } catch (e) {
+        setErrorMsg(language === 'zh' ? '删除失败' : 'Delete failed');
+    } finally {
+        setIsDeleting(false);
+    }
   };
 
   const handleClearHistory = () => {
@@ -536,7 +450,11 @@ const handleTranslateAI = async (target: 'en' | 'zh') => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in">
            <div className="bg-white p-8 md:p-10 max-w-sm w-full shadow-2xl border border-stone-200 text-center animate-fade-in-up">
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                 <AlertTriangle size={32} className="text-red-500" />
+                 {isDeleting ? (
+                     <Loader2 size={32} className="text-red-500 animate-spin" />
+                 ) : (
+                     <AlertTriangle size={32} className="text-red-500" />
+                 )}
               </div>
               <h3 className="font-serif text-2xl text-stone-900 mb-2">
                  {language === 'zh' ? '确认删除' : 'Confirm Deletion'}
@@ -549,15 +467,17 @@ const handleTranslateAI = async (target: 'en' | 'zh') => {
               <div className="flex space-x-4">
                  <button 
                     onClick={() => setItemToDelete(null)}
-                    className="flex-1 py-3 border border-stone-200 text-stone-600 text-xs font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors"
+                    disabled={isDeleting}
+                    className="flex-1 py-3 border border-stone-200 text-stone-600 text-xs font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors disabled:opacity-50"
                  >
                     {language === 'zh' ? '取消' : 'Cancel'}
                  </button>
                  <button 
                     onClick={confirmDelete}
-                    className="flex-1 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors shadow-md"
+                    disabled={isDeleting}
+                    className="flex-1 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors shadow-md disabled:bg-stone-400"
                  >
-                    {language === 'zh' ? '删除' : 'Delete'}
+                    {isDeleting ? (language === 'zh' ? '删除中...' : 'Deleting...') : (language === 'zh' ? '删除' : 'Delete')}
                  </button>
               </div>
            </div>
@@ -761,48 +681,11 @@ const handleTranslateAI = async (target: 'en' | 'zh') => {
                 </div>
               </div>
 
-              {/* Description + AI Toolbar */}
-              <div className="flex items-center justify-between mb-2 mt-2">
-                 <span className="text-xs uppercase tracking-widest text-stone-400 font-bold flex items-center">
-                    <Sparkles size={12} className="mr-2 text-amber-500" />
-                    {language === 'zh' ? '产品文案' : 'Product Copy'}
-                 </span>
-                 <button
-                    type="button"
-                    onClick={handleGenerateCopyAI}
-                    disabled={aiLoadingCopy}
-                    className="text-[11px] px-3 py-1 rounded-full border border-amber-500 text-amber-700 hover:bg-amber-50 disabled:opacity-60 flex items-center transition-colors"
-                 >
-                    {aiLoadingCopy ? (
-                        <>
-                           <Loader2 size={10} className="mr-1 animate-spin" />
-                           {language === 'zh' ? 'AI 正在生成…' : 'AI Generating…'}
-                        </>
-                    ) : (
-                        <>
-                           <Wand2 size={10} className="mr-1" />
-                           {language === 'zh' ? 'AI 一键生成中英文案' : 'AI Generate EN & CN'}
-                        </>
-                    )}
-                 </button>
-              </div>
-
+              {/* Description */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold flex items-center justify-between">
-                    <span>Description (EN)</span>
-                    <button
-                        type="button"
-                        onClick={() => handleTranslateAI('en')}
-                        disabled={aiLoadingEn}
-                        className="text-[10px] text-amber-700 hover:text-amber-900 disabled:opacity-60 flex items-center"
-                    >
-                        {aiLoadingEn ? (
-                           <Loader2 size={10} className="animate-spin" />
-                        ) : (
-                           language === 'zh' ? '从中文翻译/润色 EN' : 'From CN → EN / Polish'
-                        )}
-                    </button>
+                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
+                    Description (EN)
                   </label>
                   <textarea
                     rows={3}
@@ -815,20 +698,8 @@ const handleTranslateAI = async (target: 'en' | 'zh') => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold flex items-center justify-between">
-                    <span>产品描述 (中文)</span>
-                    <button
-                        type="button"
-                        onClick={() => handleTranslateAI('zh')}
-                        disabled={aiLoadingZh}
-                        className="text-[10px] text-amber-700 hover:text-amber-900 disabled:opacity-60 flex items-center"
-                    >
-                        {aiLoadingZh ? (
-                           <Loader2 size={10} className="animate-spin" />
-                        ) : (
-                           language === 'zh' ? '从英文翻译/润色 中文' : 'From EN → CN / Polish'
-                        )}
-                    </button>
+                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
+                    产品描述 (中文)
                   </label>
                   <textarea
                     rows={3}

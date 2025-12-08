@@ -38,7 +38,7 @@ const translations = {
       factoryStrength: "Factory Strength",
       strengthTitle: "Engineered for High-End Retail.",
       strengthDesc1: "Peng Zhan is not just a factory; we are a specialized solid wood studio operating at an industrial scale. We bridge the gap between the boutique quality required by leading US brands and the volume capabilities of Asian manufacturing.",
-      strengthDesc2: "From our signature Butcher Block surfaces to intricate mortise-and-tenon joinery, our output is defined by warmth, depth, and precision.",
+      strengthDesc2: "We bridge the gap between the boutique-level quality demanded by leading US brands and the high-efficiency manufacturing capabilities of Asia—delivering design accuracy, engineering stability, and consistent volume at global standards.",
       stats: {
         factories: "Factories (CN + KH)",
         exp: "Years Exp.",
@@ -62,6 +62,13 @@ const translations = {
       title: "The Invisible Force Behind Global Design Brands",
       intro: "Peng Zhan Furniture Studio is a design-led manufacturing partner serving the top 30 US furniture brands. From our origins in Southern China to our expansion into Cambodia, we bridge the gap between California design aesthetics and industrial-grade precision.",
       bannerText: "\"Craftsmanship at Scale.\"",
+      storyTitle: "Our Story",
+      storyP1: "Peng Zhan was built for one purpose: to prove that a modern factory can match global standards—not only in output, but in intelligence, precision, and adaptability.",
+      storyP2: "As furniture markets evolved, we saw brands struggle to find manufacturing partners who could scale while still honoring detail, engineering logic, and design intent. Most factories focused on volume. Few focused on improvement. Even fewer focused on partnership.",
+      storyP3: "We chose a different path.",
+      storyP4: "From automated production lines to data-driven quality control, from multi-species solid wood processing to flexible assembly workflows, Peng Zhan continues to invest in capabilities that allow us to respond to a fast-changing industry. Every year, we upgrade equipment, expand categories, and refine production engineering—because the brands we serve keep growing, and we grow with them.",
+      storyP5: "Our strength is not only machinery. It is our ability to listen, analyze, optimize, and execute. We collaborate with designers and buyers as technical problem-solvers, transforming sketches and prototypes into stable, repeatable, and efficiently manufactured products.",
+      storyP6: "What started as a workshop has become a forward-looking manufacturing platform—built on discipline, innovation, and a commitment to long-term partnership. We are not merely producing furniture; we are building the manufacturing future that global brands can rely on.",
       pillars: {
         elite: "Elite Partnerships",
         eliteDesc: "We have established long-term OEM/ODM relationships with the most prestigious names in American furniture retail. Our understanding of 'High Street' quality standards is unmatched in the region.",
@@ -193,8 +200,8 @@ const translations = {
       factoryProfile: "工厂概况",
       factoryStrength: "工厂实力",
       strengthTitle: "专为高端零售打造",
-      strengthDesc1: "鹏展不仅仅是一家工厂，我们是一个具备工业化规模的实木制造工作室。我们连接了美国顶尖品牌所需的精品质量与亚洲制造的量产能力。",
-      strengthDesc2: "从我们标志性的实木层压台面到复杂的榫卯结构，我们的产品以温暖、深度和精确著称。",
+      strengthDesc1: "鹏展不仅是一家工厂；我们是一座面向未来的现代实木制造平台，能够在工业化规模下实现高标准生产。",
+      strengthDesc2: "我们连接美国领先品牌所追求的精品品质，与亚洲制造体系所具备的高效率与高产能，为客户提供设计精准度、工程稳定性以及全球水准的一致性生产能力。",
       stats: {
         factories: "两大生产基地",
         exp: "年行业经验",
@@ -218,6 +225,14 @@ const translations = {
       title: "全球设计品牌背后的隐形力量",
       intro: "鹏展家具工作室是服务于全美前30大家具品牌的设计驱动型制造合作伙伴。从中国华南起步到拓展至柬埔寨，我们架起了加州设计美学与工业级精度之间的桥梁。",
       bannerText: "“规模化的工匠精神。”",
+      storyTitle: "品牌故事",
+      storyP1: "鹏展成立于一个明确的目标：证明现代化工厂不仅能实现产能，更能在智能化、精密度和适应性方面达到全球水准。",
+      storyP2: "随着家具市场不断演变，我们看到许多品牌在寻找兼具规模与细节把控能力的制造伙伴时屡屡受阻。大多数工厂只追求产量，少数关注改进，更少愿意建立真正的长期合作关系。",
+      storyP3: "而我们选择了一条不同的道路。",
+      storyP4: "从自动化生产线到数据化质量管理，从多材质实木加工到灵活的装配流程，鹏展持续投入先进能力，以应对快速变化的行业需求。每一年，我们都在升级设备、拓展品类、优化工程工艺——因为客户的品牌在成长，而我们必须与之共同成长。",
+      storyP5: "我们的优势不仅是设备，更是思考与执行的能力。我们倾听、分析、优化并落地，与设计师和采购团队并肩作为技术解决者，将草图与原型转化为稳定、可量产、且品质一致的产品。",
+      storyP6: "从最初的作坊形态，到如今面向未来的制造平台，鹏展依靠纪律、创新和长期主义不断前进。我们不仅在生产家具；我们正在构建让全球品牌放心依靠的制造未来。",
+
       pillars: {
         elite: "精英合作伙伴",
         eliteDesc: "我们与美国最负盛名的家具零售商建立了长期的 OEM/ODM 关系。我们对“高街”质量标准的理解在区域内无出其右。",

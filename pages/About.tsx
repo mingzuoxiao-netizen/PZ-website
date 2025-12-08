@@ -114,6 +114,24 @@ const About: React.FC = () => {
         </div>
       </div>
 
+      {/* NEW: Brand Story Section */}
+      <section className="py-24 bg-white mb-24 border-y border-stone-100">
+        <div className="container mx-auto px-6 md:px-12 max-w-4xl text-center">
+           <span className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-8 block">
+              {t.about.storyTitle}
+           </span>
+           <p className="font-serif text-2xl md:text-3xl text-stone-900 leading-relaxed mb-12">
+              {t.about.storyP1}
+           </p>
+           <div className="text-stone-600 text-lg leading-relaxed space-y-8 font-light">
+              <p>{t.about.storyP2}</p>
+              <p>{t.about.storyP3}</p>
+           </div>
+           
+           <div className="w-16 h-1 bg-[#281815] mx-auto mt-16 opacity-10"></div>
+        </div>
+      </section>
+
       {/* Core Pillars */}
       <div className="container mx-auto px-6 md:px-12 mb-32">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
