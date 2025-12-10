@@ -1,9 +1,11 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import About from './pages/About';
-import TheStudio from './pages/TheStudio';
+import Manufacturing from './pages/Manufacturing';
+import Capabilities from './pages/Capabilities';
 import Collections from './pages/Collections';
 import Materials from './pages/Materials';
 import GlobalCapacity from './pages/GlobalCapacity';
@@ -35,7 +37,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Layout><Home /></Layout>} />
             <Route path="/about" element={<Layout><About /></Layout>} />
-            <Route path="/studio" element={<Layout><TheStudio /></Layout>} />
+            <Route path="/manufacturing" element={<Layout><Manufacturing /></Layout>} />
+            <Route path="/capabilities" element={<Layout><Capabilities /></Layout>} />
             <Route path="/collections" element={<Layout><Collections /></Layout>} />
             <Route path="/materials" element={<Layout><Materials /></Layout>} />
             <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />

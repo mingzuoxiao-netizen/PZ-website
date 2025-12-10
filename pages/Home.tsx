@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { ArrowRight, Layers, Globe, Hammer, MapPin } from 'lucide-react';
+import { ArrowRight, Box, Anchor, Ruler, Factory, Settings, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -8,186 +9,267 @@ const Home: React.FC = () => {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative h-screen w-full overflow-hidden">
-        {/* Background Image */}
+      {/* Hero Section - Industrial Power */}
+      <section className="relative h-screen w-full overflow-hidden bg-zinc-900">
+        {/* Background Video/Image - Dark, Moody Factory Floor */}
         <div 
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105 animate-slow-pan"
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-100 animate-slow-pan"
           style={{ 
-            backgroundImage: 'url("https://images.unsplash.com/photo-1543456973-1e958c89c018?q=80&w=2574&auto=format&fit=crop")', 
+            // Image: A dark, moody shot of a CNC machine or vast factory floor
+            backgroundImage: 'url("https://images.unsplash.com/photo-1565538810643-b5bdb714032a?q=80&w=2540&auto=format&fit=crop")', 
           }}
         >
-          {/* Sepia/Warm Dark overlay for wood theme */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#281815]/70 via-[#281815]/40 to-[#281815]/70"></div>
+          {/* Heavy Vignette Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/90 via-zinc-950/50 to-zinc-950/30"></div>
         </div>
 
-        <div className="relative z-10 h-full flex flex-col justify-center items-center text-center px-6">
+        <div className="relative z-10 h-full container mx-auto px-6 md:px-12 flex flex-col justify-center">
           
-          {/* Brand Name Centered */}
-          <div className="relative mb-8 animate-fade-in-up">
-             <h1 className="font-serif text-6xl md:text-8xl lg:text-9xl text-white font-bold tracking-tight leading-none drop-shadow-lg flex items-baseline justify-center">
-               {language === 'zh' ? '鹏 展' : 'PENG ZHAN'}
-               {/* Champagne Gold Accent */}
-               <span className="text-[#d4b996] text-6xl md:text-8xl lg:text-9xl leading-none ml-2">.</span>
+          <div className="border-l-4 border-bronze-accent pl-8 animate-fade-in-up">
+             <h2 className="text-bronze-accent font-bold tracking-[0.3em] uppercase text-sm md:text-base mb-6">
+               Premium Solid Wood Manufacturing
+             </h2>
+             <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white font-bold leading-tight mb-8">
+               PZ <br/>
+               <span className="text-zinc-400">Furniture Studio</span>
              </h1>
-             <p className="text-[#d4b996] uppercase tracking-[0.5em] text-xs md:text-sm font-bold mt-4 md:mt-6 text-center shadow-sm">
-               {t.home.subtitle}
-             </p>
           </div>
           
-          <div className="h-px w-24 bg-[#d4b996]/60 my-8 animate-fade-in-up delay-100"></div>
+          <p className="text-zinc-300 text-lg md:text-xl max-w-2xl mt-4 mb-12 font-light leading-relaxed pl-9 animate-fade-in-up delay-100">
+             {t.home.strengthDesc1}
+          </p>
 
-          <h2 className="text-[#E6DDD5] text-lg md:text-2xl font-serif italic max-w-3xl mb-12 font-light animate-fade-in-up delay-200 drop-shadow-md">
-            {t.home.heroQuote}
-          </h2>
-
-          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 animate-fade-in-up delay-300">
-            <Link 
-              to="/collections" 
-              className="group bg-[#F5F0EB] text-stone-900 px-10 py-4 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-white transition-colors shadow-lg"
-            >
-              {t.home.viewLibrary} <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
-            </Link>
+          <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-0 pl-9 animate-fade-in-up delay-200">
             <Link 
               to="/capacity" 
-              className="group border border-[#F5F0EB] text-[#F5F0EB] px-10 py-4 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-[#F5F0EB] hover:text-stone-900 transition-colors shadow-lg"
+              className="bg-white text-zinc-950 px-10 py-5 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-bronze-accent hover:text-white transition-colors min-w-[200px]"
             >
-              {t.home.factoryProfile}
+              {t.home.factoryProfile} <ArrowRight size={16} className="ml-3" />
+            </Link>
+            <Link 
+              to="/collections" 
+              className="border border-white/30 text-white px-10 py-5 tracking-widest uppercase text-xs font-bold flex items-center justify-center hover:bg-white hover:text-zinc-950 transition-colors min-w-[200px] md:ml-4"
+            >
+              {t.home.viewLibrary}
             </Link>
           </div>
         </div>
+        
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-12 left-12 md:left-20 animate-bounce hidden md:block">
+           <div className="w-[1px] h-16 bg-white/20"></div>
+        </div>
       </section>
 
-      {/* Intro / Positioning - Warm Oatmeal Bg */}
-      <section className="py-32 bg-stone-100">
+      {/* Stats Strip - Black & Bold */}
+      <section className="bg-zinc-950 text-white border-b border-zinc-800">
+         <div className="container mx-auto px-6 md:px-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-zinc-800">
+               <div className="py-12 px-6">
+                  <span className="block text-4xl md:text-5xl font-serif text-bronze-accent mb-2">10+</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Years Experience</span>
+               </div>
+               <div className="py-12 px-6">
+                  <span className="block text-4xl md:text-5xl font-serif text-white mb-2">2</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Global Facilities</span>
+               </div>
+               <div className="py-12 px-6">
+                  <span className="block text-4xl md:text-5xl font-serif text-white mb-2">1M+</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Sq.Ft Capacity</span>
+               </div>
+               <div className="py-12 px-6">
+                  <span className="block text-4xl md:text-5xl font-serif text-white mb-2">30+</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Major Brand Partners</span>
+               </div>
+            </div>
+         </div>
+      </section>
+
+      {/* Industrial Strength / Capability - Split Layout */}
+      <section className="bg-white">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
+            {/* Image Side - Massive Machinery */}
+            <div className="h-[500px] lg:h-auto relative bg-zinc-900 group overflow-hidden">
+               <img 
+                 src="https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070&auto=format&fit=crop" 
+                 alt="Industrial Machinery" 
+                 className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-1000 grayscale group-hover:grayscale-0"
+               />
+               <div className="absolute bottom-0 left-0 p-12">
+                  <span className="text-white text-xs font-bold uppercase border border-white/30 px-3 py-1 mb-4 inline-block">Factory 01</span>
+                  <h3 className="text-white font-serif text-3xl">Zhaoqing, China</h3>
+               </div>
+            </div>
+
+            {/* Content Side */}
+            <div className="p-12 lg:p-24 flex flex-col justify-center bg-zinc-50">
+               <h3 className="text-bronze-accent font-bold tracking-[0.2em] uppercase text-xs mb-6 flex items-center">
+                  <Box size={14} className="mr-2" />
+                  {t.home.factoryStrength}
+               </h3>
+               <h2 className="font-serif text-4xl lg:text-5xl text-zinc-900 mb-8 leading-tight">
+                  {t.home.strengthTitle}
+               </h2>
+               <div className="w-20 h-1 bg-zinc-900 mb-10"></div>
+               <p className="text-zinc-600 mb-6 leading-relaxed text-lg font-light">
+                  {t.home.strengthDesc2}
+               </p>
+               <ul className="space-y-4 mt-4 mb-10">
+                  <li className="flex items-center text-zinc-800 font-medium">
+                     <Factory className="mr-4 text-zinc-400" size={20} />
+                     Full-scale Automated Finishing Lines
+                  </li>
+                  <li className="flex items-center text-zinc-800 font-medium">
+                     <Ruler className="mr-4 text-zinc-400" size={20} />
+                     5-Axis CNC Precision Components
+                  </li>
+                  <li className="flex items-center text-zinc-800 font-medium">
+                     <Settings className="mr-4 text-zinc-400" size={20} />
+                     In-house Metal & Stone Fabrication
+                  </li>
+               </ul>
+               <Link 
+                 to="/capacity" 
+                 className="text-zinc-900 font-bold uppercase tracking-widest text-xs border-b-2 border-zinc-900 pb-1 self-start hover:text-bronze-accent hover:border-bronze-accent transition-colors"
+               >
+                 Explore Manufacturing
+               </Link>
+            </div>
+        </div>
+      </section>
+
+      {/* Core Pillars - Image Grid (High Impact) */}
+      <section className="bg-zinc-900 py-32 text-white">
         <div className="container mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
-            <div>
-              <h3 className="text-[#a16207] font-bold tracking-[0.2em] uppercase text-xs mb-6">{t.home.factoryStrength}</h3>
-              <h2 className="font-serif text-4xl md:text-5xl text-stone-900 mb-10 leading-tight">
-                {t.home.strengthTitle}
-              </h2>
-              <p className="text-stone-700 mb-6 leading-relaxed text-lg font-light">
-                {t.home.strengthDesc1}
-              </p>
-              <p className="text-stone-700 mb-12 leading-relaxed text-lg font-light">
-                {t.home.strengthDesc2}
-              </p>
-              
-              <div className="flex items-center space-x-8 mb-8">
-                 <div className="text-center">
-                    <span className="block text-3xl font-serif text-stone-900">2</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.factories}</span>
+           <div className="flex flex-col md:flex-row justify-between items-end mb-16">
+              <div className="max-w-xl">
+                 <h2 className="font-serif text-4xl text-white mb-4">{t.home.competencies}</h2>
+                 <p className="text-zinc-400 font-light">
+                    We don't just assemble; we engineer. From raw lumber sourcing to complex joinery.
+                 </p>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+              {/* Card 1 */}
+              <div className="group relative h-[400px] overflow-hidden bg-zinc-800 cursor-pointer">
+                 <img 
+                    src="https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1000&auto=format&fit=crop" 
+                    alt="Material" 
+                    className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 scale-100 group-hover:scale-110 transform"
+                 />
+                 <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                    <span className="text-bronze-accent font-mono text-xs">01</span>
+                    <div>
+                       <h3 className="font-serif text-2xl mb-2">{t.home.comp1Title}</h3>
+                       <p className="text-zinc-300 text-sm leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-y-4 group-hover:translate-y-0">
+                          {t.home.comp1Desc}
+                       </p>
+                    </div>
                  </div>
-                 <div className="w-px h-12 bg-stone-300"></div>
-                 <div className="text-center">
-                    <span className="block text-3xl font-serif text-stone-900">10+</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.exp}</span>
+                 <div className="absolute inset-0 border border-white/10 group-hover:border-bronze-accent/50 transition-colors duration-500"></div>
+              </div>
+
+              {/* Card 2 */}
+              <div className="group relative h-[400px] overflow-hidden bg-zinc-800 cursor-pointer">
+                 <img 
+                    src="https://images.unsplash.com/photo-1565610222536-ef125c59da2c?q=80&w=1000&auto=format&fit=crop" 
+                    alt="Logistics" 
+                    className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 scale-100 group-hover:scale-110 transform"
+                 />
+                 <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                    <span className="text-bronze-accent font-mono text-xs">02</span>
+                    <div>
+                       <h3 className="font-serif text-2xl mb-2">{t.home.comp2Title}</h3>
+                       <p className="text-zinc-300 text-sm leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-y-4 group-hover:translate-y-0">
+                          {t.home.comp2Desc}
+                       </p>
+                    </div>
                  </div>
-                 <div className="w-px h-12 bg-stone-300"></div>
-                 <div className="text-center">
-                    <span className="block text-3xl font-serif text-stone-900">30+</span>
-                    <span className="text-[10px] uppercase tracking-widest text-stone-500">{t.home.stats.partners}</span>
+                 <div className="absolute inset-0 border border-white/10 group-hover:border-bronze-accent/50 transition-colors duration-500"></div>
+              </div>
+
+              {/* Card 3 */}
+              <div className="group relative h-[400px] overflow-hidden bg-zinc-800 cursor-pointer">
+                 <img 
+                    src="https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=1000&auto=format&fit=crop" 
+                    alt="Joinery" 
+                    className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 scale-100 group-hover:scale-110 transform"
+                 />
+                 <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                    <span className="text-bronze-accent font-mono text-xs">03</span>
+                    <div>
+                       <h3 className="font-serif text-2xl mb-2">{t.home.comp3Title}</h3>
+                       <p className="text-zinc-300 text-sm leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform translate-y-4 group-hover:translate-y-0">
+                          {t.home.comp3Desc}
+                       </p>
+                    </div>
+                 </div>
+                 <div className="absolute inset-0 border border-white/10 group-hover:border-bronze-accent/50 transition-colors duration-500"></div>
+              </div>
+           </div>
+        </div>
+      </section>
+
+      {/* Global Presence - Technical Map Look */}
+      <section className="py-24 bg-zinc-100 border-t border-zinc-200">
+        <div className="container mx-auto px-6 md:px-12">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+              <div>
+                 <h2 className="font-serif text-4xl text-zinc-900 mb-6">{t.home.globalHubs}</h2>
+                 <p className="text-zinc-600 mb-8 leading-relaxed">
+                   {t.home.globalDesc}
+                 </p>
+                 <div className="space-y-6">
+                    <div className="bg-white p-6 border-l-4 border-bronze-accent shadow-sm">
+                       <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">China (HQ)</h4>
+                          <Anchor size={16} className="text-zinc-400" />
+                       </div>
+                       <p className="text-xs text-zinc-500 font-mono">Guangdong Province • 645k Sq.Ft</p>
+                    </div>
+                    <div className="bg-white p-6 border-l-4 border-zinc-300 shadow-sm">
+                       <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">Cambodia</h4>
+                          <Truck size={16} className="text-zinc-400" />
+                       </div>
+                       <p className="text-xs text-zinc-500 font-mono">Kandal Province • Tariff Free • 398k Sq.Ft</p>
+                    </div>
                  </div>
               </div>
-            </div>
-            <div className="relative h-[500px] w-full group">
-               <div className="absolute inset-0 bg-[#a16207] transform translate-x-4 translate-y-4 opacity-20 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform"></div>
-               <img 
-                 src="https://images.unsplash.com/photo-1618220179428-22790b461013?q=80&w=1000&auto=format&fit=crop" 
-                 alt="Factory Detail" 
-                 className="w-full h-full object-cover relative z-10 shadow-xl"
-               />
-            </div>
-          </div>
+              <div className="relative">
+                 {/* Stylized Abstract Map Image or Industrial Schematic */}
+                 <img 
+                    src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2670&auto=format&fit=crop" 
+                    alt="Global Architecture" 
+                    className="w-full h-[400px] object-cover grayscale contrast-125"
+                 />
+                 <div className="absolute inset-0 bg-zinc-900/10 grid grid-cols-6 grid-rows-6">
+                    {/* Grid Overlay for Technical feel */}
+                    <div className="border-r border-b border-white/10"></div>
+                    <div className="border-r border-b border-white/10"></div>
+                    <div className="border-r border-b border-white/10"></div>
+                    <div className="border-r border-b border-white/10"></div>
+                    <div className="border-r border-b border-white/10"></div>
+                    <div className="border-b border-white/10"></div>
+                    {/* ... minimal grid ... */}
+                 </div>
+              </div>
+           </div>
         </div>
       </section>
 
-      {/* Core Competencies Grid */}
-      <section className="py-32 bg-white">
-        <div className="container mx-auto px-6 md:px-12">
-          <div className="text-center mb-20">
-            <h2 className="font-serif text-4xl text-stone-900 mb-4">{t.home.competencies}</h2>
-            <div className="w-16 h-1 bg-[#a16207] mx-auto"></div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-             <div className="group text-center">
-                <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
-                  <Layers size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
-                </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp1Title}</h3>
-                <p className="text-stone-600 font-light leading-relaxed">
-                  {t.home.comp1Desc}
-                </p>
-             </div>
-
-             <div className="group text-center">
-                <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
-                  <Globe size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
-                </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp2Title}</h3>
-                <p className="text-stone-600 font-light leading-relaxed">
-                  {t.home.comp2Desc}
-                </p>
-             </div>
-
-             <div className="group text-center">
-                <div className="w-20 h-20 mx-auto bg-stone-100 rounded-full flex items-center justify-center mb-8 group-hover:bg-[#a16207] transition-colors duration-500">
-                  <Hammer size={32} className="text-[#a16207] group-hover:text-white transition-colors" />
-                </div>
-                <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.home.comp3Title}</h3>
-                <p className="text-stone-600 font-light leading-relaxed">
-                  {t.home.comp3Desc}
-                </p>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Locations / Contact Band */}
-      <section className="py-24 bg-[#281815] text-[#E6DDD5] border-t border-stone-800">
-        <div className="container mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-             <div>
-                <h3 className="text-[#d4b996] font-bold tracking-widest uppercase text-xs mb-6">{t.home.visitUs}</h3>
-                <h2 className="font-serif text-3xl text-white mb-8">{t.home.globalHubs}</h2>
-                <p className="text-stone-400 leading-relaxed mb-8">
-                  {t.home.globalDesc}
-                </p>
-                <Link to="/inquire" className="text-[#d4b996] hover:text-white transition-colors text-sm font-bold uppercase tracking-widest flex items-center">
-                   {t.common.startProject} <ArrowRight size={16} className="ml-2" />
-                </Link>
-             </div>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
-                <div>
-                   <div className="flex items-center text-white mb-4">
-                      <MapPin className="text-[#d4b996] mr-2" size={18} />
-                      <h4 className="font-serif text-xl">Zhaoqing, China</h4>
-                   </div>
-                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">{t.home.chinaLoc}</p>
-                   <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
-                      Deqing Industrial Zone,<br/>
-                      Zhaoqing City,<br/>
-                      Guangdong Province, China
-                   </address>
-                </div>
-                <div>
-                   <div className="flex items-center text-white mb-4">
-                      <MapPin className="text-[#d4b996] mr-2" size={18} />
-                      <h4 className="font-serif text-xl">Kandal, Cambodia</h4>
-                   </div>
-                   <p className="text-stone-500 text-xs uppercase tracking-wider mb-4 font-bold">{t.home.cambodiaLoc}</p>
-                   <address className="not-italic text-stone-400 text-sm leading-relaxed opacity-80">
-                      Svay Chhrum Village,<br/>
-                      Baek Chan Commune,<br/>
-                      Ang Snuol District,<br/>
-                      Kandal Province
-                   </address>
-                </div>
-             </div>
-          </div>
-        </div>
+      {/* Final CTA - Heavy footer lead-in */}
+      <section className="bg-bronze-900 py-20 text-center">
+         <div className="container mx-auto px-6">
+            <h2 className="font-serif text-3xl md:text-5xl text-white mb-8">Ready to Scale?</h2>
+            <Link 
+              to="/inquire" 
+              className="inline-block bg-white text-bronze-900 px-12 py-4 font-bold uppercase tracking-widest text-sm hover:bg-zinc-200 transition-colors"
+            >
+              Start Your Project
+            </Link>
+         </div>
       </section>
     </>
   );

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Lock } from 'lucide-react';
 
@@ -60,7 +59,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           {/* Logo */}
           <div className="mb-12">
             <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight leading-none flex items-baseline justify-center text-white">
-                PENG ZHAN
+                PZ
                 <span className="text-[#d4b996] text-4xl md:text-5xl leading-none ml-1">.</span>
             </h1>
             <p className="text-[#8D6E63] text-xs uppercase tracking-[0.4em] mt-4">Private Portfolio</p>
@@ -102,7 +101,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           </div>
           
           <p className="mt-8 text-[#8D6E63] text-xs">
-             &copy; {new Date().getFullYear()} Peng Zhan Furniture Studio.
+             &copy; {new Date().getFullYear()} PZ Furniture Studio.
           </p>
         </div>
       </div>

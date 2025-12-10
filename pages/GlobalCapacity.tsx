@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Globe, Truck, MapPin, Factory, X, ChevronRight } from 'lucide-react';
+import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 // 1. Data Structure for Map Pins
@@ -118,9 +119,6 @@ const LOCATIONS: MapLocation[] = [
 // 2. Reusable Pin Component
 const LocationMarker: React.FC<{ location: MapLocation; onClick: (loc: MapLocation) => void }> = ({ location, onClick }) => {
   const isFactory = location.type === 'HQ' || location.type === 'Factory';
-  
-  // Markets use MapPins (anchored at bottom center: -50%, -100%)
-  // Factories use Dots (anchored at center: -50%, -50%)
   const anchorTransform = isFactory ? 'translate(-50%, -50%)' : 'translate(-50%, -100%)';
 
   return (
@@ -156,15 +154,15 @@ const LocationMarker: React.FC<{ location: MapLocation; onClick: (loc: MapLocati
           )}
        </div>
 
-       {/* Label Tooltip - Hidden on click/modal open, mostly for hover */}
+       {/* Label Tooltip */}
        <div className={`
          absolute whitespace-nowrap px-3 py-1 rounded shadow-xl text-[10px] font-bold uppercase tracking-wide pointer-events-none
          transition-all duration-300 transform
          ${isFactory 
-            ? 'top-full mt-2 bg-stone-900 text-white opacity-100 translate-y-0' // Always show factory labels
-            : 'bottom-full mb-1 bg-white text-stone-900 border border-stone-100 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0' // Hover for markets
+            ? 'top-full mt-2 bg-stone-900 text-white opacity-100 translate-y-0'
+            : 'bottom-full mb-1 bg-white text-stone-900 border border-stone-100 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0'
          }
-         ${location.highlight ? 'opacity-100 translate-y-0 bg-stone-900 text-white border-none' : ''} // Always show major market
+         ${location.highlight ? 'opacity-100 translate-y-0 bg-stone-900 text-white border-none' : ''} 
        `}>
          {location.label}
        </div>
@@ -284,24 +282,67 @@ const GlobalCapacity: React.FC = () => {
             </div>
          </div>
          
-         {/* Client Distribution Section */}
+         {/* Lead Time & Logistics - NEW SECTION */}
+         <div className="mb-24 grid grid-cols-1 md:grid-cols-2 gap-12 bg-white border border-stone-200 p-8 md:p-12">
+            <div>
+               <div className="flex items-center mb-6">
+                   <Calendar className="text-[#a16207] mr-4" size={28} />
+                   <h3 className="font-serif text-2xl text-stone-900">Lead Time Overview</h3>
+               </div>
+               <div className="space-y-6">
+                   <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+                       <span className="text-sm font-bold text-stone-600">Sample Development</span>
+                       <span className="text-sm font-mono text-stone-900">7 - 14 Days</span>
+                   </div>
+                   <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+                       <span className="text-sm font-bold text-stone-600">Initial Production</span>
+                       <span className="text-sm font-mono text-stone-900">60 Days</span>
+                   </div>
+                   <div className="flex justify-between items-center border-b border-stone-100 pb-3">
+                       <span className="text-sm font-bold text-stone-600">Re-Order Production</span>
+                       <span className="text-sm font-mono text-stone-900">45 Days</span>
+                   </div>
+                   <p className="text-xs text-stone-400 mt-4 italic">* Lead times may vary based on material availability and order volume.</p>
+               </div>
+            </div>
+            
+            <div>
+               <div className="flex items-center mb-6">
+                   <Anchor className="text-[#a16207] mr-4" size={28} />
+                   <h3 className="font-serif text-2xl text-stone-900">Logistics & FOB</h3>
+               </div>
+               <div className="space-y-4">
+                   <div className="bg-stone-50 p-4 border-l-4 border-stone-300">
+                       <span className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">China Origin</span>
+                       <span className="block text-stone-900 font-bold">FOB Shenzhen / Nansha</span>
+                   </div>
+                   <div className="bg-stone-50 p-4 border-l-4 border-stone-300">
+                       <span className="block text-xs font-bold text-stone-400 uppercase tracking-widest mb-1">Cambodia Origin</span>
+                       <span className="block text-stone-900 font-bold">FOB Sihanoukville</span>
+                   </div>
+                   <div className="flex items-start mt-6">
+                       <Truck className="text-stone-400 mr-3 mt-1" size={16} />
+                       <p className="text-sm text-stone-500">
+                          We support FCL (Full Container Load) and LCL consolidation. Drop-shipping programs available via our US warehouse.
+                       </p>
+                   </div>
+               </div>
+            </div>
+         </div>
          
+         {/* Client Distribution Map */}
          <div className="mb-24">
             <h2 className="font-serif text-3xl text-stone-900 mb-8 text-center">{t.capacity.clientDist}</h2>
             <p className="text-stone-600 text-center max-w-2xl mx-auto mb-12">
                {t.capacity.clientDesc}
             </p>
             
-            {/* 1. Stable Map Container using aspect-ratio */}
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
-               {/* Standard Robinson Projection Map (Stable PNG) */}
                <img 
                 src="https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg" 
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />
-               
-               {/* 4. Render all pins from data */}
                {LOCATIONS.map((loc) => (
                  <LocationMarker key={loc.id} location={loc} onClick={setSelectedLocation} />
                ))}
@@ -328,7 +369,7 @@ const GlobalCapacity: React.FC = () => {
             </div>
          </div>
 
-         {/* Logistics Section */}
+         {/* Supply Chain Section */}
          <div className="relative overflow-hidden bg-stone-900 text-white rounded-xl p-12 md:p-20">
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                <div>
