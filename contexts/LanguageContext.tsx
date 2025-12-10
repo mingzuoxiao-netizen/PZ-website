@@ -29,10 +29,15 @@ const translations = {
       rights: "All rights reserved.",
       startProject: "Start a Project",
       tradeProgram: "Trade Program",
-      adminAccess: "Admin Access"
+      adminAccess: "Admin Access",
+      location_cn: "Zhaoqing, China",
+      location_kh: "Kandal, Cambodia",
+      factory_01: "Factory 01"
     },
     home: {
       subtitle: "Furniture Manufacturing",
+      heroTitle: "Premium Solid Wood Manufacturing",
+      heroSub: "Precision Woodworks",
       heroQuote: "\"Bridging Global Design with Precision Manufacturing.\"",
       viewLibrary: "View Wood Library",
       factoryProfile: "Factory Profile",
@@ -56,12 +61,14 @@ const translations = {
       globalHubs: "Global Manufacturing Hubs",
       globalDesc: "Our dual-shore strategy ensures we can meet any volume or tariff requirement. Contact us to schedule a factory tour or audit.",
       chinaLoc: "HQ & Main Facility",
-      cambodiaLoc: "Tariff-Free Factory"
+      cambodiaLoc: "Tariff-Free Factory",
+      readyToScale: "Ready to Scale?",
+      exploreMfg: "Explore Manufacturing"
     },
     about: {
       since: "Since 2014",
       title: "The Invisible Force Behind Global Design Brands",
-      intro: "PZ Furniture Studio is a design-led manufacturing partner serving the top 30 US furniture brands. From our origins in Southern China to our expansion into Cambodia, we bridge the gap between modern design aesthetics and industrial-grade precision.",
+      intro: "PZ Precision Woodworks is a design-led partner serving the top 30 US furniture brands. From our origins in Southern China to our expansion into Cambodia, we bridge the gap between modern design aesthetics and industrial-grade precision.",
       bannerText: "\"Craftsmanship at Scale.\"",
       storyTitle: "Our Story",
       storyP1: "PZ was built for one purpose: to prove that a modern factory can match global standards—not only in output, but in intelligence, precision, and adaptability.",
@@ -95,38 +102,74 @@ const translations = {
       title: "Advanced Manufacturing",
       subtitle: "The Art of Industry",
       intro: "We operate at the intersection of artisanal woodcraft and Industry 4.0 automation. Our facilities are designed to deliver consistent precision at volume.",
-      sections: {
-        machining: {
-          title: "Precision Machining",
-          desc: "Our machine park includes 5-axis CNC centers for complex 3D contouring, automated cross-cut saws for yield optimization, and high-speed moulders. We maintain tolerances of +/- 0.1mm for all joinery components."
-        },
-        finishing: {
-          title: "Automated Finishing",
-          desc: "We utilize Cefla flat-line finishing systems and overhead hang-line conveyors to ensure uniform application of stains, sealers, and topcoats. Our UV and PU lines are optimized for both durability and aesthetic depth."
-        },
-        metal: {
-          title: "In-House Metalwork",
-          desc: "Unlike many wood factories, we have dedicated in-house metal fabrication capabilities including laser cutting, welding, and powder coating, allowing for seamless mixed-material integration."
-        }
+      tabs: {
+        process: "Production Process",
+        machinery: "Machinery & Tech",
+        qc: "Quality Control"
+      },
+      machinery: {
+        title: "World-Class Equipment",
+        desc: "We invest in the best German and Italian machinery to ensure consistency. Our automated lines reduce human error for volume production, while our 5-axis routers allow for intricate design realization.",
+        highPrecision: "High-Precision Routing",
+        autoFinish: "Automated Finishing",
+        climate: "Climate Controlled Facility"
+      },
+      qc: {
+        title: "Rigorous Standards",
+        desc: "Quality is not an afterthought; it is embedded in every step. We follow strict AQL standards and U.S. compliance regulations.",
+        iqc: "Incoming QC (IQC)",
+        iqcDesc: "Lumber grading, moisture content checks (8-12%), and hardware validation.",
+        ipqc: "In-Process QC (IPQC)",
+        ipqcDesc: "First-article inspection, dimensional checks at CNC, and sanding quality review.",
+        fqc: "Final QC (FQC)",
+        fqcDesc: "Pre-shipment inspection based on AQL 2.5/4.0. Assembly testing and carton drop tests.",
+        compliance: "Compliance"
       }
     },
     capabilities: {
       title: "Technical Capabilities",
       subtitle: "Engineering Your Vision",
       intro: "Manufacturing is more than just execution; it is about problem-solving. Our engineering team works upstream with your designers to ensure feasibility, cost-efficiency, and structural integrity.",
-      services: {
-        rnd: {
-          title: "R&D & Prototyping",
-          desc: "We offer rapid prototyping services (7-14 days lead time) to validate designs before mass production. Our team provides technical drawings, BOM analysis, and value engineering proposals."
-        },
-        qa: {
-          title: "Quality Assurance",
-          desc: "Our internal lab conducts rigorous testing including moisture content analysis, adhesion testing, and color consistency checks (Delta-E). We follow AQL 2.5/4.0 standards for final inspection."
-        },
-        logistics: {
-          title: "Packaging & Logistics",
-          desc: "We design packaging to meet ISTA 3A/6A standards for e-commerce. Our logistics team handles everything from container loading optimization to customs clearance and drayage."
-        }
+      categories: "Product Categories",
+      limits: {
+        title: "Size & Technical Limits",
+        subtitle: "Engineering constraints for standard production lines.",
+        request: "Request Custom Assessment",
+        maxDim: "Max Dimensions",
+        precision: "Precision",
+        materials: "Materials",
+        length: "Length",
+        width: "Width",
+        thickness: "Thickness",
+        cncTol: "CNC Tolerance",
+        moisture: "Moisture",
+        gloss: "Gloss Level",
+        solidWood: "Solid Wood",
+        veneer: "Veneer",
+        mixed: "Mixed (Metal/Stone)"
+      },
+      oem: {
+        service: "Service Model",
+        title: "OEM & ODM Services",
+        desc: "Whether you have a completed CAD drawing ready for manufacturing (OEM) or need us to develop a product from a concept sketch (ODM), our engineering team is integrated into the process.",
+        oemTitle: "OEM (Build to Print)",
+        oemDesc: "Exact execution of your technical drawings. Material matching and strict tolerance adherence.",
+        odmTitle: "ODM (Design Support)",
+        odmDesc: "We provide structural engineering, value engineering, and prototyping to realize your vision."
+      },
+      compliance: {
+        title: "Technical Compliance",
+        desc: "We ensure all products meet the regulatory standards of the destination market, specifically focusing on the US and EU markets.",
+        safety: "Chemical Safety",
+        safetyDesc: "TSCA Title VI (Formaldehyde), CA Prop 65 Compliance.",
+        sustain: "Sustainability",
+        sustainDesc: "FSC Certified lumber available upon request. EUTR compliant sourcing.",
+        pack: "Packaging",
+        packDesc: "ISTA-3A / 6A testing for e-commerce durability."
+      },
+      cta: {
+        title: "Have a custom project?",
+        btn: "Start Development"
       }
     },
     collections: {
@@ -139,14 +182,51 @@ const translations = {
       catalogDesc: "Download our full PDF specification sheet for this collection.",
       requestPdf: "Request PDF",
       availableSpecs: "Available Specifications",
-      viewOptions: "View Options"
+      viewOptions: "View Options",
+      // PDP
+      pdp: {
+        techDims: "Technical Dimensions",
+        drawingUnavailable: "Digital Line Drawing Unavailable",
+        ref: "Ref",
+        matSelection: "Material Selection",
+        inquireOrder: "Inquire to Order",
+        share: "Share Product",
+        description: "Description",
+        descExtra: "Designed with durability and aesthetic purity in mind. This piece exemplifies our commitment to precision manufacturing, utilizing 5-axis CNC technology and traditional joinery.",
+        matConst: "Materials & Construction",
+        primaryWood: "Primary Wood",
+        finish: "Finish",
+        joinery: "Joinery",
+        hardware: "Hardware",
+        downloads: "Downloads",
+        specSheet: "Product Spec Sheet (PDF)",
+        model3d: "3D Model (STEP)",
+        related: "Related in",
+        viewDetails: "View Details"
+      }
     },
     materials: {
       title: "Materials & Craft",
-      precision: "Precision meets Handcraft",
-      precisionDesc1: "We believe that the soul of furniture lies in the material. Our sourcing process is rigorous, ensuring that every board of lumber meets our standards for sustainability and durability.",
-      precisionDesc2: "Our 'Surface Program' (kitchen islands, cutting boards) utilizes food-safe finishes and robust construction methods designed to last generations.",
-      library: "Wood Library"
+      construction: "Construction Methods & Panel Variations",
+      library: "Wood Library",
+      fingerJoint: "Finger Joint",
+      fingerJointDesc: "Interlocking \"fingers\" cut into the ends of wood pieces to extend length. Provides immense structural strength and maximizes yield from timber. Ideal for painted frames and long countertops.",
+      edgeGlue: "Edge Glue (Full Stave)",
+      edgeGlueDesc: "Boards glued side-by-side running the full length of the piece. Creates a continuous, premium grain appearance. Preferred for high-end dining tables and premium visible surfaces.",
+      butcherBlock: "Butcher Block",
+      butcherBlockDesc: "Thick strips of wood glued together. Extremely durable and stable. Commonly used for heavy-duty workbenches, kitchen islands, and industrial style tops.",
+      finishes: "Finishes & Specs",
+      moisture: "Moisture Content",
+      moistureDesc: "All lumber is Kiln Dried (KD) to 8-10% prior to production to prevent warping and cracking. Monitored via electric moisture meters.",
+      pu: "PU Lacquer",
+      puDesc: "Polyurethane finish providing a durable, hard shell resistant to water, heat, and scratches. Ideal for dining tables.",
+      nc: "NC Lacquer",
+      ncDesc: "Nitrocellulose finish for a natural, thin-film look that enhances wood grain depth. Easy to repair but less water resistant.",
+      uv: "UV Coating",
+      uvDesc: "Ultraviolet cured coating for high-volume, instant-cure production lines. Extremely consistent and chemically resistant.",
+      request: "Request Samples",
+      requestDesc: "We provide physical wood and finish samples for development teams.",
+      orderKit: "Order Sample Kit"
     },
     inquire: {
       title: "Start a Conversation",
@@ -157,6 +237,9 @@ const translations = {
       oemDesc: "Full-scale manufacturing for retail brands. Minimum order quantities apply.",
       catalog: "Digital Catalog",
       catalogDesc: "Request our comprehensive specification guide via the form. Includes full material library, joinery details, and factory capabilities.",
+      companyProfile: "Company Profile",
+      profileDesc: "Download our comprehensive capability statement and factory overview (PDF).",
+      downloadPdf: "Download PDF",
       form: {
         name: "Name",
         company: "Company",
@@ -188,12 +271,36 @@ const translations = {
         units: "Monthly Unit Capacity",
         logistics: "US Logistics Hub"
       },
+      leadTime: "Lead Time Overview",
+      sampleDev: "Sample Development",
+      initProd: "Initial Production",
+      reOrder: "Re-Order Production",
+      leadTimeNote: "* Lead times may vary based on material availability and order volume.",
+      logisticsTitle: "Logistics & FOB",
+      chinaOrigin: "China Origin",
+      khOrigin: "Cambodia Origin",
+      shippingDesc: "We support FCL (Full Container Load) and LCL consolidation. Drop-shipping programs available via our US warehouse.",
       supplyChain: "Supply Chain Solutions",
       supplyChainDesc: "We don't just make furniture; we deliver it. From FOB manufacturing in Southeast Asia to Last-Mile capability in the United States.",
       flexible: "Flexible Export",
       flexibleDesc: "Choose between China or Cambodia origin based on your tariff strategy and lead time requirements.",
       warehouse: "US Warehouse (Los Angeles)",
       warehouseDesc: "129,000 sq.ft warehouse in California allowing for domestic replenishment and drop-ship programs."
+    },
+    studio: {
+       title: "The Studio",
+       subtitle: "Where Design Meets Precision",
+       design: "Design",
+       designTitle: "Architectural Thinking",
+       designDesc1: "We approach furniture not just as objects, but as architectural elements. Every curve and joint is considered.",
+       designDesc2: "Our design team collaborates with global partners to bring sketches to life.",
+       eng: "Engineering",
+       engTitle: "Structural Integrity",
+       engDesc: "Beauty must be durable. Our engineering process ensures longevity.",
+       raw: "Raw Materials",
+       rawTitle: "Premium Selection",
+       rawDesc: "We source the finest hardwoods from sustainable forests.",
+       exploreMat: "Explore Materials"
     }
   },
   zh: {
@@ -215,10 +322,15 @@ const translations = {
       rights: "版权所有",
       startProject: "启动项目",
       tradeProgram: "贸易计划",
-      adminAccess: "管理员入口"
+      adminAccess: "管理员入口",
+      location_cn: "中国·肇庆",
+      location_kh: "柬埔寨·干拉",
+      factory_01: "第一工厂"
     },
     home: {
       subtitle: "高端家具制造",
+      heroTitle: "高端实木制造",
+      heroSub: "PZ 精密木造",
       heroQuote: "“将全球设计美学与精密制造工艺完美融合。”",
       viewLibrary: "浏览木材库",
       factoryProfile: "工厂概况",
@@ -242,12 +354,14 @@ const translations = {
       globalHubs: "全球制造中心",
       globalDesc: "我们的双岸战略确保能满足任何产量或关税要求。联系我们安排工厂参观或验厂。",
       chinaLoc: "总部及主工厂",
-      cambodiaLoc: "免关税工厂"
+      cambodiaLoc: "免关税工厂",
+      readyToScale: "准备好扩大规模了吗？",
+      exploreMfg: "探索制造工艺"
     },
     about: {
       since: "始于 2014",
       title: "全球设计品牌背后的隐形力量",
-      intro: "PZ家具工作室是服务于全美前30大家具品牌的设计驱动型制造合作伙伴。从中国华南起步到拓展至柬埔寨，我们架起了现代设计美学与工业级精度之间的桥梁。",
+      intro: "PZ Precision Woodworks 是服务于全美前30大家具品牌的设计驱动型制造合作伙伴。从中国华南起步到拓展至柬埔寨，我们架起了现代设计美学与工业级精度之间的桥梁。",
       bannerText: "“规模化的工匠精神。”",
       storyTitle: "品牌故事",
       storyP1: "PZ成立于一个明确的目标：证明现代化工厂不仅能实现产能，更能在智能化、精密度和适应性方面达到全球水准。",
@@ -282,38 +396,74 @@ const translations = {
       title: "先进制造",
       subtitle: "工业的艺术",
       intro: "我们在这个木工技艺与工业4.0自动化的交汇点上运营。我们的设施旨在实现大规模的一致性与高精度。",
-      sections: {
-        machining: {
-          title: "精密加工",
-          desc: "我们的机器园区包括用于复杂3D轮廓加工的五轴CNC中心、用于优化产量的自动化横截锯以及高速四面刨。我们确保所有榫卯组件的公差保持在 +/- 0.1mm 以内。"
-        },
-        finishing: {
-          title: "自动化涂装",
-          desc: "我们利用 Cefla 平板涂装系统和悬挂线输送系统，确保色漆、底漆和面漆的均匀涂布。我们的 UV 和 PU 生产线经过优化，兼顾耐用性与美学深度。"
-        },
-        metal: {
-          title: "内部金属加工",
-          desc: "与许多木工厂不同，我们拥有专职的内部金属制造能力，包括激光切割、焊接和粉末喷涂，能够实现木材与金属的无缝结合。"
-        }
+      tabs: {
+        process: "生产流程",
+        machinery: "设备与技术",
+        qc: "质量控制"
+      },
+      machinery: {
+        title: "世界级设备",
+        desc: "我们投资于最好的德国和意大利机械以确保一致性。我们的自动化生产线减少了批量生产中的人为错误，而五轴数控机床则实现了复杂的设计。",
+        highPrecision: "高精度铣削",
+        autoFinish: "自动化涂装",
+        climate: "恒温恒湿车间"
+      },
+      qc: {
+        title: "严格标准",
+        desc: "质量不是事后诸葛亮；它嵌入在每一步中。我们遵循严格的 AQL 标准和美国合规法规。",
+        iqc: "来料检验 (IQC)",
+        iqcDesc: "木材分级、含水率检查 (8-12%) 和五金验证。",
+        ipqc: "制程检验 (IPQC)",
+        ipqcDesc: "首件检验、CNC 尺寸检查和砂光质量审查。",
+        fqc: "最终检验 (FQC)",
+        fqcDesc: "基于 AQL 2.5/4.0 的装运前检验。组装测试和纸箱跌落测试。",
+        compliance: "合规性"
       }
     },
     capabilities: {
       title: "技术能力",
       subtitle: "工程化您的愿景",
       intro: "制造不仅仅是执行，更是解决问题。我们的工程团队在早期与您的设计师合作，以确保可行性、成本效益和结构完整性。",
-      services: {
-        rnd: {
-          title: "研发与打样",
-          desc: "我们提供快速打样服务（交货期 7-14 天），以便在量产前验证设计。我们的团队提供技术图纸、BOM 分析和价值工程提案。"
-        },
-        qa: {
-          title: "质量保证",
-          desc: "我们的内部实验室进行严格测试，包括含水率分析、附着力测试和色差检查 (Delta-E)。最终检验遵循 AQL 2.5/4.0 标准。"
-        },
-        logistics: {
-          title: "包装与物流",
-          desc: "我们设计的包装符合电商 ISTA 3A/6A 标准。我们的物流团队处理从集装箱装载优化到清关和拖车运输的一切事务。"
-        }
+      categories: "产品类别",
+      limits: {
+        title: "尺寸与技术限制",
+        subtitle: "标准生产线的工程约束。",
+        request: "申请定制评估",
+        maxDim: "最大尺寸",
+        precision: "精度",
+        materials: "材质",
+        length: "长度",
+        width: "宽度",
+        thickness: "厚度",
+        cncTol: "CNC 公差",
+        moisture: "含水率",
+        gloss: "光泽度",
+        solidWood: "实木",
+        veneer: "木皮",
+        mixed: "混合材质 (金属/石材)"
+      },
+      oem: {
+        service: "服务模式",
+        title: "OEM & ODM 服务",
+        desc: "无论您是拥有准备好制造的完整 CAD 图纸 (OEM)，还是需要我们从概念草图开发产品 (ODM)，我们的工程团队都会融入整个流程。",
+        oemTitle: "OEM (来图加工)",
+        oemDesc: "严格按照您的技术图纸执行。材质匹配和严格的公差遵守。",
+        odmTitle: "ODM (设计支持)",
+        odmDesc: "我们提供结构工程、价值工程和原型制作以实现您的愿景。"
+      },
+      compliance: {
+        title: "技术合规",
+        desc: "我们确保所有产品符合目标市场的监管标准，特别关注美国和欧盟市场。",
+        safety: "化学安全",
+        safetyDesc: "TSCA Title VI (甲醛), CA Prop 65 合规。",
+        sustain: "可持续性",
+        sustainDesc: "可按需提供 FSC 认证木材。符合 EUTR 采购标准。",
+        pack: "包装",
+        packDesc: "适用于电商耐用性的 ISTA-3A / 6A 测试。"
+      },
+      cta: {
+        title: "有定制项目？",
+        btn: "开始开发"
       }
     },
     collections: {
@@ -326,14 +476,51 @@ const translations = {
       catalogDesc: "下载该系列的完整 PDF 规格表。",
       requestPdf: "获取 PDF",
       availableSpecs: "可选规格",
-      viewOptions: "查看选项"
+      viewOptions: "查看选项",
+      // PDP
+      pdp: {
+        techDims: "技术尺寸",
+        drawingUnavailable: "暂无数字线稿",
+        ref: "编号",
+        matSelection: "材质选择",
+        inquireOrder: "咨询订购",
+        share: "分享产品",
+        description: "产品描述",
+        descExtra: "专为耐用性和美学纯度而设计。这件作品体现了我们对精密制造的承诺，利用五轴数控技术和传统榫卯工艺。",
+        matConst: "材质与结构",
+        primaryWood: "主材",
+        finish: "涂装",
+        joinery: "结构",
+        hardware: "五金",
+        downloads: "下载资料",
+        specSheet: "产品规格表 (PDF)",
+        model3d: "3D 模型 (STEP)",
+        related: "相关产品",
+        viewDetails: "查看详情"
+      }
     },
     materials: {
       title: "材质与工艺",
-      precision: "精密遇上手工",
-      precisionDesc1: "我们坚信家具的灵魂在于材质。我们的采购过程严苛，确保每一块木材都符合我们对可持续性和耐用性的标准。",
-      precisionDesc2: "我们的“表面计划”（厨房岛台、砧板）采用食品级涂层和坚固的结构方法，旨在世代相传。",
-      library: "木材库"
+      construction: "结构方法与拼板工艺",
+      library: "木材库",
+      fingerJoint: "指接 (Finger Joint)",
+      fingerJointDesc: "在木材末端切割互锁的“手指”以延长长度。提供巨大的结构强度并最大化木材利用率。非常适合涂装框架和长台面。",
+      edgeGlue: "直拼 (Edge Glue)",
+      edgeGlueDesc: "板材沿长度方向并排胶合。创造连续、高级的纹理外观。首选用于高端餐桌和优质可见表面。",
+      butcherBlock: "层压 (Butcher Block)",
+      butcherBlockDesc: "厚木条胶合在一起。极其耐用且稳定。常用于重型工作台、厨房岛台和工业风格台面。",
+      finishes: "涂装与规格",
+      moisture: "含水率",
+      moistureDesc: "所有木材在生产前均经过窑干 (KD) 至 8-10% 以防止翘曲和开裂。通过电子水分仪监控。",
+      pu: "PU 漆",
+      puDesc: "聚氨酯面漆提供耐用、坚硬的外壳，耐水、耐热和耐刮擦。餐桌的理想选择。",
+      nc: "NC 漆",
+      ncDesc: "硝基纤维素面漆，外观自然、漆膜薄，增强木纹深度。易于修复但耐水性较差。",
+      uv: "UV 涂层",
+      uvDesc: "用于大批量、即时固化生产线的紫外线固化涂层。极其一致且耐化学腐蚀。",
+      request: "索取样品",
+      requestDesc: "我们为开发团队提供实物木材和涂装样品。",
+      orderKit: "订购样品包"
     },
     inquire: {
       title: "开启合作",
@@ -344,6 +531,9 @@ const translations = {
       oemDesc: "面向零售品牌的全规模制造。适用最低起订量。",
       catalog: "电子目录",
       catalogDesc: "通过表格索取我们要全面的规格指南。包含完整材质库、榫卯细节和工厂能力。",
+      companyProfile: "公司简介",
+      profileDesc: "下载我们全面的能力声明和工厂概况 (PDF)。",
+      downloadPdf: "下载 PDF",
       form: {
         name: "姓名",
         company: "公司",
@@ -375,12 +565,36 @@ const translations = {
         units: "月产能 (件)",
         logistics: "美国物流中心"
       },
+      leadTime: "交货期概览",
+      sampleDev: "样品开发",
+      initProd: "初始生产",
+      reOrder: "翻单生产",
+      leadTimeNote: "* 交货期可能因材料供应情况和订单量而异。",
+      logisticsTitle: "物流与 FOB",
+      chinaOrigin: "中国原产",
+      khOrigin: "柬埔寨原产",
+      shippingDesc: "我们支持 FCL（整箱）和 LCL 拼箱。通过我们的美国仓库提供一件代发项目。",
       supplyChain: "供应链解决方案",
       supplyChainDesc: "我们不只是制造家具；我们交付家具。从东南亚的 FOB 制造到美国的“最后一英里”能力。",
       flexible: "灵活出口",
       flexibleDesc: "根据您的关税策略和交货期要求，在中国或柬埔寨原产地之间选择。",
       warehouse: "美国仓库 (洛杉矶)",
       warehouseDesc: "位于加州的 129,000 平方英尺仓库，支持国内补货和一件代发项目。"
+    },
+    studio: {
+       title: "工作室",
+       subtitle: "设计与精度的交汇",
+       design: "设计",
+       designTitle: "建筑思维",
+       designDesc1: "我们将家具不仅仅视为物体，而是建筑元素。每一个曲线和连接都经过深思熟虑。",
+       designDesc2: "我们的设计团队与全球合作伙伴合作，将草图变为现实。",
+       eng: "工程",
+       engTitle: "结构完整性",
+       engDesc: "美必须是耐用的。我们的工程流程确保使用寿命。",
+       raw: "原材料",
+       rawTitle: "优质甄选",
+       rawDesc: "我们从可持续森林采购最好的硬木。",
+       exploreMat: "探索材质"
     }
   }
 };

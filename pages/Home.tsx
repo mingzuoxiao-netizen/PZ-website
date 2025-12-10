@@ -27,11 +27,11 @@ const Home: React.FC = () => {
           
           <div className="border-l-4 border-bronze-accent pl-8 animate-fade-in-up">
              <h2 className="text-bronze-accent font-bold tracking-[0.3em] uppercase text-sm md:text-base mb-6">
-               Premium Solid Wood Manufacturing
+               {t.home.heroTitle}
              </h2>
              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white font-bold leading-tight mb-8">
                PZ <br/>
-               <span className="text-zinc-400">Furniture Studio</span>
+               <span className="text-zinc-400">{t.home.heroSub}</span>
              </h1>
           </div>
           
@@ -67,19 +67,19 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-zinc-800">
                <div className="py-12 px-6">
                   <span className="block text-4xl md:text-5xl font-serif text-bronze-accent mb-2">10+</span>
-                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Years Experience</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">{t.home.stats.exp}</span>
                </div>
                <div className="py-12 px-6">
                   <span className="block text-4xl md:text-5xl font-serif text-white mb-2">2</span>
-                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Global Facilities</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">{t.home.stats.factories}</span>
                </div>
                <div className="py-12 px-6">
                   <span className="block text-4xl md:text-5xl font-serif text-white mb-2">1M+</span>
-                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Sq.Ft Capacity</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">{t.capacity.stats.sqft}</span>
                </div>
                <div className="py-12 px-6">
                   <span className="block text-4xl md:text-5xl font-serif text-white mb-2">30+</span>
-                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">Major Brand Partners</span>
+                  <span className="text-[10px] md:text-xs uppercase tracking-widest text-zinc-500 font-bold">{t.home.stats.partners}</span>
                </div>
             </div>
          </div>
@@ -96,8 +96,8 @@ const Home: React.FC = () => {
                  className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-1000 grayscale group-hover:grayscale-0"
                />
                <div className="absolute bottom-0 left-0 p-12">
-                  <span className="text-white text-xs font-bold uppercase border border-white/30 px-3 py-1 mb-4 inline-block">Factory 01</span>
-                  <h3 className="text-white font-serif text-3xl">Zhaoqing, China</h3>
+                  <span className="text-white text-xs font-bold uppercase border border-white/30 px-3 py-1 mb-4 inline-block">{t.common.factory_01}</span>
+                  <h3 className="text-white font-serif text-3xl">{t.common.location_cn}</h3>
                </div>
             </div>
 
@@ -117,22 +117,22 @@ const Home: React.FC = () => {
                <ul className="space-y-4 mt-4 mb-10">
                   <li className="flex items-center text-zinc-800 font-medium">
                      <Factory className="mr-4 text-zinc-400" size={20} />
-                     Full-scale Automated Finishing Lines
+                     {t.manufacturing.machinery.autoFinish}
                   </li>
                   <li className="flex items-center text-zinc-800 font-medium">
                      <Ruler className="mr-4 text-zinc-400" size={20} />
-                     5-Axis CNC Precision Components
+                     {t.manufacturing.machinery.highPrecision}
                   </li>
                   <li className="flex items-center text-zinc-800 font-medium">
                      <Settings className="mr-4 text-zinc-400" size={20} />
-                     In-house Metal & Stone Fabrication
+                     {t.manufacturing.machinery.desc}
                   </li>
                </ul>
                <Link 
                  to="/capacity" 
                  className="text-zinc-900 font-bold uppercase tracking-widest text-xs border-b-2 border-zinc-900 pb-1 self-start hover:text-bronze-accent hover:border-bronze-accent transition-colors"
                >
-                 Explore Manufacturing
+                 {t.home.exploreMfg}
                </Link>
             </div>
         </div>
@@ -145,7 +145,7 @@ const Home: React.FC = () => {
               <div className="max-w-xl">
                  <h2 className="font-serif text-4xl text-white mb-4">{t.home.competencies}</h2>
                  <p className="text-zinc-400 font-light">
-                    We don't just assemble; we engineer. From raw lumber sourcing to complex joinery.
+                    {t.home.strengthDesc1}
                  </p>
               </div>
            </div>
@@ -223,14 +223,14 @@ const Home: React.FC = () => {
                  <div className="space-y-6">
                     <div className="bg-white p-6 border-l-4 border-bronze-accent shadow-sm">
                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">China (HQ)</h4>
+                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">{t.common.location_cn}</h4>
                           <Anchor size={16} className="text-zinc-400" />
                        </div>
                        <p className="text-xs text-zinc-500 font-mono">Guangdong Province • 645k Sq.Ft</p>
                     </div>
                     <div className="bg-white p-6 border-l-4 border-zinc-300 shadow-sm">
                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">Cambodia</h4>
+                          <h4 className="font-bold text-zinc-900 uppercase tracking-wider text-sm">{t.common.location_kh}</h4>
                           <Truck size={16} className="text-zinc-400" />
                        </div>
                        <p className="text-xs text-zinc-500 font-mono">Kandal Province • Tariff Free • 398k Sq.Ft</p>
@@ -262,12 +262,12 @@ const Home: React.FC = () => {
       {/* Final CTA - Heavy footer lead-in */}
       <section className="bg-bronze-900 py-20 text-center">
          <div className="container mx-auto px-6">
-            <h2 className="font-serif text-3xl md:text-5xl text-white mb-8">Ready to Scale?</h2>
+            <h2 className="font-serif text-3xl md:text-5xl text-white mb-8">{t.home.readyToScale}</h2>
             <Link 
               to="/inquire" 
               className="inline-block bg-white text-bronze-900 px-12 py-4 font-bold uppercase tracking-widest text-sm hover:bg-zinc-200 transition-colors"
             >
-              Start Your Project
+              {t.common.startProject}
             </Link>
          </div>
       </section>

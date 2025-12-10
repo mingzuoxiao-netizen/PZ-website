@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Upload, Plus, Trash2, CheckCircle, Image as ImageIcon, Loader2, AlertCircle, Save, PenSquare, Search, HardDrive, X, CornerDownRight, AlertTriangle } from 'lucide-react';
 import { categories as staticCategories } from '../data/inventory';
@@ -715,9 +716,11 @@ const CreatorPortal: React.FC = () => {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-                  {language === 'zh' ? '产品图片' : 'Product Image'} <span className="text-red-400">*</span>
-                </label>
+                <div className="flex justify-between items-center mb-2">
+                   <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold">
+                     {language === 'zh' ? '产品图片' : 'Product Image'} <span className="text-red-400">*</span>
+                   </label>
+                </div>
 
                 <div
                   className={`

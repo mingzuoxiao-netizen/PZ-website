@@ -13,67 +13,74 @@ interface LayoutProps {
 // Reduced items, focused on key categories
 const MEGA_MENU_DATA: Record<
   string,
-  { title: string; items: { label: string; href: string }[] }[]
+  { title: string; title_zh: string; items: { label: string; label_zh: string; href: string }[] }[]
 > = {
   "/collections": [
     {
       title: "Living",
+      title_zh: "客厅系列",
       items: [
-        { label: "Coffee Tables", href: "/collections?cat=living&sub=Coffee%20Tables" },
-        { label: "Media Consoles", href: "/collections?cat=living&sub=Media%20Consoles" },
-        { label: "Sideboards", href: "/collections?cat=living&sub=Sideboards" },
+        { label: "Coffee Tables", label_zh: "咖啡桌", href: "/collections?cat=living&sub=Coffee%20Tables" },
+        { label: "Media Consoles", label_zh: "电视柜", href: "/collections?cat=living&sub=Media%20Consoles" },
+        { label: "Sideboards", label_zh: "餐边柜", href: "/collections?cat=living&sub=Sideboards" },
       ],
     },
     {
       title: "Dining",
+      title_zh: "餐厅系列",
       items: [
-        { label: "Dining Tables", href: "/collections?cat=dining" },
-        { label: "Dining Chairs", href: "/collections?cat=seating&sub=Dining%20Chairs" },
-        { label: "Bar Stools", href: "/collections?cat=seating&sub=Bar%20Stools" },
+        { label: "Dining Tables", label_zh: "餐桌", href: "/collections?cat=dining" },
+        { label: "Dining Chairs", label_zh: "餐椅", href: "/collections?cat=seating&sub=Dining%20Chairs" },
+        { label: "Bar Stools", label_zh: "吧台椅", href: "/collections?cat=seating&sub=Bar%20Stools" },
       ],
     },
     {
       title: "Workspace",
+      title_zh: "办公系列",
       items: [
-        { label: "Executive Desks", href: "/collections?cat=workspace" },
-        { label: "Meeting Tables", href: "/collections?cat=workspace" },
-        { label: "Storage Units", href: "/collections?cat=workspace" },
+        { label: "Executive Desks", label_zh: "行政桌", href: "/collections?cat=workspace" },
+        { label: "Meeting Tables", label_zh: "会议桌", href: "/collections?cat=workspace" },
+        { label: "Storage Units", label_zh: "收纳单元", href: "/collections?cat=workspace" },
       ],
     },
   ],
   "/manufacturing": [
     {
       title: "Process",
+      title_zh: "生产流程",
       items: [
-        { label: "Lumber Prep", href: "/manufacturing#lumber" },
-        { label: "5-Axis CNC", href: "/manufacturing#cnc" },
-        { label: "Auto-Finishing", href: "/manufacturing#finishing" },
+        { label: "Lumber Prep", label_zh: "木材备料", href: "/manufacturing#lumber" },
+        { label: "5-Axis CNC", label_zh: "五轴 CNC", href: "/manufacturing#cnc" },
+        { label: "Auto-Finishing", label_zh: "自动化涂装", href: "/manufacturing#finishing" },
       ],
     },
     {
       title: "Standards",
+      title_zh: "质量标准",
       items: [
-        { label: "Incoming QC", href: "/manufacturing#iqc" },
-        { label: "In-Process QC", href: "/manufacturing#ipqc" },
-        { label: "Final Inspection", href: "/manufacturing#fqc" },
+        { label: "Incoming QC", label_zh: "来料检验", href: "/manufacturing#iqc" },
+        { label: "In-Process QC", label_zh: "制程检验", href: "/manufacturing#ipqc" },
+        { label: "Final Inspection", label_zh: "最终检验", href: "/manufacturing#fqc" },
       ],
     },
   ],
   "/capabilities": [
     {
       title: "Services",
+      title_zh: "服务内容",
       items: [
-        { label: "OEM Production", href: "/capabilities#oem" },
-        { label: "ODM Design", href: "/capabilities#odm" },
-        { label: "Value Engineering", href: "/capabilities#ve" },
+        { label: "OEM Production", label_zh: "OEM 生产", href: "/capabilities#oem" },
+        { label: "ODM Design", label_zh: "ODM 设计", href: "/capabilities#odm" },
+        { label: "Value Engineering", label_zh: "价值工程", href: "/capabilities#ve" },
       ],
     },
     {
       title: "Compliance",
+      title_zh: "合规性",
       items: [
-        { label: "TSCA Title VI", href: "/capabilities#tsca" },
-        { label: "FSC Certification", href: "/capabilities#fsc" },
-        { label: "ISTA Packaging", href: "/capabilities#packaging" },
+        { label: "TSCA Title VI", label_zh: "TSCA Title VI", href: "/capabilities#tsca" },
+        { label: "FSC Certification", label_zh: "FSC 认证", href: "/capabilities#fsc" },
+        { label: "ISTA Packaging", label_zh: "ISTA 包装测试", href: "/capabilities#packaging" },
       ],
     },
   ],
@@ -305,7 +312,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
                          <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-stone-900">
-                           {group.title}
+                           {language === 'zh' ? group.title_zh : group.title}
                          </h3>
                          <ul className="space-y-4">
                            {group.items.map((link, lIdx) => (
@@ -314,7 +321,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                                  to={link.href}
                                  className="block font-serif text-xl text-stone-500 hover:text-amber-800 transition-colors duration-200"
                                >
-                                 {link.label}
+                                 {language === 'zh' ? link.label_zh : link.label}
                                </Link>
                              </li>
                            ))}
@@ -343,10 +350,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                        <span className="block text-white/80 text-[10px] uppercase tracking-widest font-bold mb-2">Featured</span>
                        <p className="text-white font-serif text-2xl leading-tight border-l-2 border-amber-500 pl-4">
                           {activeMenu === '/collections'
-                             ? '2025 Living Collection'
+                             ? (language === 'zh' ? '2025 客厅系列' : '2025 Living Collection')
                              : activeMenu === '/manufacturing'
-                             ? 'Precision Engineering'
-                             : 'Global Capabilities'}
+                             ? (language === 'zh' ? '精密工程' : 'Precision Engineering')
+                             : (language === 'zh' ? '全球能力' : 'Global Capabilities')}
                        </p>
                     </div>
                  </div>
@@ -491,7 +498,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <div className="border-t border-stone-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-[#8D6E63] tracking-wider">
-            <p>&copy; {new Date().getFullYear()} PZ Furniture Studio. {t.common.rights}</p>
+            <p>&copy; {new Date().getFullYear()} PZ Intelligent Manufacturing. {t.common.rights}</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <span>{t.common.privacy}</span>
               <span>{t.common.terms}</span>

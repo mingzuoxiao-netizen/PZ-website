@@ -262,7 +262,7 @@ const Collections: React.FC = () => {
                      {/* SECTION 3: DIMENSIONS (Line Drawing) */}
                      <div className="py-12 border-t border-stone-200 mt-8">
                         <h3 className="font-bold text-xs uppercase tracking-widest text-stone-400 mb-8 flex items-center">
-                           <Ruler size={16} className="mr-2" /> Technical Dimensions
+                           <Ruler size={16} className="mr-2" /> {t.collections.pdp.techDims}
                         </h3>
                         <div className="bg-white p-8 border border-stone-200 flex justify-center items-center h-64 md:h-80">
                            {/* Placeholder for SVG Line Drawing */}
@@ -276,7 +276,7 @@ const Collections: React.FC = () => {
                                  <line x1="160" y1="50" x2="160" y2="140" strokeDasharray="4 4" />
                                  <text x="175" y="100" textAnchor="middle" className="fill-stone-900 text-[10px] font-sans">75 cm</text>
                               </svg>
-                              <span className="text-xs font-mono mt-4 text-stone-500">Digital Line Drawing Unavailable</span>
+                              <span className="text-xs font-mono mt-4 text-stone-500">{t.collections.pdp.drawingUnavailable}</span>
                            </div>
                         </div>
                      </div>
@@ -292,14 +292,14 @@ const Collections: React.FC = () => {
                            {getStr(activeProduct, 'name')}
                         </h1>
                         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
-                           Ref: PZ-{Math.floor(Math.random() * 9000) + 1000}
+                           {t.collections.pdp.ref}: PZ-{Math.floor(Math.random() * 9000) + 1000}
                         </p>
                       </div>
 
                       {/* Variant Selector (Mock) */}
                       <div>
                          <span className="block text-xs font-bold uppercase tracking-wider text-stone-900 mb-3">
-                            Material Selection
+                            {t.collections.pdp.matSelection}
                          </span>
                          <div className="flex space-x-3">
                             <button className="w-8 h-8 rounded-full bg-[#5B4332] ring-2 ring-offset-2 ring-stone-900" title="Walnut"></button>
@@ -314,42 +314,42 @@ const Collections: React.FC = () => {
                           to={`/inquire?subject=Product_Inquiry&product=${encodeURIComponent(getStr(activeProduct, 'name'))}`}
                           className="block w-full bg-stone-900 text-white text-center py-4 font-bold uppercase tracking-widest text-xs hover:bg-amber-700 transition-colors"
                         >
-                          Inquire to Order
+                          {t.collections.pdp.inquireOrder}
                         </Link>
                         <button className="flex items-center justify-center w-full py-3 text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors border border-transparent hover:border-stone-200">
-                           <Share2 size={14} className="mr-2" /> Share Product
+                           <Share2 size={14} className="mr-2" /> {t.collections.pdp.share}
                         </button>
                       </div>
 
                       {/* ACCORDIONS */}
                       <div className="border-b border-stone-200">
-                        <AccordionItem title="Description" defaultOpen={true}>
+                        <AccordionItem title={t.collections.pdp.description} defaultOpen={true}>
                            <p className="text-stone-600 leading-relaxed text-sm font-light">
                              {getStr(activeProduct, 'description')}
                              <br/><br/>
-                             Designed with durability and aesthetic purity in mind. This piece exemplifies our commitment to precision manufacturing, utilizing 5-axis CNC technology and traditional joinery.
+                             {t.collections.pdp.descExtra}
                            </p>
                         </AccordionItem>
 
-                        <AccordionItem title="Materials & Construction">
+                        <AccordionItem title={t.collections.pdp.matConst}>
                            <ul className="space-y-2 text-sm text-stone-600 font-light">
-                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>Primary Wood</span> <span>FAS North American Hardwood</span></li>
-                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>Finish</span> <span>Matte PU / Water-based</span></li>
-                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>Joinery</span> <span>Mortise & Tenon / Domino</span></li>
-                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>Hardware</span> <span>Soft-close / Heavy-duty</span></li>
+                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>{t.collections.pdp.primaryWood}</span> <span>FAS North American Hardwood</span></li>
+                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>{t.collections.pdp.finish}</span> <span>Matte PU / Water-based</span></li>
+                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>{t.collections.pdp.joinery}</span> <span>Mortise & Tenon / Domino</span></li>
+                              <li className="flex justify-between border-b border-stone-100 pb-1"><span>{t.collections.pdp.hardware}</span> <span>Soft-close / Heavy-duty</span></li>
                            </ul>
                         </AccordionItem>
 
-                        <AccordionItem title="Downloads">
+                        <AccordionItem title={t.collections.pdp.downloads}>
                            <div className="space-y-3">
                               <a href="#" className="flex items-center text-sm text-stone-600 hover:text-amber-700 transition-colors group">
                                  <FileText size={16} className="mr-3 text-stone-400 group-hover:text-amber-700" />
-                                 <span>Product Spec Sheet (PDF)</span>
+                                 <span>{t.collections.pdp.specSheet}</span>
                                  <Download size={12} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                               </a>
                               <a href="#" className="flex items-center text-sm text-stone-600 hover:text-amber-700 transition-colors group">
                                  <BoxSelect size={16} className="mr-3 text-stone-400 group-hover:text-amber-700" />
-                                 <span>3D Model (STEP)</span>
+                                 <span>{t.collections.pdp.model3d}</span>
                                  <Download size={12} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                               </a>
                            </div>
@@ -362,7 +362,7 @@ const Collections: React.FC = () => {
 
                 {/* RELATED PRODUCTS */}
                 <div className="mt-32 pt-16 border-t border-stone-200">
-                   <h3 className="font-serif text-2xl text-stone-900 mb-8">Related in {getStr(activeSubCategory || activeCategory, activeSubCategory ? 'name' : 'title')}</h3>
+                   <h3 className="font-serif text-2xl text-stone-900 mb-8">{t.collections.pdp.related} {getStr(activeSubCategory || activeCategory, activeSubCategory ? 'name' : 'title')}</h3>
                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       {/* Simple logic to show other items in same subcategory or category */}
                       {(activeSubCategory?.variants || activeCategory.subCategories.flatMap(s => s.variants || [])).slice(0, 4).map((rel, i) => (
@@ -378,7 +378,7 @@ const Collections: React.FC = () => {
                               <img src={rel.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={rel.name} />
                            </div>
                            <h4 className="font-serif text-stone-900 group-hover:text-amber-700 transition-colors">{getStr(rel, 'name')}</h4>
-                           <p className="text-xs text-stone-400 uppercase tracking-wide mt-1">View Details</p>
+                           <p className="text-xs text-stone-400 uppercase tracking-wide mt-1">{t.collections.pdp.viewDetails}</p>
                         </div>
                       ))}
                    </div>
@@ -490,7 +490,7 @@ const Collections: React.FC = () => {
                                                 {/* Overlay CTA */}
                                                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                     <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest">
-                                                       View Details
+                                                       {t.collections.pdp.viewDetails}
                                                     </span>
                                                 </div>
                                             </div>
