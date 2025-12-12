@@ -160,6 +160,15 @@ export const ASSET_GROUPS = [
     ]
   },
   {
+    name: "About: Factory Gallery",
+    keys: [
+      { key: ASSET_KEYS.ABOUT_GALLERY_1, label: "Process 1: Raw Lumber" },
+      { key: ASSET_KEYS.ABOUT_GALLERY_2, label: "Process 2: Precision Milling" },
+      { key: ASSET_KEYS.ABOUT_GALLERY_3, label: "Process 3: Hand Finishing" },
+      { key: ASSET_KEYS.ABOUT_GALLERY_4, label: "Process 4: Quality Control" },
+    ]
+  },
+  {
     name: "About & Others",
     keys: [
       { key: ASSET_KEYS.ABOUT_BANNER, label: "About: Cinematic Banner" },
