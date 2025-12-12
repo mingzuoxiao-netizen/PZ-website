@@ -1,5 +1,6 @@
+export const ADMIN_API_BASE =
+  "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
-export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 export const ADMIN_SESSION_KEY = "pz_admin_token";
 
 interface FetchOptions extends RequestInit {
@@ -7,83 +8,60 @@ interface FetchOptions extends RequestInit {
   skipAuth?: boolean;
 }
 
-/**
- * Wrapper around fetch to handle Admin Authentication and Base URL.
- * Automatically injects the token from sessionStorage.
- */
 export async function adminFetch<T = any>(
-  endpoint: string, 
+  endpoint: string,
   { params, skipAuth = false, ...customConfig }: FetchOptions = {}
 ): Promise<T> {
-  
+  const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
+
+  const isFormData = customConfig.body instanceof FormData;
+
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...(customConfig.headers || {}),
   };
 
-  // Inject Admin Token if available and not skipped
-  if (!skipAuth) {
-    const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-    if (token) {
-      // Standard Bearer scheme
-      (headers as any)['Authorization'] = `Bearer ${token}`;
-      // Custom header if needed by specific backend logic
-      (headers as any)['X-Admin-Token'] = token;
-    }
+  // ✅ 只在非 FormData 时设置 Content-Type
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
   }
 
-  // Handle FormData: Remove 'Content-Type' to let the browser set the boundary
-  if (customConfig.body instanceof FormData) {
-    // @ts-ignore
-    delete headers['Content-Type'];
+  // ✅ 标准 Bearer 鉴权（唯一需要的）
+  if (!skipAuth && token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const config: RequestInit = {
-    method: 'GET', // Default method
+  let url = endpoint.startsWith("http")
+    ? endpoint
+    : `${ADMIN_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
+
+  if (params) {
+    const search = new URLSearchParams(params).toString();
+    url += `${url.includes("?") ? "&" : "?"}${search}`;
+  }
+
+  const response = await fetch(url, {
+    method: customConfig.method || "GET",
     ...customConfig,
     headers,
-  };
+  });
 
-  // Construct Full URL
-  let url = endpoint.startsWith('http') 
-    ? endpoint 
-    : `${ADMIN_API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
-  // Append Query Parameters
-  if (params) {
-    const searchParams = new URLSearchParams(params);
-    url += `${url.includes('?') ? '&' : '?'}${searchParams.toString()}`;
+  if (response.status === 401 || response.status === 403) {
+    console.warn("[adminFetch] Unauthorized");
   }
 
-  try {
-    const response = await fetch(url, config);
-
-    // Handle Auth Errors (401/403)
-    if (response.status === 401 || response.status === 403) {
-      console.warn('Unauthorized access. Admin session may be invalid or expired.');
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `HTTP Error ${response.status}`);
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-        return {} as T;
-    }
-
-    // Parse JSON if content-type matches
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    }
-
-    // Fallback to text
-    return (await response.text()) as unknown as T;
-
-  } catch (error) {
-    console.error(`[adminFetch] Request failed for ${url}:`, error);
-    throw error;
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
   }
+
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (contentType?.includes("application/json")) {
+    return await response.json();
+  }
+
+  return (await response.text()) as unknown as T;
 }
