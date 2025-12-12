@@ -47,13 +47,16 @@ const App: React.FC = () => {
             <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
             <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
             <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
-            <Route path="/admin" element={
+            
+            {/* Hidden Admin Route */}
+            <Route path="/admin-pzf-2025" element={
               <Layout>
                 <AdminGuard>
                   <AdminDashboard />
                 </AdminGuard>
               </Layout>
             } />
+            
             <Route path="/creator" element={
               <Layout>
                 <AdminGuard>

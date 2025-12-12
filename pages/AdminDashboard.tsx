@@ -1,9 +1,9 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Inquiry } from '../types';
-import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-
-const INQUIRY_API = 'https://pz-inquiry-api.mingzuoxiao29.workers.dev';
+import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, PenTool } from 'lucide-react';
+import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
 
 // Initial dummy data to populate the dashboard if empty
 const DUMMY_DATA: Inquiry[] = [
@@ -48,6 +48,10 @@ type SortConfig = {
 } | null;
 
 const AdminDashboard: React.FC = () => {
+  // 注意：虽然 AdminGuard 已经保护了此组件，
+  // 但保留这个检查是个好习惯，或者可以直接移除，因为父组件已经处理了渲染逻辑。
+  // 此处我们假设环境是安全的。
+
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -60,38 +64,31 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
 
       try {
-        // 1. 先从 Cloudflare Worker + D1 拉真实数据
-        const res = await fetch(`${INQUIRY_API}?limit=200`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch from API');
-        }
+        // 1. Use adminFetch to get data (Automatically adds Auth Headers)
+        const json = await adminFetch<{ data: any[] }>('/', { 
+            params: { limit: '200' } 
+        });
 
-        const json = await res.json();
         const rows = (json.data || []) as any[];
 
-        // 2. 把 D1 字段映射到 Inquiry 类型
+        // 2. Map D1 fields to Inquiry type
         const mapped: Inquiry[] = rows.map((row) => ({
           id: row.id,
           name: row.name,
           company: row.company,
           email: row.email,
-          // 用 product_type / source 作为 type 的来源，没有就给个 General
           type: row.product_type || row.source || 'General',
           message: row.message,
-          // 只取 yyyy-mm-dd
           date: (row.created_at || '').split('T')[0] || '',
-          // 目前 D1 里没有 status 字段，先统一标记为 New
           status: 'New',
         }));
 
         setInquiries(mapped);
-
-        // 4. 顺手存在 localStorage，作为本地缓存 / fallback
         localStorage.setItem('pz_inquiries', JSON.stringify(mapped));
       } catch (error) {
         console.error('Error fetching from API, fallback to local data:', error);
 
-        // 如果 API 挂了，就用 localStorage；再不行就用 DUMMY_DATA
+        // Fallback
         const localDataString = localStorage.getItem('pz_inquiries');
         let localData: Inquiry[] = [];
 
@@ -115,12 +112,10 @@ const AdminDashboard: React.FC = () => {
   const processedInquiries = useMemo(() => {
     let data = [...inquiries];
 
-    // 1. Filter
     if (filterType !== 'All') {
       data = data.filter(item => item.type === filterType);
     }
 
-    // 2. Sort
     if (sortConfig) {
       data.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -136,7 +131,6 @@ const AdminDashboard: React.FC = () => {
     return data;
   }, [inquiries, filterType, sortConfig]);
 
-  // Unique Types for Filter Dropdown
   const uniqueTypes = useMemo(() => {
     const types = new Set(inquiries.map(i => i.type));
     return ['All', ...Array.from(types)];
@@ -152,7 +146,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('pz_admin_token');
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    // Reload page to trigger AdminGuard to switch back to AdminLogin
     window.location.reload();
   };
 
@@ -161,29 +156,22 @@ const AdminDashboard: React.FC = () => {
     const rows = processedInquiries.map(inq => [
       inq.id,
       inq.date,
-      `"${inq.name.replace(/"/g, '""')}"`, // Escape quotes
+      `"${inq.name.replace(/"/g, '""')}"`,
       `"${inq.company.replace(/"/g, '""')}"`,
       inq.email,
       inq.type,
-      `"${inq.message.replace(/"/g, '""')}"`, // Escape quotes and newlines
+      `"${inq.message.replace(/"/g, '""')}"`,
       inq.status
     ]);
     
-    // 1. Generate CSV String
     const csvString = headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    
-    // 2. Add BOM (\uFEFF) so Excel recognizes it as UTF-8 (Fixes Chinese characters)
     const bom = "\uFEFF";
     const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
-    
-    // 3. Create Download Link using Blob
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    
     const dateStr = new Date().toISOString().split('T')[0];
     link.setAttribute("download", `pz_inquiries_export_${dateStr}.csv`);
-    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -203,6 +191,12 @@ const AdminDashboard: React.FC = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <h1 className="font-serif text-3xl text-stone-900">Admin Dashboard</h1>
           <div className="flex items-center space-x-6">
+            <Link
+                to="/creator"
+                className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 transition-colors rounded-sm flex items-center shadow-lg"
+            >
+                <PenTool size={16} className="mr-2" /> Open Creator Studio
+            </Link>
             <Link
                 to="/"
                 className="text-stone-500 text-sm hover:text-stone-900 font-bold uppercase tracking-widest"
@@ -230,7 +224,6 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4 w-full md:w-auto">
-                {/* Filter Dropdown */}
                 <div className="relative group flex items-center">
                     <Filter size={16} className="text-stone-500 absolute left-3 pointer-events-none" />
                     <select 
@@ -244,7 +237,6 @@ const AdminDashboard: React.FC = () => {
                     </select>
                 </div>
 
-                {/* CSV Export */}
                 <button 
                     onClick={downloadCSV}
                     className="flex items-center bg-stone-900 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-amber-700 transition-colors rounded-sm whitespace-nowrap"
@@ -259,98 +251,50 @@ const AdminDashboard: React.FC = () => {
             <table className="w-full text-left text-sm text-stone-600">
               <thead className="bg-stone-100 text-stone-500 uppercase text-xs tracking-wider">
                 <tr>
-                  <th 
-                    className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none group"
-                    onClick={() => handleSort('date')}
-                  >
+                  <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none group" onClick={() => handleSort('date')}>
                     <div className="flex items-center">Date <SortIcon columnKey="date" /></div>
                   </th>
-                  <th 
-                    className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none"
-                    onClick={() => handleSort('name')}
-                  >
+                  <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('name')}>
                     <div className="flex items-center">Name <SortIcon columnKey="name" /></div>
                   </th>
-                  <th 
-                    className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none"
-                    onClick={() => handleSort('company')}
-                  >
+                  <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('company')}>
                     <div className="flex items-center">Company <SortIcon columnKey="company" /></div>
                   </th>
-                  <th 
-                    className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none"
-                    onClick={() => handleSort('type')}
-                  >
+                  <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('type')}>
                      <div className="flex items-center">Type <SortIcon columnKey="type" /></div>
                   </th>
                   <th className="p-4 font-medium">Message</th>
-                  <th 
-                    className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none"
-                    onClick={() => handleSort('status')}
-                  >
+                  <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('status')}>
                     <div className="flex items-center">Status <SortIcon columnKey="status" /></div>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {loading && inquiries.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="p-12 text-center text-stone-400"
-                    >
-                      Loading data...
-                    </td>
-                  </tr>
+                  <tr><td colSpan={6} className="p-12 text-center text-stone-400">Loading data...</td></tr>
                 ) : processedInquiries.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="p-8 text-center text-stone-500"
-                    >
-                      No inquiries match your filters.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-stone-500">No inquiries match your filters.</td></tr>
                 ) : (
                   processedInquiries.map((inq) => (
-                    <tr
-                      key={inq.id}
-                      className="hover:bg-stone-50 transition-colors"
-                    >
+                    <tr key={inq.id} className="hover:bg-stone-50 transition-colors">
                       <td className="p-4 whitespace-nowrap font-mono text-xs">{inq.date}</td>
-                      <td className="p-4 text-stone-900 font-bold">
-                        {inq.name}
-                      </td>
+                      <td className="p-4 text-stone-900 font-bold">{inq.name}</td>
                       <td className="p-4">{inq.company}</td>
                       <td className="p-4">
-                        <span
-                          className={`px-2 py-1 rounded text-[10px] uppercase border font-bold ${
-                            inq.type === 'OEM/ODM'
-                              ? 'border-amber-200 bg-amber-50 text-amber-800'
-                              : inq.type === 'Trade Program'
-                              ? 'border-blue-200 bg-blue-50 text-blue-800'
-                              : inq.type === 'Catalog Request'
-                              ? 'border-purple-200 bg-purple-50 text-purple-800'
-                              : 'border-stone-200 bg-stone-100 text-stone-600'
-                          }`}
-                        >
+                        <span className={`px-2 py-1 rounded text-[10px] uppercase border font-bold ${
+                            inq.type === 'OEM/ODM' ? 'border-amber-200 bg-amber-50 text-amber-800' : 
+                            inq.type === 'Trade Program' ? 'border-blue-200 bg-blue-50 text-blue-800' : 
+                            inq.type === 'Catalog Request' ? 'border-purple-200 bg-purple-50 text-purple-800' : 
+                            'border-stone-200 bg-stone-100 text-stone-600'
+                          }`}>
                           {inq.type}
                         </span>
                       </td>
-                      <td
-                        className="p-4 max-w-xs truncate text-xs"
-                        title={inq.message}
-                      >
-                        {inq.message}
-                      </td>
+                      <td className="p-4 max-w-xs truncate text-xs" title={inq.message}>{inq.message}</td>
                       <td className="p-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                            inq.status === 'New'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-stone-100 text-stone-500'
-                          }`}
-                        >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            inq.status === 'New' ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-500'
+                          }`}>
                             {inq.status === 'New' && <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>}
                             {inq.status}
                         </span>

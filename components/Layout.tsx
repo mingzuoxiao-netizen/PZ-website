@@ -523,15 +523,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {t.common.startProject} <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </li>
-                <li className="flex space-x-4 pt-6">
-                  <Link to="/admin" className="text-stone-400 hover:text-stone-600 transition-colors text-xs font-mono">
-                    Admin
-                  </Link>
-                  <span className="text-stone-300">|</span>
-                  <Link to="/creator" className="text-stone-400 hover:text-stone-600 transition-colors text-xs font-mono">
-                    Portal
-                  </Link>
-                </li>
+                {/* Admin Access Link Removed for Hidden URL Mode */}
               </ul>
             </div>
           </div>

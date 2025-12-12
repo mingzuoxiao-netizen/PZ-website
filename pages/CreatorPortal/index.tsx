@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, HardDrive, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, LayoutGrid } from 'lucide-react';
+import { Trash2, HardDrive, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, LayoutGrid, ArrowLeft } from 'lucide-react';
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
 import { ASSET_GROUPS } from '../../utils/assets';
 import { API_BASE, CDN_DOMAIN } from '../../utils/imageHelpers';
+import { Link } from 'react-router-dom';
 
 import ProductForm from './components/ProductForm';
 import ProductList from './components/ProductList';
@@ -602,6 +603,11 @@ if (deletedItem && Array.isArray(deletedItem.images)) {
           </div>
 
           <div className="flex items-center space-x-6">
+             {/* Updated Link to Secret Admin Path */}
+             <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-600 text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
+                <ArrowLeft size={14} className="mr-2" /> Admin Dashboard
+             </Link>
+
              <div className="flex flex-col items-end">
                 <div className="flex items-center text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">
                    <HardDrive size={12} className="mr-2" /> Storage
