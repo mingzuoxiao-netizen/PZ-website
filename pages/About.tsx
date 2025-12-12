@@ -29,6 +29,11 @@ const About: React.FC = () => {
       url: getAsset(ASSET_KEYS.ABOUT_GALLERY_4),
       title: "Quality Control",
       desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
+    },
+    {
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_5),
+      title: "Smart Automation",
+      desc: "Integrating Industry 4.0 standards with automated finishing lines and robotic material handling for consistent, scalable output."
     }
   ];
 

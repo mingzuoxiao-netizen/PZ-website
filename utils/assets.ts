@@ -18,6 +18,7 @@ export const ASSET_KEYS = {
   ABOUT_GALLERY_2: 'about_gallery_2',
   ABOUT_GALLERY_3: 'about_gallery_3',
   ABOUT_GALLERY_4: 'about_gallery_4',
+  ABOUT_GALLERY_5: 'about_gallery_5', // New Automation Key
 
   // MANUFACTURING PAGE
   MFG_QC_HERO: 'mfg_qc_hero',
@@ -70,6 +71,7 @@ export const DEFAULT_ASSETS: Record<string, string> = {
   [ASSET_KEYS.ABOUT_GALLERY_2]: "https://images.unsplash.com/photo-1620283085068-5aab84e2db8e?q=80&w=2070&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_3]: "https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?q=80&w=2070&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_4]: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070&auto=format&fit=crop",
+  [ASSET_KEYS.ABOUT_GALLERY_5]: "https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=2070&auto=format&fit=crop", // Automation / Robotics
 
   [ASSET_KEYS.MFG_QC_HERO]: "https://images.unsplash.com/photo-1581093458791-9f302e683800?q=80&w=2069&auto=format&fit=crop",
 
@@ -166,6 +168,7 @@ export const ASSET_GROUPS = [
       { key: ASSET_KEYS.ABOUT_GALLERY_2, label: "Process 2: Precision Milling" },
       { key: ASSET_KEYS.ABOUT_GALLERY_3, label: "Process 3: Hand Finishing" },
       { key: ASSET_KEYS.ABOUT_GALLERY_4, label: "Process 4: Quality Control" },
+      { key: ASSET_KEYS.ABOUT_GALLERY_5, label: "Process 5: Automation" }, // New Entry
     ]
   },
   {
