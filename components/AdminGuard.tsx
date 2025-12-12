@@ -1,37 +1,47 @@
-
-import React, { useState, useEffect } from 'react';
-import { ADMIN_SESSION_KEY } from '../utils/adminFetch';
-import AdminLogin from './AdminLogin';
+import React, { useState, useEffect } from "react";
+import { ADMIN_SESSION_KEY } from "../utils/adminFetch";
+import AdminLogin from "./AdminLogin";
 
 interface AdminGuardProps {
   children: React.ReactNode;
 }
 
 const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [checking, setChecking] = useState<boolean>(true);
 
   useEffect(() => {
-    // 初始化检查：页面加载时查看 Session 是否有 Token
     const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    setIsAuthenticated(!!token);
     setChecking(false);
   }, []);
 
+  /* ===============================
+     🚫 关键修复点：不再 return null
+     =============================== */
+
+  // 1️⃣ 校验中：给一个最简单的 Loading
   if (checking) {
-    return null; 
+    return (
+      <div style={{ padding: "60px", textAlign: "center" }}>
+        Checking admin access…
+      </div>
+    );
   }
 
-  // 1. 如果已认证，渲染受保护的子组件 (Dashboard)
+  // 2️⃣ 已登录：放行
   if (isAuthenticated) {
     return <>{children}</>;
   }
 
-  // 2. 如果未认证，渲染登录组件
-  // 传递回调函数，当登录组件成功获取 Token 后调用
-  return <AdminLogin onLoginSuccess={() => setIsAuthenticated(true)} />;
+  // 3️⃣ 未登录：显示登录页
+  return (
+    <AdminLogin
+      onLoginSuccess={() => {
+        setIsAuthenticated(true);
+      }}
+    />
+  );
 };
 
 export default AdminGuard;
