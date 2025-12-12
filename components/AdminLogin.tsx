@@ -1,61 +1,51 @@
-import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, Lock } from 'lucide-react';
-import { ADMIN_SESSION_KEY } from '../utils/adminFetch';
+import React, { useState } from "react";
+import { ShieldCheck, ArrowRight, Lock } from "lucide-react";
+import { ADMIN_SESSION_KEY } from "../utils/adminFetch";
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
 }
 
 /**
- * =========================
- * CONFIG (明确分工)
- * =========================
+ * ⚠️ 只用于 UI 登录校验（不是 API Token）
  */
-
-/**
- * 给「人」输入的后台登录密码
- * 👉 只用于解锁 UI
- */
-const ADMIN_PASSWORD = 'pz-admin';
-
-/**
- * 给「系统」用的 API 鉴权 Token
- * 👉 必须与你 Cloudflare Worker 里的
- *    ADMIN_SECRET_TOKEN 完全一致
- */
-const ADMIN_SECRET_TOKEN = 'PZ!2025-admin-only';
+const ADMIN_PASSWORD = "PZ!2025-admin-only";
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [error, setError] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ① 校验“人类密码 means UI access”
+    // ① 校验 UI 密码
     if (input !== ADMIN_PASSWORD) {
       setError(true);
       setTimeout(() => setError(false), 2000);
       return;
     }
 
-    try {
-      // ② 登录成功后：写入「真正的 API Token」
-      sessionStorage.setItem(ADMIN_SESSION_KEY, ADMIN_SECRET_TOKEN);
+    // ② 读取真正的 API Token（用于 Worker 鉴权）
+    const apiToken = import.meta.env.VITE_ADMIN_API_TOKEN;
 
-      // ③ 通知 Guard 解锁后台
-      onLoginSuccess();
-    } catch (err) {
-      console.warn('Could not save admin session', err);
-      setError(true);
-      setTimeout(() => setError(false), 2000);
+    if (!apiToken) {
+      console.error(
+        "❌ VITE_ADMIN_API_TOKEN 未定义，请检查 GitHub / Pages 环境变量"
+      );
+      alert("Admin API token missing. Upload disabled.");
+      return;
     }
+
+    // ③ 存储 token（⚠️ 不是密码）
+    sessionStorage.setItem(ADMIN_SESSION_KEY, apiToken);
+
+    // ④ 通知 Guard 已登录
+    onLoginSuccess();
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] bg-stone-50 px-6">
       <div className="bg-white p-10 md:p-16 shadow-2xl border border-stone-200 max-w-md w-full text-center relative overflow-hidden">
-        {/* Top Accent */}
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-stone-400 to-stone-600" />
 
         <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-8 text-stone-700">
@@ -79,10 +69,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Enter Admin Password"
-              autoFocus
               className={`w-full bg-stone-50 border ${
-                error ? 'border-red-400' : 'border-stone-200'
+                error ? "border-red-400" : "border-stone-200"
               } pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400`}
+              autoFocus
             />
           </div>
 
@@ -113,5 +103,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 };
 
 export default AdminLogin;
+
 
 
