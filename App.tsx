@@ -13,6 +13,8 @@ import Inquire from './pages/Inquire';
 import AdminDashboard from './pages/AdminDashboard';
 import SearchResults from './pages/SearchResults';
 import CreatorPortal from './pages/CreatorPortal';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -43,6 +45,8 @@ const App: React.FC = () => {
             <Route path="/materials" element={<Layout><Materials /></Layout>} />
             <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />
             <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
+            <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
+            <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
             <Route path="/admin" element={
               <Layout>
                 <AdminGuard>

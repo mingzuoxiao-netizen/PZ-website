@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getAsset, ASSET_KEYS } from '../utils/assets';
 
 const About: React.FC = () => {
   const [activeImage, setActiveImage] = useState(0);
@@ -10,22 +11,22 @@ const About: React.FC = () => {
 
   const galleryImages = [
     {
-      url: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070&auto=format&fit=crop",
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_1),
       title: "Raw Lumber Selection",
       desc: "We source only FAS grade lumber, ensuring minimal knots and consistent grain patterns for high-end furniture."
     },
     {
-      url: "https://images.unsplash.com/photo-1620283085068-5aab84e2db8e?q=80&w=2070&auto=format&fit=crop",
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_2),
       title: "Precision Milling",
       desc: "Advanced CNC machinery ensures every joint and curve meets precise tolerances before hand assembly."
     },
     {
-      url: "https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?q=80&w=2070&auto=format&fit=crop",
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_3),
       title: "Hand Finishing",
       desc: "Despite our automation, the final touch is always human. Our artisans sand and finish every piece to perfection."
     },
     {
-      url: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070&auto=format&fit=crop",
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_4),
       title: "Quality Control",
       desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
     }
@@ -104,7 +105,7 @@ const About: React.FC = () => {
         <div className="absolute inset-0 bg-stone-900/20 z-10"></div>
         {/* Factory Floor Image */}
         <img 
-          src="https://images.unsplash.com/photo-1565538810643-b5bdb714032a?q=80&w=2540&auto=format&fit=crop" 
+          src={getAsset(ASSET_KEYS.ABOUT_BANNER)}
           alt="Factory Floor" 
           className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
         />

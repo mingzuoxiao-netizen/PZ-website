@@ -11,6 +11,12 @@ export interface ProductVariant {
   description?: string;
   description_zh?: string;
   image: string;
+  images?: string[]; // Added to support multiple images
+  material?: string;
+  dimensions?: string;
+  code?: string;
+  status?: string;
+  subCategoryName?: string; // For internal use when flattening lists
 }
 
 export interface SubCategory {
@@ -51,7 +57,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Capabilities', label_zh: '技术能力', path: '/capabilities' },
   { label: 'Manufacturing', label_zh: '精密制造', path: '/manufacturing' },
   { label: 'Materials', label_zh: '材质工艺', path: '/materials' },
-  { label: 'Collections', label_zh: '产品系列', path: '/collections' },
+  { label: 'Portfolio', label_zh: '精选案例', path: '/collections' }, // Renamed from Collections
   { label: 'Global Capacity', label_zh: '全球产能', path: '/capacity' },
   { label: 'About', label_zh: '关于我们', path: '/about' },
   { label: 'Inquire', label_zh: '联系咨询', path: '/inquire' },

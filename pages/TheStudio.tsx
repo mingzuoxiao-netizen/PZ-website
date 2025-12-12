@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
@@ -17,8 +18,9 @@ const TheStudio: React.FC = () => {
        {/* Section 1 */}
        <div className="grid grid-cols-1 lg:grid-cols-2">
          <div className="h-[500px] lg:h-[700px]">
+            {/* Replaced broken github blob with Unsplash */}
             <img 
-              src="https://github.com/mingzuoxiao-netizen/pz-picture/blob/main/design.jpg?raw=true" 
+              src="https://images.unsplash.com/photo-1620706857370-e1b9770e8bb1?q=80&w=2564&auto=format&fit=crop" 
               alt="Workshop Design" 
               className="w-full h-full object-cover"
             />

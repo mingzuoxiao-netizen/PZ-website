@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Send, CheckCircle, AlertCircle, Loader2, BookOpen, Download } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, Loader2, BookOpen } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const INQUIRY_API = 'https://pz-inquiry-api.mingzuoxiao29.workers.dev';
@@ -191,27 +191,11 @@ const Inquire: React.FC = () => {
             <p className="text-stone-600 text-lg leading-relaxed mb-12">{t.inquire.desc}</p>
 
             <div className="space-y-8 border-t border-stone-200 pt-8">
-              <div>
-                <h3 className="text-stone-900 font-bold mb-2">{t.inquire.trade}</h3>
-                <p className="text-stone-500 text-sm">{t.inquire.tradeDesc}</p>
-              </div>
+              {/* REMOVED TRADE PROGRAM SECTION AS REQUESTED */}
+              
               <div>
                 <h3 className="text-stone-900 font-bold mb-2">{t.inquire.oem}</h3>
                 <p className="text-stone-500 text-sm">{t.inquire.oemDesc}</p>
-              </div>
-              
-              {/* DOWNLOAD SECTION */}
-              <div className="bg-zinc-900 p-8 text-white rounded-sm mt-8">
-                 <div className="flex items-start">
-                    <Download className="text-amber-700 mt-1 mr-4" size={24} />
-                    <div>
-                        <h3 className="font-bold text-lg mb-2">Company Profile</h3>
-                        <p className="text-zinc-400 text-sm mb-4">Download our comprehensive capability statement and factory overview (PDF).</p>
-                        <button className="text-xs font-bold uppercase tracking-widest border-b border-amber-700 pb-1 text-amber-700 hover:text-white hover:border-white transition-colors">
-                           Download PDF
-                        </button>
-                    </div>
-                 </div>
               </div>
             </div>
           </div>

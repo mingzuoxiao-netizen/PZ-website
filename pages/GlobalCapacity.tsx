@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getAsset, ASSET_KEYS } from '../utils/assets';
 
 // 1. Data Structure for Map Pins
 interface MapLocationDetails {
@@ -144,7 +145,7 @@ const GlobalCapacity: React.FC = () => {
         description_zh: "我们的主要园区，专注于复杂的研发、混合材料制造和大师级工艺。我们的工程卓越中心。",
         stats: ["645,835 sq.ft Facility", "50k+ Monthly Capacity", "R&D Center"],
         stats_zh: ["645,835 平方英尺设施", "50k+ 月产能", "研发中心"],
-        image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_CN_CARD)
       }
     },
     { 
@@ -157,11 +158,11 @@ const GlobalCapacity: React.FC = () => {
       details: {
         title: "Cambodia Factory",
         title_zh: "柬埔寨工厂",
-        description: "A strategic tariff-free manufacturing hub in Kandal Province, tailored for high-volume production runs and cost-effective scalability.",
-        description_zh: "位于干拉省的战略性免关税制造中心，专为大批量生产和具有成本效益的可扩展性而量身定制。",
-        stats: ["398,000 sq.ft Facility", "Tariff-Free", "High Volume Lines"],
-        stats_zh: ["398,000 平方英尺设施", "免关税", "大批量生产线"],
-        image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop"
+        description: "A strategic low-tariff manufacturing hub in Kandal Province, tailored for high-volume production runs and cost-effective scalability.",
+        description_zh: "位于干拉省的战略性低关税制造中心，专为大批量生产和具有成本效益的可扩展性而量身定制。",
+        stats: ["398,000 sq.ft Facility", "Low Tariff", "High Volume Lines"],
+        stats_zh: ["398,000 平方英尺设施", "低关税", "大批量生产线"],
+        image: getAsset(ASSET_KEYS.CAPACITY_KH_CARD)
       }
     },
   ];
@@ -300,7 +301,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• 50k+ Monthly Capacity</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src="https://images.unsplash.com/photo-1565538810643-b5bdb714032a?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
+                 <img src={getAsset(ASSET_KEYS.CAPACITY_CN_CARD)} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
               </div>
             </div>
 
@@ -323,7 +324,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• Specialized in High-Volume SKU Runs</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src="https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?q=80&w=800&auto=format&fit=crop" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
+                 <img src={getAsset(ASSET_KEYS.CAPACITY_KH_CARD)} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
               </div>
             </div>
          </div>

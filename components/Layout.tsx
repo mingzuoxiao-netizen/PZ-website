@@ -1,56 +1,69 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search, ChevronDown } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, ChevronDown, Globe } from 'lucide-react';
 import { NAV_ITEMS } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getAsset, ASSET_KEYS } from '../utils/assets';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-// --- MEGA MENU DATA STRUCTURE (CURATED & PREMIUM) ---
-// Reduced items, focused on key categories
+// --- MEGA MENU DATA STRUCTURE ---
 const MEGA_MENU_DATA: Record<
   string,
-  { title: string; title_zh: string; items: { label: string; label_zh: string; href: string }[] }[]
+  { 
+    title: string; 
+    title_zh: string;
+    items: { label: string; label_zh: string; href: string }[] 
+  }[]
 > = {
-  "/collections": [
+  "/collections": [ 
     {
-      title: "Living",
-      title_zh: "客厅系列",
+      title: "Solid Wood Projects",
+      title_zh: "实木项目",
       items: [
-        { label: "Coffee Tables", label_zh: "咖啡桌", href: "/collections?cat=living&sub=Coffee%20Tables" },
-        { label: "Media Consoles", label_zh: "电视柜", href: "/collections?cat=living&sub=Media%20Consoles" },
-        { label: "Sideboards", label_zh: "餐边柜", href: "/collections?cat=living&sub=Sideboards" },
+        { label: "Dining Tables", label_zh: "实木餐桌", href: "/collections#solid-wood" },
+        { label: "Butcher Block", label_zh: "层压木/砧板台面", href: "/collections#solid-wood" },
+        { label: "Solid Components", label_zh: "实木构件", href: "/collections#solid-wood" },
       ],
     },
     {
-      title: "Dining",
-      title_zh: "餐厅系列",
+      title: "Seating Projects",
+      title_zh: "椅子与软包",
       items: [
-        { label: "Dining Tables", label_zh: "餐桌", href: "/collections?cat=dining" },
-        { label: "Dining Chairs", label_zh: "餐椅", href: "/collections?cat=seating&sub=Dining%20Chairs" },
-        { label: "Bar Stools", label_zh: "吧台椅", href: "/collections?cat=seating&sub=Bar%20Stools" },
+        { label: "Dining Chairs", label_zh: "餐椅", href: "/collections#seating" },
+        { label: "Accent Chairs", label_zh: "休闲椅", href: "/collections#seating" },
+        { label: "Bar Stools", label_zh: "吧台椅", href: "/collections#seating" },
       ],
     },
     {
-      title: "Workspace",
-      title_zh: "办公系列",
+      title: "Metal & Mixed",
+      title_zh: "金属与混材",
       items: [
-        { label: "Executive Desks", label_zh: "行政桌", href: "/collections?cat=workspace" },
-        { label: "Meeting Tables", label_zh: "会议桌", href: "/collections?cat=workspace" },
-        { label: "Storage Units", label_zh: "收纳单元", href: "/collections?cat=workspace" },
+        { label: "Metal Bases", label_zh: "金属底座", href: "/collections#mixed" },
+        { label: "Mixed Materials", label_zh: "多种材质结合", href: "/collections#mixed" },
+        { label: "Custom Fabrication", label_zh: "定制工艺", href: "/collections#mixed" },
+      ],
+    },
+    {
+      title: "Casegoods",
+      title_zh: "柜体家具",
+      items: [
+        { label: "Media Consoles", label_zh: "电视柜", href: "/collections#casegoods" },
+        { label: "Nightstands", label_zh: "床头柜", href: "/collections#casegoods" },
+        { label: "Storage Units", label_zh: "储物柜", href: "/collections#casegoods" },
       ],
     },
   ],
   "/manufacturing": [
     {
       title: "Process",
-      title_zh: "生产流程",
+      title_zh: "工艺流程",
       items: [
         { label: "Lumber Prep", label_zh: "木材备料", href: "/manufacturing#lumber" },
-        { label: "5-Axis CNC", label_zh: "五轴 CNC", href: "/manufacturing#cnc" },
+        { label: "5-Axis CNC", label_zh: "五轴 CNC 加工", href: "/manufacturing#cnc" },
         { label: "Auto-Finishing", label_zh: "自动化涂装", href: "/manufacturing#finishing" },
       ],
     },
@@ -58,9 +71,9 @@ const MEGA_MENU_DATA: Record<
       title: "Standards",
       title_zh: "质量标准",
       items: [
-        { label: "Incoming QC", label_zh: "来料检验", href: "/manufacturing#iqc" },
-        { label: "In-Process QC", label_zh: "制程检验", href: "/manufacturing#ipqc" },
-        { label: "Final Inspection", label_zh: "最终检验", href: "/manufacturing#fqc" },
+        { label: "Incoming QC", label_zh: "进料质检 (IQC)", href: "/manufacturing#iqc" },
+        { label: "In-Process QC", label_zh: "制程质检 (IPQC)", href: "/manufacturing#ipqc" },
+        { label: "Final Inspection", label_zh: "最终检验 (FQC)", href: "/manufacturing#fqc" },
       ],
     },
   ],
@@ -78,8 +91,8 @@ const MEGA_MENU_DATA: Record<
       title: "Compliance",
       title_zh: "合规性",
       items: [
-        { label: "TSCA Title VI", label_zh: "TSCA Title VI", href: "/capabilities#tsca" },
-        { label: "FSC Certification", label_zh: "FSC 认证", href: "/capabilities#fsc" },
+        { label: "TSCA Title VI", label_zh: "TSCA Title VI 环保", href: "/capabilities#tsca" },
+        { label: "FSC Certification", label_zh: "FSC 森林认证", href: "/capabilities#fsc" },
         { label: "ISTA Packaging", label_zh: "ISTA 包装测试", href: "/capabilities#packaging" },
       ],
     },
@@ -99,7 +112,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { language, setLanguage, t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -140,10 +153,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
-
   const handleMouseEnter = (path: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (MEGA_MENU_DATA[path]) {
@@ -160,6 +169,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }, 200);
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
+  };
+
   useEffect(() => {
     setActiveMenu(null);
     setIsMobileMenuOpen(false);
@@ -167,48 +180,72 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const isHome = location.pathname === '/';
   const isMegaMenuActive = activeMenu !== null;
-  const useDarkNav = isScrolled || !isHome || isMobileMenuOpen || isSearchOpen || isMegaMenuActive;
+  // White/Clean navbar logic
+  const useWhiteNav = isScrolled || !isHome || isMobileMenuOpen || isSearchOpen || isMegaMenuActive;
 
-  const textColor = !useDarkNav ? 'text-white' : 'text-[#1c1917]';
-  const navTextColor = !useDarkNav
-    ? 'text-stone-200 hover:text-white'
-    : 'text-stone-600 hover:text-[#1c1917]';
-  const logoColor = !useDarkNav ? 'text-white' : 'text-[#1c1917]';
-  const accentColor = !useDarkNav ? 'text-[#d4b996]' : 'text-[#a16207]';
-
+  const textColor = useWhiteNav ? 'text-stone-900' : 'text-white';
+  const navTextColor = useWhiteNav
+    ? 'text-stone-600 hover:text-safety-700'
+    : 'text-stone-300 hover:text-white';
+  
   const getHeaderBackground = () => {
-    if (isMobileMenuOpen) return 'bg-[#F5F0EB] shadow-none border-transparent';
-    if (isSearchOpen) return 'bg-[#F5F0EB] shadow-none border-b border-stone-300';
-    if (isMegaMenuActive) return 'bg-white border-b border-stone-100 shadow-sm';
-    if (useDarkNav) return 'bg-[#FDFCF8]/95 backdrop-blur-md border-b border-stone-200 shadow-sm';
-    return 'bg-transparent border-b border-transparent';
+    if (isMobileMenuOpen) return 'bg-white shadow-none';
+    if (isSearchOpen) return 'bg-white shadow-none border-b border-stone-100';
+    if (isMegaMenuActive) return 'bg-white border-b border-stone-200 shadow-sm';
+    if (useWhiteNav) return 'bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-sm';
+    return 'bg-transparent border-b border-white/10';
+  };
+
+  const getMenuImage = (path: string | null) => {
+      switch(path) {
+          case '/collections': return getAsset(ASSET_KEYS.MENU_COLLECTIONS);
+          case '/manufacturing': return getAsset(ASSET_KEYS.MENU_MFG);
+          case '/capabilities': return getAsset(ASSET_KEYS.MENU_CAPABILITIES);
+          default: return getAsset(ASSET_KEYS.MENU_DEFAULT);
+      }
+  }
+
+  // Helper to handle anchor link scrolling
+  const handleMenuClick = (href: string) => {
+    if (href.includes('#')) {
+      const [path, hash] = href.split('#');
+      if (location.pathname === path) {
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+    setActiveMenu(null);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 font-sans transition-colors duration-500">
+    <div className="min-h-screen flex flex-col bg-white text-stone-900 font-sans transition-colors duration-500">
       
       <header
         onMouseLeave={handleMouseLeave}
         className={`fixed top-0 left-0 right-0 z-50
-          transition-all duration-300 ease-out
+          transition-all duration-500 ease-in-out
           ${getHeaderBackground()}
-          ${isMobileMenuOpen ? 'h-screen' : 'h-[80px]'}
+          ${isMobileMenuOpen ? 'h-screen' : 'h-[90px]'}
         `}
       >
-        <div className="container mx-auto px-6 md:px-12 h-[80px] flex justify-between items-center relative z-50">
+        {/* Subtle Wood Strip at the very top */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-80 z-[60]"></div>
+
+        <div className="container mx-auto px-6 md:px-12 h-full flex justify-between items-center relative z-50">
           <Link
             to="/"
-            className="group z-50"
+            className="group z-50 flex items-center gap-3"
             onClick={() => {
               setIsMobileMenuOpen(false);
               setIsSearchOpen(false);
             }}
           >
-            <div className="flex flex-col">
-              <h1 className={`font-serif text-2xl md:text-3xl font-bold tracking-tight leading-none flex items-baseline transition-colors duration-300 ${logoColor}`}>
-                PZ
-                <span className={`text-4xl leading-none ml-0.5 transition-colors duration-300 ${accentColor}`}>.</span>
-              </h1>
+            {/* Elegant, text-based logo for traditional manufacturing feel */}
+            <div className={`font-serif tracking-tight leading-none transition-colors duration-300 ${textColor}`}>
+               <span className="text-2xl font-bold">PZ</span>
+               <span className="text-sm italic ml-1 opacity-80">Precision</span>
             </div>
           </Link>
 
@@ -225,11 +262,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 >
                   <Link
                     to={item.path}
-                    className={`text-xs font-bold tracking-[0.2em] uppercase transition-colors duration-300 flex items-center ${
+                    className={`text-[12px] font-bold tracking-[0.1em] uppercase transition-colors duration-300 flex items-center ${
                       isActive
-                        ? isHome && !isScrolled && !isMegaMenuActive
-                          ? 'text-white'
-                          : 'text-[#a16207]'
+                        ? useWhiteNav ? 'text-safety-700' : 'text-white'
                         : navTextColor
                     }`}
                   >
@@ -237,13 +272,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {hasMegaMenu && (
                       <ChevronDown
                         size={10}
-                        className={`ml-1 transition-transform duration-300 ${activeMenu === item.path ? 'rotate-180' : ''}`}
+                        className={`ml-1 transition-transform duration-300 opacity-60 ${activeMenu === item.path ? 'rotate-180' : ''}`}
                       />
                     )}
                   </Link>
+                  {/* Elegant bottom line instead of heavy block */}
                   <span
-                    className={`absolute bottom-0 left-0 h-[2px] bg-[#a16207] transition-all duration-300 ease-out ${
-                      isActive && (isScrolled || isMegaMenuActive || !isHome)
+                    className={`absolute bottom-8 left-0 h-[2px] bg-safety-700 transition-all duration-300 ease-out ${
+                      isActive && useWhiteNav
                         ? 'w-full'
                         : 'w-0'
                     }`}
@@ -254,11 +290,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </nav>
 
           <div className="flex items-center space-x-6 z-50">
+            {/* Language Switcher */}
             <button
-              onClick={toggleLanguage}
-              className={`text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors duration-300 ${navTextColor} hover:text-[#a16207]`}
+                onClick={toggleLanguage}
+                className={`text-[10px] font-bold uppercase tracking-wider focus:outline-none transition-colors duration-300 flex items-center ${navTextColor} hover:text-safety-700`}
             >
-              {language === 'en' ? '中' : 'EN'}
+                {language === 'en' ? 'EN / 中' : '中 / EN'}
             </button>
 
             <button
@@ -270,9 +307,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   setActiveMenu(null);
                 }
               }}
-              className={`focus:outline-none transition-colors duration-300 ${navTextColor} hover:text-[#a16207]`}
+              className={`focus:outline-none transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
             >
-              {isSearchOpen ? <X size={24} /> : <Search size={24} />}
+              {isSearchOpen ? <X size={20} /> : <Search size={20} />}
             </button>
 
             <button
@@ -283,15 +320,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               }}
               className={`lg:hidden focus:outline-none transition-colors duration-300 ${navTextColor}`}
             >
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
 
-        {/* --- REFINED MEGA MENU PANEL --- */}
+        {/* --- MEGA MENU PANEL (Clean & Airy) --- */}
         <div
           className={`
-             absolute top-[80px] left-0 w-full bg-white shadow-2xl border-t border-stone-100 overflow-hidden transition-all duration-300 ease-in-out z-40
+             absolute top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-xl overflow-hidden transition-all duration-300 ease-in-out z-40
              ${activeMenu ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}
            `}
           onMouseEnter={() => {
@@ -301,25 +338,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         >
           {activeMenu && MEGA_MENU_DATA[activeMenu] && (
             <div className="container mx-auto px-6 md:px-12">
-               <div className="flex flex-col lg:flex-row h-[400px]">
+               <div className="flex flex-col lg:flex-row h-[350px]">
                  
-                 {/* Links Section - Flexible Width based on items */}
-                 <div className="flex-grow py-16 flex gap-16">
+                 {/* Links Section */}
+                 <div className="flex-grow py-12 flex gap-16 bg-white">
                     {MEGA_MENU_DATA[activeMenu].map((group, idx) => (
                       <div 
                         key={idx} 
-                        className="flex-1 min-w-[200px] border-l border-stone-100 pl-8 first:border-none first:pl-0 space-y-8 animate-fade-in"
+                        className="min-w-[140px] space-y-6 animate-fade-in"
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
-                         <h3 className="font-bold text-xs uppercase tracking-[0.2em] text-stone-900">
+                         <h3 className="font-serif text-lg text-stone-900 italic border-b border-stone-100 pb-2">
                            {language === 'zh' ? group.title_zh : group.title}
                          </h3>
-                         <ul className="space-y-4">
+                         <ul className="space-y-3">
                            {group.items.map((link, lIdx) => (
                              <li key={lIdx}>
                                <Link
                                  to={link.href}
-                                 className="block font-serif text-xl text-stone-500 hover:text-amber-800 transition-colors duration-200"
+                                 onClick={() => handleMenuClick(link.href)}
+                                 className="block font-medium text-xs text-stone-500 hover:text-safety-700 hover:translate-x-1 transition-all duration-200 uppercase tracking-wider"
                                >
                                  {language === 'zh' ? link.label_zh : link.label}
                                </Link>
@@ -330,30 +368,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ))}
                  </div>
 
-                 {/* Featured Section - Fixed Width & Visual Impact */}
-                 <div className="w-[400px] bg-stone-50 h-full relative group overflow-hidden hidden xl:block">
+                 {/* Featured Section - Subtle Image */}
+                 <div className="w-[300px] bg-stone-50 h-full relative group overflow-hidden hidden xl:block">
                     <img
-                      src={
-                        activeMenu === '/collections'
-                          ? 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=600&auto=format&fit=crop'
-                          : activeMenu === '/manufacturing'
-                          ? 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=600&auto=format&fit=crop'
-                          : activeMenu === '/capabilities'
-                          ? 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop'
-                          : 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop'
-                      }
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+                      src={getMenuImage(activeMenu)}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-90"
                       alt="Featured"
                     />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
-                    <div className="absolute bottom-0 left-0 p-10 w-full">
-                       <span className="block text-white/80 text-[10px] uppercase tracking-widest font-bold mb-2">Featured</span>
-                       <p className="text-white font-serif text-2xl leading-tight border-l-2 border-amber-500 pl-4">
+                    <div className="absolute inset-0 bg-stone-900/10"></div>
+                    
+                    <div className="absolute bottom-0 left-0 p-8 w-full bg-gradient-to-t from-black/60 to-transparent">
+                       <span className="block text-white/80 text-[10px] uppercase tracking-widest font-bold mb-1">
+                          Focus
+                       </span>
+                       <p className="text-white font-serif text-xl italic">
                           {activeMenu === '/collections'
-                             ? (language === 'zh' ? '2025 客厅系列' : '2025 Living Collection')
+                             ? (language === 'zh' ? '实木工艺' : 'Solid Wood')
                              : activeMenu === '/manufacturing'
-                             ? (language === 'zh' ? '精密工程' : 'Precision Engineering')
-                             : (language === 'zh' ? '全球能力' : 'Global Capabilities')}
+                             ? (language === 'zh' ? '精密制造' : 'Precision')
+                             : (language === 'zh' ? '物流中心' : 'Logistics')}
                        </p>
                     </div>
                  </div>
@@ -366,55 +399,61 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Mobile Nav Content */}
         <div
           className={`
-            absolute inset-0 top-[80px] z-40 flex flex-col justify-start items-center pb-20 overflow-y-auto bg-[#F5F0EB]
+            absolute inset-0 top-[90px] z-40 flex flex-col justify-start items-center pb-20 overflow-y-auto bg-white
             transition-all duration-500 ease-in-out
             ${isMobileMenuOpen ? 'opacity-100 translate-y-0 visible' : 'opacity-0 -translate-y-4 invisible'}
           `}
         >
-          <nav className="flex flex-col space-y-2 text-center w-full pt-10 px-6">
+          <nav className="flex flex-col space-y-4 text-center w-full pt-12 px-6">
             {NAV_ITEMS.map((item) => (
-              <div key={item.path} className="w-full border-b border-stone-200/50 pb-2">
+              <div key={item.path} className="w-full border-b border-stone-100 pb-4">
                 <Link
                   to={item.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block font-serif text-3xl md:text-5xl py-4 text-[#1c1917] hover:text-[#a16207] transition-colors"
+                  className="block font-serif text-2xl text-stone-800 hover:text-safety-700 transition-colors"
                 >
-                  {language === 'zh' ? item.label_zh : item.label}
+                   {language === 'zh' ? item.label_zh : item.label}
                 </Link>
               </div>
             ))}
 
-            <div className="pt-8 flex flex-col items-center space-y-6">
+            <div className="pt-12 flex flex-col items-center space-y-6">
+               {/* Mobile Language Switcher */}
+              <button
+                onClick={toggleLanguage}
+                className="text-sm font-bold uppercase tracking-wider flex items-center text-stone-600 border border-stone-200 px-6 py-2 rounded-full"
+              >
+                 <Globe size={16} className="mr-2" />
+                 {language === 'en' ? 'Switch to 中文' : '切换到 English'}
+              </button>
+
               <Link
                 to="/inquire"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="text-sm font-bold tracking-[0.2em] uppercase bg-[#281815] text-white px-8 py-4 w-full max-w-xs hover:bg-[#a16207] transition-colors"
+                className="text-xs font-bold tracking-[0.2em] uppercase bg-stone-900 text-white px-10 py-4 hover:bg-safety-700 transition-colors"
               >
-                {language === 'zh' ? '立即咨询' : 'Inquire Now'}
+                {t.common.contactUs}
               </Link>
             </div>
           </nav>
         </div>
       </header>
 
-      {/* FIXED Search Overlay System */}
+      {/* Clean Search Overlay */}
       <div
-        className={`fixed inset-0 top-[80px] z-30 bg-stone-900/40 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        className={`fixed inset-0 top-[90px] z-30 bg-white/90 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
         onClick={() => setIsSearchOpen(false)}
       >
         <div
           onClick={(e) => e.stopPropagation()}
           className={`
-                bg-[#F5F0EB] w-full border-b border-stone-300 shadow-2xl 
+                bg-white w-full border-b border-stone-200 shadow-sm
                 transform transition-all duration-500 ease-out origin-top
                 ${isSearchOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
             `}
         >
-          <div className="container mx-auto px-6 md:px-12 py-10 md:py-14">
-            <form onSubmit={handleSearchSubmit} className="relative max-w-4xl mx-auto">
-              <label htmlFor="search-input" className="block text-xs font-bold uppercase tracking-[0.2em] text-stone-500 mb-4 ml-1">
-                {t.common.search}
-              </label>
+          <div className="container mx-auto px-6 md:px-12 py-12">
+            <form onSubmit={handleSearchSubmit} className="relative max-w-3xl mx-auto">
               <div className="relative group">
                 <input
                   id="search-input"
@@ -423,14 +462,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   placeholder={t.common.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-2xl md:text-4xl font-serif text-[#281815] placeholder-stone-400/60 placeholder:italic border-b-[2px] border-stone-300 pb-3 focus:border-[#a16207] focus:outline-none transition-all"
+                  className="w-full bg-transparent text-3xl font-serif text-stone-900 placeholder-stone-300 border-b border-stone-300 pb-4 focus:border-stone-900 focus:outline-none transition-all"
                   autoComplete="off"
                 />
                 <button
                   type="submit"
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-[#a16207] hover:text-[#281815] transition-colors p-2"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-900 transition-colors p-2"
                 >
-                  <ArrowRight size={32} />
+                  <ArrowRight size={24} />
                 </button>
               </div>
             </form>
@@ -440,32 +479,35 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <main className="flex-grow">{children}</main>
 
-      <footer className="bg-[#281815] border-t border-stone-800 pt-20 pb-10 text-stone-400">
+      {/* Footer - Classic Clean */}
+      <footer className="bg-stone-50 border-t border-stone-200 pt-24 pb-12 text-stone-500 relative">
+        <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-50"></div>
         <div className="container mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
             <div className="col-span-1 md:col-span-2">
-              <h2 className="font-serif text-2xl text-[#E6DDD5] mb-6 tracking-tight flex items-baseline">
-                PZ
-                <span className="text-[#a16207] text-3xl leading-none ml-0.5">.</span>
-              </h2>
-              <p className="text-[#BCAAA4] max-w-md mb-6 leading-relaxed font-light">
+              <div className="flex items-center gap-3 mb-8">
+                 <div className="font-serif text-2xl text-stone-900 font-bold">
+                    PZ Precision
+                 </div>
+              </div>
+              <p className="text-stone-500 max-w-sm mb-8 leading-relaxed text-sm font-light">
                 {t.home.heroQuote} {t.home.strengthDesc1}
               </p>
-              <div className="flex space-x-4 text-[#8D6E63] text-sm">
-                <span>China</span>
-                <span>|</span>
-                <span>Cambodia</span>
-                <span>|</span>
-                <span>Est. 2014</span>
+              <div className="flex space-x-6 text-xs uppercase tracking-widest font-bold">
+                <span className="text-stone-900">Zhaoqing</span>
+                <span className="text-stone-300">/</span>
+                <span className="text-stone-900">Kandal</span>
+                <span className="text-stone-300">/</span>
+                <span className="text-stone-900">Los Angeles</span>
               </div>
             </div>
 
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">{t.common.explore}</h3>
+              <h3 className="text-xs font-bold tracking-widest text-stone-900 uppercase mb-8">{t.common.explore}</h3>
               <ul className="space-y-4">
                 {NAV_ITEMS.slice(0, 4).map((item) => (
                   <li key={item.path}>
-                    <Link to={item.path} className="text-[#BCAAA4] hover:text-white transition-colors text-sm">
+                    <Link to={item.path} className="text-stone-500 hover:text-safety-700 transition-colors text-sm hover:translate-x-1 inline-block">
                       {language === 'zh' ? item.label_zh : item.label}
                     </Link>
                   </li>
@@ -474,34 +516,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             <div>
-              <h3 className="text-xs font-bold tracking-widest text-[#E6DDD5] uppercase mb-6">{t.common.connect}</h3>
+              <h3 className="text-xs font-bold tracking-widest text-stone-900 uppercase mb-8">{t.common.connect}</h3>
               <ul className="space-y-4">
                 <li>
-                  <Link to="/inquire" className="text-[#BCAAA4] hover:text-white transition-colors flex items-center group text-sm">
+                  <Link to="/inquire" className="text-stone-500 hover:text-safety-700 transition-colors flex items-center group text-sm">
                     {t.common.startProject} <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </li>
-                <li>
-                  <a href="#" className="text-[#BCAAA4] hover:text-white transition-colors text-sm">{t.common.tradeProgram}</a>
-                </li>
-                <li className="flex space-x-4">
-                  <Link to="/admin" className="text-[#8D6E63] hover:text-[#BCAAA4] transition-colors text-xs">
+                <li className="flex space-x-4 pt-6">
+                  <Link to="/admin" className="text-stone-400 hover:text-stone-600 transition-colors text-xs font-mono">
                     Admin
                   </Link>
-                  <span className="text-[#8D6E63]">/</span>
-                  <Link to="/creator" className="text-[#8D6E63] hover:text-[#BCAAA4] transition-colors text-xs">
-                    Operator
+                  <span className="text-stone-300">|</span>
+                  <Link to="/creator" className="text-stone-400 hover:text-stone-600 transition-colors text-xs font-mono">
+                    Portal
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-stone-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-[#8D6E63] tracking-wider">
-            <p>&copy; {new Date().getFullYear()} PZ Intelligent Manufacturing. {t.common.rights}</p>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <span>{t.common.privacy}</span>
-              <span>{t.common.terms}</span>
+          <div className="border-t border-stone-200 pt-10 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400">
+            <p>&copy; {new Date().getFullYear()} PZ Precision Woodworks. {t.common.rights}</p>
+            <div className="flex space-x-8 mt-4 md:mt-0">
+              <Link to="/privacy" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.privacy}</Link>
+              <Link to="/terms" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.terms}</Link>
             </div>
           </div>
         </div>
