@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PZ Precision Woodworks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Added JetBrains Mono for that "Machinery/Code" look -->
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'], 
+              serif: ['Libre Baskerville', 'serif'], 
+              mono: ['JetBrains Mono', 'monospace'], // New: Technical font
+            },
+            backgroundImage: {
+              'wood-pattern': "url('https://www.transparenttextures.com/patterns/wood-pattern.png')",
+              // Removed noise texture
+              'grid': "linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)",
+            },
+            colors: {
+              // Replaced 'stone' with 'zinc' for a colder, industrial steel/concrete feel
+              stone: {
+                50: '#fafafa',
+                100: '#f4f4f5', // Zinc 100
+                200: '#e4e4e7', // Zinc 200
+                300: '#d4d4d8', // Zinc 300
+                400: '#a1a1aa',
+                500: '#71717a',
+                600: '#52525b',
+                700: '#3f3f46',
+                800: '#27272a',
+                900: '#18181b', // Industrial Black
+                950: '#09090b', 
+              },
+              // Renamed 'safety' to a Burnt Bronze/Orange (Molten metal / Walnut stain)
+              safety: {
+                50: '#fff7ed',
+                100: '#ffedd5',
+                200: '#fed7aa',
+                300: '#fdba74',
+                400: '#fb923c',
+                500: '#f97316', 
+                600: '#ea580c', 
+                700: '#c2410c', // <--- Main Brand Color: Burnt Industrial Orange
+                800: '#9a3412',
+                900: '#7c2d12',
+                950: '#431407', 
+              },
+            },
+            animation: {
+              'slow-pan': 'pan 40s linear infinite alternate',
+              'fade-in': 'fadeIn 1s ease-out forwards',
+              'fade-in-up': 'fadeInUp 1s ease-out forwards',
+            },
+            keyframes: {
+              pan: {
+                '0%': { transform: 'scale(1.0) translate(0, 0)' },
+                '100%': { transform: 'scale(1.1) translate(-2%, -2%)' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(15px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      /* Industrial Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #18181b; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #52525b;
+        border: 1px solid #18181b;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #c2410c; /* Safety Orange hover */
+      }
+    </style>
+
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.2.0,react-dom@18.2.0",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-oRzvgX1a.js"></script>
+</head>
+  <body class="bg-stone-50 text-stone-800 antialiased selection:bg-safety-700 selection:text-white font-sans">
+    <div id="root"></div>
+  </body>
+</html>
