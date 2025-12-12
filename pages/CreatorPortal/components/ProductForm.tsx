@@ -339,7 +339,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
               language === 'zh' ? '处理中...' : 'Processing...'
             ) : (
               <>
-                {editingId ? (language === 'zh' ? '更新产品' : 'Update Product') : (language === 'zh' ? '发布产品' : 'Publish Product')}
+                {editingId 
+                    ? (language === 'zh' ? '更新产品' : 'Update Product') 
+                    : (formData.status === 'draft' 
+                        ? (language === 'zh' ? '保存草稿' : 'Save Draft')
+                        : (language === 'zh' ? '发布产品' : 'Publish Product')
+                      )
+                }
                 {editingId ? <Save size={16} className="ml-2" /> : <Plus size={16} className="ml-2 group-hover:rotate-90 transition-transform" />}
               </>
             )}

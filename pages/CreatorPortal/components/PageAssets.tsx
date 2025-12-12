@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { RotateCcw, History, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { RotateCcw, History, X, Save, Ban } from 'lucide-react';
 import { ASSET_GROUPS, DEFAULT_ASSETS, ASSET_KEYS } from '../../../utils/assets';
 import PZImageManager from './PZImageManager';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -20,6 +20,8 @@ const PageAssets: React.FC<PageAssetsProps> = ({
   viewingHistoryKey, setViewingHistoryKey
 }) => {
   const { language } = useLanguage();
+  // Store pending changes locally before saving
+  const [pendingUpdates, setPendingUpdates] = useState<Record<string, string>>({});
 
   return (
     <div className="grid grid-cols-1 gap-12 animate-fade-in">
@@ -70,8 +72,8 @@ const PageAssets: React.FC<PageAssetsProps> = ({
         <h3 className="font-serif text-2xl text-stone-900 mb-4">{language === 'zh' ? '页面资源管理' : 'Site Assets Management'}</h3>
         <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
           {language === 'zh' 
-            ? '管理网站上的静态图片和文件（如 Catalog PDF、首页横幅等）。'
-            : 'Manage static website images and files here (Catalog PDF, Hero banners, Factory images, etc.).'}
+            ? '管理网站上的静态图片和文件（如 Catalog PDF、首页横幅等）。上传后请点击“保存”以生效。'
+            : 'Manage static website images and files here (Catalog PDF, Hero banners, Factory images, etc.). Click "Save" after uploading to apply changes.'}
         </p>
       </div>
 
@@ -80,46 +82,87 @@ const PageAssets: React.FC<PageAssetsProps> = ({
           <h4 className="text-sm font-bold uppercase tracking-widest text-stone-500 mb-6 border-b border-stone-200 pb-2">{group.name}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {group.keys?.map((asset) => {
-              const currentUrl = customAssets[asset.key] || DEFAULT_ASSETS[asset.key];
+              const savedUrl = customAssets[asset.key] || DEFAULT_ASSETS[asset.key];
+              const pendingUrl = pendingUpdates[asset.key];
+              
+              // If we have a pending update, show that, otherwise show saved
+              const currentUrl = pendingUrl !== undefined ? pendingUrl : savedUrl;
+              
               const isDefault = !customAssets[asset.key];
               const hasHistory = assetHistory[asset.key] && assetHistory[asset.key].length > 0;
               const isPdf = asset.key === ASSET_KEYS.CATALOG_DOCUMENT;
+              
+              const hasChanges = pendingUrl && pendingUrl !== savedUrl;
 
               return (
-                <div key={asset.key} className="bg-white border border-stone-200 transition-all hover:border-stone-400">
+                <div key={asset.key} className={`bg-white border transition-all ${hasChanges ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200 hover:border-stone-400'}`}>
                   {/* Unified PZImageManager in Single Mode */}
                   <PZImageManager 
                     images={currentUrl ? [currentUrl] : []}
-                    onUpdate={(imgs) => onAssetUpdate(asset.key, imgs[0])}
+                    onUpdate={(imgs) => setPendingUpdates(prev => ({ ...prev, [asset.key]: imgs[0] }))}
                     maxImages={1}
                     onError={(msg) => alert(msg)}
                     className="aspect-video w-full"
                     accept={isPdf ? "application/pdf" : "image/*"}
                   />
 
-                  <div className="p-4 flex justify-between items-center bg-white">
+                  <div className="p-4 flex justify-between items-center bg-white border-t border-stone-100">
                     <span className="text-xs font-bold text-stone-700 truncate mr-2" title={asset.label}>
                       {asset.label}
                     </span>
                     
-                    <div className="flex space-x-2">
-                      {hasHistory && (
-                        <button
-                          onClick={() => setViewingHistoryKey(asset.key)}
-                          className="text-stone-400 hover:text-amber-700 transition-colors p-1"
-                          title={language === 'zh' ? "历史记录" : "History"}
-                        >
-                          <History size={14}/>
-                        </button>
-                      )}
-                      {!isDefault && (
-                        <button 
-                          onClick={() => onAssetReset(asset.key)}
-                          className="text-stone-400 hover:text-red-600 transition-colors p-1"
-                          title={language === 'zh' ? '重置为默认' : 'Reset to Default'}
-                        >
-                          <RotateCcw size={14} />
-                        </button>
+                    <div className="flex space-x-2 items-center">
+                      {hasChanges ? (
+                        <>
+                            <button 
+                                onClick={() => {
+                                    // Cancel changes
+                                    setPendingUpdates(prev => {
+                                        const next = { ...prev };
+                                        delete next[asset.key];
+                                        return next;
+                                    });
+                                }}
+                                className="flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-stone-200 hover:bg-stone-100 text-stone-500 rounded-sm transition-colors"
+                            >
+                                <Ban size={12} className="mr-1"/> {language === 'zh' ? '取消' : 'Cancel'}
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    // Commit changes
+                                    onAssetUpdate(asset.key, pendingUrl);
+                                    setPendingUpdates(prev => {
+                                        const next = { ...prev };
+                                        delete next[asset.key];
+                                        return next;
+                                    });
+                                }}
+                                className="flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-amber-700 text-white hover:bg-amber-800 rounded-sm shadow-sm transition-colors"
+                            >
+                                <Save size={12} className="mr-1"/> {language === 'zh' ? '保存' : 'Save'}
+                            </button>
+                        </>
+                      ) : (
+                        <>
+                            {hasHistory && (
+                                <button
+                                onClick={() => setViewingHistoryKey(asset.key)}
+                                className="text-stone-400 hover:text-amber-700 transition-colors p-1"
+                                title={language === 'zh' ? "历史记录" : "History"}
+                                >
+                                <History size={14}/>
+                                </button>
+                            )}
+                            {!isDefault && (
+                                <button 
+                                onClick={() => onAssetReset(asset.key)}
+                                className="text-stone-400 hover:text-red-600 transition-colors p-1"
+                                title={language === 'zh' ? '重置为默认' : 'Reset to Default'}
+                                >
+                                <RotateCcw size={14} />
+                                </button>
+                            )}
+                        </>
                       )}
                     </div>
                   </div>
