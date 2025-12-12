@@ -31,45 +31,170 @@ const ScrollToTop = () => {
 };
 
 const App: React.FC = () => {
-  return (
-    <LanguageProvider>
-      <AuthGuard>
-        <HashRouter>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/" element={<Layout><Home /></Layout>} />
-            <Route path="/about" element={<Layout><About /></Layout>} />
-            <Route path="/manufacturing" element={<Layout><Manufacturing /></Layout>} />
-            <Route path="/capabilities" element={<Layout><Capabilities /></Layout>} />
-            <Route path="/collections" element={<Layout><Collections /></Layout>} />
-            <Route path="/materials" element={<Layout><Materials /></Layout>} />
-            <Route path="/capacity" element={<Layout><GlobalCapacity /></Layout>} />
-            <Route path="/inquire" element={<Layout><Inquire /></Layout>} />
-            <Route path="/privacy" element={<Layout><PrivacyPolicy /></Layout>} />
-            <Route path="/terms" element={<Layout><TermsOfService /></Layout>} />
-            
-            {/* Hidden Admin Route */}
-            <Route path="/admin-pzf-2025" element={
+return (
+  <LanguageProvider>
+    <HashRouter>
+      <ScrollToTop />
+
+      <Routes>
+
+        {/* ===================== */}
+        {/* Public & User Routes */}
+        {/* ===================== */}
+        <Route
+          path="/"
+          element={
+            <AuthGuard>
               <Layout>
-                <AdminGuard>
-                  <AdminDashboard />
-                </AdminGuard>
+                <Home />
               </Layout>
-            } />
-            
-            <Route path="/creator" element={
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/about"
+          element={
+            <AuthGuard>
               <Layout>
-                <AdminGuard>
-                  <CreatorPortal />
-                </AdminGuard>
+                <About />
               </Layout>
-            } />
-            <Route path="/search" element={<Layout><SearchResults /></Layout>} />
-          </Routes>
-        </HashRouter>
-      </AuthGuard>
-    </LanguageProvider>
-  );
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/manufacturing"
+          element={
+            <AuthGuard>
+              <Layout>
+                <Manufacturing />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/capabilities"
+          element={
+            <AuthGuard>
+              <Layout>
+                <Capabilities />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/collections"
+          element={
+            <AuthGuard>
+              <Layout>
+                <Collections />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/materials"
+          element={
+            <AuthGuard>
+              <Layout>
+                <Materials />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/capacity"
+          element={
+            <AuthGuard>
+              <Layout>
+                <GlobalCapacity />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/inquire"
+          element={
+            <AuthGuard>
+              <Layout>
+                <Inquire />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/privacy"
+          element={
+            <AuthGuard>
+              <Layout>
+                <PrivacyPolicy />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/terms"
+          element={
+            <AuthGuard>
+              <Layout>
+                <TermsOfService />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/search"
+          element={
+            <AuthGuard>
+              <Layout>
+                <SearchResults />
+              </Layout>
+            </AuthGuard>
+          }
+        />
+
+        {/* ===================== */}
+        {/* Admin / Creator Routes */}
+        {/* ===================== */}
+
+        {/* Hidden Admin Dashboard */}
+        <Route
+          path="/admin-pzf-2025"
+          element={
+            <Layout>
+              <AdminGuard>
+                <AdminDashboard />
+              </AdminGuard>
+            </Layout>
+          }
+        />
+
+        {/* Creator Portal */}
+        <Route
+          path="/creator"
+          element={
+            <Layout>
+              <AdminGuard>
+                <CreatorPortal />
+              </AdminGuard>
+            </Layout>
+          }
+        />
+
+      </Routes>
+    </HashRouter>
+  </LanguageProvider>
+);
 };
+
 
 export default App;

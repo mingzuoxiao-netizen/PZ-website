@@ -1,5 +1,5 @@
 
-export const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 export const ADMIN_SESSION_KEY = "pz_admin_token";
 
 interface FetchOptions extends RequestInit {
@@ -48,7 +48,7 @@ export async function adminFetch<T = any>(
   // If endpoint is already a full URL (http...), use it. Otherwise append to API_BASE.
   let url = endpoint.startsWith('http') 
     ? endpoint 
-    : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    : `${ADMIN_API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
   // Append Query Parameters
   if (params) {
@@ -62,8 +62,6 @@ export async function adminFetch<T = any>(
     // Handle Auth Errors (401/403)
     if (response.status === 401 || response.status === 403) {
       console.warn('Unauthorized access. Admin session may be invalid or expired.');
-      // Optional: Clear session or redirect could happen here, 
-      // but usually better handled by the UI/Router to avoid circular dependencies.
     }
 
     if (!response.ok) {

@@ -21,7 +21,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   }, []);
 
   if (checking) {
-    return null; // 或者返回一个简单的 Loading Spinner
+    return null; 
   }
 
   // 1. 如果已认证，渲染受保护的子组件 (Dashboard)
