@@ -26,9 +26,13 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # ⭐ 关键：把 Secret 注入到 Vite build
+          VITE_ADMIN_API_TOKEN: ${{ secrets.VITE_ADMIN_API_TOKEN }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
