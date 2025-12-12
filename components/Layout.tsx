@@ -15,85 +15,76 @@ const MEGA_MENU_DATA: Record<
   string,
   { 
     title: string; 
-    title_zh: string;
-    items: { label: string; label_zh: string; href: string }[] 
+    items: { label: string; href: string }[] 
   }[]
 > = {
   "/collections": [ 
     {
       title: "Solid Wood Projects",
-      title_zh: "实木项目",
       items: [
-        { label: "Dining Tables", label_zh: "实木餐桌", href: "/collections#solid-wood" },
-        { label: "Butcher Block", label_zh: "层压木/砧板台面", href: "/collections#solid-wood" },
-        { label: "Solid Components", label_zh: "实木构件", href: "/collections#solid-wood" },
+        { label: "Dining Tables", href: "/collections#solid-wood" },
+        { label: "Butcher Block", href: "/collections#solid-wood" },
+        { label: "Solid Components", href: "/collections#solid-wood" },
       ],
     },
     {
       title: "Seating Projects",
-      title_zh: "椅子与软包",
       items: [
-        { label: "Dining Chairs", label_zh: "餐椅", href: "/collections#seating" },
-        { label: "Accent Chairs", label_zh: "休闲椅", href: "/collections#seating" },
-        { label: "Bar Stools", label_zh: "吧台椅", href: "/collections#seating" },
+        { label: "Dining Chairs", href: "/collections#seating" },
+        { label: "Accent Chairs", href: "/collections#seating" },
+        { label: "Bar Stools", href: "/collections#seating" },
       ],
     },
     {
       title: "Metal & Mixed",
-      title_zh: "金属与混材",
       items: [
-        { label: "Metal Bases", label_zh: "金属底座", href: "/collections#mixed" },
-        { label: "Mixed Materials", label_zh: "多种材质结合", href: "/collections#mixed" },
-        { label: "Custom Fabrication", label_zh: "定制工艺", href: "/collections#mixed" },
+        { label: "Metal Bases", href: "/collections#mixed" },
+        { label: "Mixed Materials", href: "/collections#mixed" },
+        { label: "Custom Fabrication", href: "/collections#mixed" },
       ],
     },
     {
       title: "Casegoods",
-      title_zh: "柜体家具",
       items: [
-        { label: "Media Consoles", label_zh: "电视柜", href: "/collections#casegoods" },
-        { label: "Nightstands", label_zh: "床头柜", href: "/collections#casegoods" },
-        { label: "Storage Units", label_zh: "储物柜", href: "/collections#casegoods" },
+        { label: "Media Consoles", href: "/collections#casegoods" },
+        { label: "Nightstands", href: "/collections#casegoods" },
+        { label: "Storage Units", href: "/collections#casegoods" },
       ],
     },
   ],
   "/manufacturing": [
     {
       title: "Process",
-      title_zh: "工艺流程",
       items: [
-        { label: "Lumber Prep", label_zh: "木材备料", href: "/manufacturing#lumber" },
-        { label: "5-Axis CNC", label_zh: "五轴 CNC 加工", href: "/manufacturing#cnc" },
-        { label: "Auto-Finishing", label_zh: "自动化涂装", href: "/manufacturing#finishing" },
+        { label: "Lumber Prep", href: "/manufacturing#lumber" },
+        { label: "5-Axis CNC", href: "/manufacturing#cnc" },
+        { label: "Auto-Finishing", href: "/manufacturing#finishing" },
       ],
     },
     {
       title: "Standards",
-      title_zh: "质量标准",
       items: [
-        { label: "Incoming QC", label_zh: "进料质检 (IQC)", href: "/manufacturing#iqc" },
-        { label: "In-Process QC", label_zh: "制程质检 (IPQC)", href: "/manufacturing#ipqc" },
-        { label: "Final Inspection", label_zh: "最终检验 (FQC)", href: "/manufacturing#fqc" },
+        { label: "Incoming QC", href: "/manufacturing#iqc" },
+        { label: "In-Process QC", href: "/manufacturing#ipqc" },
+        { label: "Final Inspection", href: "/manufacturing#fqc" },
       ],
     },
   ],
   "/capabilities": [
     {
       title: "Services",
-      title_zh: "服务内容",
       items: [
-        { label: "OEM Production", label_zh: "OEM 生产", href: "/capabilities#oem" },
-        { label: "ODM Design", label_zh: "ODM 设计", href: "/capabilities#odm" },
-        { label: "Value Engineering", label_zh: "价值工程", href: "/capabilities#ve" },
+        { label: "OEM Production", href: "/capabilities#oem" },
+        { label: "ODM Design", href: "/capabilities#odm" },
+        { label: "Value Engineering", href: "/capabilities#ve" },
       ],
     },
     {
       title: "Compliance",
-      title_zh: "合规性",
       items: [
-        { label: "TSCA Title VI", label_zh: "TSCA Title VI 环保", href: "/capabilities#tsca" },
-        { label: "FSC Certification", label_zh: "FSC 森林认证", href: "/capabilities#fsc" },
-        { label: "ISTA Packaging", label_zh: "ISTA 包装测试", href: "/capabilities#packaging" },
+        { label: "TSCA Title VI", href: "/capabilities#tsca" },
+        { label: "FSC Certification", href: "/capabilities#fsc" },
+        { label: "ISTA Packaging", href: "/capabilities#packaging" },
       ],
     },
   ],
@@ -169,18 +160,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }, 200);
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
-
   useEffect(() => {
     setActiveMenu(null);
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
+  };
+
   const isHome = location.pathname === '/';
   const isMegaMenuActive = activeMenu !== null;
-  // White/Clean navbar logic
   const useWhiteNav = isScrolled || !isHome || isMobileMenuOpen || isSearchOpen || isMegaMenuActive;
 
   const textColor = useWhiteNav ? 'text-stone-900' : 'text-white';
@@ -205,7 +195,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
   }
 
-  // Helper to handle anchor link scrolling
   const handleMenuClick = (href: string) => {
     if (href.includes('#')) {
       const [path, hash] = href.split('#');
@@ -230,7 +219,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ${isMobileMenuOpen ? 'h-screen' : 'h-[90px]'}
         `}
       >
-        {/* Subtle Wood Strip at the very top */}
         <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-80 z-[60]"></div>
 
         <div className="container mx-auto px-6 md:px-12 h-full flex justify-between items-center relative z-50">
@@ -242,7 +230,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               setIsSearchOpen(false);
             }}
           >
-            {/* Elegant, text-based logo for traditional manufacturing feel */}
             <div className={`font-serif tracking-tight leading-none transition-colors duration-300 ${textColor}`}>
                <span className="text-2xl font-bold">PZ</span>
                <span className="text-sm italic ml-1 opacity-80">Precision</span>
@@ -268,7 +255,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         : navTextColor
                     }`}
                   >
-                    {language === 'zh' ? item.label_zh : item.label}
+                    {item.label}
                     {hasMegaMenu && (
                       <ChevronDown
                         size={10}
@@ -276,7 +263,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       />
                     )}
                   </Link>
-                  {/* Elegant bottom line instead of heavy block */}
                   <span
                     className={`absolute bottom-8 left-0 h-[2px] bg-safety-700 transition-all duration-300 ease-out ${
                       isActive && useWhiteNav
@@ -293,9 +279,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Language Switcher */}
             <button
                 onClick={toggleLanguage}
-                className={`text-[10px] font-bold uppercase tracking-wider focus:outline-none transition-colors duration-300 flex items-center ${navTextColor} hover:text-safety-700`}
+                className={`text-[10px] font-bold tracking-widest uppercase transition-colors duration-300 hover:text-safety-700 ${navTextColor}`}
             >
-                {language === 'en' ? 'EN / 中' : '中 / EN'}
+                {language === 'en' ? 'EN' : '中'} <span className="opacity-50 mx-1">/</span> {language === 'en' ? '中' : 'EN'}
             </button>
 
             <button
@@ -325,7 +311,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* --- MEGA MENU PANEL (Clean & Airy) --- */}
+        {/* --- MEGA MENU PANEL --- */}
         <div
           className={`
              absolute top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-xl overflow-hidden transition-all duration-300 ease-in-out z-40
@@ -340,7 +326,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="container mx-auto px-6 md:px-12">
                <div className="flex flex-col lg:flex-row h-[350px]">
                  
-                 {/* Links Section */}
                  <div className="flex-grow py-12 flex gap-16 bg-white">
                     {MEGA_MENU_DATA[activeMenu].map((group, idx) => (
                       <div 
@@ -349,7 +334,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
                          <h3 className="font-serif text-lg text-stone-900 italic border-b border-stone-100 pb-2">
-                           {language === 'zh' ? group.title_zh : group.title}
+                           {group.title}
                          </h3>
                          <ul className="space-y-3">
                            {group.items.map((link, lIdx) => (
@@ -359,7 +344,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                                  onClick={() => handleMenuClick(link.href)}
                                  className="block font-medium text-xs text-stone-500 hover:text-safety-700 hover:translate-x-1 transition-all duration-200 uppercase tracking-wider"
                                >
-                                 {language === 'zh' ? link.label_zh : link.label}
+                                 {link.label}
                                </Link>
                              </li>
                            ))}
@@ -368,7 +353,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ))}
                  </div>
 
-                 {/* Featured Section - Subtle Image */}
                  <div className="w-[300px] bg-stone-50 h-full relative group overflow-hidden hidden xl:block">
                     <img
                       src={getMenuImage(activeMenu)}
@@ -383,10 +367,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                        </span>
                        <p className="text-white font-serif text-xl italic">
                           {activeMenu === '/collections'
-                             ? (language === 'zh' ? '实木工艺' : 'Solid Wood')
+                             ? 'Solid Wood'
                              : activeMenu === '/manufacturing'
-                             ? (language === 'zh' ? '精密制造' : 'Precision')
-                             : (language === 'zh' ? '物流中心' : 'Logistics')}
+                             ? 'Precision'
+                             : 'Logistics'}
                        </p>
                     </div>
                  </div>
@@ -412,21 +396,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block font-serif text-2xl text-stone-800 hover:text-safety-700 transition-colors"
                 >
-                   {language === 'zh' ? item.label_zh : item.label}
+                   {item.label}
                 </Link>
               </div>
             ))}
 
-            <div className="pt-12 flex flex-col items-center space-y-6">
-               {/* Mobile Language Switcher */}
-              <button
-                onClick={toggleLanguage}
-                className="text-sm font-bold uppercase tracking-wider flex items-center text-stone-600 border border-stone-200 px-6 py-2 rounded-full"
-              >
-                 <Globe size={16} className="mr-2" />
-                 {language === 'en' ? 'Switch to 中文' : '切换到 English'}
-              </button>
+            <button
+                onClick={() => {
+                    toggleLanguage();
+                    setIsMobileMenuOpen(false);
+                }}
+                className="w-full border-b border-stone-100 pb-4 block font-serif text-2xl text-stone-800 hover:text-safety-700 transition-colors"
+            >
+                {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
+            </button>
 
+            <div className="pt-12 flex flex-col items-center space-y-6">
               <Link
                 to="/inquire"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -479,7 +464,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <main className="flex-grow">{children}</main>
 
-      {/* Footer - Classic Clean */}
       <footer className="bg-stone-50 border-t border-stone-200 pt-24 pb-12 text-stone-500 relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-50"></div>
         <div className="container mx-auto px-6 md:px-12">
@@ -508,7 +492,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {NAV_ITEMS.slice(0, 4).map((item) => (
                   <li key={item.path}>
                     <Link to={item.path} className="text-stone-500 hover:text-safety-700 transition-colors text-sm hover:translate-x-1 inline-block">
-                      {language === 'zh' ? item.label_zh : item.label}
+                      {item.label}
                     </Link>
                   </li>
                 ))}
@@ -523,7 +507,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {t.common.startProject} <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </li>
-                {/* Admin Access Link Removed for Hidden URL Mode */}
               </ul>
             </div>
           </div>

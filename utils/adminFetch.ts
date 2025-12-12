@@ -45,7 +45,6 @@ export async function adminFetch<T = any>(
   };
 
   // Construct Full URL
-  // If endpoint is already a full URL (http...), use it. Otherwise append to API_BASE.
   let url = endpoint.startsWith('http') 
     ? endpoint 
     : `${ADMIN_API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
