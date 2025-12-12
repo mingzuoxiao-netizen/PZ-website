@@ -26,8 +26,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   // idle -> verifying -> tension -> blast -> opening -> done
   const [animStage, setAnimStage] = useState<'idle' | 'verifying' | 'tension' | 'blast' | 'opening' | 'done'>('idle');
   
-  const [particles, setParticles] = useState<{id: number, style: React.CSSProperties}[]>([]);
-
   // Preload Hero Image explicitly to ensure it's in browser cache
   const heroImage = getAsset(ASSET_KEYS.HOME_HERO_BG);
 
@@ -39,34 +37,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         setIsAuthenticated(true);
         setShowLockScreen(false); // Immediate unlock if previously logged in
         setAnimStage('done');
-      } else {
-        initParticles();
       }
     } catch (e) {
       console.warn("Session storage access denied");
     }
   }, []);
-
-  const initParticles = () => {
-    const count = 30;
-    const newParticles = [];
-    for(let i=0; i<count; i++) {
-        const size = Math.random() * 3 + 1;
-        newParticles.push({
-            id: i,
-            style: {
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                width: `${size}px`,
-                height: `${size}px`,
-                opacity: Math.random() * 0.4 + 0.1,
-                animation: `float ${Math.random() * 10 + 10}s infinite linear`,
-                animationDelay: `-${Math.random() * 10}s`,
-            } as React.CSSProperties
-        });
-    }
-    setParticles(newParticles);
-  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,13 +94,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
             box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
         }
         
-        @keyframes float {
-            0% { transform: translate(0, 0); }
-            33% { transform: translate(5px, -10px); }
-            66% { transform: translate(-5px, 5px); }
-            100% { transform: translate(0, 0); }
-        }
-
         .noise-overlay {
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
             opacity: 0.4;
@@ -216,17 +184,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                 ${animStage === 'blast' ? '!opacity-100 !scale-x-[50] !blur-[40px]' : ''}
                 ${animStage === 'opening' ? '!opacity-0 scale-x-[100]' : ''}
             `}></div>
-
-            {/* PARTICLES */}
-            <div className={`
-                absolute inset-0 z-50 pointer-events-none overflow-hidden
-                transition-transform duration-[1400ms] ease-out
-                ${animStage === 'opening' ? 'scale-150 opacity-0' : 'scale-100 opacity-100'} 
-            `}>
-                {particles.map(p => (
-                    <div key={p.id} className="absolute bg-[#d6cbb6] rounded-full" style={p.style}></div>
-                ))}
-            </div>
 
             {/* LOGIN FORM */}
             <div 

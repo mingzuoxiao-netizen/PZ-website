@@ -49,7 +49,7 @@ const Home: React.FC = () => {
              {/* Technical Badge */}
              <div className="inline-flex items-center gap-3 mb-8 border border-white/20 bg-stone-950/80 backdrop-blur-sm px-4 py-2">
                 <div className="w-2 h-2 bg-safety-700 animate-pulse rounded-full"></div>
-                <span className="text-stone-300 text-xs font-mono tracking-widest uppercase">System Status: Operational • Est. 2014</span>
+                <span className="text-stone-300 text-xs font-mono tracking-widest uppercase">PZ.EST.2014</span>
              </div>
              
              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] mb-8 drop-shadow-2xl">
