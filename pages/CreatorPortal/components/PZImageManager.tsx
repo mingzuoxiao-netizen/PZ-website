@@ -15,8 +15,9 @@
 
 import React, { useRef, useState } from 'react';
 import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText } from 'lucide-react';
-import { deleteImageFromR2, CDN_DOMAIN, API_BASE, processImage } from '../../../utils/imageHelpers';
+import { deleteImageFromR2, CDN_DOMAIN, processImage } from '../../../utils/imageHelpers';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { adminFetch } from '../../../utils/adminFetch';
 
 interface PZImageManagerProps {
   images: string[];
@@ -100,26 +101,22 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
       formData.append('file', file);
 
       try {
-        const res = await fetch(`${API_BASE}/upload-image`, {
+        // ✅ Unified adminFetch Call
+        const data = await adminFetch('/upload-image', {
           method: 'POST',
-          body: formData
+          body: formData,
         });
 
-        if (!res.ok) {
-          const msg = await res.text();
-          throw new Error(`Server ${res.status}: ${msg}`);
-        }
-
-        const data = await res.json();
-        if (!data.url) throw new Error("No URL returned");
+        if (!data.url) throw new Error('No URL returned');
 
         const finalURL = applyCDN(data.url);
         uploadedFiles.push(finalURL);
+
       } catch (err: any) {
-        console.error("Upload error:", err);
+        console.error('Upload error:', err);
         onError(
           language === 'zh'
-            ? `上传失败：${file.name}（错误码: ${err.message}）`
+            ? `上传失败: ${file.name}（错误: ${err.message}）`
             : `Failed to upload ${file.name} (Server: ${err.message})`
         );
       }

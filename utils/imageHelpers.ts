@@ -1,19 +1,21 @@
 
-export const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+import { adminFetch } from "./adminFetch";
+
 export const CDN_DOMAIN = "https://cdn.peng-zhan.com/";
 
 /**
  * Deletes an image from Cloudflare R2 bucket via the Worker API.
  * It converts the full CDN URL back to the storage key.
+ * Uses adminFetch to ensure the request is authenticated.
  */
 export async function deleteImageFromR2(url: string) {
     if (!url) return;
 
     try {
         // Send to Worker (supports multiple)
-        await fetch(`${API_BASE}/delete-images`, {
+        // Authorization header is automatically injected by adminFetch
+        await adminFetch('/delete-images', {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ keys: [url] })
         });
 

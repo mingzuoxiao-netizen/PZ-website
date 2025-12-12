@@ -5,7 +5,8 @@ import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
 import { ASSET_GROUPS } from '../../utils/assets';
-import { API_BASE, CDN_DOMAIN } from '../../utils/imageHelpers';
+import { CDN_DOMAIN } from '../../utils/imageHelpers';
+import { adminFetch } from '../../utils/adminFetch';
 import { Link } from 'react-router-dom';
 
 import ProductForm from './components/ProductForm';
@@ -447,14 +448,13 @@ const CreatorPortal: React.FC = () => {
                     images: formData.images 
                 }
               };
-              // FIXED: Removed /api to match server route structure
-              await fetch(`${API_BASE}/products`, {
+              // ✅ Unified adminFetch Call
+              await adminFetch('/products', {
                  method: 'POST',
-                 headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify(apiPayload),
               });
            } catch (e) {
-              console.warn("API Create failed, using local only");
+              console.warn("API Create failed, using local only", e);
            }
         }
 
@@ -503,28 +503,24 @@ const CreatorPortal: React.FC = () => {
   const deletedItem = localItems.find(item => item.id === id);
 
   try {
-// 1) --- Auto delete images in R2 ---
-if (deletedItem && Array.isArray(deletedItem.images)) {
+    // 1) --- Auto delete images in R2 using adminFetch ---
+    if (deletedItem && Array.isArray(deletedItem.images)) {
+        // Convert CDN URL → R2 storage key
+        const keys = deletedItem.images.map((url: string) =>
+            url.replace(CDN_DOMAIN, "").replace(/^\/+/, "")
+        );
 
-  // Convert CDN URL → R2 storage key
-  const keys = deletedItem.images.map(url =>
-    url
-      .replace(CDN_DOMAIN, "")
-      .replace(/^\/+/, "")
-  );
+        await adminFetch('/delete-images', {
+            method: "POST",
+            body: JSON.stringify({ keys })
+        });
 
-  await fetch(`${API_BASE}/delete-images`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ keys })
-  });
+        console.log("[R2] Deleted keys via Admin:", keys);
+    }
 
-  console.log("[R2] Deleted keys:", keys);
-}
-
-    // 2) --- Backend delete (optional) ---
+    // 2) --- Backend delete (optional) using adminFetch ---
     try {
-      await fetch(`${API_BASE}/products/${id}`, { method: "DELETE" });
+      await adminFetch(`/products/${id}`, { method: "DELETE" });
     } catch (err) {
       console.warn("API Delete failed (ignored):", err);
     }
