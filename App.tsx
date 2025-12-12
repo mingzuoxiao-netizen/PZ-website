@@ -168,27 +168,22 @@ return (
 
         {/* Hidden Admin Dashboard */}
         <Route
-          path="/admin-pzf-2025"
-          element={
-            <Layout>
-              <AdminGuard>
-                <AdminDashboard />
-              </AdminGuard>
-            </Layout>
-          }
-        />
+  path="/admin-pzf-2025"
+  element={
+    <AdminGuard>
+      <AdminDashboard />
+    </AdminGuard>
+  }
+/>
 
-        {/* Creator Portal */}
-        <Route
-          path="/creator"
-          element={
-            <Layout>
-              <AdminGuard>
-                <CreatorPortal />
-              </AdminGuard>
-            </Layout>
-          }
-        />
+<Route
+  path="/creator"
+  element={
+    <AdminGuard>
+      <CreatorPortal />
+    </AdminGuard>
+  }
+/>
 
       </Routes>
     </HashRouter>
