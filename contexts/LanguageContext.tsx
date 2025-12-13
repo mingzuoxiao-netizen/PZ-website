@@ -34,7 +34,7 @@ const translations = {
       location_kh: "Kandal, Cambodia",
       factory_01: "Factory 01"
     },
-    // ... (Existing Nav/Home/etc translations omitted for brevity, keeping them implicitly) ...
+    // ... (Existing Nav/Home/etc translations kept implicitly)
     nav: {
       header: {
         home: "Home",
@@ -454,10 +454,70 @@ const translations = {
         processing: "Processing...",
         delete: "Delete Product"
       }
+    },
+    // NEW: Site Config Translations
+    siteConfig: {
+      sections: {
+        "Global Settings": "Global Settings",
+        "Navigation Menu (Featured Images)": "Navigation Menu (Featured Images)",
+        "Home Page / Hero": "Home Page / Hero",
+        "Home Page / Sections": "Home Page / Sections",
+        "Home Page / Global Hubs": "Home Page / Global Hubs",
+        "The Studio Page": "The Studio Page",
+        "About Page": "About Page",
+        "Manufacturing Page": "Manufacturing Page",
+        "Global Capacity / Locations": "Global Capacity / Locations",
+        "Materials / Construction": "Materials / Construction",
+        "Materials / Wood Library": "Materials / Wood Library",
+      },
+      fields: {
+        "catalog.url": { label: "Catalog PDF", help: "Upload the main product catalog (PDF). Appears on Portfolio & Inquire pages." },
+        "menu.feat_collections": { label: "Portfolio Menu Image" },
+        "menu.feat_mfg": { label: "Manufacturing Menu Image" },
+        "menu.feat_capabilities": { label: "Capabilities Menu Image" },
+        "menu.feat_default": { label: "Default Menu Image" },
+        "home.hero.title": { label: "Hero Title" },
+        "home.hero.image": { label: "Hero Background Image" },
+        "home.factory.image": { label: "Factory Section Image" },
+        "home.cta.image": { label: "Footer CTA Background" },
+        "home.hub_cn.image": { label: "China Hub Image" },
+        "home.hub_kh.image": { label: "Cambodia Hub Image" },
+        "studio.hero": { label: "Studio Hero Image" },
+        "studio.design": { label: "Design Section Image" },
+        "about.banner": { label: "Main Cinematic Banner" },
+        "about.gallery.raw": { label: "Gallery: Raw Lumber" },
+        "about.gallery.milling": { label: "Gallery: Precision Milling" },
+        "about.gallery.automation": { label: "Gallery: Automation" },
+        "about.gallery.finishing": { label: "Gallery: Hand Finishing" },
+        "about.gallery.qc": { label: "Gallery: Quality Control" },
+        "manufacturing.hero_machinery": { label: "Machinery Hero" },
+        "manufacturing.hero_qc": { label: "QC/Lab Hero" },
+        "capacity.map_bg": { label: "World Map Background" },
+        "capacity.card_cn": { label: "China HQ Card" },
+        "capacity.card_kh": { label: "Cambodia Factory Card" },
+        "capacity.loc_usa": { label: "Location: USA" },
+        "capacity.loc_can": { label: "Location: Canada" },
+        "capacity.loc_uk": { label: "Location: UK" },
+        "capacity.loc_de": { label: "Location: Germany" },
+        "capacity.loc_me": { label: "Location: Middle East" },
+        "materials.const_finger": { label: "Finger Joint" },
+        "materials.const_edge": { label: "Edge Glue" },
+        "materials.const_butcher": { label: "Butcher Block" },
+        "materials.wood_oak": { label: "White Oak" },
+        "materials.wood_walnut": { label: "Walnut" },
+        "materials.wood_rubber": { label: "Rubberwood" },
+        "materials.wood_ash": { label: "Ash" },
+        "materials.wood_beech": { label: "Beech" },
+        "materials.wood_maple": { label: "Maple" },
+        "materials.wood_teak": { label: "Teak" },
+        "materials.wood_acacia": { label: "Acacia" },
+        "materials.wood_birch": { label: "Birch" },
+        "materials.wood_bamboo": { label: "Bamboo" }
+      }
     }
   },
   zh: {
-    // ... (Existing translations for public site omitted for brevity) ...
+    // ... (Existing translations for public site kept implicitly)
     common: {
       readMore: "阅读更多",
       viewDetails: "查看详情",
@@ -898,6 +958,66 @@ const translations = {
         update: "更新产品",
         processing: "处理中...",
         delete: "删除产品"
+      }
+    },
+    // NEW: Site Config Translations
+    siteConfig: {
+      sections: {
+        "Global Settings": "全局设置",
+        "Navigation Menu (Featured Images)": "导航菜单（特色图片）",
+        "Home Page / Hero": "首页 / 主视觉",
+        "Home Page / Sections": "首页 / 版块",
+        "Home Page / Global Hubs": "首页 / 全球中心",
+        "The Studio Page": "工作室页面",
+        "About Page": "关于我们页面",
+        "Manufacturing Page": "制造页面",
+        "Global Capacity / Locations": "全球产能 / 地点",
+        "Materials / Construction": "材料 / 结构工艺",
+        "Materials / Wood Library": "材料 / 木材库",
+      },
+      fields: {
+        "catalog.url": { label: "产品目录 PDF", help: "上传主产品目录 (PDF)。将显示在作品集和咨询页面。" },
+        "menu.feat_collections": { label: "作品集菜单图片" },
+        "menu.feat_mfg": { label: "制造菜单图片" },
+        "menu.feat_capabilities": { label: "能力菜单图片" },
+        "menu.feat_default": { label: "默认菜单图片" },
+        "home.hero.title": { label: "主标题" },
+        "home.hero.image": { label: "主背景图片" },
+        "home.factory.image": { label: "工厂版块图片" },
+        "home.cta.image": { label: "页脚 CTA 背景图" },
+        "home.hub_cn.image": { label: "中国中心图片" },
+        "home.hub_kh.image": { label: "柬埔寨中心图片" },
+        "studio.hero": { label: "工作室主图" },
+        "studio.design": { label: "设计版块图片" },
+        "about.banner": { label: "主电影感横幅" },
+        "about.gallery.raw": { label: "图库：原木筛选" },
+        "about.gallery.milling": { label: "图库：精密铣削" },
+        "about.gallery.automation": { label: "图库：自动化" },
+        "about.gallery.finishing": { label: "图库：手工修整" },
+        "about.gallery.qc": { label: "图库：质量控制" },
+        "manufacturing.hero_machinery": { label: "机械设备主图" },
+        "manufacturing.hero_qc": { label: "质检/实验室主图" },
+        "capacity.map_bg": { label: "世界地图背景" },
+        "capacity.card_cn": { label: "中国总部卡片图" },
+        "capacity.card_kh": { label: "柬埔寨工厂卡片图" },
+        "capacity.loc_usa": { label: "地点：美国" },
+        "capacity.loc_can": { label: "地点：加拿大" },
+        "capacity.loc_uk": { label: "地点：英国" },
+        "capacity.loc_de": { label: "地点：德国" },
+        "capacity.loc_me": { label: "地点：中东" },
+        "materials.const_finger": { label: "指接工艺" },
+        "materials.const_edge": { label: "直拼工艺" },
+        "materials.const_butcher": { label: "层压木工艺" },
+        "materials.wood_oak": { label: "白橡木" },
+        "materials.wood_walnut": { label: "黑胡桃" },
+        "materials.wood_rubber": { label: "橡胶木" },
+        "materials.wood_ash": { label: "白蜡木" },
+        "materials.wood_beech": { label: "榉木" },
+        "materials.wood_maple": { label: "硬枫木" },
+        "materials.wood_teak": { label: "柚木" },
+        "materials.wood_acacia": { label: "相思木" },
+        "materials.wood_birch": { label: "桦木" },
+        "materials.wood_bamboo": { label: "竹子" }
       }
     }
   }

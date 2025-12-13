@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft, ImageMinus, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft, ImageMinus, RefreshCw, Wifi, WifiOff, Globe } from 'lucide-react';
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
@@ -439,10 +439,6 @@ const CreatorPortal: React.FC = () => {
     setFormData(prev => ({ ...prev, code: newCode }));
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
-
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       
@@ -500,13 +496,35 @@ const CreatorPortal: React.FC = () => {
             {t.creator.title} {editingId && <span className="ml-4 text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-sans font-bold uppercase tracking-wider">{t.creator.editing}</span>}
           </h1>
           
-          <div className="flex items-center gap-4">
-            <button
-              onClick={toggleLanguage}
-              className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors"
-            >
-              {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
-            </button>
+          <div className="flex items-center gap-6">
+            
+            {/* Redesigned Language Switcher Capsule */}
+            <div className="flex items-center bg-white border border-stone-200 rounded-full p-1 shadow-sm">
+                <div className="px-3 flex items-center text-stone-400">
+                    <Globe size={14} />
+                </div>
+                <button
+                    onClick={() => setLanguage('en')}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        language === 'en' 
+                        ? 'bg-stone-900 text-white shadow-md' 
+                        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                    }`}
+                >
+                    EN
+                </button>
+                <button
+                    onClick={() => setLanguage('zh')}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                        language === 'zh' 
+                        ? 'bg-stone-900 text-white shadow-md' 
+                        : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50'
+                    }`}
+                >
+                    中
+                </button>
+            </div>
+
             <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-600 text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
                <ArrowLeft size={14} className="mr-2" /> {t.creator.backAdmin}
             </Link>

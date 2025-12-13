@@ -6,6 +6,7 @@ import FieldInput from './FieldInput';
 import { Save, RefreshCw, Clock, History, RotateCcw, Check, AlertCircle } from 'lucide-react';
 import { SiteMeta } from '../../../utils/siteConfig';
 import { adminFetch } from '../../../utils/adminFetch';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface SiteConfigEditorProps {
   config: any;
@@ -22,12 +23,12 @@ interface HistoryItem {
 }
 
 const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onChange, onSave, isSaving, onRefresh }) => {
+  const { t } = useLanguage();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   
   // Track initial config to detect unsaved changes
-  // Using a simplified check (JSON stringify) for deep comparison
   const [initialConfigStr, setInitialConfigStr] = useState('');
   const hasUnsavedChanges = JSON.stringify(config) !== initialConfigStr && initialConfigStr !== '';
 
@@ -140,33 +141,43 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
       </div>
 
       <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
-        {SITE_SCHEMA.map((section) => (
-          <div key={section.section} className="bg-white border border-stone-200 p-8 shadow-sm rounded-sm">
-            <h2 className="text-lg font-serif text-stone-900 mb-6 border-b border-stone-100 pb-4">
-              {section.section}
-            </h2>
+        {SITE_SCHEMA.map((section) => {
+          // Dynamic section translation
+          const translatedSection = t.siteConfig?.sections?.[section.section] || section.section;
 
-            <div className="space-y-2">
-              {section.fields.map((field) => {
-                const value = getByPath(config, field.path);
+          return (
+            <div key={section.section} className="bg-white border border-stone-200 p-8 shadow-sm rounded-sm">
+              <h2 className="text-lg font-serif text-stone-900 mb-6 border-b border-stone-100 pb-4">
+                {translatedSection}
+              </h2>
 
-                return (
-                  <FieldInput
-                    key={field.path}
-                    label={field.label}
-                    type={field.type}
-                    value={value}
-                    help={field.help}
-                    onChange={(val) => {
-                      const next = setByPath(config, field.path, val);
-                      onChange(next);
-                    }}
-                  />
-                );
-              })}
+              <div className="space-y-2">
+                {section.fields.map((field) => {
+                  const value = getByPath(config, field.path);
+                  
+                  // Lookup Translation based on path key
+                  const fieldTranslation = t.siteConfig?.fields?.[field.path];
+                  const label = fieldTranslation?.label || field.label;
+                  const help = fieldTranslation?.help || field.help;
+
+                  return (
+                    <FieldInput
+                      key={field.path}
+                      label={label}
+                      type={field.type}
+                      value={value}
+                      help={help}
+                      onChange={(val) => {
+                        const next = setByPath(config, field.path, val);
+                        onChange(next);
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* History Section */}
         <div className="mt-12 pt-12 border-t border-stone-200">
