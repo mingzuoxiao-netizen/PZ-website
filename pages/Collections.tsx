@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Factory, MapPin, FileText, ArrowRight, Loader2 } from 'lucide-react';
-import { Category, SubCategory, ProductVariant } from '../types';
+import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX } from 'lucide-react';
+import { Category, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -9,34 +9,89 @@ import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [displayCategories, setDisplayCategories] = useState<Category[]>([]);
+  
   const { t } = useLanguage();
   const location = useLocation();
-  const { config } = usePublishedSiteConfig(); // Use Config for Catalog URL
+  const { config } = usePublishedSiteConfig();
 
   const catalogPdfUrl = config.catalog?.url;
 
-  // State for merged data - currently just static as Legacy API is deprecated
-  const [mergedCategories, setMergedCategories] = useState<Category[]>(staticCategories);
+  // --- DATA LOADING ---
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // 1. Get Static Inventory
+        let allCategories = JSON.parse(JSON.stringify(staticCategories));
 
-  // Helper: Flatten logic to get products by Category ID
-  const getProductsByCategory = (catIds: string[], limit?: number, offset: number = 0) => {
-    const products: ProductVariant[] = [];
-    mergedCategories.forEach(cat => {
-        if (catIds.includes(cat.id)) {
-            cat.subCategories.forEach(sub => {
-                if (sub.variants) {
-                    sub.variants.forEach(v => products.push(v));
-                }
-            });
+        // 2. Get Custom Structure (Categories) from Storage
+        const customStructureStr = localStorage.getItem('pz_custom_structure');
+        if (customStructureStr) {
+          const customCats: Category[] = JSON.parse(customStructureStr);
+          // Merge custom categories
+          customCats.forEach(cCat => {
+             const existingIdx = allCategories.findIndex((sc: Category) => sc.id === cCat.id);
+             if (existingIdx > -1) {
+                // Update existing
+                allCategories[existingIdx] = { ...allCategories[existingIdx], ...cCat };
+             } else {
+                // Add new
+                allCategories.push(cCat);
+             }
+          });
         }
-    });
-    // Apply offset and limit
-    const sliced = products.slice(offset);
-    return limit ? sliced.slice(0, limit) : sliced;
-  };
 
-  // Handle Hash Scrolling on Load
+        // 3. Get Custom Products from Inventory
+        const customInventoryStr = localStorage.getItem('pz_custom_inventory');
+        if (customInventoryStr) {
+           const customItems: any[] = JSON.parse(customInventoryStr);
+           
+           customItems.forEach(item => {
+              // Find the category this item belongs to
+              const cat = allCategories.find((c: Category) => c.id === item.categoryId);
+              if (cat) {
+                 // Find or Create SubCategory
+                 let sub = cat.subCategories.find((s: any) => s.name === item.subCategoryName);
+                 if (!sub) {
+                    sub = {
+                       name: item.subCategoryName || "General",
+                       description: "",
+                       image: item.image,
+                       variants: []
+                    };
+                    cat.subCategories.push(sub);
+                 }
+                 if (!sub.variants) sub.variants = [];
+                 
+                 // Avoid duplicates if merging with static data that might have same ID
+                 const exists = sub.variants.find((v: any) => v.id === item.id);
+                 if (!exists && item.status === 'published') {
+                    sub.variants.push(item);
+                 }
+              }
+           });
+        }
+
+        // 4. Filter out empty categories
+        const nonEmptyCategories = allCategories.filter((c: Category) => 
+            c.subCategories.some(s => s.variants && s.variants.length > 0)
+        );
+
+        setDisplayCategories(nonEmptyCategories);
+
+      } catch (e) {
+        console.error("Failed to load portfolio data", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Handle Hash Scrolling
   useEffect(() => {
     if (!loading && location.hash) {
       const el = document.getElementById(location.hash.substring(1));
@@ -46,42 +101,16 @@ const Portfolio: React.FC = () => {
     }
   }, [location.hash, loading]);
 
-  // --- CURATED SECTIONS ---
-  const curatedSections = [
-    {
-      id: 'solid-wood',
-      number: '01',
-      title: 'Solid Wood Projects',
-      desc: 'Demonstrating core woodworking capabilities: Tabletops, butcher blocks, and solid components.',
-      categoryIds: ['tables', 'surfaces'],
-      limit: 3 
-    },
-    {
-      id: 'seating',
-      number: '02',
-      title: 'Seating Projects',
-      desc: 'The best way to demonstrate factory capability. Dining chairs, accent chairs, and bar stools.',
-      categoryIds: ['seating'],
-      limit: 3 
-    },
-    {
-      id: 'mixed',
-      number: '03',
-      title: 'Metal + Mixed Material',
-      desc: 'Metal legs, frames, and wood combinations showing multi-craft integration.',
-      categoryIds: ['tables', 'cabinetry'], 
-      limit: 3,
-      offset: 3 
-    },
-    {
-      id: 'casegoods',
-      number: '04',
-      title: 'Casegoods / Storage',
-      desc: 'Nightstands, media consoles, and cabinets.',
-      categoryIds: ['cabinetry', 'veneer'],
-      limit: 3
-    }
-  ];
+  // Helper to flatten products for a category
+  const getCategoryProducts = (category: Category) => {
+      const products: ProductVariant[] = [];
+      category.subCategories.forEach(sub => {
+          if (sub.variants) {
+              sub.variants.forEach(v => products.push(v));
+          }
+      });
+      return products;
+  };
 
   return (
     <div className="pt-24 md:pt-32 bg-white min-h-screen">
@@ -92,13 +121,13 @@ const Portfolio: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-end">
                <div>
                    <span className="text-safety-700 font-bold tracking-[0.2em] uppercase text-xs mb-4 block">
-                     Curated Portfolio
+                     Full Portfolio
                    </span>
                    <h1 className="font-serif text-3xl md:text-5xl text-stone-900 mb-4">
                      Craftsmanship & Capabilities
                    </h1>
                    <p className="text-stone-500 max-w-xl text-sm leading-relaxed">
-                     Showcasing our manufacturing strength through four core pillars: Solid wood processing, complex upholstery, metal integration, and casegoods.
+                     Explore our complete range of manufactured products, from solid wood components to complex mixed-material assemblies.
                    </p>
                </div>
                
@@ -137,7 +166,7 @@ const Portfolio: React.FC = () => {
                 onClick={() => setActiveProduct(null)}
                 className="flex items-center text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-safety-700 mb-8 transition-colors border-b border-transparent hover:border-safety-700 w-fit pb-1"
               >
-                  <Home size={14} className="mr-2" /> Back to Gallery
+                  <Home size={14} className="mr-2" /> Back to Portfolio
               </button>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
@@ -217,32 +246,30 @@ const Portfolio: React.FC = () => {
           </div>
       ) : (
           <div className="container mx-auto px-6 md:px-12 py-12">
-              {/* Curated Lists */}
-              {curatedSections.map((section) => {
-                const offset = (section as any).offset || 0;
-                const products = getProductsByCategory(section.categoryIds, section.limit, offset);
-                
+              {/* Dynamic Categories Loop */}
+              {displayCategories.map((category, index) => {
+                const products = getCategoryProducts(category);
                 if (products.length === 0) return null;
 
                 return (
                   <div 
-                    key={section.id} 
-                    id={section.id} 
+                    key={category.id} 
+                    id={category.id} 
                     className="mb-24 last:mb-0 border-l-2 border-stone-100 pl-4 md:pl-0 md:border-l-0 scroll-mt-32"
                   >
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-4 border-b border-stone-200">
                        <div className="max-w-2xl">
                           <div className="flex items-center gap-3 mb-2">
-                             <span className="text-safety-700 font-mono font-bold text-xl opacity-50">{section.number}</span>
-                             <h2 className="font-serif text-3xl text-stone-900">{section.title}</h2>
+                             <span className="text-safety-700 font-mono font-bold text-xl opacity-50">{(index + 1).toString().padStart(2, '0')}</span>
+                             <h2 className="font-serif text-3xl text-stone-900">{category.title}</h2>
                           </div>
                           <p className="text-stone-500 font-light text-sm tracking-wide md:pl-10">
-                             {section.desc}
+                             {category.description}
                           </p>
                        </div>
                        <div className="hidden md:block">
-                          <Link to={`/inquire?subject=${section.title}`} className="text-xs font-bold uppercase tracking-widest text-stone-400 hover:text-safety-700 flex items-center transition-colors">
-                             Inquire Project <ArrowRight size={14} className="ml-2"/>
+                          <Link to={`/inquire?subject=${category.title}`} className="text-xs font-bold uppercase tracking-widest text-stone-400 hover:text-safety-700 flex items-center transition-colors">
+                             Inquire Collection <ArrowRight size={14} className="ml-2"/>
                           </Link>
                        </div>
                     </div>
@@ -250,7 +277,7 @@ const Portfolio: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                        {products.map((product, idx) => (
                           <div 
-                             key={idx} 
+                             key={product.name + idx} 
                              className="group cursor-pointer flex flex-col"
                              onClick={() => {
                                setActiveProduct(product);
@@ -286,9 +313,11 @@ const Portfolio: React.FC = () => {
                 );
               })}
 
-              {mergedCategories.every(c => c.subCategories.every(s => !s.variants || s.variants.length === 0)) && (
-                  <div className="text-center py-24 border border-dashed border-stone-300 bg-stone-50">
-                      <p className="text-stone-400 text-sm uppercase tracking-widest">Portfolio is currently being updated.</p>
+              {displayCategories.length === 0 && (
+                  <div className="text-center py-32 border border-dashed border-stone-300 bg-stone-50">
+                      <PackageX className="mx-auto text-stone-300 mb-4" size={48} />
+                      <p className="text-stone-400 text-sm uppercase tracking-widest font-bold">Portfolio is empty</p>
+                      <p className="text-stone-400 text-xs mt-2">Products will appear here once added in Creator Mode.</p>
                   </div>
               )}
           </div>

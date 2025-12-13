@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, LayoutGrid, ArrowLeft, ImageMinus, Download, Upload, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft, ImageMinus, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
@@ -13,15 +13,14 @@ import ProductForm from './components/ProductForm';
 import ProductList from './components/ProductList';
 import LivePreview from './components/LivePreview';
 import SiteConfigEditor from './components/SiteConfigEditor'; // New
-import CollectionManager from './components/CollectionManager';
 import MediaTools from './components/MediaTools';
 
 const CreatorPortal: React.FC = () => {
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mode Switching
-  const [activeTab, setActiveTab] = useState<'products' | 'collections' | 'config' | 'media'>('products');
+  // Mode Switching - Removed 'collections'
+  const [activeTab, setActiveTab] = useState<'products' | 'config' | 'media'>('products');
 
   // UI States
   const [successMsg, setSuccessMsg] = useState('');
@@ -78,14 +77,10 @@ const CreatorPortal: React.FC = () => {
   // --- CLOUD SYNC HELPERS ---
   const saveToCloud = async (key: string, data: any) => {
     localStorage.setItem(key, JSON.stringify(data));
-    
-    // NOTE: Legacy Key-Value Storage is deprecated on backend.
-    // Saving locally only for now until Product API is ready.
-    // Cloud sync check skipped to avoid 404s.
     return true;
   };
 
-  // Dedicated Save for Site Config (Structured JSON POST with Envelope)
+  // Dedicated Save for Site Config
   const saveSiteConfigToCloud = async (config: SiteConfig) => {
       setIsPublishingConfig(true);
       try {
@@ -123,7 +118,7 @@ const CreatorPortal: React.FC = () => {
   const loadFromCloud = async () => {
       setIsSyncing(true);
       try {
-          // Fetch Site Config Only (Legacy storage endpoints removed)
+          // Fetch Site Config Only
           const siteConfigRes = await fetchSiteConfig();
 
           // Process Site Config
@@ -157,7 +152,7 @@ const CreatorPortal: React.FC = () => {
               }
           }
 
-          // Load Inventory/Structure from LocalStorage ONLY (Legacy API Deprecated)
+          // Load Inventory/Structure from LocalStorage ONLY
           const inventory = JSON.parse(localStorage.getItem('pz_custom_inventory') || '[]');
           const structure = JSON.parse(localStorage.getItem('pz_custom_structure') || '[]');
 
@@ -239,26 +234,6 @@ const CreatorPortal: React.FC = () => {
   };
 
   // --- HANDLERS ---
-
-  const handleCategoryUpdate = async (updatedCat: Category) => {
-    try {
-        const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
-        const customStructure: Category[] = JSON.parse(rawStructure);
-        const index = customStructure.findIndex(c => c.id === updatedCat.id);
-        
-        if (index > -1) {
-            customStructure[index] = { ...customStructure[index], ...updatedCat };
-        } 
-        
-        await saveToCloud('pz_custom_structure', customStructure);
-        setSuccessMsg('Collection Info Updated (Local Only)');
-        setTimeout(() => setSuccessMsg(''), 3000);
-        initData();
-    } catch (e) {
-        console.error(e);
-        setErrorMsg('Failed to update category');
-    }
-  };
 
   const handleEditItem = (item: any) => {
     setEditingId(item.id);
@@ -414,30 +389,6 @@ const CreatorPortal: React.FC = () => {
 
   const triggerDelete = (id: string) => setItemToDelete(id);
 
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
-    setIsDeleting(true);
-    const id = itemToDelete;
-    const deletedItem = localItems.find(item => item.id === id);
-
-    try {
-        if (deletedItem && Array.isArray(deletedItem.images)) {
-            const keys = deletedItem.images.map((url: string) => url.replace(CDN_DOMAIN, "").replace(/^\/+/, ""));
-            // Delete images from cloud still works as that endpoint exists
-            await adminFetch('/delete-images', { method: "POST", body: JSON.stringify({ keys }) });
-        }
-        const updatedList = localItems.filter(item => item.id !== id);
-        setLocalItems(updatedList);
-        await saveToCloud('pz_custom_inventory', updatedList);
-        setSuccessMsg('Product Deleted');
-    } catch (err) {
-        setErrorMsg('Delete failed');
-    } finally {
-        setIsDeleting(false);
-        setItemToDelete(null);
-    }
-  };
-
   const filteredItems = useMemo(() => {
     if (!listSearch.trim()) return localItems || [];
     const q = listSearch.toLowerCase();
@@ -489,9 +440,6 @@ const CreatorPortal: React.FC = () => {
             <button onClick={() => setActiveTab('products')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'products' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <ShoppingBag size={16} className="mr-2" /> Inventory
             </button>
-            <button onClick={() => setActiveTab('collections')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'collections' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
-                <LayoutGrid size={16} className="mr-2" /> Collections
-            </button>
             <button onClick={() => setActiveTab('config')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'config' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <LayoutTemplate size={16} className="mr-2" /> Site Config
             </button>
@@ -529,12 +477,7 @@ const CreatorPortal: React.FC = () => {
             </div>
         )}
 
-        {/* --- VIEW: COLLECTIONS MANAGER --- */}
-        {activeTab === 'collections' && (
-          <CollectionManager categories={mergedCategories} onUpdate={handleCategoryUpdate} />
-        )}
-
-        {/* --- VIEW: SITE CONFIG (NEW) --- */}
+        {/* --- VIEW: SITE CONFIG --- */}
         {activeTab === 'config' && (
           <SiteConfigEditor 
             config={siteConfigData} 
