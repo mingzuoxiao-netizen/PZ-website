@@ -387,7 +387,40 @@ const CreatorPortal: React.FC = () => {
     }
   };
 
+  // --- DELETE HANDLER ---
   const triggerDelete = (id: string) => setItemToDelete(id);
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+        // 1. Update List
+        const updatedList = localItems.filter(i => i.id !== itemToDelete);
+        
+        // 2. Save
+        await saveToCloud('pz_custom_inventory', updatedList);
+        
+        // 3. Update State
+        setLocalItems(updatedList);
+        setSuccessMsg("Product deleted successfully");
+        
+        // 4. Reset Editor if deleting the currently edited item
+        if (editingId === itemToDelete) {
+            setEditingId(null);
+            setFormData(initialFormState);
+            setIsCreatingCategory(false);
+            setIsCreatingSubCategory(false);
+        }
+    } catch (e) {
+        console.error(e);
+        setErrorMsg("Failed to delete product");
+    } finally {
+        setIsDeleting(false);
+        setItemToDelete(null);
+        // Clear message after delay
+        setTimeout(() => setSuccessMsg(''), 3000);
+    }
+  };
 
   const filteredItems = useMemo(() => {
     if (!listSearch.trim()) return localItems || [];
@@ -412,6 +445,38 @@ const CreatorPortal: React.FC = () => {
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
+      
+      {/* DELETE CONFIRMATION MODAL */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white p-8 max-w-md w-full shadow-2xl border-t-4 border-red-600 rounded-sm" onClick={e => e.stopPropagation()}>
+               <div className="flex items-center text-red-600 mb-4">
+                   <AlertTriangle size={24} className="mr-3" />
+                   <h3 className="font-serif text-xl text-stone-900">{t.creator.form.delete}?</h3>
+               </div>
+               <p className="text-stone-600 mb-8 text-sm leading-relaxed">
+                   Are you sure you want to delete this product? This action cannot be undone.
+               </p>
+               <div className="flex justify-end gap-4">
+                  <button 
+                    onClick={() => setItemToDelete(null)}
+                    className="px-4 py-3 text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors"
+                  >
+                    {t.creator.form.cancel}
+                  </button>
+                  <button 
+                    onClick={confirmDelete}
+                    disabled={isDeleting}
+                    className="px-6 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center shadow-lg"
+                  >
+                    {isDeleting ? <Loader2 size={14} className="animate-spin mr-2"/> : <Trash2 size={14} className="mr-2"/>}
+                    {t.creator.inventory.delete}
+                  </button>
+               </div>
+            </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-6 md:px-12">
         {/* Status Banner */}
         <div className={`border-l-4 p-4 mb-8 flex justify-between items-center transition-colors ${
