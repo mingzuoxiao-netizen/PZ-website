@@ -34,6 +34,7 @@ const translations = {
       location_kh: "Kandal, Cambodia",
       factory_01: "Factory 01"
     },
+    // ... (Existing Nav/Home/etc translations omitted for brevity, keeping them implicitly) ...
     nav: {
       header: {
         home: "Home",
@@ -398,9 +399,65 @@ const translations = {
        rawTitle: "Premium Selection",
        rawDesc: "We source the finest hardwoods from sustainable forests.",
        exploreMat: "Explore Materials"
+    },
+    // --- ADMIN & CREATOR ---
+    admin: {
+      dashboard: "Admin Dashboard",
+      openCreator: "Open Creator Studio",
+      viewSite: "View Site",
+      logout: "Logout",
+      inquiries: "Inquiries",
+      exportCsv: "Export CSV",
+      noData: "No inquiries match your filters.",
+      loading: "Loading data...",
+      cols: { date: "Date", name: "Name", company: "Company", type: "Type", msg: "Message", status: "Status" }
+    },
+    creator: {
+      title: "Creator Mode",
+      editing: "Editing",
+      backAdmin: "Admin Dashboard",
+      tabs: { inventory: "Inventory", config: "Site Config", media: "Media" },
+      status: { connected: "Site Config Connected", local: "Local Mode", syncing: "Syncing..." },
+      inventory: {
+        manage: "Manage Inventory",
+        desc: "Search and manage your product inventory.",
+        search: "Search inventory...",
+        noItems: "No items found",
+        duplicate: "Duplicate",
+        delete: "Delete",
+        edit: "Edit"
+      },
+      form: {
+        edit: "Edit Product",
+        add: "Add New Product",
+        cancel: "Cancel",
+        status: "Status",
+        mainCat: "Main Category",
+        subCat: "Sub-Category",
+        create: "+ Create New",
+        cancelNew: "Cancel New",
+        nameEn: "Product Name (EN)",
+        nameZh: "Product Name (ZH)",
+        specs: "Specifications",
+        material: "Material",
+        dims: "Dimensions",
+        code: "Product Code",
+        autoGen: "Auto Gen",
+        descEn: "Description (EN)",
+        descZh: "Description (ZH)",
+        colors: "Color Variants",
+        addColor: "Add Color",
+        gallery: "Gallery Images",
+        saveDraft: "Save Draft",
+        publish: "Publish Product",
+        update: "Update Product",
+        processing: "Processing...",
+        delete: "Delete Product"
+      }
     }
   },
   zh: {
+    // ... (Existing translations for public site omitted for brevity) ...
     common: {
       readMore: "阅读更多",
       viewDetails: "查看详情",
@@ -787,6 +844,61 @@ const translations = {
        rawTitle: "优质精选",
        rawDesc: "我们从可持续森林采购最好的硬木。",
        exploreMat: "探索材料"
+    },
+    // --- ADMIN & CREATOR ---
+    admin: {
+      dashboard: "管理后台",
+      openCreator: "打开创作工作室",
+      viewSite: "查看网站",
+      logout: "退出登录",
+      inquiries: "咨询列表",
+      exportCsv: "导出 CSV",
+      noData: "没有符合条件的咨询。",
+      loading: "数据加载中...",
+      cols: { date: "日期", name: "姓名", company: "公司", type: "类型", msg: "留言", status: "状态" }
+    },
+    creator: {
+      title: "创作模式",
+      editing: "编辑中",
+      backAdmin: "返回管理后台",
+      tabs: { inventory: "库存管理", config: "网站配置", media: "媒体库" },
+      status: { connected: "云端配置已连接", local: "本地模式", syncing: "同步中..." },
+      inventory: {
+        manage: "库存管理",
+        desc: "搜索并管理您的产品库存。",
+        search: "搜索库存...",
+        noItems: "未找到项目",
+        duplicate: "复制 / 创建变体",
+        delete: "删除",
+        edit: "编辑"
+      },
+      form: {
+        edit: "编辑产品",
+        add: "添加新产品",
+        cancel: "取消",
+        status: "状态",
+        mainCat: "主分类",
+        subCat: "子分类",
+        create: "+ 新建",
+        cancelNew: "取消新建",
+        nameEn: "产品名称 (EN)",
+        nameZh: "产品名称 (中文)",
+        specs: "规格参数",
+        material: "材质",
+        dims: "尺寸",
+        code: "产品代码",
+        autoGen: "生成",
+        descEn: "描述 (EN)",
+        descZh: "描述 (中文)",
+        colors: "颜色变体",
+        addColor: "添加颜色",
+        gallery: "图库",
+        saveDraft: "保存草稿",
+        publish: "发布产品",
+        update: "更新产品",
+        processing: "处理中...",
+        delete: "删除产品"
+      }
     }
   }
 };

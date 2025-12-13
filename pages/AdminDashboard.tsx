@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Inquiry } from '../types';
 import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, PenTool } from 'lucide-react';
 import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Initial dummy data to populate the dashboard if empty
 const DUMMY_DATA: Inquiry[] = [
@@ -48,10 +49,7 @@ type SortConfig = {
 } | null;
 
 const AdminDashboard: React.FC = () => {
-  // 注意：虽然 AdminGuard 已经保护了此组件，
-  // 但保留这个检查是个好习惯，或者可以直接移除，因为父组件已经处理了渲染逻辑。
-  // 此处我们假设环境是安全的。
-
+  const { t, language, setLanguage } = useLanguage();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -178,6 +176,10 @@ const AdminDashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
+  };
+
   const SortIcon = ({ columnKey }: { columnKey: keyof Inquiry }) => {
     if (sortConfig?.key !== columnKey) return <ArrowUpDown size={14} className="ml-1 text-stone-300" />;
     return sortConfig.direction === 'asc' 
@@ -189,25 +191,31 @@ const AdminDashboard: React.FC = () => {
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       <div className="container mx-auto px-6 md:px-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-          <h1 className="font-serif text-3xl text-stone-900">Admin Dashboard</h1>
-          <div className="flex items-center space-x-6">
+          <h1 className="font-serif text-3xl text-stone-900">{t.admin.dashboard}</h1>
+          <div className="flex items-center space-x-6 flex-wrap gap-y-4">
+            <button
+              onClick={toggleLanguage}
+              className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
+            </button>
             <Link
                 to="/creator"
                 className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 transition-colors rounded-sm flex items-center shadow-lg"
             >
-                <PenTool size={16} className="mr-2" /> Open Creator Studio
+                <PenTool size={16} className="mr-2" /> {t.admin.openCreator}
             </Link>
             <Link
                 to="/"
                 className="text-stone-500 text-sm hover:text-stone-900 font-bold uppercase tracking-widest"
             >
-                View Site
+                {t.admin.viewSite}
             </Link>
             <button
                 onClick={handleLogout}
                 className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest transition-colors"
             >
-                Logout <LogOut size={16} className="ml-2" />
+                {t.admin.logout} <LogOut size={16} className="ml-2" />
             </button>
           </div>
         </div>
@@ -218,7 +226,7 @@ const AdminDashboard: React.FC = () => {
           <div className="p-6 border-b border-stone-200 bg-stone-50 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center space-x-2 w-full md:w-auto">
                 <span className="text-stone-900 font-bold uppercase tracking-wider text-xs">
-                    Inquiries ({processedInquiries.length})
+                    {t.admin.inquiries} ({processedInquiries.length})
                 </span>
                 {loading && <Loader2 size={16} className="animate-spin text-amber-700" />}
             </div>
@@ -241,7 +249,7 @@ const AdminDashboard: React.FC = () => {
                     onClick={downloadCSV}
                     className="flex items-center bg-stone-900 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-amber-700 transition-colors rounded-sm whitespace-nowrap"
                 >
-                    Export CSV <Download size={14} className="ml-2" />
+                    {t.admin.exportCsv} <Download size={14} className="ml-2" />
                 </button>
             </div>
           </div>
@@ -252,28 +260,28 @@ const AdminDashboard: React.FC = () => {
               <thead className="bg-stone-100 text-stone-500 uppercase text-xs tracking-wider">
                 <tr>
                   <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none group" onClick={() => handleSort('date')}>
-                    <div className="flex items-center">Date <SortIcon columnKey="date" /></div>
+                    <div className="flex items-center">{t.admin.cols.date} <SortIcon columnKey="date" /></div>
                   </th>
                   <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('name')}>
-                    <div className="flex items-center">Name <SortIcon columnKey="name" /></div>
+                    <div className="flex items-center">{t.admin.cols.name} <SortIcon columnKey="name" /></div>
                   </th>
                   <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('company')}>
-                    <div className="flex items-center">Company <SortIcon columnKey="company" /></div>
+                    <div className="flex items-center">{t.admin.cols.company} <SortIcon columnKey="company" /></div>
                   </th>
                   <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('type')}>
-                     <div className="flex items-center">Type <SortIcon columnKey="type" /></div>
+                     <div className="flex items-center">{t.admin.cols.type} <SortIcon columnKey="type" /></div>
                   </th>
-                  <th className="p-4 font-medium">Message</th>
+                  <th className="p-4 font-medium">{t.admin.cols.msg}</th>
                   <th className="p-4 font-medium cursor-pointer hover:bg-stone-200 transition-colors select-none" onClick={() => handleSort('status')}>
-                    <div className="flex items-center">Status <SortIcon columnKey="status" /></div>
+                    <div className="flex items-center">{t.admin.cols.status} <SortIcon columnKey="status" /></div>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {loading && inquiries.length === 0 ? (
-                  <tr><td colSpan={6} className="p-12 text-center text-stone-400">Loading data...</td></tr>
+                  <tr><td colSpan={6} className="p-12 text-center text-stone-400">{t.admin.loading}</td></tr>
                 ) : processedInquiries.length === 0 ? (
-                  <tr><td colSpan={6} className="p-8 text-center text-stone-500">No inquiries match your filters.</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-stone-500">{t.admin.noData}</td></tr>
                 ) : (
                   processedInquiries.map((inq) => (
                     <tr key={inq.id} className="hover:bg-stone-50 transition-colors">

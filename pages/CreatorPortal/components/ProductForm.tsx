@@ -2,6 +2,7 @@
 import React from 'react';
 import { Save, Plus, Trash2, Loader2, CornerDownRight, Box, Ruler, Tag, Wand2, Palette, X } from 'lucide-react';
 import PZImageManager from './PZImageManager';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface ProductFormProps {
   formData: any;
@@ -28,14 +29,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
   mergedCategories, activeSubCategories,
   submitting, editingId, cancelEdit, triggerDelete, generateProductCode, onError
 }) => {
+  const { t } = useLanguage();
+
   // Helper to handle image updates for gallery
   const handleImagesUpdate = (newImages: string[]) => {
     setFormData((prev: any) => ({
       ...prev,
       images: newImages,
-      // Keep main image synced with first gallery image IF no color variants are set,
-      // otherwise main image logic is handled by specific needs.
-      // For now, standard behavior:
+      // Keep main image synced with first gallery image IF no color variants are set
       image: newImages.length > 0 ? newImages[0] : '' 
     }));
   };
@@ -67,7 +68,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center">
           <Loader2 size={48} className="text-[#a16207] animate-spin mb-4" />
           <span className="text-stone-900 font-bold uppercase tracking-widest">
-            Saving...
+            {t.creator.form.processing}
           </span>
         </div>
       )}
@@ -75,12 +76,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
       <div className="flex justify-between items-center mb-6">
         <h3 className="font-bold text-stone-900 uppercase tracking-widest text-sm">
           {editingId 
-            ? 'Edit Product' 
-            : 'Add New Product'}
+            ? t.creator.form.edit 
+            : t.creator.form.add}
         </h3>
         {editingId && (
           <button onClick={cancelEdit} className="text-xs text-stone-400 hover:text-stone-900 underline">
-            Cancel
+            {t.creator.form.cancel}
           </button>
         )}
       </div>
@@ -89,7 +90,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       
         {/* Status Selector */}
         <div className="bg-stone-50 p-4 border border-stone-200 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">Status</label>
+          <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">{t.creator.form.status}</label>
           <div className="flex space-x-2">
             {['published', 'draft', 'archived'].map(s => (
               <button
@@ -112,7 +113,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="space-y-4 bg-stone-50 p-6 rounded-sm border border-stone-100">
           <div className="flex justify-between items-end mb-2">
             <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-              Main Category
+              {t.creator.form.mainCat}
             </label>
             {!editingId && (
               <button 
@@ -124,8 +125,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingCategory ? 'text-red-500' : 'text-amber-700'}`}
               >
                 {isCreatingCategory 
-                  ? 'Cancel New' 
-                  : '+ Create New'}
+                  ? t.creator.form.cancelNew
+                  : t.creator.form.create}
               </button>
             )}
           </div>
@@ -157,7 +158,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <div className="mt-6">
             <div className="flex justify-between items-end mb-2 pl-4 border-l-2 border-stone-200">
               <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-                <CornerDownRight size={12} className="mr-2" /> Sub-Category
+                <CornerDownRight size={12} className="mr-2" /> {t.creator.form.subCat}
               </label>
               {!editingId && !isCreatingCategory && (
                 <button 
@@ -166,8 +167,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingSubCategory ? 'text-red-500' : 'text-amber-700'}`}
                 >
                   {isCreatingSubCategory 
-                    ? 'Cancel New' 
-                    : '+ Create New'}
+                    ? t.creator.form.cancelNew
+                    : t.creator.form.create}
                 </button>
               )}
             </div>
@@ -204,7 +205,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Product Name (EN) <span className="text-red-400">*</span>
+              {t.creator.form.nameEn} <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -217,7 +218,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Product Name (ZH)
+              {t.creator.form.nameZh}
             </label>
             <input
               type="text"
@@ -232,12 +233,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
         {/* SPECIFICATIONS */}
         <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
           <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 mb-4 border-b border-stone-200 pb-2">
-            Specifications
+            {t.creator.form.specs}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="md:col-span-1 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Box size={10} className="mr-1"/> Material
+                <Box size={10} className="mr-1"/> {t.creator.form.material}
               </label>
               <input 
                 type="text" 
@@ -249,7 +250,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </div>
             <div className="md:col-span-1 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Ruler size={10} className="mr-1"/> Dimensions
+                <Ruler size={10} className="mr-1"/> {t.creator.form.dims}
               </label>
               <input 
                 type="text" 
@@ -261,7 +262,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </div>
             <div className="md:col-span-2 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Tag size={10} className="mr-1"/> Product Code
+                <Tag size={10} className="mr-1"/> {t.creator.form.code}
               </label>
               <div className="flex">
                 <input 
@@ -274,10 +275,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <button 
                   type="button"
                   onClick={generateProductCode}
-                  className="bg-stone-200 px-3 hover:bg-amber-100 hover:text-amber-800 border border-stone-200 border-l-0"
+                  className="bg-stone-200 px-3 hover:bg-amber-100 hover:text-amber-800 border border-stone-200 border-l-0 text-xs font-bold uppercase"
                   title="Auto Generate"
                 >
-                  <Wand2 size={14}/>
+                  <Wand2 size={14} className="inline mr-1"/> {t.creator.form.autoGen}
                 </button>
               </div>
             </div>
@@ -288,7 +289,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Description (EN)
+              {t.creator.form.descEn}
             </label>
             <textarea
               rows={3}
@@ -300,7 +301,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Description (ZH)
+              {t.creator.form.descZh}
             </label>
             <textarea
               rows={3}
@@ -316,14 +317,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
           <div className="flex justify-between items-center mb-4 border-b border-stone-200 pb-2">
              <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 flex items-center">
-               <Palette size={14} className="mr-2"/> Color Variants
+               <Palette size={14} className="mr-2"/> {t.creator.form.colors}
              </h4>
              <button 
                type="button"
                onClick={addColorVariant}
                className="text-[10px] uppercase font-bold tracking-widest text-amber-700 hover:text-amber-900 flex items-center"
              >
-               <Plus size={12} className="mr-1"/> Add Color
+               <Plus size={12} className="mr-1"/> {t.creator.form.addColor}
              </button>
           </div>
           
@@ -368,7 +369,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Gallery Image Manager */}
         <PZImageManager
-          label="Gallery Images (Detail shots, Angles)"
+          label={t.creator.form.gallery}
           images={formData.images || []}
           onUpdate={handleImagesUpdate}
           onError={onError}
@@ -382,7 +383,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               type="button"
               onClick={() => triggerDelete(editingId)}
               className="flex-none w-14 bg-red-100 text-red-600 font-bold uppercase tracking-widest py-4 hover:bg-red-200 transition-colors flex justify-center items-center rounded-sm"
-              title="Delete Product"
+              title={t.creator.form.delete}
             >
               <Trash2 size={18} />
             </button>
@@ -396,14 +397,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
             `}
           >
             {submitting ? (
-              'Processing...'
+              t.creator.form.processing
             ) : (
               <>
                 {editingId 
-                    ? 'Update Product'
+                    ? t.creator.form.update
                     : (formData.status === 'draft' 
-                        ? 'Save Draft'
-                        : 'Publish Product'
+                        ? t.creator.form.saveDraft
+                        : t.creator.form.publish
                       )
                 }
                 {editingId ? <Save size={16} className="ml-2" /> : <Plus size={16} className="ml-2 group-hover:rotate-90 transition-transform" />}

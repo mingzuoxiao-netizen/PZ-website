@@ -16,7 +16,7 @@ import SiteConfigEditor from './components/SiteConfigEditor'; // New
 import MediaTools from './components/MediaTools';
 
 const CreatorPortal: React.FC = () => {
-  const { language } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mode Switching - Removed 'collections'
@@ -406,6 +406,10 @@ const CreatorPortal: React.FC = () => {
     setFormData(prev => ({ ...prev, code: newCode }));
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
+  };
+
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       <div className="container mx-auto px-6 md:px-12">
@@ -419,32 +423,41 @@ const CreatorPortal: React.FC = () => {
                 </div>
                 <div className="ml-3">
                     <h3 className={`text-sm font-bold uppercase tracking-widest ${cloudStatus === 'connected' ? 'text-green-800' : 'text-amber-800'}`}>
-                        {cloudStatus === 'connected' ? 'Site Config Connected' : 'Local Mode'}
+                        {cloudStatus === 'connected' ? t.creator.status.connected : t.creator.status.local}
                     </h3>
                 </div>
             </div>
-            {isSyncing && <div className="flex items-center text-stone-500 text-xs font-bold uppercase tracking-widest"><RefreshCw size={14} className="animate-spin mr-2" /> Syncing...</div>}
+            {isSyncing && <div className="flex items-center text-stone-500 text-xs font-bold uppercase tracking-widest"><RefreshCw size={14} className="animate-spin mr-2" /> {t.creator.status.syncing}</div>}
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
           <h1 className="font-serif text-3xl md:text-4xl text-stone-900 flex items-center">
-            Creator Mode {editingId && <span className="ml-4 text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-sans font-bold uppercase tracking-wider">Editing</span>}
+            {t.creator.title} {editingId && <span className="ml-4 text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-sans font-bold uppercase tracking-wider">{t.creator.editing}</span>}
           </h1>
-          <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-600 text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
-             <ArrowLeft size={14} className="mr-2" /> Admin Dashboard
-          </Link>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleLanguage}
+              className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
+            </button>
+            <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-600 text-xs font-bold uppercase tracking-widest flex items-center transition-colors">
+               <ArrowLeft size={14} className="mr-2" /> {t.creator.backAdmin}
+            </Link>
+          </div>
         </div>
 
         {/* --- TAB NAVIGATION --- */}
         <div className="flex border-b border-stone-200 mb-10 overflow-x-auto">
             <button onClick={() => setActiveTab('products')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'products' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
-                <ShoppingBag size={16} className="mr-2" /> Inventory
+                <ShoppingBag size={16} className="mr-2" /> {t.creator.tabs.inventory}
             </button>
             <button onClick={() => setActiveTab('config')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'config' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
-                <LayoutTemplate size={16} className="mr-2" /> Site Config
+                <LayoutTemplate size={16} className="mr-2" /> {t.creator.tabs.config}
             </button>
             <button onClick={() => setActiveTab('media')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'media' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
-                <ImageMinus size={16} className="mr-2" /> Media
+                <ImageMinus size={16} className="mr-2" /> {t.creator.tabs.media}
             </button>
         </div>
 
