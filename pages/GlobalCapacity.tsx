@@ -36,8 +36,8 @@ const GlobalCapacity: React.FC = () => {
       type: 'Market', 
       highlight: true,
       details: {
-        title: "United States Market",
-        description: "Our largest market. We support 30+ major US brands with both direct container programs and domestic inventory solutions via our LA warehouse.",
+        title: t.capacity.locations.usa_title,
+        description: t.capacity.locations.usa_desc,
         stats: ["Primary Export Market", "LA Logistics Hub", "Domestic Fulfillment"],
         imageSrc: config.capacity?.loc_usa
       }
@@ -49,8 +49,8 @@ const GlobalCapacity: React.FC = () => {
       y: 17.5, 
       type: 'Market',
       details: {
-        title: "Canadian Market",
-        description: "Serving Canadian retailers with high-quality solid wood furniture, capable of cold-climate resistant finishes and construction.",
+        title: t.capacity.locations.can_title,
+        description: t.capacity.locations.can_desc,
         stats: ["Cold-Chain Logistics", "Retail Partnerships"],
         imageSrc: config.capacity?.loc_can
       }
@@ -62,8 +62,8 @@ const GlobalCapacity: React.FC = () => {
       y: 18.5, 
       type: 'Market',
       details: {
-        title: "United Kingdom",
-        description: "Exporting distinct British-standard joinery and fire-retardant upholstery compliant furniture to UK distributors.",
+        title: t.capacity.locations.uk_title,
+        description: t.capacity.locations.uk_desc,
         stats: ["UKFR Compliant", "FOB Shipping"],
         imageSrc: config.capacity?.loc_uk
       }
@@ -75,8 +75,8 @@ const GlobalCapacity: React.FC = () => {
       y: 19.6, 
       type: 'Market',
       details: {
-        title: "European Union (Germany)",
-        description: "Meeting strict EU sustainability (EUTR) and chemical safety standards for discerning European clients.",
+        title: t.capacity.locations.de_title,
+        description: t.capacity.locations.de_desc,
         stats: ["EUTR Compliant", "Sustainable Sourcing"],
         imageSrc: config.capacity?.loc_de
       }
@@ -88,8 +88,8 @@ const GlobalCapacity: React.FC = () => {
       y: 32.6, 
       type: 'Market',
       details: {
-        title: "Middle East",
-        description: "Supplying luxury hospitality projects and high-end residential developments across the region.",
+        title: t.capacity.locations.me_title,
+        description: t.capacity.locations.me_desc,
         stats: ["Hospitality Projects", "Luxury Finishes"],
         imageSrc: config.capacity?.loc_me
       }
@@ -101,8 +101,8 @@ const GlobalCapacity: React.FC = () => {
       y: 35.2, 
       type: 'HQ',
       details: {
-        title: "Zhaoqing Headquarters",
-        description: "Our primary campus specializing in complex R&D, mixed-material fabrication, and master craftsmanship. The center of our engineering excellence.",
+        title: t.capacity.locations.cn_title,
+        description: t.capacity.locations.cn_desc,
         stats: ["645,835 sq.ft Facility", "50k+ Monthly Capacity", "R&D Center"],
         imageSrc: config.capacity?.card_cn
       }
@@ -114,8 +114,8 @@ const GlobalCapacity: React.FC = () => {
       y: 42.8, 
       type: 'Factory',
       details: {
-        title: "Cambodia Factory",
-        description: "A strategic low-tariff manufacturing hub in Kandal Province, tailored for high-volume production runs and cost-effective scalability.",
+        title: t.capacity.locations.kh_title,
+        description: t.capacity.locations.kh_desc,
         stats: ["398,000 sq.ft Facility", "Low Tariff", "High Volume Lines"],
         imageSrc: config.capacity?.card_kh
       }
@@ -223,7 +223,7 @@ const GlobalCapacity: React.FC = () => {
        )}
 
        <div className="container mx-auto px-6 md:px-12">
-         <div className="max-w-3xl mb-20">
+         <div className="max-w-3xl mb-12 md:mb-20">
            <h3 className="text-[#a16207] font-bold tracking-widest uppercase text-xs mb-4">{t.capacity.footprint}</h3>
            <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-8">{t.capacity.title}</h1>
            <p className="text-stone-600 text-lg leading-relaxed">
@@ -328,8 +328,8 @@ const GlobalCapacity: React.FC = () => {
             </div>
          </div>
          
-         {/* Client Distribution Map */}
-         <div className="mb-24">
+         {/* Client Distribution Map - DESKTOP ONLY (Large Screens) */}
+         <div className="mb-24 hidden lg:block">
             <h2 className="font-serif text-3xl text-stone-900 mb-8 text-center">{t.capacity.clientDist}</h2>
             <p className="text-stone-600 text-center max-w-2xl mx-auto mb-12">
                {t.capacity.clientDesc}
@@ -337,13 +337,39 @@ const GlobalCapacity: React.FC = () => {
             
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                <img 
-                src={config.capacity?.map_bg} // ✅ Dynamic
+                src={config.capacity?.map_bg}
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />
                {LOCATIONS.map((loc) => (
                  <LocationMarker key={loc.id} location={loc} onClick={setSelectedLocation} />
                ))}
+            </div>
+         </div>
+
+         {/* Client Distribution List - MOBILE & TABLET (Optimization) */}
+         <div className="mb-24 lg:hidden">
+            <h2 className="font-serif text-3xl text-stone-900 mb-8 text-center">{t.capacity.clientDist}</h2>
+            <p className="text-stone-600 text-center max-w-xl mx-auto mb-10 text-sm">
+               {t.capacity.clientDesc}
+            </p>
+            <div className="grid grid-cols-1 gap-4">
+                {LOCATIONS.filter(l => l.type === 'Market').map((loc) => (
+                    <div 
+                        key={loc.id} 
+                        className="bg-white p-6 border border-stone-200 shadow-sm flex items-start"
+                        onClick={() => setSelectedLocation(loc)}
+                    >
+                        <div className="mt-1 mr-4 text-[#a16207]">
+                            <Globe size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-stone-900 text-sm uppercase tracking-wide mb-1">{loc.details.title}</h3>
+                            <p className="text-xs text-stone-500 line-clamp-2">{loc.details.description}</p>
+                            <span className="text-[10px] text-[#a16207] font-bold mt-2 inline-block border-b border-[#a16207] pb-0.5">View Details</span>
+                        </div>
+                    </div>
+                ))}
             </div>
          </div>
 

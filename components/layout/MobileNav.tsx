@@ -64,7 +64,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
               onClick={toggleLanguage}
               className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors py-2"
             >
-              {language === 'en' ? 'Switch to Chinese' : '切换到中文'}
+              {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
             </button>
           </div>
         </nav>

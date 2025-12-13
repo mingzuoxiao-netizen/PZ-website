@@ -24,28 +24,28 @@ const About: React.FC = () => {
   const galleryImages = [
     {
       url: site.about?.gallery?.raw,
-      title: "Raw Lumber Selection",
-      desc: "We source primarily FAS-grade hardwood lumber, focusing on consistent grain, controlled moisture content, and suitability for furniture and architectural applications."
+      title: t.about.galleryItems.raw.title,
+      desc: t.about.galleryItems.raw.desc
     },
     {
       url: site.about?.gallery?.milling,
-      title: "Precision Milling",
-      desc: "CNC-based milling processes are used to achieve accurate joinery, smooth profiles, and repeatable part geometry prior to assembly."
+      title: t.about.galleryItems.milling.title,
+      desc: t.about.galleryItems.milling.desc
     },    
     {
       url: site.about?.gallery?.automation, 
-      title: "Production Automation",
-      desc: "Selective automation is applied in machining and finishing stages to improve consistency and throughput, while retaining flexibility for custom and mixed-order production."
+      title: t.about.galleryItems.automation.title,
+      desc: t.about.galleryItems.automation.desc
     },
     {
       url: site.about?.gallery?.finishing,
-      title: "Hand Finishing",
-      desc: "Manual sanding and finishing are applied where required to refine surfaces, edges, and transitions that benefit from human inspection and adjustment."
+      title: t.about.galleryItems.finishing.title,
+      desc: t.about.galleryItems.finishing.desc
     },
     {
       url: site.about?.gallery?.qc,
-      title: "Quality Control",
-      desc: "Quality checks are integrated across key production stages, including material intake, machining, finishing, and final inspection, to support durability and visual consistency."
+      title: t.about.galleryItems.qc.title,
+      desc: t.about.galleryItems.qc.desc
     }
   ];
 

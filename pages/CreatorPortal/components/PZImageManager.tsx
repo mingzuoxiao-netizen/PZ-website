@@ -4,7 +4,7 @@
 // ============================================================
 
 import React, { useRef, useState } from 'react';
-import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText } from 'lucide-react';
+import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { deleteImageFromR2, CDN_DOMAIN, processImage } from '../../../utils/imageHelpers';
 import { adminFetch } from '../../../utils/adminFetch';
 
@@ -19,6 +19,13 @@ interface PZImageManagerProps {
   accept?: string; // e.g. "image/*" or "application/pdf"
 }
 
+interface FileStatus {
+    id: string;
+    name: string;
+    status: 'pending' | 'uploading' | 'success' | 'error';
+    errorMsg?: string;
+}
+
 const PZImageManager: React.FC<PZImageManagerProps> = ({
   images = [],
   onUpdate,
@@ -30,8 +37,8 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   accept = "image/*"
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState({ current: 0, total: 0 });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<FileStatus[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   const isSingleMode = maxImages === 1;
@@ -53,7 +60,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     }
   };
 
-  // ---------- Upload Handler ----------
+  // ---------- Upload Handler (Parallel) ----------
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
 
@@ -62,64 +69,88 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
       return;
     }
 
-    setUploading(true);
-    setUploadStatus({ current: 0, total: fileList.length });
+    setIsUploading(true);
+
+    // 1. Initialize Queue State
+    const newQueue: FileStatus[] = Array.from(fileList).map(f => ({
+        id: Math.random().toString(36).substring(7),
+        name: f.name,
+        status: 'pending'
+    }));
+    setUploadQueue(newQueue);
 
     const uploadedFiles: string[] = [];
 
-    for (let i = 0; i < fileList.length; i++) {
-      let file = fileList[i];
+    // 2. Create Upload Promises
+    const uploadPromises = Array.from(fileList).map(async (originalFile, index) => {
+        const queueId = newQueue[index].id;
+        
+        // Update to Uploading
+        setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'uploading' } : item));
 
-      // Auto-Crop / Resize if aspectRatio is set AND it is an image
-      if (aspectRatio && file.type.startsWith('image/')) {
-          try {
-              file = await processImage(file, aspectRatio);
-          } catch (e) {
-              console.warn("Auto-crop failed, using original", e);
-          }
-      }
+        let file = originalFile;
 
-      // 20MB limit for images, maybe larger for PDF? Keeping 20MB for now.
-      if (file.size > 20 * 1024 * 1024) {
-        onError(`File too large: ${file.name}`);
-        continue;
-      }
+        // Auto-Crop / Resize if aspectRatio is set AND it is an image
+        if (aspectRatio && file.type.startsWith('image/')) {
+            try {
+                file = await processImage(file, aspectRatio);
+            } catch (e) {
+                console.warn("Auto-crop failed, using original", e);
+            }
+        }
 
-      const formData = new FormData();
-      formData.append('file', file);
+        // Size Check (20MB)
+        if (file.size > 20 * 1024 * 1024) {
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: 'File too large (>20MB)' } : item));
+            return null;
+        }
 
-      try {
-        // ✅ Correct Endpoint: /upload-image (No /api prefix)
-        // adminFetch automatically appends this to API_BASE + includes Auth header
-        const data = await adminFetch('/upload-image', {
-          method: 'POST',
-          body: formData,
-        });
+        const formData = new FormData();
+        formData.append('file', file);
 
-        if (!data.url) throw new Error('No URL returned');
+        try {
+            const data = await adminFetch('/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
 
-        const finalURL = applyCDN(data.url);
-        uploadedFiles.push(finalURL);
+            if (!data.url) throw new Error('No URL returned');
 
-      } catch (err: any) {
-        console.error('Upload error:', err);
-        onError(`Failed to upload ${file.name} (Server: ${err.message})`);
-      }
+            const finalURL = applyCDN(data.url);
+            
+            // Update Success
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item));
+            return finalURL;
 
-      setUploadStatus({ current: i + 1, total: fileList.length });
-    }
+        } catch (err: any) {
+            console.error('Upload error:', err);
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: 'Server error' } : item));
+            return null;
+        }
+    });
 
-    // Merge or replace files
-    if (uploadedFiles.length > 0) {
+    // 3. Wait for all
+    const results = await Promise.all(uploadPromises);
+    
+    // Filter out failed uploads (nulls)
+    const successfulUrls = results.filter((url): url is string => url !== null);
+
+    // 4. Update Images State
+    if (successfulUrls.length > 0) {
       if (isSingleMode) {
         if (images.length > 0) await deleteImageFromR2(images[0]);
-        onUpdate([uploadedFiles[0]]);
+        onUpdate([successfulUrls[0]]);
       } else {
-        onUpdate([...images, ...uploadedFiles]);
+        onUpdate([...images, ...successfulUrls]);
       }
     }
 
-    setUploading(false);
+    setIsUploading(false);
+    
+    // Clear queue after a delay
+    setTimeout(() => {
+        setUploadQueue([]);
+    }, 4000);
   };
 
   // ---------- Delete ----------
@@ -183,6 +214,44 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         className="hidden"
       />
 
+      {/* ---------- UPLOAD QUEUE VISUALIZER ---------- */}
+      {uploadQueue.length > 0 && (
+          <div className="mb-4 bg-stone-50 border border-stone-200 rounded-sm p-3 max-h-40 overflow-y-auto">
+              <p className="text-[10px] font-bold uppercase text-stone-400 mb-2">Upload Queue</p>
+              <div className="space-y-2">
+                  {uploadQueue.map(item => (
+                      <div key={item.id} className="relative overflow-hidden bg-white p-2 rounded shadow-sm border border-stone-100">
+                          <div className="flex items-center justify-between text-xs relative z-10">
+                              <span className="truncate max-w-[200px] text-stone-600 font-mono">{item.name}</span>
+                              <div className="flex items-center">
+                                  {item.status === 'uploading' && (
+                                      <span className="flex items-center text-amber-600 font-bold text-[10px] uppercase">
+                                          <Loader2 size={12} className="animate-spin mr-1"/> Uploading
+                                      </span>
+                                  )}
+                                  {item.status === 'success' && (
+                                      <span className="flex items-center text-green-600 font-bold text-[10px] uppercase">
+                                          <CheckCircle size={12} className="mr-1"/> Done
+                                      </span>
+                                  )}
+                                  {item.status === 'error' && (
+                                      <span className="flex items-center text-red-600 font-bold text-[10px] uppercase">
+                                          <AlertTriangle size={12} className="mr-1"/> {item.errorMsg || 'Failed'}
+                                      </span>
+                                  )}
+                                  {item.status === 'pending' && <span className="text-stone-300">...</span>}
+                              </div>
+                          </div>
+                          {/* Progress Bar Animation */}
+                          {item.status === 'uploading' && (
+                              <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 animate-[pulse_1s_ease-in-out_infinite] w-full origin-left"></div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
       {/* ---------- SINGLE MODE VIEW ---------- */}
       {isSingleMode && images.length > 0 ? (
         <div className="relative group border border-stone-200 rounded-sm overflow-hidden min-h-[100px] h-full bg-stone-50">
@@ -213,7 +282,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             </button>
           </div>
 
-          {uploading && (
+          {isUploading && (
             <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
               <Loader2 size={32} className="animate-spin text-[#a16207]" />
             </div>
@@ -226,7 +295,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             className={`border-2 border-dashed rounded-sm p-6 text-center cursor-pointer transition ${
               isDragging ? 'border-amber-600 bg-amber-50' : 'border-stone-300 bg-stone-50 hover:border-amber-600'
             }`}
-            onClick={() => !uploading && fileInputRef.current?.click()}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
             onDragOver={(e) => {
               e.preventDefault();
               setIsDragging(true);
@@ -234,11 +303,11 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
           >
-            {uploading ? (
+            {isUploading ? (
               <>
                 <Loader2 size={28} className="animate-spin mx-auto text-amber-600" />
                 <p className="text-xs mt-2 text-stone-500 font-bold">
-                  Uploading {uploadStatus.current}/{uploadStatus.total}...
+                  Processing Files...
                 </p>
               </>
             ) : (

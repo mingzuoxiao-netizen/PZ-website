@@ -148,6 +148,13 @@ const translations = {
         title: "Inside the Factory",
         clickExpand: "Click images to expand"
       },
+      galleryItems: {
+        raw: { title: "Raw Lumber Selection", desc: "We source primarily FAS-grade hardwood lumber, focusing on consistent grain, controlled moisture content, and suitability for furniture and architectural applications." },
+        milling: { title: "Precision Milling", desc: "CNC-based milling processes are used to achieve accurate joinery, smooth profiles, and repeatable part geometry prior to assembly." },
+        automation: { title: "Production Automation", desc: "Selective automation is applied in machining and finishing stages to improve consistency and throughput, while retaining flexibility for custom and mixed-order production." },
+        finishing: { title: "Hand Finishing", desc: "Manual sanding and finishing are applied where required to refine surfaces, edges, and transitions that benefit from human inspection and adjustment." },
+        qc: { title: "Quality Control", desc: "Quality checks are integrated across key production stages, including material intake, machining, finishing, and final inspection, to support durability and visual consistency." }
+      },
       journey: "Our Journey",
       milestones: {
         2014: { 
@@ -192,7 +199,7 @@ const translations = {
         title: "Rigorous Standards",
         desc: "Quality is not an afterthought; it is embedded in every step. We follow strict AQL standards and U.S. compliance regulations.",
         iqc: "Incoming QC (IQC)",
-        iqcDesc: "Lumber grading, moisture content checks (8-12%), and hardware validation.",
+        iqcDesc: "Lumber grading, moisture content checks (8-12%) and hardware validation.",
         ipqc: "In-Process QC (IPQC)",
         ipqcDesc: "First-article inspection, dimensional checks at CNC, and sanding quality review.",
         fqc: "Final QC (FQC)",
@@ -344,6 +351,22 @@ const translations = {
         brands: "Major US Brands",
         units: "Monthly Unit Capacity",
         logistics: "US Logistics Hub"
+      },
+      locations: {
+        cn_title: "Zhaoqing Headquarters",
+        cn_desc: "Our primary campus specializing in complex R&D, mixed-material fabrication, and master craftsmanship. The center of our engineering excellence.",
+        kh_title: "Cambodia Factory",
+        kh_desc: "A strategic low-tariff manufacturing hub in Kandal Province, tailored for high-volume production runs and cost-effective scalability.",
+        usa_title: "United States Market",
+        usa_desc: "Our largest market. We support 30+ major US brands with both direct container programs and domestic inventory solutions via our LA warehouse.",
+        can_title: "Canadian Market",
+        can_desc: "Serving Canadian retailers with high-quality solid wood furniture, capable of cold-climate resistant finishes and construction.",
+        uk_title: "United Kingdom",
+        uk_desc: "Exporting distinct British-standard joinery and fire-retardant upholstery compliant furniture to UK distributors.",
+        de_title: "European Union (Germany)",
+        de_desc: "Meeting strict EU sustainability (EUTR) and chemical safety standards for discerning European clients.",
+        me_title: "Middle East",
+        me_desc: "Supplying luxury hospitality projects and high-end residential developments across the region."
       },
       leadTime: "Lead Time Overview",
       sampleDev: "Sample Development",
@@ -514,6 +537,13 @@ const translations = {
         label: "流程",
         title: "工厂内部",
         clickExpand: "点击图片展开"
+      },
+      galleryItems: {
+        raw: { title: "原木甄选", desc: "我们主要采购 FAS 级硬木板材，专注于纹理一致性、受控含水率以及家具和建筑应用的适用性。" },
+        milling: { title: "精密铣削", desc: "采用基于 CNC 的铣削工艺，在组装前实现精确的榫卯、光滑的轮廓和可重复的零件几何形状。" },
+        automation: { title: "生产自动化", desc: "在加工和涂装阶段应用选择性自动化，以提高一致性和产量，同时保留定制和混合订单生产的灵活性。" },
+        finishing: { title: "手工修整", desc: "在需要的地方应用手工砂光和修整，以完善受益于人工检查和调整的表面、边缘和过渡。" },
+        qc: { title: "质量控制", desc: "质量检查贯穿关键生产阶段，包括材料进料、加工、涂装和最终检验，以支持耐用性和视觉一致性。" }
       },
       journey: "我们的旅程",
       milestones: {
@@ -710,6 +740,22 @@ const translations = {
         brands: "主要美国品牌",
         units: "月产能单位",
         logistics: "美国物流中心"
+      },
+      locations: {
+        cn_title: "肇庆总部",
+        cn_desc: "我们的主要园区，专注于复杂的研发、混合材料制造和精湛工艺。我们的工程卓越中心。",
+        kh_title: "柬埔寨工厂",
+        kh_desc: "位于干拉省的战略性低关税制造中心，专为大批量生产和具有成本效益的可扩展性而量身定制。",
+        usa_title: "美国市场",
+        usa_desc: "我们最大的市场。我们通过洛杉矶仓库为 30 多个主要美国品牌提供直接集装箱计划和国内库存解决方案。",
+        can_title: "加拿大市场",
+        can_desc: "为加拿大零售商提供优质实木家具，具有耐寒气候的涂装和结构。",
+        uk_title: "英国",
+        uk_desc: "向英国分销商出口符合英国标准的独特细木工和阻燃软包家具。",
+        de_title: "欧盟（德国）",
+        de_desc: "满足挑剔的欧洲客户严格的欧盟可持续性 (EUTR) 和化学安全标准。",
+        me_title: "中东",
+        me_desc: "为该地区的豪华酒店项目和高端住宅开发项目提供服务。"
       },
       leadTime: "交货时间概览",
       sampleDev: "样品开发",
