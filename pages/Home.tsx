@@ -63,18 +63,29 @@ const Home: React.FC = () => {
                 </p>
              </div>
 
-             <div className="flex flex-col sm:flex-row gap-4">
+             <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+                {/* 1. FACTORY CAPABILITIES -> /capabilities */}
                 <Link 
-                  to="/collections" 
-                  className="bg-safety-700 text-white px-8 py-4 tracking-widest uppercase text-xs font-bold hover:bg-white hover:text-stone-900 transition-all flex items-center justify-center group"
+                  to="/capabilities" 
+                  className="bg-safety-700 text-white px-8 py-4 tracking-widest uppercase text-xs font-bold hover:bg-white hover:text-stone-900 transition-all flex items-center justify-center group shadow-lg"
                 >
-                  {t.home.viewLibrary} <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform"/>
+                  {t.home.heroBtnPrimary} <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform"/>
                 </Link>
+                
+                {/* 2. PRODUCTION PROCESS -> /manufacturing */}
                 <Link 
-                  to="/capacity" 
-                  className="border border-stone-600 bg-stone-950/50 backdrop-blur text-white px-8 py-4 tracking-widest uppercase text-xs font-bold hover:border-white transition-colors flex items-center justify-center"
+                  to="/manufacturing" 
+                  className="border border-stone-600 bg-stone-950/50 backdrop-blur text-white px-8 py-4 tracking-widest uppercase text-xs font-bold hover:border-white transition-colors flex items-center justify-center hover:bg-stone-900/80"
                 >
-                  <Factory size={16} className="mr-2"/> {t.home.factoryProfile}
+                  {t.home.heroBtnSecondary}
+                </Link>
+
+                {/* 3. MATERIAL & WOOD LIBRARY -> /materials */}
+                <Link 
+                  to="/materials" 
+                  className="border border-transparent text-stone-300 hover:text-white px-6 py-4 tracking-widest uppercase text-xs font-bold transition-colors flex items-center justify-center hover:bg-white/5"
+                >
+                  {t.home.heroBtnTertiary}
                 </Link>
              </div>
           </div>
