@@ -13,10 +13,12 @@ interface FieldInputProps {
 
 const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, help }) => {
   
-  if (type === 'image') {
+  if (type === 'image' || type === 'file') {
     // NOTE: image field currently stores single image URL (string)
-    // Can be extended to object/array later without breaking schema
     const imageValue = value as ImageValue; 
+    
+    // Determine accepted types
+    const accept = type === 'file' ? 'application/pdf' : 'image/*';
 
     return (
       <div className="mb-6">
@@ -27,6 +29,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, h
           onError={(msg) => alert(msg)}
           maxImages={1}
           className="w-full"
+          accept={accept}
         />
         {help && <p className="text-[10px] text-stone-400 mt-1">{help}</p>}
       </div>

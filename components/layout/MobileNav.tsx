@@ -27,7 +27,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
       <div 
         className={`
           fixed inset-0 z-40 bg-white/95 backdrop-blur-sm transition-all duration-500 ease-in-out
-          flex flex-col pt-[100px] pb-12 px-6
+          flex flex-col pt-[80px] md:pt-[100px] pb-12 px-6
           ${isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-4 pointer-events-none'}
         `}
       >

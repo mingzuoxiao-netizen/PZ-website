@@ -1,37 +1,47 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const TheStudio: React.FC = () => {
   const { t } = useLanguage();
+  const { config, loading } = usePublishedSiteConfig();
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-50 text-stone-400">
+        <Loader2 className="animate-spin mr-2" size={24} /> Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="bg-stone-50 min-h-screen">
        {/* Header */}
-       <div className="pt-40 pb-20 container mx-auto px-6 md:px-12 text-center">
-         <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6">{t.studio.title}</h1>
-         <p className="text-stone-500 text-xl font-light tracking-wide">{t.studio.subtitle}</p>
+       <div className="pt-32 pb-12 md:pt-40 md:pb-20 container mx-auto px-6 md:px-12 text-center">
+         <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-6">{t.studio.title}</h1>
+         <p className="text-stone-500 text-lg md:text-xl font-light tracking-wide">{t.studio.subtitle}</p>
        </div>
 
        {/* Section 1 */}
        <div className="grid grid-cols-1 lg:grid-cols-2">
-         <div className="h-[500px] lg:h-[700px]">
-            {/* Replaced broken github blob with Unsplash */}
+         {/* Mobile: Aspect Ratio, Desktop: Height */}
+         <div className="aspect-[4/3] lg:aspect-auto lg:h-[700px] w-full relative">
             <img 
-              src="https://images.unsplash.com/photo-1620706857370-e1b9770e8bb1?q=80&w=2564&auto=format&fit=crop" 
+              src={config.studio?.hero} 
               alt="Workshop Design" 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover absolute inset-0"
             />
          </div>
-         <div className="flex flex-col justify-center p-12 lg:p-24 bg-white">
+         <div className="flex flex-col justify-center p-10 md:p-12 lg:p-24 bg-white">
             <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.design}</h2>
             <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.studio.designTitle}</h3>
-            <p className="text-stone-600 leading-relaxed mb-6">
+            <p className="text-stone-600 leading-relaxed mb-6 text-sm md:text-base">
               {t.studio.designDesc1}
             </p>
-            <p className="text-stone-600 leading-relaxed">
+            <p className="text-stone-600 leading-relaxed text-sm md:text-base">
               {t.studio.designDesc2}
             </p>
          </div>
@@ -39,33 +49,33 @@ const TheStudio: React.FC = () => {
 
        {/* Section 2 */}
        <div className="grid grid-cols-1 lg:grid-cols-2">
-         <div className="flex flex-col justify-center p-12 lg:p-24 bg-stone-100 order-2 lg:order-1">
+         <div className="flex flex-col justify-center p-10 md:p-12 lg:p-24 bg-stone-100 order-2 lg:order-1">
             <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.eng}</h2>
             <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.studio.engTitle}</h3>
-            <p className="text-stone-600 leading-relaxed mb-6">
+            <p className="text-stone-600 leading-relaxed mb-6 text-sm md:text-base">
               {t.studio.engDesc}
             </p>
-            <ul className="space-y-3 text-stone-600">
+            <ul className="space-y-3 text-stone-600 text-sm md:text-base">
               <li className="flex items-center"><span className="w-2 h-2 bg-amber-700 rounded-full mr-3"></span>Pure Solid Wood Fabrication</li>
               <li className="flex items-center"><span className="w-2 h-2 bg-amber-700 rounded-full mr-3"></span>Precision CNC Machining</li>
               <li className="flex items-center"><span className="w-2 h-2 bg-amber-700 rounded-full mr-3"></span>Advanced Finishing Techniques</li>
             </ul>
          </div>
-         <div className="h-[500px] lg:h-[700px] order-1 lg:order-2">
+         <div className="aspect-[4/3] lg:aspect-auto lg:h-[700px] order-1 lg:order-2 w-full relative">
             <img 
-              src="https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?q=80&w=1000&auto=format&fit=crop" 
+              src={config.studio?.design}
               alt="Wood Detail" 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover absolute inset-0"
             />
          </div>
        </div>
 
        {/* Section 3 - Material Focus */}
-       <div className="py-24 bg-white">
+       <div className="py-20 md:py-24 bg-white">
          <div className="container mx-auto px-6 md:px-12 text-center">
             <h2 className="text-amber-700 text-xs font-bold uppercase tracking-widest mb-4">{t.studio.raw}</h2>
             <h3 className="font-serif text-3xl md:text-4xl text-stone-900 mb-8">{t.studio.rawTitle}</h3>
-            <p className="text-stone-600 max-w-2xl mx-auto mb-16 leading-relaxed font-light">
+            <p className="text-stone-600 max-w-2xl mx-auto mb-16 leading-relaxed font-light text-sm md:text-base">
               {t.studio.rawDesc}
             </p>
             

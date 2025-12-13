@@ -5,17 +5,16 @@ import { Category, SubCategory, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ASSET_KEYS } from '../utils/assets';
-import { useCloudAssets } from '../utils/siteConfig';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
   const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
   const location = useLocation();
-  const assets = useCloudAssets(); // Use Hook
+  const { config } = usePublishedSiteConfig(); // Use Config for Catalog URL
 
-  const catalogPdfUrl = assets[ASSET_KEYS.CATALOG_DOCUMENT];
+  const catalogPdfUrl = config.catalog?.url;
 
   // State for merged data - currently just static as Legacy API is deprecated
   const [mergedCategories, setMergedCategories] = useState<Category[]>(staticCategories);
@@ -132,7 +131,7 @@ const Portfolio: React.FC = () => {
               <Loader2 className="animate-spin text-stone-300" size={32} />
           </div>
       ) : activeProduct ? (
-          // ... PRODUCT DETAIL VIEW (Unchanged logic, just utilizing state) ...
+          // ... PRODUCT DETAIL VIEW ...
           <div className="container mx-auto px-6 md:px-12 py-12 animate-fade-in">
               <button 
                 onClick={() => setActiveProduct(null)}

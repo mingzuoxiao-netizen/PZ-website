@@ -2,15 +2,14 @@
 import React, { useState } from 'react';
 import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ASSET_KEYS } from '../utils/assets';
-import { useAssets } from '../contexts/AssetContext';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 // 1. Data Structure for Map Pins
 interface MapLocationDetails {
   title: string;
   description: string;
   stats?: string[];
-  imageKey: string; // Changed to use Key for dynamic lookups
+  imageSrc: string; // Changed to direct src from config
 }
 
 interface MapLocation {
@@ -26,7 +25,7 @@ interface MapLocation {
 const GlobalCapacity: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
   const { t } = useLanguage();
-  const assets = useAssets();
+  const { config } = usePublishedSiteConfig(); // ✅ Updated
 
   const LOCATIONS: MapLocation[] = [
     { 
@@ -40,7 +39,7 @@ const GlobalCapacity: React.FC = () => {
         title: "United States Market",
         description: "Our largest market. We support 30+ major US brands with both direct container programs and domestic inventory solutions via our LA warehouse.",
         stats: ["Primary Export Market", "LA Logistics Hub", "Domestic Fulfillment"],
-        imageKey: ASSET_KEYS.CAPACITY_LOC_USA
+        imageSrc: config.capacity?.loc_usa
       }
     },
     { 
@@ -53,7 +52,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Canadian Market",
         description: "Serving Canadian retailers with high-quality solid wood furniture, capable of cold-climate resistant finishes and construction.",
         stats: ["Cold-Chain Logistics", "Retail Partnerships"],
-        imageKey: ASSET_KEYS.CAPACITY_LOC_CAN
+        imageSrc: config.capacity?.loc_can
       }
     },
     { 
@@ -66,7 +65,7 @@ const GlobalCapacity: React.FC = () => {
         title: "United Kingdom",
         description: "Exporting distinct British-standard joinery and fire-retardant upholstery compliant furniture to UK distributors.",
         stats: ["UKFR Compliant", "FOB Shipping"],
-        imageKey: ASSET_KEYS.CAPACITY_LOC_UK
+        imageSrc: config.capacity?.loc_uk
       }
     },
     { 
@@ -79,7 +78,7 @@ const GlobalCapacity: React.FC = () => {
         title: "European Union (Germany)",
         description: "Meeting strict EU sustainability (EUTR) and chemical safety standards for discerning European clients.",
         stats: ["EUTR Compliant", "Sustainable Sourcing"],
-        imageKey: ASSET_KEYS.CAPACITY_LOC_DE
+        imageSrc: config.capacity?.loc_de
       }
     },
     { 
@@ -92,7 +91,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Middle East",
         description: "Supplying luxury hospitality projects and high-end residential developments across the region.",
         stats: ["Hospitality Projects", "Luxury Finishes"],
-        imageKey: ASSET_KEYS.CAPACITY_LOC_ME
+        imageSrc: config.capacity?.loc_me
       }
     },
     { 
@@ -105,7 +104,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Zhaoqing Headquarters",
         description: "Our primary campus specializing in complex R&D, mixed-material fabrication, and master craftsmanship. The center of our engineering excellence.",
         stats: ["645,835 sq.ft Facility", "50k+ Monthly Capacity", "R&D Center"],
-        imageKey: ASSET_KEYS.CAPACITY_CN_CARD
+        imageSrc: config.capacity?.card_cn
       }
     },
     { 
@@ -118,7 +117,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Cambodia Factory",
         description: "A strategic low-tariff manufacturing hub in Kandal Province, tailored for high-volume production runs and cost-effective scalability.",
         stats: ["398,000 sq.ft Facility", "Low Tariff", "High Volume Lines"],
-        imageKey: ASSET_KEYS.CAPACITY_KH_CARD
+        imageSrc: config.capacity?.card_kh
       }
     },
   ];
@@ -187,7 +186,7 @@ const GlobalCapacity: React.FC = () => {
            >
               <div className="relative h-48 bg-stone-200">
                 <img 
-                  src={assets[selectedLocation.details.imageKey]} 
+                  src={selectedLocation.details.imageSrc} 
                   alt={selectedLocation.label}
                   className="w-full h-full object-cover" 
                 />
@@ -253,7 +252,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• 50k+ Monthly Capacity</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={assets[ASSET_KEYS.CAPACITY_CN_CARD]} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
+                 <img src={config.capacity?.card_cn} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
               </div>
             </div>
 
@@ -276,7 +275,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• Specialized in High-Volume SKU Runs</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={assets[ASSET_KEYS.CAPACITY_KH_CARD]} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
+                 <img src={config.capacity?.card_kh} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
               </div>
             </div>
          </div>
@@ -338,7 +337,7 @@ const GlobalCapacity: React.FC = () => {
             
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                <img 
-                src={assets[ASSET_KEYS.CAPACITY_MAP_BG]}
+                src={config.capacity?.map_bg} // ✅ Dynamic
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />

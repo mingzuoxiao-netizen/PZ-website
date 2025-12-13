@@ -96,10 +96,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       
       {/* 
           HEADER BAR 
-          Fixed height 90px. Does not expand for mobile menu anymore.
+          Responsive Height: 70px Mobile, 90px Desktop
+          Always FIXED at top.
       */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 h-[90px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
+        className={`fixed top-0 left-0 right-0 z-50 h-[70px] md:h-[90px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
       >
         <div className="container mx-auto px-6 md:px-12 h-full flex justify-between items-center relative z-50">
           <Link
@@ -168,9 +169,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* MOBILE MENU OVERLAY */}
       <MobileNav isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} textColor={textColor} />
 
-      {/* SEARCH OVERLAY */}
+      {/* SEARCH OVERLAY - Adjusted top position for mobile/desktop heights */}
       <div
-        className={`fixed inset-0 top-[90px] z-30 bg-white/90 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        className={`fixed inset-0 top-[70px] md:top-[90px] z-30 bg-white/90 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
         onClick={() => setIsSearchOpen(false)}
       >
         <div
@@ -181,7 +182,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 ${isSearchOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
             `}
         >
-          <div className="container mx-auto px-6 md:px-12 py-12">
+          <div className="container mx-auto px-6 md:px-12 py-8 md:py-12">
             <form onSubmit={handleSearchSubmit} className="relative max-w-3xl mx-auto">
               <div className="relative group">
                 <input
@@ -191,7 +192,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   placeholder={t.common.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-3xl font-serif text-stone-900 placeholder-stone-300 border-b border-stone-300 pb-4 focus:border-stone-900 focus:outline-none transition-all"
+                  className="w-full bg-transparent text-2xl md:text-3xl font-serif text-stone-900 placeholder-stone-300 border-b border-stone-300 pb-4 focus:border-stone-900 focus:outline-none transition-all"
                   autoComplete="off"
                 />
                 <button

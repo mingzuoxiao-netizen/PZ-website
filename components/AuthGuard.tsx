@@ -116,14 +116,21 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           2. THE APP LAYER (Z-INDEX 0)
           CRITICAL CHANGE: This is now ALWAYS rendered.
           It sits behind the lock screen.
-          We add a subtle scale/blur effect that transitions to normal when unlocked.
+          
+          Update: We remove transform/filter classes when 'done' to ensure position:fixed elements
+          inside the app (like the Header) work correctly relative to the viewport.
       */}
       <div 
         className={`
-            relative z-0 min-h-screen bg-stone-900 transition-all duration-[2000ms] ease-out
-            ${animStage === 'done' || animStage === 'opening' 
-                ? 'scale-100 blur-0 brightness-100' 
-                : 'scale-[0.98] blur-[2px] brightness-50 overflow-hidden h-screen'}
+            relative z-0 min-h-screen bg-stone-900 
+            ${animStage !== 'done' ? 'transition-all duration-[2000ms] ease-out' : ''}
+            ${
+              animStage === 'done' 
+                ? '' // Removes transforms/filters completely to fix fixed positioning
+                : animStage === 'opening' 
+                  ? 'scale-100 blur-0 brightness-100' 
+                  : 'scale-[0.98] blur-[2px] brightness-50 overflow-hidden h-screen'
+            }
         `}
       >
         {children}

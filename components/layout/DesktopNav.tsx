@@ -4,8 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ArrowRight, Search, X } from 'lucide-react';
 import { NAV_ITEMS } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { ASSET_KEYS } from '../../utils/assets';
-import { useAssets } from '../../contexts/AssetContext';
+import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 
 interface DesktopNavProps {
   activeMenu: string | null;
@@ -21,7 +20,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 }) => {
   const { t } = useLanguage();
   const location = useLocation();
-  const assets = useAssets();
+  const { config } = usePublishedSiteConfig(); // ✅ Updated
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- MEGA MENU DATA ---
@@ -115,7 +114,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   };
 
   const handleMenuClick = (href: string) => {
-    // Hash scrolling logic
     if (href.includes('#')) {
       const [path, hash] = href.split('#');
       if (location.pathname === path) {
@@ -127,11 +125,12 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   };
 
   const getMenuImage = (path: string | null) => {
+      // ✅ Use dynamic config
       switch(path) {
-          case '/collections': return assets[ASSET_KEYS.MENU_COLLECTIONS];
-          case '/manufacturing': return assets[ASSET_KEYS.MENU_MFG];
-          case '/capabilities': return assets[ASSET_KEYS.MENU_CAPABILITIES];
-          default: return assets[ASSET_KEYS.MENU_DEFAULT];
+          case '/collections': return config.menu?.feat_collections;
+          case '/manufacturing': return config.menu?.feat_mfg;
+          case '/capabilities': return config.menu?.feat_capabilities;
+          default: return config.menu?.feat_default;
       }
   }
 
@@ -150,7 +149,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     return 'grid-cols-4';
   };
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -197,7 +195,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
         })}
       </nav>
 
-      {/* --- MEGA MENU OVERLAY --- */}
       <div
         className={`
            fixed top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-2xl overflow-hidden transition-all duration-300 ease-in-out z-40

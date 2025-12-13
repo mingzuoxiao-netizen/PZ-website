@@ -2,13 +2,12 @@
 import React, { useState } from 'react';
 import { Settings, Cpu, Layers, CheckCircle2, Hammer, Package, Cog, Ruler, Wrench, Factory } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ASSET_KEYS } from '../utils/assets';
-import { useAssets } from '../contexts/AssetContext';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Manufacturing: React.FC = () => {
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'process' | 'machinery' | 'qc'>('process');
-  const assets = useAssets(); // Use Hook
+  const { config } = usePublishedSiteConfig(); // ✅ Updated
 
   const processes = [
     {
@@ -56,7 +55,6 @@ const Manufacturing: React.FC = () => {
 
   ];
 
-  // Updated machinery list with name_zh for translation
   const machinery = [
     { 
       name: "CNC MACHINING SYSTEMS", 
@@ -120,33 +118,35 @@ const Manufacturing: React.FC = () => {
       <div className="container mx-auto px-6 md:px-12">
         
         {/* Header */}
-        <div className="mb-16 text-center max-w-4xl mx-auto">
+        <div className="mb-12 md:mb-16 text-center max-w-4xl mx-auto">
           <span className="text-safety-700 font-bold tracking-[0.2em] uppercase text-xs mb-4 block">
             {t.manufacturing.subtitle}
           </span>
-          <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-8">
+          <h1 className="font-serif text-4xl md:text-6xl text-stone-900 mb-6 md:mb-8">
             {t.manufacturing.title}
           </h1>
-          <p className="text-stone-600 text-lg font-light leading-relaxed">
+          <p className="text-stone-600 text-base md:text-lg font-light leading-relaxed">
             {t.manufacturing.intro}
           </p>
         </div>
 
-        {/* Minimal Tab Nav */}
-        <div className="flex justify-center gap-8 mb-20 border-b border-stone-200">
-           {['process', 'machinery', 'qc'].map((tab) => (
-             <button
-               key={tab}
-               onClick={() => setActiveTab(tab as any)}
-               className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all
-                 ${activeTab === tab 
-                    ? 'border-b-2 border-safety-700 text-stone-900' 
-                    : 'text-stone-400 hover:text-stone-600'}
-               `}
-             >
-                {t.manufacturing.tabs[tab]}
-             </button>
-           ))}
+        {/* Minimal Tab Nav - Scrollable on Mobile */}
+        <div className="mb-16 md:mb-20 border-b border-stone-200 overflow-x-auto scrollbar-hide">
+           <div className="flex justify-start md:justify-center gap-8 min-w-max px-2">
+             {['process', 'machinery', 'qc'].map((tab) => (
+               <button
+                 key={tab}
+                 onClick={() => setActiveTab(tab as any)}
+                 className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all whitespace-nowrap
+                   ${activeTab === tab 
+                      ? 'border-b-2 border-safety-700 text-stone-900' 
+                      : 'text-stone-400 hover:text-stone-600'}
+                 `}
+               >
+                  {t.manufacturing.tabs[tab]}
+               </button>
+             ))}
+           </div>
         </div>
 
         {/* CONTENT: Process */}
@@ -155,7 +155,7 @@ const Manufacturing: React.FC = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                 {processes.map((proc, idx) => (
                   <div key={idx} className="group">
-                     <div className="flex items-center justify-between mb-6 border-b border-stone-100 pb-2">
+                     <div className="flex items-center justify-between mb-4 md:mb-6 border-b border-stone-100 pb-2">
                         <span className="text-3xl font-serif text-stone-200 group-hover:text-safety-700 transition-colors">0{idx + 1}</span>
                         <div className="text-stone-400 group-hover:text-stone-900 transition-colors">
                            {proc.icon}
@@ -174,27 +174,27 @@ const Manufacturing: React.FC = () => {
         {/* CONTENT: Machinery */}
         {activeTab === 'machinery' && (
           <div className="animate-fade-in">
-             <div className="bg-stone-50 p-12 mb-16 rounded-sm flex flex-col md:flex-row items-center gap-12">
+             <div className="bg-stone-50 p-8 md:p-12 mb-16 rounded-sm flex flex-col md:flex-row items-center gap-12">
                 <div className="flex-1">
-                   <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.manufacturing.machinery.title}</h3>
-                   <p className="text-stone-600 leading-relaxed mb-8">
+                   <h3 className="font-serif text-2xl md:text-3xl text-stone-900 mb-6">{t.manufacturing.machinery.title}</h3>
+                   <p className="text-stone-600 leading-relaxed mb-8 text-sm md:text-base">
                       {t.manufacturing.machinery.desc}
                    </p>
                    <ul className="space-y-4">
-                      <li className="flex items-center text-sm font-bold uppercase tracking-wide text-stone-800">
+                      <li className="flex items-center text-xs md:text-sm font-bold uppercase tracking-wide text-stone-800">
                          <div className="w-8 h-[1px] bg-safety-700 mr-4"></div> {t.manufacturing.machinery.highPrecision}
                       </li>
-                      <li className="flex items-center text-sm font-bold uppercase tracking-wide text-stone-800">
+                      <li className="flex items-center text-xs md:text-sm font-bold uppercase tracking-wide text-stone-800">
                          <div className="w-8 h-[1px] bg-safety-700 mr-4"></div> {t.manufacturing.machinery.autoFinish}
                       </li>
-                      <li className="flex items-center text-sm font-bold uppercase tracking-wide text-stone-800">
+                      <li className="flex items-center text-xs md:text-sm font-bold uppercase tracking-wide text-stone-800">
                          <div className="w-8 h-[1px] bg-safety-700 mr-4"></div> {t.manufacturing.machinery.climate}
                       </li>
                    </ul>
                 </div>
-                <div className="flex-1 w-full h-[300px] bg-white border border-stone-200 p-2 shadow-sm">
+                <div className="flex-1 w-full h-[250px] md:h-[300px] bg-white border border-stone-200 p-2 shadow-sm">
                    <img 
-                      src={assets[ASSET_KEYS.MFG_MACHINERY_HERO]} 
+                      src={config.manufacturing?.hero_machinery} // ✅ Dynamic
                       className="w-full h-full object-cover grayscale opacity-90" 
                       alt="Machinery" 
                    />
@@ -205,8 +205,8 @@ const Manufacturing: React.FC = () => {
                 {machinery.map((m, idx) => (
                    <div key={idx} className="bg-white border border-stone-200 p-8 hover:shadow-lg transition-shadow">
                       <div className="text-[10px] font-bold uppercase text-safety-700 mb-2 tracking-widest">{getStr(m, 'type')}</div>
-                      <h4 className="text-stone-900 font-serif text-xl mb-3">{getStr(m, 'name')}</h4>
-                      <p className="text-stone-500 text-sm">{getStr(m, 'desc')}</p>
+                      <h4 className="text-stone-900 font-serif text-lg md:text-xl mb-3">{getStr(m, 'name')}</h4>
+                      <p className="text-stone-500 text-xs md:text-sm">{getStr(m, 'desc')}</p>
                    </div>
                 ))}
              </div>
@@ -216,10 +216,10 @@ const Manufacturing: React.FC = () => {
         {/* CONTENT: QC */}
         {activeTab === 'qc' && (
           <div className="animate-fade-in">
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-16 items-start">
                 <div className="order-2 lg:order-1">
                    <h3 className="font-serif text-3xl text-stone-900 mb-6">{t.manufacturing.qc.title}</h3>
-                   <p className="text-stone-600 mb-10 leading-relaxed">
+                   <p className="text-stone-600 mb-10 leading-relaxed text-sm md:text-base">
                       {t.manufacturing.qc.desc}
                    </p>
                    
@@ -254,18 +254,18 @@ const Manufacturing: React.FC = () => {
                    </div>
                 </div>
                 
-                <div className="order-1 lg:order-2 bg-stone-100 h-[600px] relative overflow-hidden group">
+                <div className="order-1 lg:order-2 bg-stone-100 h-[400px] md:h-[600px] relative overflow-hidden group">
                    <img 
-                     src={assets[ASSET_KEYS.MFG_QC_HERO]}
+                     src={config.manufacturing?.hero_qc} // ✅ Dynamic
                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                      alt="QC Lab"
                    />
                    
-                   <div className="absolute bottom-8 left-8 right-8 bg-white/90 backdrop-blur p-6 shadow-lg">
+                   <div className="absolute bottom-4 left-4 right-4 md:bottom-8 md:left-8 md:right-8 bg-white/90 backdrop-blur p-6 shadow-lg">
                       <p className="font-bold uppercase tracking-widest text-xs mb-2 text-stone-500">
                           {t.manufacturing.qc.compliance}
                       </p>
-                      <p className="font-serif text-xl text-stone-900">CARB P2 • TSCA Title VI • FSC Available</p>
+                      <p className="font-serif text-lg md:text-xl text-stone-900">CARB P2 • TSCA Title VI • FSC Available</p>
                    </div>
                 </div>
              </div>
