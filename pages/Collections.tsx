@@ -1,62 +1,89 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Home, Factory, MapPin, FileText, ArrowRight } from 'lucide-react';
+import { Home, Factory, MapPin, FileText, ArrowRight, Loader2 } from 'lucide-react';
 import { Category, SubCategory, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { ASSET_KEYS } from '../utils/assets';
+import { useCloudAssets, fetchInventory, fetchStructure } from '../utils/siteConfig';
 
 const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
+  const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
   const location = useLocation();
+  const assets = useCloudAssets(); // Use Hook
 
-  const catalogPdfUrl = getAsset(ASSET_KEYS.CATALOG_DOCUMENT);
+  const catalogPdfUrl = assets[ASSET_KEYS.CATALOG_DOCUMENT];
 
-  // --- DATA LOADING & MERGING ---
-  const mergedCategories = useMemo(() => {
-    const combined = JSON.parse(JSON.stringify(staticCategories)) as Category[];
-    try {
-        const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
-        const customStructure = JSON.parse(rawStructure) as Category[];
-        customStructure.forEach((customCat: Category) => {
-            const existingIdx = combined.findIndex((c) => c.id === customCat.id);
-            if (existingIdx > -1) {
-                const existingCat = combined[existingIdx];
-                customCat.subCategories.forEach((newSub: SubCategory) => {
-                    if (!existingCat.subCategories.find((s) => s.name === newSub.name)) {
-                        existingCat.subCategories.push(newSub);
+  // State for merged data
+  const [mergedCategories, setMergedCategories] = useState<Category[]>(staticCategories);
+
+  // --- ASYNC DATA LOADING ---
+  useEffect(() => {
+    async function loadData() {
+        try {
+            const [cloudStructure, cloudInventory] = await Promise.all([
+                fetchStructure(),
+                fetchInventory()
+            ]);
+
+            const combined = JSON.parse(JSON.stringify(staticCategories)) as Category[];
+            
+            // 1. Merge Structure Overrides
+            if (Array.isArray(cloudStructure)) {
+                cloudStructure.forEach((customCat: Category) => {
+                    const existingIdx = combined.findIndex((c) => c.id === customCat.id);
+                    if (existingIdx > -1) {
+                        const existingCat = combined[existingIdx];
+                        // Merge subcategories safely
+                        customCat.subCategories.forEach((newSub: SubCategory) => {
+                            if (!existingCat.subCategories.find((s) => s.name === newSub.name)) {
+                                existingCat.subCategories.push(newSub);
+                            }
+                        });
+                        // Override top-level fields if customized
+                        if (customCat.title) existingCat.title = customCat.title;
+                        if (customCat.image) existingCat.image = customCat.image;
+                        if (customCat.description) existingCat.description = customCat.description;
+                    } else {
+                        combined.push(customCat);
                     }
                 });
-            } else {
-                combined.push(customCat);
             }
-        });
-        const customItems = JSON.parse(localStorage.getItem('pz_custom_inventory') || '[]');
-        if (Array.isArray(customItems) && customItems.length > 0) {
-            customItems.forEach((item: any) => {
-                const cat = combined.find(c => c.id === item.categoryId);
-                if (cat) {
-                    const sub = cat.subCategories.find(s => s.name === item.subCategoryName);
-                    if (sub) {
-                        if (!sub.variants) sub.variants = [];
-                        sub.variants.unshift({
-                            ...item,
-                            name: item.name,
-                            description: item.description,
-                            image: item.image,
-                            images: item.images
-                        });
+
+            // 2. Inject Inventory Items
+            if (Array.isArray(cloudInventory) && cloudInventory.length > 0) {
+                cloudInventory.forEach((item: any) => {
+                    const cat = combined.find(c => c.id === item.categoryId);
+                    if (cat) {
+                        const sub = cat.subCategories.find(s => s.name === item.subCategoryName);
+                        if (sub) {
+                            if (!sub.variants) sub.variants = [];
+                            // Add custom item to the beginning
+                            sub.variants.unshift({
+                                ...item,
+                                name: item.name,
+                                description: item.description,
+                                image: item.image,
+                                images: item.images
+                            });
+                        }
                     }
-                }
-            });
+                });
+            }
+
+            setMergedCategories(combined);
+        } catch (e) {
+            console.error("CMS Load Failed:", e);
+        } finally {
+            setLoading(false);
         }
-    } catch (e) {
-        console.error("Error loading portfolio data", e);
     }
-    return combined;
-  }, [staticCategories]);
+
+    loadData();
+  }, []);
 
   // Helper: Flatten logic to get products by Category ID
   const getProductsByCategory = (catIds: string[], limit?: number, offset: number = 0) => {
@@ -77,13 +104,13 @@ const Portfolio: React.FC = () => {
 
   // Handle Hash Scrolling on Load
   useEffect(() => {
-    if (location.hash) {
+    if (!loading && location.hash) {
       const el = document.getElementById(location.hash.substring(1));
       if (el) {
         setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     }
-  }, [location.hash]);
+  }, [location.hash, loading]);
 
   // --- CURATED SECTIONS ---
   const curatedSections = [
@@ -165,7 +192,12 @@ const Portfolio: React.FC = () => {
         </section>
       )}
 
-      {activeProduct ? (
+      {loading ? (
+          <div className="flex justify-center items-center h-64">
+              <Loader2 className="animate-spin text-stone-300" size={32} />
+          </div>
+      ) : activeProduct ? (
+          // ... PRODUCT DETAIL VIEW (Unchanged logic, just utilizing state) ...
           <div className="container mx-auto px-6 md:px-12 py-12 animate-fade-in">
               <button 
                 onClick={() => setActiveProduct(null)}
@@ -251,7 +283,7 @@ const Portfolio: React.FC = () => {
           </div>
       ) : (
           <div className="container mx-auto px-6 md:px-12 py-12">
-              
+              {/* Curated Lists */}
               {curatedSections.map((section) => {
                 const offset = (section as any).offset || 0;
                 const products = getProductsByCategory(section.categoryIds, section.limit, offset);

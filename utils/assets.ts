@@ -134,92 +134,14 @@ export const ASSET_GROUPS = [
       { key: ASSET_KEYS.CATALOG_DOCUMENT, label: "Full 2024 Catalog (PDF)" },
     ]
   },
-  {
-    name: "Home Page",
-    keys: [
-      { key: ASSET_KEYS.HOME_HERO_BG, label: "Hero Banner Background" },
-      { key: ASSET_KEYS.HOME_FACTORY_SECTION, label: "Industrial Strength Section" },
-      { key: ASSET_KEYS.HOME_CTA_BG, label: "Footer CTA Background" },
-      { key: ASSET_KEYS.HOME_COMP_MATERIAL, label: "Competency: Material" },
-      { key: ASSET_KEYS.HOME_COMP_LOGISTICS, label: "Competency: Logistics" },
-      { key: ASSET_KEYS.HOME_COMP_JOINERY, label: "Competency: Joinery" },
-      { key: ASSET_KEYS.HOME_HUB_CN, label: "Global Hub: China Image" },
-      { key: ASSET_KEYS.HOME_HUB_KH, label: "Global Hub: Cambodia Image" },
-    ]
-  },
-  {
-    name: "Catalog Viewer",
-    keys: [
-      { key: ASSET_KEYS.CATALOG_COVER, label: "Catalog: Cover Image" },
-      { key: ASSET_KEYS.CATALOG_PAGE_VISION, label: "Catalog: Vision/Design Page" },
-      { key: ASSET_KEYS.CATALOG_PAGE_DESIGN, label: "Catalog: Engineering Page" },
-      { key: ASSET_KEYS.CATALOG_PAGE_MFG, label: "Catalog: Manufacturing Page" },
-    ]
-  },
-  {
-    name: "Materials Page",
-    keys: [
-      { key: ASSET_KEYS.MATERIALS_CONST_FINGER, label: "Construction: Finger Joint" },
-      { key: ASSET_KEYS.MATERIALS_CONST_EDGE, label: "Construction: Edge Glue" },
-      { key: ASSET_KEYS.MATERIALS_CONST_BUTCHER, label: "Construction: Butcher Block" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_OAK, label: "Wood: White Oak" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_WALNUT, label: "Wood: Walnut" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_RUBBER, label: "Wood: Rubberwood" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_ASH, label: "Wood: Ash" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_BEECH, label: "Wood: Beech" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_MAPLE, label: "Wood: Maple" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_BIRCH, label: "Wood: Birch" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_TEAK, label: "Wood: Teak" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_ACACIA, label: "Wood: Acacia" },
-      { key: ASSET_KEYS.MATERIALS_WOOD_BAMBOO, label: "Wood: Bamboo" },
-    ]
-  },
-  {
-    name: "Mega Menu",
-    keys: [
-      { key: ASSET_KEYS.MENU_COLLECTIONS, label: "Menu: Collections Featured" },
-      { key: ASSET_KEYS.MENU_MFG, label: "Menu: Manufacturing Featured" },
-      { key: ASSET_KEYS.MENU_CAPABILITIES, label: "Menu: Capabilities Featured" },
-      { key: ASSET_KEYS.MENU_DEFAULT, label: "Menu: Default Featured" },
-    ]
-  },
-  {
-    name: "About: Factory Gallery",
-    keys: [
-      { key: ASSET_KEYS.ABOUT_GALLERY_1, label: "Process 1: Raw Lumber" },
-      { key: ASSET_KEYS.ABOUT_GALLERY_2, label: "Process 2: Precision Milling" },
-      { key: ASSET_KEYS.ABOUT_GALLERY_3, label: "Process 3: Hand Finishing" },
-      { key: ASSET_KEYS.ABOUT_GALLERY_4, label: "Process 4: Quality Control" },
-      { key: ASSET_KEYS.ABOUT_GALLERY_5, label: "Process 5: Automation" }, 
-    ]
-  },
-  {
-    name: "Manufacturing & Capacity",
-    keys: [
-      { key: ASSET_KEYS.ABOUT_BANNER, label: "About: Cinematic Banner" },
-      { key: ASSET_KEYS.MFG_QC_HERO, label: "Mfg: QC Lab Hero" },
-      { key: ASSET_KEYS.MFG_MACHINERY_HERO, label: "Mfg: Machinery Hero" },
-      { key: ASSET_KEYS.CAPACITY_CN_CARD, label: "Capacity: China Facility" },
-      { key: ASSET_KEYS.CAPACITY_KH_CARD, label: "Capacity: Cambodia Facility" },
-      { key: ASSET_KEYS.CAPACITY_MAP_BG, label: "Capacity: World Map Background" },
-      { key: ASSET_KEYS.CAPACITY_LOC_USA, label: "Capacity: USA Location" },
-      { key: ASSET_KEYS.CAPACITY_LOC_CAN, label: "Capacity: Canada Location" },
-      { key: ASSET_KEYS.CAPACITY_LOC_UK, label: "Capacity: UK Location" },
-      { key: ASSET_KEYS.CAPACITY_LOC_DE, label: "Capacity: Germany Location" },
-      { key: ASSET_KEYS.CAPACITY_LOC_ME, label: "Capacity: Middle East Location" },
-    ]
-  }
+  // ... other groups are used by Creator Portal editors if present
 ];
 
+/**
+ * Returns the DEFAULT asset path.
+ * NOTE: For dynamic assets fetched from Cloudflare KV, use the `useAssets()` hook.
+ * This function does NOT access localStorage to prevent "stale state" on the public site.
+ */
 export const getAsset = (key: string): string => {
-  try {
-    const customAssets = localStorage.getItem('pz_site_assets');
-    if (customAssets) {
-      const parsed = JSON.parse(customAssets);
-      if (parsed[key]) return parsed[key];
-    }
-  } catch (e) {
-    console.warn("Error reading assets", e);
-  }
   return DEFAULT_ASSETS[key] || "";
 };

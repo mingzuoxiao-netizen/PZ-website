@@ -1,13 +1,32 @@
 
 import React, { useState } from 'react';
-import { ArrowRight, Anchor, Ruler, Factory, Settings, Truck, Square, PenTool, LayoutTemplate, Cpu, Database } from 'lucide-react';
+import { ArrowRight, Anchor, Ruler, Factory, Settings, Truck, Square, PenTool, LayoutTemplate, Cpu, Database, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const [activeHub, setActiveHub] = useState<'cn' | 'kh'>('cn');
+  
+  // ✅ REAL CMS: Hook returns structured configuration object via Context
+  const { config: site, loading } = usePublishedSiteConfig();
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-500">
+        <Loader2 className="animate-spin mr-2" size={24} /> Loading Configuration...
+      </div>
+    );
+  }
+
+  // Access via structure with Optional Chaining for safety
+  const heroBg = site.home?.hero?.image;
+  const heroTitle = site.home?.hero?.title;
+  const factoryImg = site.home?.factory?.image;
+  const ctaBg = site.home?.cta?.image;
+  const hubCnImg = site.home?.hub_cn?.image;
+  const hubKhImg = site.home?.hub_kh?.image;
 
   const hubs = [
     {
@@ -15,14 +34,14 @@ const Home: React.FC = () => {
       title: t.common.location_cn,
       icon: <Anchor size={18} className={activeHub === 'cn' ? "text-safety-700" : "text-stone-500"} />,
       details: "Guangdong • 645k Sq.Ft",
-      image: getAsset(ASSET_KEYS.HOME_HUB_CN)
+      image: hubCnImg
     },
     {
       id: 'kh',
       title: t.common.location_kh,
       icon: <Truck size={18} className={activeHub === 'kh' ? "text-safety-700" : "text-stone-500"} />,
       details: "Kandal • Low Tariff",
-      image: getAsset(ASSET_KEYS.HOME_HUB_KH)
+      image: hubKhImg
     }
   ];
 
@@ -34,9 +53,9 @@ const Home: React.FC = () => {
       <section className="relative h-screen w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700">
         {/* Background Image with Slow Pan */}
         <div 
-          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-100 animate-slow-pan"
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-100 animate-slow-pan transition-opacity duration-700"
           style={{ 
-            backgroundImage: `url("${getAsset(ASSET_KEYS.HOME_HERO_BG)}")`, 
+            backgroundImage: `url("${heroBg}")`, 
           }}
         >
           {/* Clean Gradient Overlay - No Noise */}
@@ -53,7 +72,7 @@ const Home: React.FC = () => {
              </div>
              
              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] mb-8 drop-shadow-2xl">
-               {t.home.heroTitle}
+               {heroTitle || t.home.heroTitle}
              </h1>
              
              <div className="flex items-start gap-6 mb-12">
@@ -156,7 +175,7 @@ const Home: React.FC = () => {
             {/* Image Side - Removed mix-blend and increased opacity */}
             <div className="h-[600px] lg:h-auto relative overflow-hidden group border-r border-stone-800">
                <img 
-                 src={getAsset(ASSET_KEYS.HOME_FACTORY_SECTION)}
+                 src={factoryImg}
                  alt="Factory Interior" 
                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-80"
                />
@@ -366,7 +385,7 @@ const Home: React.FC = () => {
          {/* Background Texture - UPDATED to use getAsset */}
          <div 
              className="absolute inset-0 bg-cover bg-center opacity-20"
-             style={{ backgroundImage: `url("${getAsset(ASSET_KEYS.HOME_CTA_BG)}")` }}
+             style={{ backgroundImage: `url("${ctaBg}")` }}
          ></div>
          <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/90 to-transparent"></div>
          

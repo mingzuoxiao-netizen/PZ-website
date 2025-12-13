@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, KeyRound, Hammer, Ruler, Axe } from 'lucide-react';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { ASSET_KEYS } from '../utils/assets';
+import { useAssets } from '../contexts/AssetContext';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -26,8 +27,9 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   // idle -> verifying -> tension -> blast -> opening -> done
   const [animStage, setAnimStage] = useState<'idle' | 'verifying' | 'tension' | 'blast' | 'opening' | 'done'>('idle');
   
+  const assets = useAssets();
   // Preload Hero Image explicitly to ensure it's in browser cache
-  const heroImage = getAsset(ASSET_KEYS.HOME_HERO_BG);
+  const heroImage = assets[ASSET_KEYS.HOME_HERO_BG];
 
   useEffect(() => {
     // Check previous session

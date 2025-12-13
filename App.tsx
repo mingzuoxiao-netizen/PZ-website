@@ -18,6 +18,8 @@ import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AssetProvider } from './contexts/AssetContext'; 
+import { SiteConfigProvider } from './contexts/SiteConfigContext'; // New Provider
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -32,162 +34,166 @@ const ScrollToTop = () => {
 
 const App: React.FC = () => {
 return (
-  <LanguageProvider>
-    <HashRouter>
-      <ScrollToTop />
+  <AssetProvider>
+    <SiteConfigProvider>
+      <LanguageProvider>
+        <HashRouter>
+          <ScrollToTop />
 
-      <Routes>
+          <Routes>
 
-        {/* ===================== */}
-        {/* Public & User Routes */}
-        {/* ===================== */}
-        <Route
-          path="/"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Home />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            {/* ===================== */}
+            {/* Public & User Routes */}
+            {/* ===================== */}
+            <Route
+              path="/"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Home />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/about"
-          element={
-            <AuthGuard>
-              <Layout>
-                <About />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/about"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <About />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/manufacturing"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Manufacturing />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/manufacturing"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Manufacturing />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/capabilities"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Capabilities />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/capabilities"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Capabilities />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/collections"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Collections />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/collections"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Collections />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/materials"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Materials />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/materials"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Materials />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/capacity"
-          element={
-            <AuthGuard>
-              <Layout>
-                <GlobalCapacity />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/capacity"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <GlobalCapacity />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/inquire"
-          element={
-            <AuthGuard>
-              <Layout>
-                <Inquire />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/inquire"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <Inquire />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/privacy"
-          element={
-            <AuthGuard>
-              <Layout>
-                <PrivacyPolicy />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/privacy"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <PrivacyPolicy />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/terms"
-          element={
-            <AuthGuard>
-              <Layout>
-                <TermsOfService />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/terms"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <TermsOfService />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        <Route
-          path="/search"
-          element={
-            <AuthGuard>
-              <Layout>
-                <SearchResults />
-              </Layout>
-            </AuthGuard>
-          }
-        />
+            <Route
+              path="/search"
+              element={
+                <AuthGuard>
+                  <Layout>
+                    <SearchResults />
+                  </Layout>
+                </AuthGuard>
+              }
+            />
 
-        {/* ===================== */}
-        {/* Admin / Creator Routes */}
-        {/* ===================== */}
+            {/* ===================== */}
+            {/* Admin / Creator Routes */}
+            {/* ===================== */}
 
-        {/* Hidden Admin Dashboard */}
-        <Route
-  path="/admin-pzf-2025"
-  element={
-    <AdminGuard>
-      <AdminDashboard />
-    </AdminGuard>
-  }
-/>
+            {/* Hidden Admin Dashboard */}
+            <Route
+              path="/admin-pzf-2025"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
 
-<Route
-  path="/creator"
-  element={
-    <AdminGuard>
-      <CreatorPortal />
-    </AdminGuard>
-  }
-/>
+            <Route
+              path="/creator"
+              element={
+                <AdminGuard>
+                  <CreatorPortal />
+                </AdminGuard>
+              }
+            />
 
-      </Routes>
-    </HashRouter>
-  </LanguageProvider>
+          </Routes>
+        </HashRouter>
+      </LanguageProvider>
+    </SiteConfigProvider>
+  </AssetProvider>
 );
 };
 

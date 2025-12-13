@@ -4,7 +4,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ArrowRight, Search, ChevronDown, Globe } from 'lucide-react';
 import { NAV_ITEMS } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { ASSET_KEYS } from '../utils/assets';
+import { useAssets } from '../contexts/AssetContext';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext'; // New import
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +26,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
+  
+  // Use Hook for live asset data
+  const assets = useAssets();
+  
+  // Get Site Meta for Footer
+  const { meta } = usePublishedSiteConfig();
 
   // --- DYNAMIC MEGA MENU DATA ---
   const megaMenuData = {
@@ -179,10 +187,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const getMenuImage = (path: string | null) => {
       switch(path) {
-          case '/collections': return getAsset(ASSET_KEYS.MENU_COLLECTIONS);
-          case '/manufacturing': return getAsset(ASSET_KEYS.MENU_MFG);
-          case '/capabilities': return getAsset(ASSET_KEYS.MENU_CAPABILITIES);
-          default: return getAsset(ASSET_KEYS.MENU_DEFAULT);
+          case '/collections': return assets[ASSET_KEYS.MENU_COLLECTIONS];
+          case '/manufacturing': return assets[ASSET_KEYS.MENU_MFG];
+          case '/capabilities': return assets[ASSET_KEYS.MENU_CAPABILITIES];
+          default: return assets[ASSET_KEYS.MENU_DEFAULT];
       }
   }
 
@@ -516,7 +524,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <div className="border-t border-stone-200 pt-10 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400">
-            <p>&copy; {new Date().getFullYear()} PZ. {t.common.rights}</p>
+            <div className="flex flex-col md:flex-row items-center gap-4">
+               <p>&copy; {new Date().getFullYear()} PZ. {t.common.rights}</p>
+               {meta.version !== '0.0.0' && (
+                 <span className="text-stone-300 hidden md:inline">|</span>
+               )}
+               {meta.version !== '0.0.0' && (
+                 <span className="opacity-60 font-mono text-[10px]">
+                    v{meta.version} • Published: {meta.published_at ? new Date(meta.published_at).toLocaleDateString() : 'Unknown'}
+                 </span>
+               )}
+            </div>
+            
             <div className="flex space-x-8 mt-4 md:mt-0">
               <Link to="/privacy" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.privacy}</Link>
               <Link to="/terms" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.terms}</Link>

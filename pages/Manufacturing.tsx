@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import { Settings, Cpu, Layers, CheckCircle2, Hammer, Package, Cog, Ruler, Wrench, Factory } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { ASSET_KEYS } from '../utils/assets';
+import { useAssets } from '../contexts/AssetContext';
 
 const Manufacturing: React.FC = () => {
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'process' | 'machinery' | 'qc'>('process');
+  const assets = useAssets(); // Use Hook
 
   const processes = [
     {
@@ -191,9 +193,8 @@ const Manufacturing: React.FC = () => {
                    </ul>
                 </div>
                 <div className="flex-1 w-full h-[300px] bg-white border border-stone-200 p-2 shadow-sm">
-                   {/* UPDATED to use getAsset */}
                    <img 
-                      src={getAsset(ASSET_KEYS.MFG_MACHINERY_HERO)} 
+                      src={assets[ASSET_KEYS.MFG_MACHINERY_HERO]} 
                       className="w-full h-full object-cover grayscale opacity-90" 
                       alt="Machinery" 
                    />
@@ -255,7 +256,7 @@ const Manufacturing: React.FC = () => {
                 
                 <div className="order-1 lg:order-2 bg-stone-100 h-[600px] relative overflow-hidden group">
                    <img 
-                     src={getAsset(ASSET_KEYS.MFG_QC_HERO)}
+                     src={assets[ASSET_KEYS.MFG_QC_HERO]}
                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                      alt="QC Lab"
                    />

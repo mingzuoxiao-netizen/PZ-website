@@ -1,37 +1,49 @@
 
 import React, { useState } from 'react';
-import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getAsset, ASSET_KEYS } from '../utils/assets';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const About: React.FC = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { t } = useLanguage();
+  
+  // ✅ Hook automatically fetches structured config via Context
+  const { config: site, loading } = usePublishedSiteConfig();
 
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-500">
+        <Loader2 className="animate-spin mr-2" size={24} /> Loading...
+      </div>
+    );
+  }
+
+  // Map the structured gallery from SiteConfig
   const galleryImages = [
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_1),
+      url: site.about?.gallery?.raw,
       title: "Raw Lumber Selection",
       desc: "We source primarily FAS-grade hardwood lumber, focusing on consistent grain, controlled moisture content, and suitability for furniture and architectural applications."
     },
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_2),
+      url: site.about?.gallery?.milling,
       title: "Precision Milling",
       desc: "CNC-based milling processes are used to achieve accurate joinery, smooth profiles, and repeatable part geometry prior to assembly."
     },    
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_5), // Corrected to use the Automation Asset
+      url: site.about?.gallery?.automation, 
       title: "Production Automation",
       desc: "Selective automation is applied in machining and finishing stages to improve consistency and throughput, while retaining flexibility for custom and mixed-order production."
     },
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_4),
+      url: site.about?.gallery?.finishing,
       title: "Hand Finishing",
       desc: "Manual sanding and finishing are applied where required to refine surfaces, edges, and transitions that benefit from human inspection and adjustment."
     },
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_3), // Swapped key to maintain list length if needed, or stick to QC
+      url: site.about?.gallery?.qc,
       title: "Quality Control",
       desc: "Quality checks are integrated across key production stages, including material intake, machining, finishing, and final inspection, to support durability and visual consistency."
     }
@@ -110,7 +122,7 @@ const About: React.FC = () => {
         <div className="absolute inset-0 bg-stone-900/20 z-10"></div>
         {/* Factory Floor Image */}
         <img 
-          src={getAsset(ASSET_KEYS.ABOUT_BANNER)}
+          src={site.about?.banner}
           alt="Factory Floor" 
           className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
         />
