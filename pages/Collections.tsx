@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX } from 'lucide-react';
+import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX, Palette } from 'lucide-react';
 import { Category, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
@@ -11,6 +11,9 @@ const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayCategories, setDisplayCategories] = useState<Category[]>([]);
+  
+  // State for the currently displayed main image (handles color switching)
+  const [currentMainImage, setCurrentMainImage] = useState<string>('');
   
   const { t } = useLanguage();
   const location = useLocation();
@@ -90,6 +93,13 @@ const Portfolio: React.FC = () => {
 
     loadData();
   }, []);
+
+  // Update main image when product changes
+  useEffect(() => {
+    if (activeProduct) {
+      setCurrentMainImage(activeProduct.image);
+    }
+  }, [activeProduct]);
 
   // Handle Hash Scrolling
   useEffect(() => {
@@ -184,6 +194,45 @@ const Portfolio: React.FC = () => {
                               {activeProduct.description}
                           </p>
 
+                          {/* --- COLOR VARIANT SWITCHER --- */}
+                          {activeProduct.colors && activeProduct.colors.length > 0 && (
+                             <div className="mb-8">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 flex items-center">
+                                   <Palette size={14} className="mr-2"/> Available Finishes
+                                </h4>
+                                <div className="flex flex-wrap gap-3">
+                                   {/* Also show default variant if not already covered? Usually main image is one of them. */}
+                                   <button 
+                                      onClick={() => setCurrentMainImage(activeProduct.image)}
+                                      className={`border-2 p-1 rounded-sm transition-all ${currentMainImage === activeProduct.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
+                                      title="Original"
+                                   >
+                                      <div className="w-8 h-8 bg-stone-200 overflow-hidden relative">
+                                         <img src={activeProduct.image} className="w-full h-full object-cover" />
+                                      </div>
+                                   </button>
+
+                                   {activeProduct.colors.map((color, idx) => (
+                                      <button 
+                                        key={idx}
+                                        onClick={() => setCurrentMainImage(color.image)}
+                                        className={`border-2 p-1 rounded-sm transition-all ${currentMainImage === color.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
+                                        title={color.name}
+                                      >
+                                         <div className="w-8 h-8 bg-stone-200 overflow-hidden relative">
+                                            <img src={color.image} className="w-full h-full object-cover" />
+                                         </div>
+                                      </button>
+                                   ))}
+                                </div>
+                                <p className="text-xs text-stone-500 mt-2">
+                                   Selected: <span className="font-bold text-stone-900">
+                                      {activeProduct.colors.find(c => c.image === currentMainImage)?.name || 'Standard'}
+                                   </span>
+                                </p>
+                             </div>
+                          )}
+
                           <div className="bg-stone-50 border border-stone-200 p-8 shadow-sm mb-8 relative">
                               <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
                                 {t.collections.pdp.techDims}
@@ -226,8 +275,8 @@ const Portfolio: React.FC = () => {
                   <div className="lg:col-span-7 order-1 lg:order-2 space-y-8">
                       <div className="w-full bg-stone-100 aspect-[4/3] relative overflow-hidden shadow-2xl border border-stone-200">
                           <img 
-                            src={activeProduct.image} 
-                            className="w-full h-full object-cover" 
+                            src={currentMainImage} 
+                            className="w-full h-full object-cover transition-opacity duration-500" 
                             alt={activeProduct.name} 
                           />
                       </div>
@@ -235,7 +284,7 @@ const Portfolio: React.FC = () => {
                       {activeProduct.images && activeProduct.images.length > 1 && (
                           <div className="grid grid-cols-2 gap-4">
                               {activeProduct.images.slice(1).map((img, idx) => (
-                                  <div key={idx} className="aspect-square bg-stone-100 overflow-hidden border border-stone-200">
+                                  <div key={idx} className="aspect-square bg-stone-100 overflow-hidden border border-stone-200 cursor-zoom-in" onClick={() => setCurrentMainImage(img)}>
                                       <img src={img} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" />
                                   </div>
                               ))}
@@ -302,9 +351,16 @@ const Portfolio: React.FC = () => {
                                  <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors truncate">
                                    {product.name}
                                  </h3>
-                                 <p className="text-[10px] uppercase tracking-widest text-stone-400 mt-1 line-clamp-1">
-                                   {product.description}
-                                 </p>
+                                 <div className="flex justify-between items-start mt-1">
+                                    <p className="text-[10px] uppercase tracking-widest text-stone-400 line-clamp-1">
+                                      {product.description}
+                                    </p>
+                                    {product.colors && product.colors.length > 0 && (
+                                       <span className="flex items-center text-[9px] font-bold text-amber-700 uppercase tracking-wider ml-2 whitespace-nowrap">
+                                          <Palette size={10} className="mr-1"/> {product.colors.length} Colors
+                                       </span>
+                                    )}
+                                 </div>
                              </div>
                           </div>
                        ))}

@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, ArrowRight, Search, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { NAV_ITEMS } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
@@ -16,49 +16,16 @@ interface DesktopNavProps {
 }
 
 const DesktopNav: React.FC<DesktopNavProps> = ({ 
-  activeMenu, setActiveMenu, isSearchOpen, setIsSearchOpen, navTextColor, useWhiteNav 
+  activeMenu, setActiveMenu, isSearchOpen, navTextColor, useWhiteNav 
 }) => {
   const { t } = useLanguage();
   const location = useLocation();
-  const { config } = usePublishedSiteConfig(); // ✅ Updated
+  const { config } = usePublishedSiteConfig();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- MEGA MENU DATA ---
+  // Portfolio (/collections) removed from dropdown as requested
   const megaMenuData = {
-    "/collections": [ 
-      {
-        title: t.nav.mega.solidWoodProjects,
-        items: [
-          { label: t.nav.mega.diningTables, href: "/collections#solid-wood" },
-          { label: t.nav.mega.butcherBlock, href: "/collections#solid-wood" },
-          { label: t.nav.mega.solidComponents, href: "/collections#solid-wood" },
-        ],
-      },
-      {
-        title: t.nav.mega.seatingProjects,
-        items: [
-          { label: t.nav.mega.diningChairs, href: "/collections#seating" },
-          { label: t.nav.mega.accentChairs, href: "/collections#seating" },
-          { label: t.nav.mega.barStools, href: "/collections#seating" },
-        ],
-      },
-      {
-        title: t.nav.mega.metalMixed,
-        items: [
-          { label: t.nav.mega.metalBases, href: "/collections#mixed" },
-          { label: t.nav.mega.mixedMaterials, href: "/collections#mixed" },
-          { label: t.nav.mega.customFabrication, href: "/collections#mixed" },
-        ],
-      },
-      {
-        title: t.nav.mega.casegoods,
-        items: [
-          { label: t.nav.mega.mediaConsoles, href: "/collections#casegoods" },
-          { label: t.nav.mega.nightstands, href: "/collections#casegoods" },
-          { label: t.nav.mega.storageUnits, href: "/collections#casegoods" },
-        ],
-      },
-    ],
     "/manufacturing": [
       {
         title: t.nav.mega.process,
@@ -125,9 +92,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   };
 
   const getMenuImage = (path: string | null) => {
-      // ✅ Use dynamic config
       switch(path) {
-          case '/collections': return config.menu?.feat_collections;
           case '/manufacturing': return config.menu?.feat_mfg;
           case '/capabilities': return config.menu?.feat_capabilities;
           default: return config.menu?.feat_default;
@@ -136,7 +101,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   const getFocusText = (path: string | null) => {
       switch(path) {
-          case '/collections': return t.nav.mega.focusSolid;
           case '/manufacturing': return t.nav.mega.focusPrecision;
           case '/capabilities': return t.nav.mega.focusEng;
           default: return t.nav.mega.focusLogistics;
@@ -146,6 +110,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   const getGridCols = (count: number) => {
     if (count === 2) return 'grid-cols-2';
     if (count === 3) return 'grid-cols-3';
+    if (count === 4) return 'grid-cols-4';
+    if (count >= 5) return 'grid-cols-5';
     return 'grid-cols-4';
   };
 
@@ -157,7 +123,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   return (
     <>
-      <nav className={`hidden lg:flex items-center space-x-8 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
+      <nav className={`hidden lg:flex items-center space-x-4 lg:space-x-6 xl:space-x-8 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.path || activeMenu === item.path;
           const hasMegaMenu = !!(megaMenuData as any)[item.path];
@@ -171,7 +137,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
             >
               <Link
                 to={item.path}
-                className={`text-[11px] xl:text-[12px] font-bold tracking-[0.1em] uppercase transition-colors duration-300 flex items-center ${
+                className={`text-[10px] xl:text-[11px] font-bold tracking-[0.05em] uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
                   isActive
                     ? useWhiteNav ? 'text-safety-700' : 'text-white'
                     : navTextColor
@@ -209,24 +175,24 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
           <div className="container mx-auto px-6 md:px-12">
              <div className="flex flex-col lg:flex-row h-[420px]">
                
-               <div className={`flex-grow py-16 grid gap-6 bg-white pr-6 ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
+               <div className={`flex-grow py-16 grid gap-x-4 gap-y-8 bg-white pr-6 overflow-y-auto ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
                   {(megaMenuData as any)[activeMenu].map((group: any, idx: number) => (
                     <div 
                       key={idx} 
-                      className="space-y-6 animate-fade-in"
-                      style={{ animationDelay: `${idx * 50}ms` }}
+                      className="space-y-4 animate-fade-in"
+                      style={{ animationDelay: `${idx * 30}ms` }}
                     >
-                       <h3 className="font-serif text-xl text-stone-900 leading-tight">
+                       <h3 className="font-serif text-lg text-stone-900 leading-tight">
                          {group.title}
                        </h3>
-                       <div className="w-8 h-[2px] bg-stone-200"></div>
-                       <ul className="space-y-4">
+                       <div className="w-6 h-[1px] bg-stone-200"></div>
+                       <ul className="space-y-2.5">
                          {group.items.map((link: any, lIdx: number) => (
                            <li key={lIdx}>
                              <Link
                                to={link.href}
                                onClick={() => handleMenuClick(link.href)}
-                               className="block text-xs font-bold uppercase tracking-[0.15em] text-stone-500 hover:text-safety-700 transition-colors duration-300"
+                               className="block text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
                              >
                                {link.label}
                              </Link>
@@ -237,7 +203,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                   ))}
                </div>
 
-               <div className="w-[300px] xl:w-[360px] bg-stone-50 h-full relative group overflow-hidden hidden lg:block border-l border-stone-100">
+               <div className="w-[300px] xl:w-[360px] bg-stone-50 h-full relative group overflow-hidden hidden lg:block border-l border-stone-100 flex-shrink-0">
                   <img
                     src={getMenuImage(activeMenu)}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-100"

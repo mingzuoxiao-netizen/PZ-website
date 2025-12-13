@@ -16,7 +16,12 @@ export interface ProductVariant {
   dimensions?: string;
   code?: string;
   status?: string;
-  subCategoryName?: string; 
+  subCategoryName?: string;
+  // New field for color variants
+  colors?: {
+    name: string;
+    image: string;
+  }[];
 }
 
 export interface SubCategory {

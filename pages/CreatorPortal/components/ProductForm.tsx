@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Save, Plus, Trash2, Loader2, CornerDownRight, Box, Ruler, Tag, Wand2 } from 'lucide-react';
+import { Save, Plus, Trash2, Loader2, CornerDownRight, Box, Ruler, Tag, Wand2, Palette, X } from 'lucide-react';
 import PZImageManager from './PZImageManager';
 
 interface ProductFormProps {
@@ -28,13 +28,36 @@ const ProductForm: React.FC<ProductFormProps> = ({
   mergedCategories, activeSubCategories,
   submitting, editingId, cancelEdit, triggerDelete, generateProductCode, onError
 }) => {
-  // Helper to handle image updates
+  // Helper to handle image updates for gallery
   const handleImagesUpdate = (newImages: string[]) => {
     setFormData((prev: any) => ({
       ...prev,
       images: newImages,
-      image: newImages.length > 0 ? newImages[0] : '' // Sync Main Image
+      // Keep main image synced with first gallery image IF no color variants are set,
+      // otherwise main image logic is handled by specific needs.
+      // For now, standard behavior:
+      image: newImages.length > 0 ? newImages[0] : '' 
     }));
+  };
+
+  // Helper to handle adding a color variant
+  const addColorVariant = () => {
+    setFormData((prev: any) => ({
+      ...prev,
+      colors: [...(prev.colors || []), { name: 'New Color', image: '' }]
+    }));
+  };
+
+  const updateColorVariant = (index: number, field: 'name' | 'image', value: string) => {
+    const newColors = [...(formData.colors || [])];
+    newColors[index] = { ...newColors[index], [field]: value };
+    setFormData((prev: any) => ({ ...prev, colors: newColors }));
+  };
+
+  const removeColorVariant = (index: number) => {
+    const newColors = [...(formData.colors || [])];
+    newColors.splice(index, 1);
+    setFormData((prev: any) => ({ ...prev, colors: newColors }));
   };
 
   return (
@@ -179,9 +202,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
         {/* Name Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="col-span-2">
+          <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Product Name <span className="text-red-400">*</span>
+              Product Name (EN) <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -190,6 +213,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
               onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
               className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
               placeholder="e.g., Zenith Dining Table"
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
+              Product Name (ZH)
+            </label>
+            <input
+              type="text"
+              value={formData.name_zh || ''}
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, name_zh: e.target.value }))}
+              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
+              placeholder="例如：Zenith 餐桌"
             />
           </div>
         </div>
@@ -250,10 +285,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
         </div>
 
         {/* Description */}
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              Description
+              Description (EN)
             </label>
             <textarea
               rows={3}
@@ -263,16 +298,82 @@ const ProductForm: React.FC<ProductFormProps> = ({
               placeholder="Short product description..."
             />
           </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
+              Description (ZH)
+            </label>
+            <textarea
+              rows={3}
+              value={formData.description_zh || ''}
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, description_zh: e.target.value }))}
+              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
+              placeholder="简短的产品中文描述..."
+            />
+          </div>
         </div>
 
-        {/* New Unified Image Manager (Multi Mode) with 4:3 Crop Enforcement */}
+        {/* --- COLOR VARIANTS SECTION --- */}
+        <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
+          <div className="flex justify-between items-center mb-4 border-b border-stone-200 pb-2">
+             <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 flex items-center">
+               <Palette size={14} className="mr-2"/> Color Variants
+             </h4>
+             <button 
+               type="button"
+               onClick={addColorVariant}
+               className="text-[10px] uppercase font-bold tracking-widest text-amber-700 hover:text-amber-900 flex items-center"
+             >
+               <Plus size={12} className="mr-1"/> Add Color
+             </button>
+          </div>
+          
+          <div className="space-y-4">
+             {(!formData.colors || formData.colors.length === 0) && (
+               <p className="text-xs text-stone-400 italic text-center py-4">No specific color variants added.</p>
+             )}
+             
+             {formData.colors?.map((color: any, idx: number) => (
+                <div key={idx} className="flex flex-col md:flex-row gap-4 bg-white p-4 border border-stone-200 items-start md:items-center">
+                   <div className="flex-none">
+                      <PZImageManager 
+                        images={color.image ? [color.image] : []}
+                        onUpdate={(imgs) => updateColorVariant(idx, 'image', imgs[0] || '')}
+                        onError={onError}
+                        maxImages={1}
+                        aspectRatio={4/3}
+                        className="w-24 h-24"
+                      />
+                   </div>
+                   <div className="flex-grow w-full">
+                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Color Name</label>
+                      <input 
+                        type="text" 
+                        value={color.name}
+                        onChange={(e) => updateColorVariant(idx, 'name', e.target.value)}
+                        className="w-full border border-stone-200 px-3 py-2 text-sm focus:border-amber-500 outline-none"
+                        placeholder="e.g. Walnut, Black Oak"
+                      />
+                   </div>
+                   <button 
+                     type="button"
+                     onClick={() => removeColorVariant(idx)}
+                     className="text-stone-400 hover:text-red-500 p-2"
+                   >
+                     <X size={16} />
+                   </button>
+                </div>
+             ))}
+          </div>
+        </div>
+
+        {/* Gallery Image Manager */}
         <PZImageManager
-          label="Product Images (First is Main)"
+          label="Gallery Images (Detail shots, Angles)"
           images={formData.images || []}
           onUpdate={handleImagesUpdate}
           onError={onError}
-          maxImages={10} // Allow multiple
-          aspectRatio={4/3} // Enforce 4:3 for products
+          maxImages={10} 
+          aspectRatio={4/3} 
         />
 
         <div className="flex space-x-4 pb-8 md:pb-0 mt-6">
