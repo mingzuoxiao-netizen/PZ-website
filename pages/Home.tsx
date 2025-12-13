@@ -53,8 +53,7 @@ const Home: React.FC = () => {
              </div>
              
              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white leading-[0.9] mb-8 drop-shadow-2xl">
-               Industrial <br/>
-               <span className="text-stone-400">Craftsmanship.</span>
+               {t.home.heroTitle}
              </h1>
              
              <div className="flex items-start gap-6 mb-12">
@@ -173,7 +172,9 @@ const Home: React.FC = () => {
                         <h4 className="font-bold text-white uppercase text-sm tracking-widest">{t.manufacturing.machinery.autoFinish}</h4>
                         <span className="font-mono text-xs text-stone-500">01</span>
                      </div>
-                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">Automated Cefla lines for consistent high-volume coating and UV curing.</p>
+                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">
+                        {t.home.strengthSection.autoFinishDesc}
+                     </p>
                   </div>
                   
                   <div className="py-6 group hover:bg-stone-800/50 transition-colors px-4 -mx-4">
@@ -181,15 +182,19 @@ const Home: React.FC = () => {
                         <h4 className="font-bold text-white uppercase text-sm tracking-widest">{t.manufacturing.machinery.highPrecision}</h4>
                         <span className="font-mono text-xs text-stone-500">02</span>
                      </div>
-                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">5-Axis Homag CNC routing ensuring 0.1mm tolerance for complex joinery.</p>
+                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">
+                        {t.home.strengthSection.highPrecisionDesc}
+                     </p>
                   </div>
 
                   <div className="py-6 group hover:bg-stone-800/50 transition-colors px-4 -mx-4">
                      <div className="flex items-baseline justify-between mb-2">
-                        <h4 className="font-bold text-white uppercase text-sm tracking-widest">{t.manufacturing.machinery.desc}</h4>
+                        <h4 className="font-bold text-white uppercase text-sm tracking-widest">{t.manufacturing.machinery.climate}</h4>
                         <span className="font-mono text-xs text-stone-500">03</span>
                      </div>
-                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">Full climate control and dust collection ecosystem for material stability.</p>
+                     <p className="text-stone-400 text-sm leading-relaxed max-w-md">
+                        {t.home.strengthSection.climateDesc}
+                     </p>
                   </div>
                </div>
                
@@ -347,8 +352,11 @@ const Home: React.FC = () => {
 
       {/* Final CTA - Wood & Steel */}
       <section className="py-32 text-center relative overflow-hidden bg-stone-900">
-         {/* Background Texture */}
-         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2574&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+         {/* Background Texture - UPDATED to use getAsset */}
+         <div 
+             className="absolute inset-0 bg-cover bg-center opacity-20"
+             style={{ backgroundImage: `url("${getAsset(ASSET_KEYS.HOME_CTA_BG)}")` }}
+         ></div>
          <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/90 to-transparent"></div>
          
          <div className="container mx-auto px-6 relative z-10">

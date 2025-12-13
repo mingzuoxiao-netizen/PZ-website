@@ -6,6 +6,7 @@ export const ASSET_KEYS = {
   // HOME PAGE
   HOME_HERO_BG: 'home_hero_bg',
   HOME_FACTORY_SECTION: 'home_factory_section',
+  HOME_CTA_BG: 'home_cta_bg', // New
   HOME_COMP_MATERIAL: 'home_comp_material',
   HOME_COMP_LOGISTICS: 'home_comp_logistics',
   HOME_COMP_JOINERY: 'home_comp_joinery',
@@ -18,10 +19,11 @@ export const ASSET_KEYS = {
   ABOUT_GALLERY_2: 'about_gallery_2',
   ABOUT_GALLERY_3: 'about_gallery_3',
   ABOUT_GALLERY_4: 'about_gallery_4',
-  ABOUT_GALLERY_5: 'about_gallery_5', // New Automation Key
+  ABOUT_GALLERY_5: 'about_gallery_5', 
 
   // MANUFACTURING PAGE
   MFG_QC_HERO: 'mfg_qc_hero',
+  MFG_MACHINERY_HERO: 'mfg_machinery_hero', // New
 
   // MATERIALS PAGE
   MATERIALS_CONST_FINGER: 'materials_const_finger',
@@ -41,13 +43,19 @@ export const ASSET_KEYS = {
   // GLOBAL CAPACITY
   CAPACITY_CN_CARD: 'capacity_cn_card',
   CAPACITY_KH_CARD: 'capacity_kh_card',
+  CAPACITY_MAP_BG: 'capacity_map_bg', // New
+  CAPACITY_LOC_USA: 'capacity_loc_usa', // New
+  CAPACITY_LOC_CAN: 'capacity_loc_can', // New
+  CAPACITY_LOC_UK: 'capacity_loc_uk', // New
+  CAPACITY_LOC_DE: 'capacity_loc_de', // New
+  CAPACITY_LOC_ME: 'capacity_loc_me', // New
 
   // CATALOG ASSETS
   CATALOG_COVER: 'catalog_cover',
   CATALOG_PAGE_VISION: 'catalog_page_vision',
   CATALOG_PAGE_DESIGN: 'catalog_page_design',
   CATALOG_PAGE_MFG: 'catalog_page_mfg',
-  CATALOG_DOCUMENT: 'catalog_document', // New PDF Key
+  CATALOG_DOCUMENT: 'catalog_document', 
 
   // MEGA MENU FEATURED IMAGES
   MENU_COLLECTIONS: 'menu_collections_feat',
@@ -57,32 +65,36 @@ export const ASSET_KEYS = {
 };
 
 export const DEFAULT_ASSETS: Record<string, string> = {
-  // REPLACED: Broken GitHub Links -> Stable Unsplash Links
-  [ASSET_KEYS.HOME_HERO_BG]: "https://images.unsplash.com/photo-1622372738946-62e02505feb3?q=80&w=2532&auto=format&fit=crop", // Dark industrial wood workshop
-  [ASSET_KEYS.HOME_FACTORY_SECTION]: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2670&auto=format&fit=crop", // Industrial machinery/automation
-  [ASSET_KEYS.HOME_COMP_MATERIAL]: "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?q=80&w=1000&auto=format&fit=crop", // Raw lumber/wood texture
+  // HOME
+  [ASSET_KEYS.HOME_HERO_BG]: "https://images.unsplash.com/photo-1622372738946-62e02505feb3?q=80&w=2532&auto=format&fit=crop", 
+  [ASSET_KEYS.HOME_FACTORY_SECTION]: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2670&auto=format&fit=crop", 
+  [ASSET_KEYS.HOME_CTA_BG]: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2574&auto=format&fit=crop",
+  [ASSET_KEYS.HOME_COMP_MATERIAL]: "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?q=80&w=1000&auto=format&fit=crop", 
   [ASSET_KEYS.HOME_COMP_LOGISTICS]: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/World_map_with_nations.svg/1200px-World_map_with_nations.svg.png",
-  [ASSET_KEYS.HOME_COMP_JOINERY]: "https://images.unsplash.com/photo-1674488972166-5e580cb2b083?q=80&w=1000&auto=format&fit=crop", // CNC / Precision tool
-  [ASSET_KEYS.HOME_HUB_CN]: "https://images.unsplash.com/photo-1565120130296-fcbd2b2f0b6f?q=80&w=2670&auto=format&fit=crop", // Modern factory exterior (China vibe)
-  [ASSET_KEYS.HOME_HUB_KH]: "https://images.unsplash.com/photo-1605218427306-633ba87c9759?q=80&w=2670&auto=format&fit=crop", // Large manufacturing facility
+  [ASSET_KEYS.HOME_COMP_JOINERY]: "https://images.unsplash.com/photo-1674488972166-5e580cb2b083?q=80&w=1000&auto=format&fit=crop", 
+  [ASSET_KEYS.HOME_HUB_CN]: "https://images.unsplash.com/photo-1565120130296-fcbd2b2f0b6f?q=80&w=2670&auto=format&fit=crop", 
+  [ASSET_KEYS.HOME_HUB_KH]: "https://images.unsplash.com/photo-1605218427306-633ba87c9759?q=80&w=2670&auto=format&fit=crop", 
 
+  // ABOUT
   [ASSET_KEYS.ABOUT_BANNER]: "https://images.unsplash.com/photo-1565538810643-b5bdb714032a?q=80&w=2540&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_1]: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_2]: "https://images.unsplash.com/photo-1620283085068-5aab84e2db8e?q=80&w=2070&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_3]: "https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?q=80&w=2070&auto=format&fit=crop",
   [ASSET_KEYS.ABOUT_GALLERY_4]: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070&auto=format&fit=crop",
-  [ASSET_KEYS.ABOUT_GALLERY_5]: "https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=2070&auto=format&fit=crop", // Automation / Robotics
+  [ASSET_KEYS.ABOUT_GALLERY_5]: "https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=2070&auto=format&fit=crop",
 
+  // MANUFACTURING
   [ASSET_KEYS.MFG_QC_HERO]: "https://images.unsplash.com/photo-1581093458791-9f302e683800?q=80&w=2069&auto=format&fit=crop",
+  [ASSET_KEYS.MFG_MACHINERY_HERO]: "https://images.unsplash.com/photo-1565514020125-63b7e43d2266?q=80&w=2070&auto=format&fit=crop",
 
-  // CATALOG DEFAULTS (Placeholders based on the user's PDF style)
+  // CATALOG
   [ASSET_KEYS.CATALOG_COVER]: "https://images.unsplash.com/photo-1631679706909-1844bbd0d978?q=80&w=1000&auto=format&fit=crop",
   [ASSET_KEYS.CATALOG_PAGE_VISION]: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=1000&auto=format&fit=crop",
   [ASSET_KEYS.CATALOG_PAGE_DESIGN]: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=1000&auto=format&fit=crop",
   [ASSET_KEYS.CATALOG_PAGE_MFG]: "https://images.unsplash.com/photo-1565514020125-63b7e43d2266?q=80&w=1000&auto=format&fit=crop",
-  [ASSET_KEYS.CATALOG_DOCUMENT]: "", // No default PDF
+  [ASSET_KEYS.CATALOG_DOCUMENT]: "", 
 
-  // MATERIALS DEFAULTS
+  // MATERIALS
   [ASSET_KEYS.MATERIALS_CONST_FINGER]: "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=800&auto=format&fit=crop",
   [ASSET_KEYS.MATERIALS_CONST_EDGE]: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=800&auto=format&fit=crop",
   [ASSET_KEYS.MATERIALS_CONST_BUTCHER]: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=800&auto=format&fit=crop",
@@ -97,9 +109,18 @@ export const DEFAULT_ASSETS: Record<string, string> = {
   [ASSET_KEYS.MATERIALS_WOOD_BIRCH]: "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?q=80&w=800&auto=format&fit=crop",
   [ASSET_KEYS.MATERIALS_WOOD_BAMBOO]: "https://images.unsplash.com/photo-1605648916361-9bc12ad6a569?q=80&w=800&auto=format&fit=crop",
 
-  [ASSET_KEYS.CAPACITY_CN_CARD]: "https://images.unsplash.com/photo-1565120130296-fcbd2b2f0b6f?q=80&w=2670&auto=format&fit=crop", // Replaced broken link
-  [ASSET_KEYS.CAPACITY_KH_CARD]: "https://images.unsplash.com/photo-1605218427306-633ba87c9759?q=80&w=2670&auto=format&fit=crop", // Replaced broken link
+  // CAPACITY
+  [ASSET_KEYS.CAPACITY_CN_CARD]: "https://images.unsplash.com/photo-1565120130296-fcbd2b2f0b6f?q=80&w=2670&auto=format&fit=crop", 
+  [ASSET_KEYS.CAPACITY_KH_CARD]: "https://images.unsplash.com/photo-1605218427306-633ba87c9759?q=80&w=2670&auto=format&fit=crop", 
+  [ASSET_KEYS.CAPACITY_MAP_BG]: "https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg",
+  [ASSET_KEYS.CAPACITY_LOC_USA]: "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?q=80&w=800&auto=format&fit=crop",
+  [ASSET_KEYS.CAPACITY_LOC_CAN]: "https://images.unsplash.com/photo-1517935706615-2717063c2225?q=80&w=800&auto=format&fit=crop",
+  [ASSET_KEYS.CAPACITY_LOC_UK]: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=800&auto=format&fit=crop",
+  [ASSET_KEYS.CAPACITY_LOC_DE]: "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?q=80&w=800&auto=format&fit=crop",
+  [ASSET_KEYS.CAPACITY_LOC_ME]: "https://images.unsplash.com/photo-1495833066942-79abe24b0c1f?q=80&w=1714&auto=format&fit=crop",
 
+
+  // MENU
   [ASSET_KEYS.MENU_COLLECTIONS]: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=600&auto=format&fit=crop",
   [ASSET_KEYS.MENU_MFG]: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=600&auto=format&fit=crop",
   [ASSET_KEYS.MENU_CAPABILITIES]: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop",
@@ -118,6 +139,7 @@ export const ASSET_GROUPS = [
     keys: [
       { key: ASSET_KEYS.HOME_HERO_BG, label: "Hero Banner Background" },
       { key: ASSET_KEYS.HOME_FACTORY_SECTION, label: "Industrial Strength Section" },
+      { key: ASSET_KEYS.HOME_CTA_BG, label: "Footer CTA Background" },
       { key: ASSET_KEYS.HOME_COMP_MATERIAL, label: "Competency: Material" },
       { key: ASSET_KEYS.HOME_COMP_LOGISTICS, label: "Competency: Logistics" },
       { key: ASSET_KEYS.HOME_COMP_JOINERY, label: "Competency: Joinery" },
@@ -168,16 +190,23 @@ export const ASSET_GROUPS = [
       { key: ASSET_KEYS.ABOUT_GALLERY_2, label: "Process 2: Precision Milling" },
       { key: ASSET_KEYS.ABOUT_GALLERY_3, label: "Process 3: Hand Finishing" },
       { key: ASSET_KEYS.ABOUT_GALLERY_4, label: "Process 4: Quality Control" },
-      { key: ASSET_KEYS.ABOUT_GALLERY_5, label: "Process 5: Automation" }, // New Entry
+      { key: ASSET_KEYS.ABOUT_GALLERY_5, label: "Process 5: Automation" }, 
     ]
   },
   {
-    name: "About & Others",
+    name: "Manufacturing & Capacity",
     keys: [
       { key: ASSET_KEYS.ABOUT_BANNER, label: "About: Cinematic Banner" },
-      { key: ASSET_KEYS.MFG_QC_HERO, label: "Manufacturing: QC Lab" },
-      { key: ASSET_KEYS.CAPACITY_CN_CARD, label: "Capacity: China Facility Card" },
-      { key: ASSET_KEYS.CAPACITY_KH_CARD, label: "Capacity: Cambodia Facility Card" },
+      { key: ASSET_KEYS.MFG_QC_HERO, label: "Mfg: QC Lab Hero" },
+      { key: ASSET_KEYS.MFG_MACHINERY_HERO, label: "Mfg: Machinery Hero" },
+      { key: ASSET_KEYS.CAPACITY_CN_CARD, label: "Capacity: China Facility" },
+      { key: ASSET_KEYS.CAPACITY_KH_CARD, label: "Capacity: Cambodia Facility" },
+      { key: ASSET_KEYS.CAPACITY_MAP_BG, label: "Capacity: World Map Background" },
+      { key: ASSET_KEYS.CAPACITY_LOC_USA, label: "Capacity: USA Location" },
+      { key: ASSET_KEYS.CAPACITY_LOC_CAN, label: "Capacity: Canada Location" },
+      { key: ASSET_KEYS.CAPACITY_LOC_UK, label: "Capacity: UK Location" },
+      { key: ASSET_KEYS.CAPACITY_LOC_DE, label: "Capacity: Germany Location" },
+      { key: ASSET_KEYS.CAPACITY_LOC_ME, label: "Capacity: Middle East Location" },
     ]
   }
 ];

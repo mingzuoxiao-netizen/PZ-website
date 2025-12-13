@@ -1,8 +1,8 @@
 
-
 export interface NavItem {
   label: string;
   path: string;
+  key: string;
 }
 
 export interface ProductVariant {
@@ -53,12 +53,12 @@ export interface Inquiry {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Home', path: '/' },
-  { label: 'Capabilities', path: '/capabilities' },
-  { label: 'Manufacturing', path: '/manufacturing' },
-  { label: 'Materials', path: '/materials' },
-  { label: 'Portfolio', path: '/collections' },
-  { label: 'Global Capacity', path: '/capacity' },
-  { label: 'About', path: '/about' },
-  { label: 'Inquire', path: '/inquire' },
+  { label: 'Home', path: '/', key: 'home' },
+  { label: 'Capabilities', path: '/capabilities', key: 'capabilities' },
+  { label: 'Manufacturing', path: '/manufacturing', key: 'manufacturing' },
+  { label: 'Materials', path: '/materials', key: 'materials' },
+  { label: 'Portfolio', path: '/collections', key: 'portfolio' },
+  { label: 'Global Capacity', path: '/capacity', key: 'capacity' },
+  { label: 'About', path: '/about', key: 'about' },
+  { label: 'Inquire', path: '/inquire', key: 'inquire' },
 ];

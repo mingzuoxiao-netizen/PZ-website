@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Shield } from 'lucide-react';
 
 const PrivacyPolicy: React.FC = () => {
@@ -19,7 +19,7 @@ const PrivacyPolicy: React.FC = () => {
             <section>
                 <h2 className="font-serif text-2xl text-stone-900 mb-4">1. Introduction</h2>
                 <p className="mb-4">
-                    PZ Precision Woodworks ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or engage with our services.
+                    PZ ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or engage with our services.
                 </p>
                 <p>
                     By accessing or using our services, you signify that you have read, understood, and agree to our collection, storage, use, and disclosure of your personal information as described in this Privacy Policy.
@@ -80,9 +80,9 @@ const PrivacyPolicy: React.FC = () => {
                     If you have any questions about this Privacy Policy, please contact us:
                 </p>
                 <div className="bg-white p-6 border border-stone-200">
-                    <p className="font-bold text-stone-900">PZ Precision Woodworks</p>
+                    <p className="font-bold text-stone-900">PZ</p>
                     <p>Zhaoqing City, Guangdong Province, China</p>
-                    <p>Email: legal@pz-precision.com</p>
+                    <p>Email: legal@pz.com</p>
                 </div>
             </section>
         </div>

@@ -38,7 +38,7 @@ const GlobalCapacity: React.FC = () => {
         title: "United States Market",
         description: "Our largest market. We support 30+ major US brands with both direct container programs and domestic inventory solutions via our LA warehouse.",
         stats: ["Primary Export Market", "LA Logistics Hub", "Domestic Fulfillment"],
-        image: "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?q=80&w=800&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_LOC_USA)
       }
     },
     { 
@@ -51,7 +51,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Canadian Market",
         description: "Serving Canadian retailers with high-quality solid wood furniture, capable of cold-climate resistant finishes and construction.",
         stats: ["Cold-Chain Logistics", "Retail Partnerships"],
-        image: "https://images.unsplash.com/photo-1517935706615-2717063c2225?q=80&w=800&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_LOC_CAN)
       }
     },
     { 
@@ -64,7 +64,7 @@ const GlobalCapacity: React.FC = () => {
         title: "United Kingdom",
         description: "Exporting distinct British-standard joinery and fire-retardant upholstery compliant furniture to UK distributors.",
         stats: ["UKFR Compliant", "FOB Shipping"],
-        image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=800&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_LOC_UK)
       }
     },
     { 
@@ -77,7 +77,7 @@ const GlobalCapacity: React.FC = () => {
         title: "European Union (Germany)",
         description: "Meeting strict EU sustainability (EUTR) and chemical safety standards for discerning European clients.",
         stats: ["EUTR Compliant", "Sustainable Sourcing"],
-        image: "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?q=80&w=800&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_LOC_DE)
       }
     },
     { 
@@ -90,7 +90,7 @@ const GlobalCapacity: React.FC = () => {
         title: "Middle East",
         description: "Supplying luxury hospitality projects and high-end residential developments across the region.",
         stats: ["Hospitality Projects", "Luxury Finishes"],
-        image: "https://images.unsplash.com/photo-1495833066942-79abe24b0c1f?q=80&w=1714&auto=format&fit=crop"
+        image: getAsset(ASSET_KEYS.CAPACITY_LOC_ME)
       }
     },
     { 
@@ -336,7 +336,7 @@ const GlobalCapacity: React.FC = () => {
             
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/4/4d/BlankMap-World.svg" 
+                src={getAsset(ASSET_KEYS.CAPACITY_MAP_BG)}
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />

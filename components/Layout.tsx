@@ -10,86 +10,6 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-// --- MEGA MENU DATA STRUCTURE ---
-const MEGA_MENU_DATA: Record<
-  string,
-  { 
-    title: string; 
-    items: { label: string; href: string }[] 
-  }[]
-> = {
-  "/collections": [ 
-    {
-      title: "Solid Wood Projects",
-      items: [
-        { label: "Dining Tables", href: "/collections#solid-wood" },
-        { label: "Butcher Block", href: "/collections#solid-wood" },
-        { label: "Solid Components", href: "/collections#solid-wood" },
-      ],
-    },
-    {
-      title: "Seating Projects",
-      items: [
-        { label: "Dining Chairs", href: "/collections#seating" },
-        { label: "Accent Chairs", href: "/collections#seating" },
-        { label: "Bar Stools", href: "/collections#seating" },
-      ],
-    },
-    {
-      title: "Metal & Mixed",
-      items: [
-        { label: "Metal Bases", href: "/collections#mixed" },
-        { label: "Mixed Materials", href: "/collections#mixed" },
-        { label: "Custom Fabrication", href: "/collections#mixed" },
-      ],
-    },
-    {
-      title: "Casegoods",
-      items: [
-        { label: "Media Consoles", href: "/collections#casegoods" },
-        { label: "Nightstands", href: "/collections#casegoods" },
-        { label: "Storage Units", href: "/collections#casegoods" },
-      ],
-    },
-  ],
-  "/manufacturing": [
-    {
-      title: "Process",
-      items: [
-        { label: "Lumber Prep", href: "/manufacturing#lumber" },
-        { label: "5-Axis CNC", href: "/manufacturing#cnc" },
-        { label: "Auto-Finishing", href: "/manufacturing#finishing" },
-      ],
-    },
-    {
-      title: "Standards",
-      items: [
-        { label: "Incoming QC", href: "/manufacturing#iqc" },
-        { label: "In-Process QC", href: "/manufacturing#ipqc" },
-        { label: "Final Inspection", href: "/manufacturing#fqc" },
-      ],
-    },
-  ],
-  "/capabilities": [
-    {
-      title: "Services",
-      items: [
-        { label: "OEM Production", href: "/capabilities#oem" },
-        { label: "ODM Design", href: "/capabilities#odm" },
-        { label: "Value Engineering", href: "/capabilities#ve" },
-      ],
-    },
-    {
-      title: "Compliance",
-      items: [
-        { label: "TSCA Title VI", href: "/capabilities#tsca" },
-        { label: "FSC Certification", href: "/capabilities#fsc" },
-        { label: "ISTA Packaging", href: "/capabilities#packaging" },
-      ],
-    },
-  ],
-};
-
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -104,6 +24,80 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
+
+  // --- DYNAMIC MEGA MENU DATA ---
+  const megaMenuData = {
+    "/collections": [ 
+      {
+        title: t.nav.mega.solidWoodProjects,
+        items: [
+          { label: t.nav.mega.diningTables, href: "/collections#solid-wood" },
+          { label: t.nav.mega.butcherBlock, href: "/collections#solid-wood" },
+          { label: t.nav.mega.solidComponents, href: "/collections#solid-wood" },
+        ],
+      },
+      {
+        title: t.nav.mega.seatingProjects,
+        items: [
+          { label: t.nav.mega.diningChairs, href: "/collections#seating" },
+          { label: t.nav.mega.accentChairs, href: "/collections#seating" },
+          { label: t.nav.mega.barStools, href: "/collections#seating" },
+        ],
+      },
+      {
+        title: t.nav.mega.metalMixed,
+        items: [
+          { label: t.nav.mega.metalBases, href: "/collections#mixed" },
+          { label: t.nav.mega.mixedMaterials, href: "/collections#mixed" },
+          { label: t.nav.mega.customFabrication, href: "/collections#mixed" },
+        ],
+      },
+      {
+        title: t.nav.mega.casegoods,
+        items: [
+          { label: t.nav.mega.mediaConsoles, href: "/collections#casegoods" },
+          { label: t.nav.mega.nightstands, href: "/collections#casegoods" },
+          { label: t.nav.mega.storageUnits, href: "/collections#casegoods" },
+        ],
+      },
+    ],
+    "/manufacturing": [
+      {
+        title: t.nav.mega.process,
+        items: [
+          { label: t.nav.mega.lumberPrep, href: "/manufacturing#lumber" },
+          { label: t.nav.mega.cnc5Axis, href: "/manufacturing#cnc" },
+          { label: t.nav.mega.autoFinishing, href: "/manufacturing#finishing" },
+        ],
+      },
+      {
+        title: t.nav.mega.standards,
+        items: [
+          { label: t.nav.mega.incomingQC, href: "/manufacturing#iqc" },
+          { label: t.nav.mega.inProcessQC, href: "/manufacturing#ipqc" },
+          { label: t.nav.mega.finalInspection, href: "/manufacturing#fqc" },
+        ],
+      },
+    ],
+    "/capabilities": [
+      {
+        title: t.nav.mega.services,
+        items: [
+          { label: t.nav.mega.oemProduction, href: "/capabilities#oem" },
+          { label: t.nav.mega.odmDesign, href: "/capabilities#odm" },
+          { label: t.nav.mega.valueEngineering, href: "/capabilities#ve" },
+        ],
+      },
+      {
+        title: t.nav.mega.compliance,
+        items: [
+          { label: t.nav.mega.tscaTitleVI, href: "/capabilities#tsca" },
+          { label: t.nav.mega.fscCertification, href: "/capabilities#fsc" },
+          { label: t.nav.mega.istaPackaging, href: "/capabilities#packaging" },
+        ],
+      },
+    ],
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -146,7 +140,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleMouseEnter = (path: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (MEGA_MENU_DATA[path]) {
+    // Type assertion to access dynamic key
+    if ((megaMenuData as any)[path]) {
       setActiveMenu(path);
     } else {
       setActiveMenu(null);
@@ -164,10 +159,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setActiveMenu(null);
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
 
   const isHome = location.pathname === '/';
   const isMegaMenuActive = activeMenu !== null;
@@ -195,6 +186,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
   }
 
+  const getFocusText = (path: string | null) => {
+      switch(path) {
+          case '/collections': return t.nav.mega.focusSolid;
+          case '/manufacturing': return t.nav.mega.focusPrecision;
+          case '/capabilities': return t.nav.mega.focusEng;
+          default: return t.nav.mega.focusLogistics;
+      }
+  }
+
   const handleMenuClick = (href: string) => {
     if (href.includes('#')) {
       const [path, hash] = href.split('#');
@@ -208,6 +208,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setActiveMenu(null);
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'zh' : 'en');
+  };
+
+  // Dynamic grid columns based on number of items
+  const getGridCols = (count: number) => {
+    if (count === 2) return 'grid-cols-2';
+    if (count === 3) return 'grid-cols-3';
+    return 'grid-cols-4';
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 font-sans transition-colors duration-500">
       
@@ -219,8 +230,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ${isMobileMenuOpen ? 'h-screen' : 'h-[90px]'}
         `}
       >
-        <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-80 z-[60]"></div>
-
         <div className="container mx-auto px-6 md:px-12 h-full flex justify-between items-center relative z-50">
           <Link
             to="/"
@@ -232,14 +241,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <div className={`font-serif tracking-tight leading-none transition-colors duration-300 ${textColor}`}>
                <span className="text-2xl font-bold">PZ</span>
-               <span className="text-sm italic ml-1 opacity-80">Precision</span>
             </div>
           </Link>
 
           <nav className={`hidden lg:flex items-center space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
             {NAV_ITEMS.map((item) => {
               const isActive = location.pathname === item.path || activeMenu === item.path;
-              const hasMegaMenu = !!MEGA_MENU_DATA[item.path];
+              // Check if path exists in megaMenuData
+              const hasMegaMenu = !!(megaMenuData as any)[item.path];
 
               return (
                 <div
@@ -255,7 +264,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         : navTextColor
                     }`}
                   >
-                    {item.label}
+                    {t.nav.header[item.key]}
                     {hasMegaMenu && (
                       <ChevronDown
                         size={10}
@@ -276,12 +285,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </nav>
 
           <div className="flex items-center space-x-6 z-50">
-            {/* Language Switcher */}
+            {/* Language Switcher - Desktop */}
             <button
-                onClick={toggleLanguage}
-                className={`text-[10px] font-bold tracking-widest uppercase transition-colors duration-300 hover:text-safety-700 ${navTextColor}`}
+              onClick={toggleLanguage}
+              className={`hidden lg:block text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
             >
-                {language === 'en' ? 'EN' : '中'} <span className="opacity-50 mx-1">/</span> {language === 'en' ? '中' : 'EN'}
+              {language === 'en' ? 'EN / 中' : '中 / EN'}
             </button>
 
             <button
@@ -314,7 +323,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* --- MEGA MENU PANEL --- */}
         <div
           className={`
-             absolute top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-xl overflow-hidden transition-all duration-300 ease-in-out z-40
+             absolute top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-2xl overflow-hidden transition-all duration-300 ease-in-out z-40
              ${activeMenu ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}
            `}
           onMouseEnter={() => {
@@ -322,27 +331,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           }}
           onMouseLeave={handleMouseLeave}
         >
-          {activeMenu && MEGA_MENU_DATA[activeMenu] && (
+          {activeMenu && (megaMenuData as any)[activeMenu] && (
             <div className="container mx-auto px-6 md:px-12">
-               <div className="flex flex-col lg:flex-row h-[350px]">
+               <div className="flex flex-col lg:flex-row h-[420px]">
                  
-                 <div className="flex-grow py-12 flex gap-16 bg-white">
-                    {MEGA_MENU_DATA[activeMenu].map((group, idx) => (
+                 <div className={`flex-grow py-16 grid gap-6 bg-white pr-6 ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
+                    {(megaMenuData as any)[activeMenu].map((group: any, idx: number) => (
                       <div 
                         key={idx} 
-                        className="min-w-[140px] space-y-6 animate-fade-in"
+                        className="space-y-6 animate-fade-in"
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
-                         <h3 className="font-serif text-lg text-stone-900 italic border-b border-stone-100 pb-2">
+                         <h3 className="font-serif text-xl text-stone-900 leading-tight">
                            {group.title}
                          </h3>
-                         <ul className="space-y-3">
-                           {group.items.map((link, lIdx) => (
+                         <div className="w-8 h-[2px] bg-stone-200"></div>
+                         <ul className="space-y-4">
+                           {group.items.map((link: any, lIdx: number) => (
                              <li key={lIdx}>
                                <Link
                                  to={link.href}
                                  onClick={() => handleMenuClick(link.href)}
-                                 className="block font-medium text-xs text-stone-500 hover:text-safety-700 hover:translate-x-1 transition-all duration-200 uppercase tracking-wider"
+                                 className="block text-xs font-bold uppercase tracking-[0.15em] text-stone-500 hover:text-safety-700 transition-colors duration-300"
                                >
                                  {link.label}
                                </Link>
@@ -353,24 +363,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ))}
                  </div>
 
-                 <div className="w-[300px] bg-stone-50 h-full relative group overflow-hidden hidden xl:block">
+                 <div className="w-[360px] bg-stone-50 h-full relative group overflow-hidden hidden lg:block border-l border-stone-100">
                     <img
                       src={getMenuImage(activeMenu)}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-90"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-100"
                       alt="Featured"
                     />
-                    <div className="absolute inset-0 bg-stone-900/10"></div>
+                    <div className="absolute inset-0 bg-stone-900/10 group-hover:bg-transparent transition-colors"></div>
                     
-                    <div className="absolute bottom-0 left-0 p-8 w-full bg-gradient-to-t from-black/60 to-transparent">
-                       <span className="block text-white/80 text-[10px] uppercase tracking-widest font-bold mb-1">
-                          Focus
+                    <div className="absolute bottom-0 left-0 p-10 w-full bg-gradient-to-t from-stone-900/90 to-transparent">
+                       <span className="block text-safety-700 text-xs uppercase tracking-[0.3em] font-bold mb-2">
+                          FOCUS
                        </span>
-                       <p className="text-white font-serif text-xl italic">
-                          {activeMenu === '/collections'
-                             ? 'Solid Wood'
-                             : activeMenu === '/manufacturing'
-                             ? 'Precision'
-                             : 'Logistics'}
+                       <p className="text-white font-serif text-2xl italic">
+                          {getFocusText(activeMenu)}
                        </p>
                     </div>
                  </div>
@@ -396,22 +402,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block font-serif text-2xl text-stone-800 hover:text-safety-700 transition-colors"
                 >
-                   {item.label}
+                   {t.nav.header[item.key]}
                 </Link>
               </div>
             ))}
 
-            <button
-                onClick={() => {
-                    toggleLanguage();
-                    setIsMobileMenuOpen(false);
-                }}
-                className="w-full border-b border-stone-100 pb-4 block font-serif text-2xl text-stone-800 hover:text-safety-700 transition-colors"
-            >
-                {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
-            </button>
+            <div className="pt-8 flex flex-col items-center space-y-8">
+              <button
+                onClick={toggleLanguage}
+                className="text-sm font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 flex items-center"
+              >
+                <Globe size={16} className="mr-2" />
+                {language === 'en' ? 'Switch to Chinese' : '切换到中文'}
+              </button>
 
-            <div className="pt-12 flex flex-col items-center space-y-6">
               <Link
                 to="/inquire"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -471,7 +475,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-3 mb-8">
                  <div className="font-serif text-2xl text-stone-900 font-bold">
-                    PZ Precision
+                    PZ
                  </div>
               </div>
               <p className="text-stone-500 max-w-sm mb-8 leading-relaxed text-sm font-light">
@@ -492,7 +496,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {NAV_ITEMS.slice(0, 4).map((item) => (
                   <li key={item.path}>
                     <Link to={item.path} className="text-stone-500 hover:text-safety-700 transition-colors text-sm hover:translate-x-1 inline-block">
-                      {item.label}
+                      {t.nav.header[item.key]}
                     </Link>
                   </li>
                 ))}
@@ -512,7 +516,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
 
           <div className="border-t border-stone-200 pt-10 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400">
-            <p>&copy; {new Date().getFullYear()} PZ Precision Woodworks. {t.common.rights}</p>
+            <p>&copy; {new Date().getFullYear()} PZ. {t.common.rights}</p>
             <div className="flex space-x-8 mt-4 md:mt-0">
               <Link to="/privacy" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.privacy}</Link>
               <Link to="/terms" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.terms}</Link>

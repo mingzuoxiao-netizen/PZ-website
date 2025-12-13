@@ -9,21 +9,101 @@ const Manufacturing: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'process' | 'machinery' | 'qc'>('process');
 
   const processes = [
-    { title: "Lumber Selection and KD", title_zh: "木材精选与窑干", icon: <Layers size={24} />, desc: "Incoming inspection of FAS grade lumber. Kiln drying to 8-10% moisture content to ensure stability.", desc_zh: "FAS 级木材的来料检验。窑干至 8-10% 含水率以确保稳定性。" },
-    { title: "Panel Jointing and Gluing", title_zh: "拼板与胶合", icon: <Hammer size={24} />, desc: "Color matching and RF (Radio Frequency) gluing for high-strength butcher block and panel construction.", desc_zh: "色泽匹配和高频拼板，用于高强度的层压和板材结构。" },
-    { title: "CNC Machining", title_zh: "CNC 加工", icon: <Cpu size={24} />, desc: "5-Axis routers execute complex joinery and shaping with 0.1mm tolerance precision.", desc_zh: "五轴路由器执行复杂的榫卯和成型，精度公差为 0.1mm。" },
-    { title: "Sanding and Finishing", title_zh: "砂光与涂装", icon: <Layers size={24} />, desc: "Automated wide-belt sanding followed by hand-touchups. Cefla flat-lines apply consistent coating.", desc_zh: "自动宽带砂光后进行手工修补。Cefla 平板涂装线确保涂层均匀。" },
-    { title: "Assembly", title_zh: "组装", icon: <Settings size={24} />, desc: "Traditional joinery assembly reinforced with modern adhesives and hardware.", desc_zh: "传统榫卯组装，辅以现代粘合剂和五金。" },
-    { title: "Packaging and QC", title_zh: "包装与质检", icon: <Package size={24} />, desc: "Final 100% inspection. ISTA-3A compliant packaging for drop-ship capability.", desc_zh: "最终 100% 检验。符合 ISTA-3A 标准的包装，支持一件代发。" },
+    {
+  title: "Lumber Selection & Moisture Control",
+  title_zh: "木材筛选与含水率控制",
+  icon: <Layers size={24} />,
+  desc: "Incoming lumber is graded for structural integrity and grain consistency. Moisture levels are stabilized through controlled drying to ensure long-term dimensional stability.",
+  desc_zh: "对来料木材进行结构强度与纹理一致性筛选，通过受控干燥稳定含水率，确保长期尺寸稳定性。"
+},
+{
+  title: "Panel Jointing & Structural Bonding",
+  title_zh: "拼板与结构胶合",
+  icon: <Hammer size={24} />,
+  desc: "Panels and butcher blocks are engineered through controlled color matching and high-strength bonding systems to ensure uniform stress distribution and durability.",
+  desc_zh: "通过色泽匹配与高强度结构胶合工艺，对板材进行工程化处理，确保受力均匀与整体耐久性。"
+},
+{
+  title: "Precision CNC Machining",
+  title_zh: "高精度数控加工",
+  icon: <Cpu size={24} />,
+  desc: "Digitally programmed machining workflows execute complex joinery and shaping operations with tight dimensional control and repeatable accuracy.",
+  desc_zh: "采用数字化编程的数控加工流程，实现复杂榫卯与造型加工，确保尺寸精度与批量一致性。"
+},
+{
+  title: "Surface Preparation & Finishing",
+  title_zh: "表面处理与涂装",
+  icon: <Layers size={24} />,
+  desc: "Surface preparation and finishing processes are engineered for consistent texture, color stability, and coating performance across production runs.",
+  desc_zh: "通过系统化的表面处理与涂装流程，确保产品在不同批次中保持一致的手感、色泽与涂层性能。"
+},
+{
+  title: "Assembly & Final Integration",
+  title_zh: "组装与整体集成",
+  icon: <Settings size={24} />,
+  desc: "Components are assembled using engineered joinery methods reinforced with modern adhesives and hardware systems for structural reliability and serviceability.",
+  desc_zh: "采用工程化榫卯结构，并结合现代胶合与五金系统完成组装，兼顾结构可靠性与后期维护需求。"
+},
+{
+  title: "Quality Control & Packaging",
+  title_zh: "质量控制与包装",
+  icon: <Package size={24} />,
+  desc: "Each finished unit undergoes final inspection against structural, dimensional, and aesthetic standards. Packaging systems are designed to protect products through long-distance logistics.",
+  desc_zh: "所有成品均经过结构、尺寸与外观的最终检验，包装系统针对长途运输与终端交付进行防护设计。"
+},
+
   ];
 
+  // Updated machinery list with name_zh for translation
   const machinery = [
-    { name: "Homag 5-Axis CNC", type: "Router", type_zh: "路由器", desc: "Complex 3D shaping", desc_zh: "复杂 3D 成型" },
-    { name: "Cefla Flat-line", type: "Finishing", type_zh: "涂装", desc: "Automated spray and UV cure", desc_zh: "自动喷涂与 UV 固化" },
-    { name: "Weinig Moulders", type: "Milling", type_zh: "铣削", desc: "High-speed profile moulding", desc_zh: "高速型材成型" },
-    { name: "Timesavers Sanders", type: "Sanding", type_zh: "砂光", desc: "Precision calibration sanding", desc_zh: "精密定厚砂光" },
-    { name: "RF Press", type: "Gluing", type_zh: "胶合", desc: "Radio frequency panel bonding", desc_zh: "射频板材粘合" },
-    { name: "Dust Collection", type: "Facility", type_zh: "设施", desc: "Centralized eco-system", desc_zh: "中央集尘生态系统" }
+    { 
+      name: "CNC MACHINING SYSTEMS", 
+      name_zh: "CNC 加工系统",
+      type: "Processing", 
+      type_zh: "加工", 
+      desc: "Multi-axis CNC routing platforms supporting complex 3D shaping, precision joinery, and repeatable dimensional control.", 
+      desc_zh: "多轴 CNC 路由平台，支持复杂的 3D 成型、精密榫卯和可重复的尺寸控制。" 
+    },
+    { 
+      name: "PROFILE MILLING", 
+      name_zh: "型材铣削",
+      type: "Milling", 
+      type_zh: "铣削", 
+      desc: "High-speed moulding and profiling systems for consistent edge geometry and surface definition across long production runs.", 
+      desc_zh: "高速成型和轮廓系统，用于在长期生产运行中保持一致的边缘几何形状和表面清晰度。" 
+    },
+    { 
+      name: "AUTOMATED SURFACE FINISHING", 
+      name_zh: "自动化表面涂装",
+      type: "Finishing", 
+      type_zh: "涂装", 
+      desc: "Continuous finishing lines integrating spray application, controlled drying, and curing processes for uniform surface quality.", 
+      desc_zh: "集成喷涂、受控干燥和固化工艺的连续涂装线，以获得均匀的表面质量。" 
+    },
+    { 
+      name: "PRECISION SANDING & CALIBRATION", 
+      name_zh: "精密砂光与定厚",
+      type: "Sanding", 
+      type_zh: "砂光", 
+      desc: "Automated sanding and surface calibration systems ensuring thickness accuracy and finish readiness prior to coating.", 
+      desc_zh: "自动砂光和表面定厚系统，确保涂装前的厚度精度和表面准备。" 
+    },
+    { 
+      name: "PANEL BONDING & ASSEMBLY", 
+      name_zh: "板材拼合与组装",
+      type: "Assembly", 
+      type_zh: "组装", 
+      desc: "Engineered bonding and pressing systems designed for structural stability in laminated panels and mixed-material assemblies.", 
+      desc_zh: "工程化的粘合和压制系统，专为层压板和混合材料组件的结构稳定性而设计。" 
+    },
+    { 
+      name: "CENTRALIZED FACILITY SYSTEMS", 
+      name_zh: "中央设施系统",
+      type: "Infrastructure", 
+      type_zh: "基础设施", 
+      desc: "Plant-wide dust extraction, air filtration, and environmental control infrastructure supporting process consistency and operator safety.", 
+      desc_zh: "全厂除尘、空气过滤和环境控制基础设施，支持工艺一致性和操作员安全。" 
+    }
   ];
 
   const getStr = (obj: any, key: string) => {
@@ -111,7 +191,12 @@ const Manufacturing: React.FC = () => {
                    </ul>
                 </div>
                 <div className="flex-1 w-full h-[300px] bg-white border border-stone-200 p-2 shadow-sm">
-                   <img src="https://images.unsplash.com/photo-1565514020125-63b7e43d2266?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover grayscale opacity-90" alt="Machinery" />
+                   {/* UPDATED to use getAsset */}
+                   <img 
+                      src={getAsset(ASSET_KEYS.MFG_MACHINERY_HERO)} 
+                      className="w-full h-full object-cover grayscale opacity-90" 
+                      alt="Machinery" 
+                   />
                 </div>
              </div>
              
@@ -119,7 +204,7 @@ const Manufacturing: React.FC = () => {
                 {machinery.map((m, idx) => (
                    <div key={idx} className="bg-white border border-stone-200 p-8 hover:shadow-lg transition-shadow">
                       <div className="text-[10px] font-bold uppercase text-safety-700 mb-2 tracking-widest">{getStr(m, 'type')}</div>
-                      <h4 className="text-stone-900 font-serif text-xl mb-3">{m.name}</h4>
+                      <h4 className="text-stone-900 font-serif text-xl mb-3">{getStr(m, 'name')}</h4>
                       <p className="text-stone-500 text-sm">{getStr(m, 'desc')}</p>
                    </div>
                 ))}

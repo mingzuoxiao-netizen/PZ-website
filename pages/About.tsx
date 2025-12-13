@@ -13,27 +13,27 @@ const About: React.FC = () => {
     {
       url: getAsset(ASSET_KEYS.ABOUT_GALLERY_1),
       title: "Raw Lumber Selection",
-      desc: "We source only FAS grade lumber, ensuring minimal knots and consistent grain patterns for high-end furniture."
+      desc: "We source primarily FAS-grade hardwood lumber, focusing on consistent grain, controlled moisture content, and suitability for furniture and architectural applications."
     },
     {
       url: getAsset(ASSET_KEYS.ABOUT_GALLERY_2),
       title: "Precision Milling",
-      desc: "Advanced CNC machinery ensures every joint and curve meets precise tolerances before hand assembly."
-    },
+      desc: "CNC-based milling processes are used to achieve accurate joinery, smooth profiles, and repeatable part geometry prior to assembly."
+    },    
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_3),
-      title: "Hand Finishing",
-      desc: "Despite our automation, the final touch is always human. Our artisans sand and finish every piece to perfection."
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_5), // Corrected to use the Automation Asset
+      title: "Production Automation",
+      desc: "Selective automation is applied in machining and finishing stages to improve consistency and throughput, while retaining flexibility for custom and mixed-order production."
     },
     {
       url: getAsset(ASSET_KEYS.ABOUT_GALLERY_4),
-      title: "Quality Control",
-      desc: "Rigorous inspection at every stage of production to guarantee durability and aesthetic consistency."
+      title: "Hand Finishing",
+      desc: "Manual sanding and finishing are applied where required to refine surfaces, edges, and transitions that benefit from human inspection and adjustment."
     },
     {
-      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_5),
-      title: "Smart Automation",
-      desc: "Integrating Industry 4.0 standards with automated finishing lines and robotic material handling for consistent, scalable output."
+      url: getAsset(ASSET_KEYS.ABOUT_GALLERY_3), // Swapped key to maintain list length if needed, or stick to QC
+      title: "Quality Control",
+      desc: "Quality checks are integrated across key production stages, including material intake, machining, finishing, and final inspection, to support durability and visual consistency."
     }
   ];
 
@@ -47,7 +47,7 @@ const About: React.FC = () => {
 
   const closeModal = () => setIsModalOpen(false);
 
-  const milestoneYears = ['2014', '2018', '2021', '2024'];
+  const milestoneYears = ['2014', '2018', '2021', '2024', '2025'];
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
@@ -186,9 +186,9 @@ const About: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             {/* Main Active Image */}
+             {/* Main Active Image - Fixed Height */}
              <div 
-                className="lg:col-span-2 relative min-h-[400px] lg:min-h-[500px] h-full bg-stone-100 group overflow-hidden cursor-zoom-in shadow-xl"
+                className="lg:col-span-2 relative h-[500px] lg:h-[600px] bg-stone-100 group overflow-hidden cursor-zoom-in shadow-xl"
                 onClick={() => openModal(activeImage)}
              >
                 <img 
@@ -203,15 +203,15 @@ const About: React.FC = () => {
              </div>
 
              {/* Thumbnails / List */}
-             <div className="flex flex-col justify-center space-y-4">
+             <div className="flex flex-col justify-center space-y-4 h-[600px] overflow-y-auto pr-2">
                 {galleryImages.map((img, idx) => (
                   <div 
                     key={idx}
                     onClick={() => setActiveImage(idx)}
-                    className={`p-6 cursor-pointer transition-all border-l-4 shadow-sm ${activeImage === idx ? 'border-amber-700 bg-white scale-105' : 'border-transparent bg-stone-50 hover:bg-stone-100'}`}
+                    className={`p-6 cursor-pointer transition-all border-l-4 shadow-sm ${activeImage === idx ? 'border-amber-700 bg-white' : 'border-transparent bg-stone-50 hover:bg-stone-100'}`}
                   >
                      <h4 className={`font-serif text-lg mb-1 ${activeImage === idx ? 'text-stone-900' : 'text-stone-500'}`}>{img.title}</h4>
-                     <p className="text-stone-600 text-xs mt-1 leading-relaxed">{img.desc}</p>
+                     <p className="text-stone-600 text-xs mt-1 leading-relaxed line-clamp-2">{img.desc}</p>
                   </div>
                 ))}
              </div>
@@ -234,7 +234,8 @@ const About: React.FC = () => {
              {/* Mobile Vertical Line */}
              <div className="md:hidden absolute top-0 bottom-0 left-[27px] w-[2px] bg-stone-200"></div>
 
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
+             {/* Updated Grid for 5 Columns */}
+             <div className="grid grid-cols-1 md:grid-cols-5 gap-12 md:gap-8">
                 {milestoneYears.map((year, idx) => {
                   const milestone = t.about.milestones[year];
                   return (
@@ -243,14 +244,18 @@ const About: React.FC = () => {
                       {/* Timeline Dot */}
                       <div className="absolute left-[20px] top-0 md:top-[20px] md:left-1/2 md:-translate-x-1/2 w-4 h-4 rounded-full bg-stone-50 border-[3px] border-stone-300 group-hover:border-amber-700 group-hover:scale-125 transition-all duration-300 z-10"></div>
 
-                      {/* Content Card */}
+                      {/* Content Card - Swapped Hierarchy */}
                       <div className="md:text-center transition-transform duration-500 group-hover:-translate-y-2">
-                         <span className="block text-4xl font-serif text-stone-300 group-hover:text-amber-700 transition-colors mb-3">
+                         {/* Year is now subtle/eyebrow */}
+                         <span className="block text-xs font-mono text-stone-400 mb-2 tracking-widest border border-stone-200 inline-block px-2 py-0.5 rounded-sm">
                            {year}
                          </span>
-                         <h4 className="text-stone-900 font-bold uppercase text-xs mb-3 tracking-widest">
+                         
+                         {/* Title is now dominant */}
+                         <h4 className="font-serif text-xl md:text-2xl text-stone-900 mb-4 group-hover:text-amber-700 transition-colors leading-tight">
                            {milestone.title}
                          </h4>
+
                          <p className="text-stone-600 text-sm leading-relaxed border-l-2 md:border-l-0 md:border-t-2 border-stone-100 pt-0 md:pt-4 pl-4 md:pl-0">
                            {milestone.desc}
                          </p>

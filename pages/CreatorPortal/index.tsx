@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, HardDrive, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, LayoutGrid, ArrowLeft } from 'lucide-react';
+import { Trash2, HardDrive, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, LayoutGrid, ArrowLeft, ImageMinus } from 'lucide-react';
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
@@ -14,6 +14,7 @@ import ProductList from './components/ProductList';
 import LivePreview from './components/LivePreview';
 import PageAssets from './components/PageAssets';
 import CollectionManager from './components/CollectionManager';
+import MediaTools from './components/MediaTools';
 
 // Helper: Calculate approx size of string in bytes
 const getStringSize = (str: string) => new Blob([str]).size;
@@ -27,7 +28,7 @@ const CreatorPortal: React.FC = () => {
   const { language } = useLanguage();
 
   // Mode Switching
-  const [activeTab, setActiveTab] = useState<'products' | 'collections' | 'assets'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'collections' | 'assets' | 'media'>('products');
 
   // UI States
   const [successMsg, setSuccessMsg] = useState('');
@@ -645,6 +646,12 @@ const CreatorPortal: React.FC = () => {
             >
                 <LayoutTemplate size={16} className="mr-2" /> Assets
             </button>
+            <button
+                onClick={() => setActiveTab('media')}
+                className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all whitespace-nowrap ${activeTab === 'media' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}
+            >
+                <ImageMinus size={16} className="mr-2" /> Media Tools
+            </button>
         </div>
 
         {/* Global Messages */}
@@ -728,6 +735,11 @@ const CreatorPortal: React.FC = () => {
             viewingHistoryKey={viewingHistoryKey}
             setViewingHistoryKey={setViewingHistoryKey}
           />
+        )}
+
+        {/* --- VIEW: MEDIA TOOLS --- */}
+        {activeTab === 'media' && (
+          <MediaTools />
         )}
 
       </div>

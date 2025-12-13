@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Edit2, Save, X, LayoutGrid } from 'lucide-react';
 import { Category } from '../../../types';
-import { useLanguage } from '../../../contexts/LanguageContext';
 import PZImageManager from './PZImageManager';
 
 interface CollectionManagerProps {
@@ -13,7 +12,6 @@ interface CollectionManagerProps {
 const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
-  const { language } = useLanguage();
 
   const handleEdit = (cat: Category) => {
     setEditingId(cat.id);
@@ -33,10 +31,10 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
         <h3 className="font-serif text-2xl text-stone-900 mb-2 flex items-center">
            <LayoutGrid className="mr-3 text-amber-700" size={24} />
-           {language === 'zh' ? '系列管理' : 'Collection Management'}
+           Collection Management
         </h3>
         <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
-          {language === 'zh' ? '管理系列的标题、描述及封面图片。' : 'Manage titles, descriptions, and cover images for your collections.'}
+          Manage titles, descriptions, and cover images for your collections.
         </p>
       </div>
 
@@ -72,7 +70,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                             onClick={() => handleEdit(cat)}
                             className="bg-white text-stone-900 px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-amber-400 transition-colors flex items-center"
                             >
-                            <Edit2 size={14} className="mr-2" /> {language === 'zh' ? '编辑系列' : 'Edit Collection'}
+                            <Edit2 size={14} className="mr-2" /> Edit Collection
                             </button>
                         </div>
                     </>
@@ -84,7 +82,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                 {isEditing ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">{language === 'zh' ? '标题 (EN)' : 'Title'}</label>
+                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Title</label>
                       <input 
                         type="text" 
                         value={editForm.title || ''}
@@ -93,7 +91,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">{language === 'zh' ? '描述 (EN)' : 'Description'}</label>
+                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Description</label>
                       <textarea 
                         rows={3}
                         value={editForm.description || ''}
@@ -107,7 +105,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                         onClick={handleSave}
                         className="flex-1 bg-amber-700 text-white py-2 text-xs font-bold uppercase tracking-widest hover:bg-amber-800 flex items-center justify-center"
                       >
-                        <Save size={14} className="mr-2" /> {language === 'zh' ? '保存' : 'Save'}
+                        <Save size={14} className="mr-2" /> Save
                       </button>
                       <button 
                         onClick={() => setEditingId(null)}
@@ -119,13 +117,13 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                   </div>
                 ) : (
                   <>
-                    <h3 className="font-serif text-xl text-stone-900 mb-1">{language === 'zh' ? cat.title_zh || cat.title : cat.title}</h3>
-                    <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">{language === 'zh' ? cat.subtitle_zh || cat.subtitle : cat.subtitle}</p>
+                    <h3 className="font-serif text-xl text-stone-900 mb-1">{cat.title}</h3>
+                    <p className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">{cat.subtitle}</p>
                     <p className="text-stone-500 text-xs leading-relaxed line-clamp-3 mb-4">
-                      {language === 'zh' ? cat.description_zh || cat.description : cat.description}
+                      {cat.description}
                     </p>
                     <div className="mt-auto pt-4 border-t border-stone-100 flex justify-between items-center text-[10px] text-stone-400 uppercase font-bold tracking-widest">
-                       <span>{cat.subCategories?.length || 0} {language === 'zh' ? '个子分类' : 'Sub-categories'}</span>
+                       <span>{cat.subCategories?.length || 0} Sub-categories</span>
                        <span>ID: {cat.id}</span>
                     </div>
                   </>

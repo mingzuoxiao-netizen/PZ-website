@@ -2,7 +2,6 @@
 import React from 'react';
 import { Save, Plus, Trash2, Loader2, CornerDownRight, Box, Ruler, Tag, Wand2 } from 'lucide-react';
 import PZImageManager from './PZImageManager';
-import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface ProductFormProps {
   formData: any;
@@ -29,8 +28,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
   mergedCategories, activeSubCategories,
   submitting, editingId, cancelEdit, triggerDelete, generateProductCode, onError
 }) => {
-  const { language } = useLanguage();
-
   // Helper to handle image updates
   const handleImagesUpdate = (newImages: string[]) => {
     setFormData((prev: any) => ({
@@ -47,7 +44,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center">
           <Loader2 size={48} className="text-[#a16207] animate-spin mb-4" />
           <span className="text-stone-900 font-bold uppercase tracking-widest">
-            {language === 'zh' ? '保存中...' : 'Saving...'}
+            Saving...
           </span>
         </div>
       )}
@@ -55,12 +52,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
       <div className="flex justify-between items-center mb-6">
         <h3 className="font-bold text-stone-900 uppercase tracking-widest text-sm">
           {editingId 
-            ? (language === 'zh' ? '编辑产品' : 'Edit Product') 
-            : (language === 'zh' ? '添加新产品' : 'Add New Product')}
+            ? 'Edit Product' 
+            : 'Add New Product'}
         </h3>
         {editingId && (
           <button onClick={cancelEdit} className="text-xs text-stone-400 hover:text-stone-900 underline">
-            {language === 'zh' ? '取消' : 'Cancel'}
+            Cancel
           </button>
         )}
       </div>
@@ -69,7 +66,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       
         {/* Status Selector */}
         <div className="bg-stone-50 p-4 border border-stone-200 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">{language === 'zh' ? '状态' : 'Status'}</label>
+          <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">Status</label>
           <div className="flex space-x-2">
             {['published', 'draft', 'archived'].map(s => (
               <button
@@ -82,7 +79,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   : 'bg-white text-stone-400 border-stone-200 hover:border-stone-400'
                 }`}
               >
-                {s === 'published' ? (language === 'zh' ? '发布' : 'Pub') : s === 'draft' ? (language === 'zh' ? '草稿' : 'Draft') : (language === 'zh' ? '归档' : 'Arch')}
+                {s === 'published' ? 'Pub' : s === 'draft' ? 'Draft' : 'Arch'}
               </button>
             ))}
           </div>
@@ -92,7 +89,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="space-y-4 bg-stone-50 p-6 rounded-sm border border-stone-100">
           <div className="flex justify-between items-end mb-2">
             <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-              {language === 'zh' ? '主分类' : 'Main Category'}
+              Main Category
             </label>
             {!editingId && (
               <button 
@@ -104,8 +101,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingCategory ? 'text-red-500' : 'text-amber-700'}`}
               >
                 {isCreatingCategory 
-                  ? (language === 'zh' ? '取消新建' : 'Cancel New') 
-                  : (language === 'zh' ? '+ 新建分类' : '+ Create New')}
+                  ? 'Cancel New' 
+                  : '+ Create New'}
               </button>
             )}
           </div>
@@ -114,17 +111,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
             <div className="space-y-3 animate-fade-in-up">
               <input 
                 type="text"
-                placeholder={language === 'zh' ? "新分类名称 (英文)" : "New Category Name (EN)"}
+                placeholder="New Category Name"
                 className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
                 value={formData.newCatTitle}
                 onChange={e => setFormData((prev: any) => ({...prev, newCatTitle: e.target.value}))}
-              />
-              <input 
-                type="text"
-                placeholder={language === 'zh' ? "新分类名称 (中文)" : "New Category Name (ZH)"}
-                className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
-                value={formData.newCatTitleZh}
-                onChange={e => setFormData((prev: any) => ({...prev, newCatTitleZh: e.target.value}))}
               />
             </div>
           ) : (
@@ -135,7 +125,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             >
               {mergedCategories?.map((c: any) => (
                 <option key={c.id} value={c.id}>
-                  {language === 'zh' ? c.title_zh || c.title : c.title}
+                  {c.title}
                 </option>
               ))}
             </select>
@@ -144,7 +134,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <div className="mt-6">
             <div className="flex justify-between items-end mb-2 pl-4 border-l-2 border-stone-200">
               <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-                <CornerDownRight size={12} className="mr-2" /> {language === 'zh' ? '子分类' : 'Sub-Category'}
+                <CornerDownRight size={12} className="mr-2" /> Sub-Category
               </label>
               {!editingId && !isCreatingCategory && (
                 <button 
@@ -153,8 +143,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingSubCategory ? 'text-red-500' : 'text-amber-700'}`}
                 >
                   {isCreatingSubCategory 
-                    ? (language === 'zh' ? '取消新建' : 'Cancel New') 
-                    : (language === 'zh' ? '+ 新建子分类' : '+ Create New')}
+                    ? 'Cancel New' 
+                    : '+ Create New'}
                 </button>
               )}
             </div>
@@ -163,17 +153,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
               <div className="space-y-3 pl-4 border-l-2 border-amber-200 animate-fade-in-up">
                 <input 
                   type="text"
-                  placeholder={language === 'zh' ? "新子分类 (英文)" : "New Sub-Category (EN)"}
+                  placeholder="New Sub-Category Name"
                   className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
                   value={formData.newSubName}
                   onChange={e => setFormData((prev: any) => ({...prev, newSubName: e.target.value}))}
-                />
-                <input 
-                  type="text"
-                  placeholder={language === 'zh' ? "新子分类 (中文)" : "New Sub-Category (ZH)"}
-                  className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
-                  value={formData.newSubNameZh}
-                  onChange={e => setFormData((prev: any) => ({...prev, newSubNameZh: e.target.value}))}
                 />
               </div>
             ) : (
@@ -185,7 +168,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 >
                   {activeSubCategories?.map((sc: any, idx: number) => (
                     <option key={idx} value={sc.name}>
-                      {language === 'zh' ? sc.name_zh || sc.name : sc.name}
+                      {sc.name}
                     </option>
                   ))}
                 </select>
@@ -198,7 +181,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-2">
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {language === 'zh' ? '产品名称 (EN)' : 'Product Name'} <span className="text-red-400">*</span>
+              Product Name <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
@@ -209,29 +192,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
               placeholder="e.g., Zenith Dining Table"
             />
           </div>
-          <div className="col-span-2">
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {language === 'zh' ? '产品名称 (中文) - 选填' : 'Product Name (ZH) - Optional'}
-            </label>
-            <input
-              type="text"
-              value={formData.name_zh}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, name_zh: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="例如：Zenith 餐桌"
-            />
-          </div>
         </div>
 
         {/* SPECIFICATIONS */}
         <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
           <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 mb-4 border-b border-stone-200 pb-2">
-            {language === 'zh' ? '规格参数' : 'Specifications'}
+            Specifications
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="md:col-span-1 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Box size={10} className="mr-1"/> {language === 'zh' ? '材质' : 'Material'}
+                <Box size={10} className="mr-1"/> Material
               </label>
               <input 
                 type="text" 
@@ -243,7 +214,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </div>
             <div className="md:col-span-1 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Ruler size={10} className="mr-1"/> {language === 'zh' ? '尺寸' : 'Dimensions'}
+                <Ruler size={10} className="mr-1"/> Dimensions
               </label>
               <input 
                 type="text" 
@@ -255,7 +226,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </div>
             <div className="md:col-span-2 lg:col-span-1">
               <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Tag size={10} className="mr-1"/> {language === 'zh' ? '产品编号' : 'Product Code'}
+                <Tag size={10} className="mr-1"/> Product Code
               </label>
               <div className="flex">
                 <input 
@@ -282,7 +253,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <div className="grid grid-cols-1 gap-6">
           <div>
             <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {language === 'zh' ? '描述 (EN)' : 'Description'}
+              Description
             </label>
             <textarea
               rows={3}
@@ -292,23 +263,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
               placeholder="Short product description..."
             />
           </div>
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {language === 'zh' ? '描述 (中文) - 选填' : 'Description (ZH) - Optional'}
-            </label>
-            <textarea
-              rows={3}
-              value={formData.description_zh}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, description_zh: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="简短的产品描述..."
-            />
-          </div>
         </div>
 
         {/* New Unified Image Manager (Multi Mode) with 4:3 Crop Enforcement */}
         <PZImageManager
-          label={language === 'zh' ? '产品图片 (第一张为主图)' : 'Product Images (First is Main)'}
+          label="Product Images (First is Main)"
           images={formData.images || []}
           onUpdate={handleImagesUpdate}
           onError={onError}
@@ -322,7 +281,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               type="button"
               onClick={() => triggerDelete(editingId)}
               className="flex-none w-14 bg-red-100 text-red-600 font-bold uppercase tracking-widest py-4 hover:bg-red-200 transition-colors flex justify-center items-center rounded-sm"
-              title={language === 'zh' ? '删除产品' : 'Delete Product'}
+              title="Delete Product"
             >
               <Trash2 size={18} />
             </button>
@@ -336,14 +295,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
             `}
           >
             {submitting ? (
-              language === 'zh' ? '处理中...' : 'Processing...'
+              'Processing...'
             ) : (
               <>
                 {editingId 
-                    ? (language === 'zh' ? '更新产品' : 'Update Product') 
+                    ? 'Update Product'
                     : (formData.status === 'draft' 
-                        ? (language === 'zh' ? '保存草稿' : 'Save Draft')
-                        : (language === 'zh' ? '发布产品' : 'Publish Product')
+                        ? 'Save Draft'
+                        : 'Publish Product'
                       )
                 }
                 {editingId ? <Save size={16} className="ml-2" /> : <Plus size={16} className="ml-2 group-hover:rotate-90 transition-transform" />}

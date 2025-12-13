@@ -16,7 +16,6 @@
 import React, { useRef, useState } from 'react';
 import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText } from 'lucide-react';
 import { deleteImageFromR2, CDN_DOMAIN, processImage } from '../../../utils/imageHelpers';
-import { useLanguage } from '../../../contexts/LanguageContext';
 import { adminFetch } from '../../../utils/adminFetch';
 
 interface PZImageManagerProps {
@@ -40,7 +39,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   aspectRatio,
   accept = "image/*"
 }) => {
-  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState({ current: 0, total: 0 });
@@ -70,7 +68,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     if (!fileList?.length) return;
 
     if (!isSingleMode && images.length + fileList.length > maxImages) {
-      onError(language === 'zh' ? `最多上传 ${maxImages} 个文件` : `Max ${maxImages} files allowed`);
+      onError(`Max ${maxImages} files allowed`);
       return;
     }
 
@@ -93,7 +91,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
       // 20MB limit for images, maybe larger for PDF? Keeping 20MB for now.
       if (file.size > 20 * 1024 * 1024) {
-        onError(language === 'zh' ? `文件过大: ${file.name}` : `File too large: ${file.name}`);
+        onError(`File too large: ${file.name}`);
         continue;
       }
 
@@ -114,11 +112,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
       } catch (err: any) {
         console.error('Upload error:', err);
-        onError(
-          language === 'zh'
-            ? `上传失败: ${file.name}（错误: ${err.message}）`
-            : `Failed to upload ${file.name} (Server: ${err.message})`
-        );
+        onError(`Failed to upload ${file.name} (Server: ${err.message})`);
       }
 
       setUploadStatus({ current: i + 1, total: fileList.length });
@@ -182,7 +176,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           <span>{label} {!isSingleMode && <span className="text-stone-400">({images.length})</span>}</span>
           {aspectRatio && accept.startsWith('image') && (
               <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded flex items-center">
-                  <Crop size={10} className="mr-1"/> {language === 'zh' ? '自动裁剪' : 'Auto-Crop Active'}
+                  <Crop size={10} className="mr-1"/> Auto-Crop Active
               </span>
           )}
         </label>
@@ -218,13 +212,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               onClick={() => fileInputRef.current?.click()}
               className="bg-white px-4 py-2 text-xs font-bold uppercase hover:bg-amber-200"
             >
-              <RefreshCw size={14} className="inline-block mr-2" /> {language === 'zh' ? '替换' : 'Replace'}
+              <RefreshCw size={14} className="inline-block mr-2" /> Replace
             </button>
             <button
               onClick={() => removeImage(0)}
               className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700"
             >
-              <X size={14} className="inline-block mr-2" /> {language === 'zh' ? '删除' : 'Remove'}
+              <X size={14} className="inline-block mr-2" /> Remove
             </button>
           </div>
 
@@ -253,23 +247,23 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               <>
                 <Loader2 size={28} className="animate-spin mx-auto text-amber-600" />
                 <p className="text-xs mt-2 text-stone-500 font-bold">
-                  {language === 'zh' ? `正在上传 ${uploadStatus.current}/${uploadStatus.total}...` : `Uploading ${uploadStatus.current}/${uploadStatus.total}...`}
+                  Uploading {uploadStatus.current}/{uploadStatus.total}...
                 </p>
               </>
             ) : (
               <>
                 <Upload size={28} className="mx-auto text-stone-400" />
                 <p className="text-xs text-stone-500 font-bold mt-2">
-                  {language === 'zh' ? '点击或拖放上传' : 'Click or Drag to Upload'}
+                  Click or Drag to Upload
                 </p>
                 {aspectRatio && accept.startsWith('image') && (
                     <p className="text-[10px] text-stone-400 mt-1 italic">
-                        {language === 'zh' ? '图片将自动居中裁剪' : 'Images auto-cropped to fit'}
+                        Images auto-cropped to fit
                     </p>
                 )}
                 {!accept.startsWith('image') && (
                     <p className="text-[10px] text-stone-400 mt-1 italic">
-                        {language === 'zh' ? '支持 PDF 文件' : 'PDF files supported'}
+                        PDF files supported
                     </p>
                 )}
               </>
@@ -297,7 +291,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
                   {idx === 0 && (
                     <div className="absolute top-0 left-0 bg-amber-600 text-white text-[10px] px-2 py-1 uppercase">
-                      {language === 'zh' ? '主文件' : 'Main'}
+                      Main
                     </div>
                   )}
 

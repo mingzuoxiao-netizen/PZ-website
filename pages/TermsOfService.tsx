@@ -19,7 +19,7 @@ const TermsOfService: React.FC = () => {
             <section>
                 <h2 className="font-serif text-2xl text-stone-900 mb-4">1. Agreement to Terms</h2>
                 <p>
-                    These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and PZ Precision Woodworks ("we," "us," or "our"), concerning your access to and use of our website. By accessing the site, you acknowledge that you have read, understood, and agree to be bound by all of these Terms of Service.
+                    These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and PZ ("we," "us," or "our"), concerning your access to and use of our website. By accessing the site, you acknowledge that you have read, understood, and agree to be bound by all of these Terms of Service.
                 </p>
             </section>
 
@@ -39,7 +39,7 @@ const TermsOfService: React.FC = () => {
                     We make every effort to display as accurately as possible the colors, features, specifications, and details of the products available on the Site. However, we do not guarantee that the colors, features, specifications, and details of the products will be accurate, complete, reliable, current, or free of other errors, and your electronic display may not accurately reflect the actual colors and details of the products.
                 </p>
                 <p className="mb-4">
-                    All products manufactured by PZ Precision Woodworks are subject to availability, and we cannot guarantee that items will be in stock. We reserve the right to discontinue any products at any time for any reason. Prices for all products are subject to change.
+                    All products manufactured by PZ are subject to availability, and we cannot guarantee that items will be in stock. We reserve the right to discontinue any products at any time for any reason. Prices for all products are subject to change.
                 </p>
             </section>
 
@@ -53,7 +53,7 @@ const TermsOfService: React.FC = () => {
             <section>
                 <h2 className="font-serif text-2xl text-stone-900 mb-4">5. Governing Law</h2>
                 <p>
-                    These Terms shall be governed by and defined following the laws of The People's Republic of China. PZ Precision Woodworks and yourself irrevocably consent that the courts of China shall have exclusive jurisdiction to resolve any dispute which may arise in connection with these terms.
+                    These Terms shall be governed by and defined following the laws of The People's Republic of China. PZ and yourself irrevocably consent that the courts of China shall have exclusive jurisdiction to resolve any dispute which may arise in connection with these terms.
                 </p>
             </section>
 

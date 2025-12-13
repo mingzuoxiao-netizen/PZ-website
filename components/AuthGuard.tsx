@@ -203,7 +203,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                          `}>
                              <KeyRound size={28} className={`transition-transform duration-700 ${animStage === 'verifying' ? 'rotate-180' : ''}`} />
                          </div>
-                         <h1 className="font-serif text-2xl text-[#e7e5e4] tracking-tight mb-2">PZ Precision</h1>
+                         <h1 className="font-serif text-2xl text-[#e7e5e4] tracking-tight mb-2">PZ</h1>
                          <p className="text-[#a8a29e] text-[10px] uppercase tracking-[0.3em]">Restricted Access</p>
                     </div>
 

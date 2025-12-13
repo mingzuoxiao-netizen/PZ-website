@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Search, PenSquare, Trash2, Eye, FileText, Archive, Copy } from 'lucide-react';
-import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface ProductListProps {
   items: any[];
@@ -14,7 +13,6 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDuplicate, editingId, searchQuery, setSearchQuery }) => {
-  const { language } = useLanguage();
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -39,11 +37,11 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
             <h3 className="font-serif text-2xl text-stone-900 flex items-center">
-            {language === 'zh' ? '管理已上传' : 'Manage Inventory'}
+            Manage Inventory
             <span className="ml-3 text-xs text-white bg-stone-900 font-sans font-bold px-2 py-0.5 rounded-full">{items?.length || 0}</span>
             </h3>
             <p className="text-stone-500 text-sm mt-1">
-                {language === 'zh' ? '搜索并管理您的库存产品。' : 'Search and manage your product inventory.'}
+                Search and manage your product inventory.
             </p>
         </div>
 
@@ -51,7 +49,7 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
             <input 
             type="text" 
-            placeholder={language === 'zh' ? "搜索库存..." : "Search inventory..."}
+            placeholder="Search inventory..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-stone-50 border border-stone-200 pl-11 pr-4 py-3 text-sm text-stone-700 focus:outline-none focus:border-[#a16207] shadow-sm transition-all rounded-sm"
@@ -64,7 +62,7 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
             {!items || items.length === 0 ? (
             <div className="p-12 text-center">
                 <Search size={32} className="mx-auto text-stone-300 mb-3" />
-                <p className="text-stone-400 text-sm">{language === 'zh' ? '暂无内容' : 'No items found'}</p>
+                <p className="text-stone-400 text-sm">No items found</p>
             </div>
             ) : (
             <div className="divide-y divide-stone-100">
@@ -87,11 +85,11 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
                     <div className="flex-1 min-w-0 mr-4">
                         <div className="flex items-center mb-1 flex-wrap gap-2">
                         <h4 className={`text-sm font-bold truncate ${editingId === item.id ? 'text-amber-800' : 'text-stone-900'}`}>
-                            {language === 'zh' ? (item.name_zh || item.name) : item.name}
+                            {item.name}
                         </h4>
                         <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase font-bold flex items-center ${getStatusColor(item.status)}`}>
                             {getStatusIcon(item.status)}
-                            {item.status === 'published' ? (language === 'zh'?'已发布':'Pub') : item.status === 'archived' ? (language === 'zh'?'已归档':'Arch') : (language === 'zh'?'草稿':'Draft')}
+                            {item.status === 'published' ? 'Pub' : item.status === 'archived' ? 'Arch' : 'Draft'}
                         </span>
                         </div>
                         <div className="flex items-center text-[10px] text-stone-500 space-x-3">
@@ -105,14 +103,14 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
                         <button 
                         onClick={() => onDuplicate(item)}
                         className="p-2 rounded transition-colors text-stone-400 hover:text-blue-600 hover:bg-blue-50"
-                        title={language === 'zh' ? '复制并创建变体' : 'Duplicate / Create Variant'}
+                        title="Duplicate / Create Variant"
                         >
                         <Copy size={18} />
                         </button>
                         <button 
                         onClick={() => onEdit(item)}
                         className={`p-2 rounded transition-colors ${editingId === item.id ? 'bg-amber-200 text-amber-800' : 'text-stone-400 hover:text-[#a16207] hover:bg-amber-50'}`}
-                        title={language === 'zh' ? '编辑' : 'Edit'}
+                        title="Edit"
                         disabled={editingId === item.id}
                         >
                         <PenSquare size={18} />
@@ -120,7 +118,7 @@ const ProductList: React.FC<ProductListProps> = ({ items, onEdit, onDelete, onDu
                         <button 
                         onClick={() => onDelete(item.id)}
                         className="text-stone-400 hover:text-red-600 hover:bg-red-50 p-2 rounded transition-colors"
-                        title={language === 'zh' ? '删除' : 'Delete'}
+                        title="Delete"
                         >
                         <Trash2 size={18} />
                         </button>
