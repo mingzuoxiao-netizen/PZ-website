@@ -73,34 +73,39 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
   return (
     <div className="animate-fade-in pb-20">
       
-      {/* Header / Sticky Actions */}
-      <div className="bg-white p-6 border border-stone-200 shadow-sm mb-8 sticky top-24 z-30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* 
+          UX Optimization: Sticky Toolbar 
+          - Fixed top at 90px (Header height)
+          - Negative margins to extend to container edges
+          - Backdrop blur and border-b for "docked" feel
+      */}
+      <div className="bg-white/95 backdrop-blur-md border-y border-stone-200 shadow-sm mb-8 sticky top-[90px] z-40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 px-6 -mx-6 md:-mx-12 md:px-12 transition-all duration-300">
         <div>
             <h3 className="font-serif text-2xl text-stone-900">Site Configuration</h3>
             <p className="text-stone-500 text-sm">Manage global content, hero images, and page sections.</p>
         </div>
         
         {/* Info Banner */}
-        <div className="flex items-center space-x-6">
-            <div className="hidden md:block text-right">
-                <div className="text-xs text-stone-400 font-bold uppercase tracking-widest mb-1">Current Version</div>
-                <div className="text-stone-900 font-mono text-sm">
-                    {meta?.version ? `v${meta.version}` : 'Legacy'}
+        <div className="flex items-center space-x-6 w-full md:w-auto justify-between md:justify-end">
+            <div className="hidden lg:block text-right">
+                <div className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Current Version</div>
+                <div className="text-stone-900 font-mono text-xs bg-stone-100 px-2 py-1 rounded">
+                    {meta?.version ? `v${meta.version.substring(0,8)}...` : 'Legacy'}
                 </div>
             </div>
             
-            <div className="hidden md:block text-right border-l border-stone-200 pl-6">
-                <div className="text-xs text-stone-400 font-bold uppercase tracking-widest mb-1">Last Published</div>
-                <div className="text-stone-900 font-mono text-sm flex items-center justify-end">
+            <div className="hidden lg:block text-right border-l border-stone-200 pl-6">
+                <div className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Last Published</div>
+                <div className="text-stone-900 font-mono text-xs flex items-center justify-end">
                     <Clock size={12} className="mr-1.5 opacity-50"/>
-                    {meta?.published_at ? new Date(meta.published_at).toLocaleString() : 'Unknown'}
+                    {meta?.published_at ? new Date(meta.published_at).toLocaleDateString() : '-'}
                 </div>
             </div>
 
             <button
                 onClick={onSave}
                 disabled={isSaving || rollingBack}
-                className="flex items-center bg-amber-700 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-amber-800 transition-colors shadow-md disabled:opacity-50"
+                className="flex items-center bg-amber-700 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-amber-800 transition-colors shadow-md disabled:opacity-50 ml-auto md:ml-0"
             >
                 {isSaving ? <RefreshCw size={16} className="animate-spin mr-2"/> : <Save size={16} className="mr-2"/>}
                 {isSaving ? "Publishing..." : "Publish Changes"}

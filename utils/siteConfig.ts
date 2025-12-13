@@ -6,8 +6,8 @@ import { DEFAULT_ASSETS } from './assets';
    API
 ========================= */
 
-export const API_BASE =
-  "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+// ✅ CONFIRMED: Worker URL
+export const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
 /* =========================
    Constants
@@ -99,7 +99,6 @@ export const DEFAULT_CONFIG: SiteConfig = {
 ========================= */
 
 // Returns either the raw config (legacy) or the Envelope (new)
-// The consumer must check the structure
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
     const res = await fetch(`${API_BASE}/site-config`, {

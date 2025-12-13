@@ -1,5 +1,8 @@
-export const ADMIN_API_BASE =
-  "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+
+import { API_BASE } from './siteConfig';
+
+// ✅ Link to the single source of truth
+export const ADMIN_API_BASE = API_BASE;
 
 export const ADMIN_SESSION_KEY = "pz_admin_token";
 
@@ -20,16 +23,17 @@ export async function adminFetch<T = any>(
     ...(customConfig.headers || {}),
   };
 
-  // ✅ 只在非 FormData 时设置 Content-Type
+  // ✅ Only set JSON content type if NOT FormData (file upload)
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
-  // ✅ 标准 Bearer 鉴权（唯一需要的）
+  // ✅ Standard Bearer Auth
   if (!skipAuth && token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Construct URL, ensuring endpoint is appended correctly to base
   let url = endpoint.startsWith("http")
     ? endpoint
     : `${ADMIN_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;

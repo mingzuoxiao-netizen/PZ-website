@@ -1,16 +1,6 @@
 
 // ============================================================
 //  PZImageManager — Enterprise Image & File Upload Manager
-//  Features:
-//  ✔ Multi-file upload
-//  ✔ Single-file mode
-//  ✔ Drag & drop upload
-//  ✔ Support for PDF documents (New)
-//  ✔ Auto-delete from Cloudflare R2
-//  ✔ Strictly Cloud Upload (no local fallback)
-//  ✔ Full CDN URL support
-//  ✔ Upload progress (x / y)
-//  ✔ Auto-Crop to Aspect Ratio (Images Only)
 // ============================================================
 
 import React, { useRef, useState } from 'react';
@@ -99,7 +89,8 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
       formData.append('file', file);
 
       try {
-        // ✅ Unified adminFetch Call
+        // ✅ Correct Endpoint: /upload-image (No /api prefix)
+        // adminFetch automatically appends this to API_BASE + includes Auth header
         const data = await adminFetch('/upload-image', {
           method: 'POST',
           body: formData,
