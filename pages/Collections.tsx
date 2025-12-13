@@ -1,89 +1,24 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, Factory, MapPin, FileText, ArrowRight, Loader2 } from 'lucide-react';
 import { Category, SubCategory, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ASSET_KEYS } from '../utils/assets';
-import { useCloudAssets, fetchInventory, fetchStructure } from '../utils/siteConfig';
+import { useCloudAssets } from '../utils/siteConfig';
 
 const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
   const location = useLocation();
   const assets = useCloudAssets(); // Use Hook
 
   const catalogPdfUrl = assets[ASSET_KEYS.CATALOG_DOCUMENT];
 
-  // State for merged data
+  // State for merged data - currently just static as Legacy API is deprecated
   const [mergedCategories, setMergedCategories] = useState<Category[]>(staticCategories);
-
-  // --- ASYNC DATA LOADING ---
-  useEffect(() => {
-    async function loadData() {
-        try {
-            const [cloudStructure, cloudInventory] = await Promise.all([
-                fetchStructure(),
-                fetchInventory()
-            ]);
-
-            const combined = JSON.parse(JSON.stringify(staticCategories)) as Category[];
-            
-            // 1. Merge Structure Overrides
-            if (Array.isArray(cloudStructure)) {
-                cloudStructure.forEach((customCat: Category) => {
-                    const existingIdx = combined.findIndex((c) => c.id === customCat.id);
-                    if (existingIdx > -1) {
-                        const existingCat = combined[existingIdx];
-                        // Merge subcategories safely
-                        customCat.subCategories.forEach((newSub: SubCategory) => {
-                            if (!existingCat.subCategories.find((s) => s.name === newSub.name)) {
-                                existingCat.subCategories.push(newSub);
-                            }
-                        });
-                        // Override top-level fields if customized
-                        if (customCat.title) existingCat.title = customCat.title;
-                        if (customCat.image) existingCat.image = customCat.image;
-                        if (customCat.description) existingCat.description = customCat.description;
-                    } else {
-                        combined.push(customCat);
-                    }
-                });
-            }
-
-            // 2. Inject Inventory Items
-            if (Array.isArray(cloudInventory) && cloudInventory.length > 0) {
-                cloudInventory.forEach((item: any) => {
-                    const cat = combined.find(c => c.id === item.categoryId);
-                    if (cat) {
-                        const sub = cat.subCategories.find(s => s.name === item.subCategoryName);
-                        if (sub) {
-                            if (!sub.variants) sub.variants = [];
-                            // Add custom item to the beginning
-                            sub.variants.unshift({
-                                ...item,
-                                name: item.name,
-                                description: item.description,
-                                image: item.image,
-                                images: item.images
-                            });
-                        }
-                    }
-                });
-            }
-
-            setMergedCategories(combined);
-        } catch (e) {
-            console.error("CMS Load Failed:", e);
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    loadData();
-  }, []);
 
   // Helper: Flatten logic to get products by Category ID
   const getProductsByCategory = (catIds: string[], limit?: number, offset: number = 0) => {
@@ -150,7 +85,7 @@ const Portfolio: React.FC = () => {
   ];
 
   return (
-    <div className="pt-24 bg-white min-h-screen">
+    <div className="pt-24 md:pt-32 bg-white min-h-screen">
       
       {!activeProduct && (
         <section className="bg-stone-50 border-b border-stone-200 py-16 relative overflow-hidden">

@@ -79,20 +79,9 @@ const CreatorPortal: React.FC = () => {
   const saveToCloud = async (key: string, data: any) => {
     localStorage.setItem(key, JSON.stringify(data));
     
-    if (cloudStatus === 'connected') {
-        setIsSyncing(true);
-        try {
-            await adminFetch('/storage', {
-                method: 'POST',
-                body: JSON.stringify({ key, value: JSON.stringify(data) })
-            });
-        } catch (e) {
-            console.error(`Cloud save failed for ${key}`, e);
-            setErrorMsg('Saved locally, but Cloud Sync failed.');
-        } finally {
-            setIsSyncing(false);
-        }
-    }
+    // NOTE: Legacy Key-Value Storage is deprecated on backend.
+    // Saving locally only for now until Product API is ready.
+    // Cloud sync check skipped to avoid 404s.
     return true;
   };
 
@@ -134,32 +123,15 @@ const CreatorPortal: React.FC = () => {
   const loadFromCloud = async () => {
       setIsSyncing(true);
       try {
-          // Fetch storage keys and Site Config
-          const [invRes, structRes, siteConfigRes] = await Promise.allSettled([
-              adminFetch('/storage/pz_custom_inventory'),
-              adminFetch('/storage/pz_custom_structure'),
-              fetchSiteConfig() // Uses /site-config endpoint
-          ]);
+          // Fetch Site Config Only (Legacy storage endpoints removed)
+          const siteConfigRes = await fetchSiteConfig();
 
-          // Process Storage Keys
-          const processKV = (res: any, key: string) => {
-              if (res.status === 'fulfilled' && res.value && res.value.value) {
-                  localStorage.setItem(key, res.value.value);
-                  return JSON.parse(res.value.value);
-              }
-              const local = localStorage.getItem(key);
-              return local ? JSON.parse(local) : null;
-          };
-
-          const inventory = processKV(invRes, 'pz_custom_inventory') || [];
-          const structure = processKV(structRes, 'pz_custom_structure') || [];
-          
           // Process Site Config
           let config = DEFAULT_CONFIG;
           let meta = null;
 
-          if (siteConfigRes.status === 'fulfilled' && siteConfigRes.value) {
-              const data = siteConfigRes.value;
+          if (siteConfigRes) {
+              const data = siteConfigRes;
               
               if ('version' in data && 'config' in data) {
                   // It's an Envelope
@@ -170,7 +142,7 @@ const CreatorPortal: React.FC = () => {
                   config = { ...DEFAULT_CONFIG, ...data };
               }
               
-              localStorage.setItem(SITE_CONFIG_STORAGE_KEY, JSON.stringify(siteConfigRes.value));
+              localStorage.setItem(SITE_CONFIG_STORAGE_KEY, JSON.stringify(siteConfigRes));
           } else {
               // Fallback to local
               const localRaw = localStorage.getItem(SITE_CONFIG_STORAGE_KEY);
@@ -185,6 +157,10 @@ const CreatorPortal: React.FC = () => {
               }
           }
 
+          // Load Inventory/Structure from LocalStorage ONLY (Legacy API Deprecated)
+          const inventory = JSON.parse(localStorage.getItem('pz_custom_inventory') || '[]');
+          const structure = JSON.parse(localStorage.getItem('pz_custom_structure') || '[]');
+
           setCloudStatus('connected');
           return { inventory, structure, config, meta };
 
@@ -192,7 +168,6 @@ const CreatorPortal: React.FC = () => {
           console.warn("Cloud load failed, falling back to local", e);
           setCloudStatus('offline');
           
-          // Local fallback logic
           const localRaw = localStorage.getItem(SITE_CONFIG_STORAGE_KEY);
           let config = DEFAULT_CONFIG;
           let meta = null;
@@ -274,10 +249,9 @@ const CreatorPortal: React.FC = () => {
         if (index > -1) {
             customStructure[index] = { ...customStructure[index], ...updatedCat };
         } 
-        // Note: Logic for new category handling in this view is limited, mainly used for edits
-
+        
         await saveToCloud('pz_custom_structure', customStructure);
-        setSuccessMsg('Collection Info Updated');
+        setSuccessMsg('Collection Info Updated (Local Only)');
         setTimeout(() => setSuccessMsg(''), 3000);
         initData();
     } catch (e) {
@@ -286,9 +260,6 @@ const CreatorPortal: React.FC = () => {
     }
   };
 
-  // ... (Product Logic remains largely the same, trimmed for brevity in this response but kept in file) ...
-  // [Preserving handleEditItem, handleDuplicateItem, cancelEdit, triggerDelete, confirmDelete, etc.]
-  
   const handleEditItem = (item: any) => {
     setEditingId(item.id);
     setActiveTab('products');
@@ -361,7 +332,6 @@ const CreatorPortal: React.FC = () => {
         const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
         const customStructure: Category[] = JSON.parse(rawStructure);
 
-        // [Logic for Creating Categories/SubCategories - Same as previous]
         if (isCreatingCategory) {
             finalCategoryId = `custom_${Date.now()}`;
             const newCat: Category = {
@@ -383,7 +353,6 @@ const CreatorPortal: React.FC = () => {
         } else if (isCreatingSubCategory) {
             let targetCat = customStructure.find(c => c.id === finalCategoryId);
             if (!targetCat) {
-                 // Clone static if customized
                  const staticCat = staticCategories.find(c => c.id === finalCategoryId);
                  if (staticCat) {
                      targetCat = { ...staticCat, subCategories: [] };
@@ -454,6 +423,7 @@ const CreatorPortal: React.FC = () => {
     try {
         if (deletedItem && Array.isArray(deletedItem.images)) {
             const keys = deletedItem.images.map((url: string) => url.replace(CDN_DOMAIN, "").replace(/^\/+/, ""));
+            // Delete images from cloud still works as that endpoint exists
             await adminFetch('/delete-images', { method: "POST", body: JSON.stringify({ keys }) });
         }
         const updatedList = localItems.filter(item => item.id !== id);
@@ -498,7 +468,7 @@ const CreatorPortal: React.FC = () => {
                 </div>
                 <div className="ml-3">
                     <h3 className={`text-sm font-bold uppercase tracking-widest ${cloudStatus === 'connected' ? 'text-green-800' : 'text-amber-800'}`}>
-                        {cloudStatus === 'connected' ? 'Cloud Database Connected' : 'Local Mode'}
+                        {cloudStatus === 'connected' ? 'Site Config Connected' : 'Local Mode'}
                     </h3>
                 </div>
             </div>
@@ -522,7 +492,6 @@ const CreatorPortal: React.FC = () => {
             <button onClick={() => setActiveTab('collections')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'collections' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <LayoutGrid size={16} className="mr-2" /> Collections
             </button>
-            {/* UPDATED TAB NAME */}
             <button onClick={() => setActiveTab('config')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'config' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <LayoutTemplate size={16} className="mr-2" /> Site Config
             </button>

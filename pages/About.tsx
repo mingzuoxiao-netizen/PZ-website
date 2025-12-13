@@ -62,7 +62,7 @@ const About: React.FC = () => {
   const milestoneYears = ['2014', '2018', '2021', '2024', '2025'];
 
   return (
-    <div className="bg-stone-50 min-h-screen pt-32 pb-20">
+    <div className="bg-stone-50 min-h-screen pt-24 md:pt-32 pb-20">
       {/* Modal Gallery Overlay */}
       {isModalOpen && (
         <div 

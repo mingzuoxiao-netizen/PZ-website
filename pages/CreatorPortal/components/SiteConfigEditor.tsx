@@ -71,15 +71,18 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
   if (!config) return <div className="p-8 text-center text-stone-400">Loading Configuration...</div>;
 
   return (
-    <div className="animate-fade-in pb-20">
+    <div className="animate-fade-in pb-20 relative">
       
       {/* 
-          UX Optimization: Sticky Toolbar 
-          - Fixed top at 90px (Header height)
-          - Negative margins to extend to container edges
-          - Backdrop blur and border-b for "docked" feel
+          UX Optimization: Fixed Sticky Header 
+          - Using sticky with explicit top value corresponding to header height (90px)
+          - High z-index to stay above content
+          - Solid white background to prevent transparency overlap issues
       */}
-      <div className="bg-white/95 backdrop-blur-md border-y border-stone-200 shadow-sm mb-8 sticky top-[90px] z-40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4 px-6 -mx-6 md:-mx-12 md:px-12 transition-all duration-300">
+      <div 
+        className="sticky top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white border-b border-stone-200 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+        style={{ marginTop: '-1px' }} // Tiny offset to lock in
+      >
         <div>
             <h3 className="font-serif text-2xl text-stone-900">Site Configuration</h3>
             <p className="text-stone-500 text-sm">Manage global content, hero images, and page sections.</p>

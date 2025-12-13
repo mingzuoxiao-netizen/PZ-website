@@ -112,49 +112,17 @@ export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope
   }
 }
 
+// ⚠️ LEGACY APIs DEPRECATED - Returning null to prevent 404s until new Product API is ready
 export async function fetchInventory(): Promise<any[] | null> {
-  try {
-    const res = await fetch(`${API_BASE}/storage/pz_custom_inventory`, {
-      cache: "no-store",
-      method: "GET",
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.value ? JSON.parse(json.value) : null;
-  } catch (error) {
-    console.warn("CMS: Failed to load inventory", error);
-    return null;
-  }
+  return null; 
 }
 
 export async function fetchStructure(): Promise<any[] | null> {
-  try {
-    const res = await fetch(`${API_BASE}/storage/pz_custom_structure`, {
-      cache: "no-store",
-      method: "GET",
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.value ? JSON.parse(json.value) : null;
-  } catch (error) {
-    console.warn("CMS: Failed to load structure", error);
-    return null;
-  }
+  return null;
 }
 
 export async function fetchCloudAssets(): Promise<Record<string, string> | null> {
-  try {
-    const res = await fetch(`${API_BASE}/storage/pz_site_assets`, {
-      cache: "no-store",
-      method: "GET",
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.value ? JSON.parse(json.value) : null;
-  } catch (error) {
-    console.warn("CMS: Failed to load assets", error);
-    return null;
-  }
+  return null;
 }
 
 /* =========================
@@ -162,26 +130,7 @@ export async function fetchCloudAssets(): Promise<Record<string, string> | null>
 ========================= */
 
 export function useCloudAssets() {
-  const [assets, setAssets] = useState<Record<string, string>>(() => {
-    try {
-      const cached = localStorage.getItem('pz_site_assets');
-      if (cached) {
-        return { ...DEFAULT_ASSETS, ...JSON.parse(cached) };
-      }
-    } catch (e) {}
-    return DEFAULT_ASSETS;
-  });
-
-  useEffect(() => {
-    let mounted = true;
-    fetchCloudAssets().then((cloudData) => {
-      if (mounted && cloudData) {
-        setAssets((prev) => ({ ...prev, ...cloudData }));
-        localStorage.setItem('pz_site_assets', JSON.stringify(cloudData));
-      }
-    });
-    return () => { mounted = false; };
-  }, []);
-
+  // Currently returns default assets as the Cloud Asset API is deprecated
+  const [assets] = useState<Record<string, string>>(DEFAULT_ASSETS);
   return assets;
 }
