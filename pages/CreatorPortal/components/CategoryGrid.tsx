@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronRight, Package, Plus, LayoutGrid } from 'lucide-react';
 import { Category, ProductVariant } from '../../../types';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface CategoryGridProps {
   categories: Category[];
@@ -11,6 +12,7 @@ interface CategoryGridProps {
 }
 
 const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll }) => {
+  const { t } = useLanguage();
   
   // Helper to count items per category
   const getCount = (catId: string) => {
@@ -21,14 +23,14 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
     <div className="animate-fade-in">
       <div className="flex justify-between items-end mb-8">
         <div>
-            <h2 className="font-serif text-3xl text-stone-900 mb-2">Inventory Management</h2>
-            <p className="text-stone-500 text-sm">Select a category to manage existing products or add new ones.</p>
+            <h2 className="font-serif text-3xl text-stone-900 mb-2">{t.creator.inventory.header}</h2>
+            <p className="text-stone-500 text-sm">{t.creator.inventory.selectCat}</p>
         </div>
         <button 
             onClick={onSelectAll}
             className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest flex items-center transition-colors"
         >
-            View Master List <ChevronRight size={14} className="ml-1"/>
+            {t.creator.inventory.viewMaster} <ChevronRight size={14} className="ml-1"/>
         </button>
       </div>
 
@@ -71,7 +73,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
             <div className="bg-white p-4 rounded-full mb-4 shadow-sm group-hover:scale-110 transition-transform">
                 <Package size={24} className="text-stone-400" />
             </div>
-            <h3 className="font-bold text-stone-600 uppercase tracking-widest text-sm mb-1">Master View</h3>
+            <h3 className="font-bold text-stone-600 uppercase tracking-widest text-sm mb-1">{t.creator.inventory.viewMaster}</h3>
             <p className="text-stone-400 text-xs">View all {products.length} items</p>
         </div>
       </div>

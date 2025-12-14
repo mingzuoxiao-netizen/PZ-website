@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { RotateCcw, History, X, Save, Ban } from 'lucide-react';
 import { ASSET_GROUPS, DEFAULT_ASSETS, ASSET_KEYS } from '../../../utils/assets';
 import PZImageManager from './PZImageManager';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface PageAssetsProps {
   customAssets: Record<string, string>;
@@ -18,6 +19,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
   customAssets, assetHistory, onAssetUpdate, onAssetReset, onAssetRollback, 
   viewingHistoryKey, setViewingHistoryKey
 }) => {
+  const { t } = useLanguage();
   // Store pending changes locally before saving
   const [pendingUpdates, setPendingUpdates] = useState<Record<string, string>>({});
 
@@ -29,7 +31,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white max-w-2xl w-full shadow-2xl border border-stone-200 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-stone-100 flex justify-between items-center">
-              <h3 className="font-serif text-xl text-stone-900">Asset History</h3>
+              <h3 className="font-serif text-xl text-stone-900">{t.creator.assets.history}</h3>
               <button onClick={() => setViewingHistoryKey(null)} className="text-stone-400 hover:text-stone-900"><X size={20}/></button>
             </div>
             <div className="p-6 overflow-y-auto bg-stone-50 flex-grow">
@@ -50,7 +52,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                             onClick={() => onAssetRollback(viewingHistoryKey, item.url)}
                             className="bg-white text-stone-900 px-3 py-1 text-xs font-bold uppercase tracking-wider hover:bg-amber-400"
                           >
-                            Rollback
+                            {t.creator.config.rollback}
                           </button>
                         </div>
                       </div>
@@ -67,9 +69,9 @@ const PageAssets: React.FC<PageAssetsProps> = ({
       )}
 
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
-        <h3 className="font-serif text-2xl text-stone-900 mb-4">Site Assets Management</h3>
+        <h3 className="font-serif text-2xl text-stone-900 mb-4">{t.creator.assets.title}</h3>
         <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
-          Manage static website images and files here (Catalog PDF, Hero banners, Factory images, etc.). Click "Save" after uploading to apply changes.
+          {t.creator.assets.desc}
         </p>
       </div>
 
@@ -122,7 +124,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                                 }}
                                 className="flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-stone-200 hover:bg-stone-100 text-stone-500 rounded-sm transition-colors"
                             >
-                                <Ban size={12} className="mr-1"/> Cancel
+                                <Ban size={12} className="mr-1"/> {t.creator.assets.cancel}
                             </button>
                             <button 
                                 onClick={() => {
@@ -136,7 +138,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                                 }}
                                 className="flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-amber-700 text-white hover:bg-amber-800 rounded-sm shadow-sm transition-colors"
                             >
-                                <Save size={12} className="mr-1"/> Save Changes
+                                <Save size={12} className="mr-1"/> {t.creator.assets.save}
                             </button>
                         </>
                       ) : (
@@ -145,7 +147,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                                 <button
                                 onClick={() => setViewingHistoryKey(asset.key)}
                                 className="text-stone-400 hover:text-amber-700 transition-colors p-1"
-                                title="History"
+                                title={t.creator.assets.history}
                                 >
                                 <History size={14}/>
                                 </button>
@@ -154,7 +156,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                                 <button 
                                 onClick={() => onAssetReset(asset.key)}
                                 className="text-stone-400 hover:text-red-600 transition-colors p-1"
-                                title="Reset to Default"
+                                title={t.creator.assets.reset}
                                 >
                                 <RotateCcw size={14} />
                                 </button>

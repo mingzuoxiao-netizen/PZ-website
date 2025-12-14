@@ -282,7 +282,8 @@ const translations = {
         specSheet: "Product Spec Sheet (PDF)",
         model3d: "3D Model (STEP)",
         related: "Related Products",
-        viewDetails: "View Details"
+        viewDetails: "View Details",
+        customSizes: "Custom Sizes Available"
       }
     },
     materials: {
@@ -422,7 +423,18 @@ const translations = {
         noItems: "No items found",
         duplicate: "Duplicate / Variant",
         delete: "Delete",
-        edit: "Edit"
+        edit: "Edit",
+        header: "Inventory Management",
+        selectCat: "Select a category to manage existing products or add new ones.",
+        viewMaster: "View Master List",
+        backCategories: "Back to Categories",
+        emptyTitle: "This collection is empty",
+        emptyDesc: "Initialize your inventory by creating the first product record.",
+        noMatchTitle: "No matches for",
+        noMatchDesc: "We couldn't find any products matching your criteria.",
+        clearSearch: "Clear Search",
+        createNewAnyway: "Create New Anyway",
+        createProduct: "Create Product"
       },
       form: {
         edit: "Edit Product",
@@ -450,6 +462,25 @@ const translations = {
         update: "Update Product",
         processing: "Processing...",
         delete: "Delete Product"
+      },
+      config: {
+        title: "Site Configuration",
+        desc: "Manage global content and hero images.",
+        discard: "Discard",
+        publish: "Publish Changes",
+        publishing: "Publishing...",
+        unsaved: "Unsaved Changes",
+        history: "Version History",
+        active: "Active",
+        rollback: "Rollback"
+      },
+      assets: {
+        title: "Site Assets Management",
+        desc: "Manage static website images and files here (Catalog PDF, Hero banners, Factory images, etc.). Click \"Save\" after uploading to apply changes.",
+        history: "Asset History",
+        save: "Save Changes",
+        cancel: "Cancel",
+        reset: "Reset to Default"
       }
     },
     siteConfig: {
@@ -784,7 +815,8 @@ const translations = {
         specSheet: "产品规格表 (PDF)",
         model3d: "3D 模型 (STEP)",
         related: "相关产品",
-        viewDetails: "查看详情"
+        viewDetails: "查看详情",
+        customSizes: "全尺寸可定制"
       }
     },
     materials: {
@@ -924,7 +956,18 @@ const translations = {
         noItems: "未找到项目",
         duplicate: "复制 / 创建变体",
         delete: "删除",
-        edit: "编辑"
+        edit: "编辑",
+        header: "库存管理",
+        selectCat: "选择一个分类以管理现有产品或添加新产品。",
+        viewMaster: "查看总表",
+        backCategories: "返回分类",
+        emptyTitle: "此集合为空",
+        emptyDesc: "通过创建第一个产品记录来初始化您的库存。",
+        noMatchTitle: "未找到匹配项",
+        noMatchDesc: "我们找不到任何符合您条件的产品。",
+        clearSearch: "清除搜索",
+        createNewAnyway: "仍然新建",
+        createProduct: "创建产品"
       },
       form: {
         edit: "编辑产品",
@@ -952,6 +995,25 @@ const translations = {
         update: "更新产品",
         processing: "处理中...",
         delete: "删除产品"
+      },
+      config: {
+        title: "网站配置",
+        desc: "管理全局内容和主视觉图片。",
+        discard: "舍弃更改",
+        publish: "发布更改",
+        publishing: "发布中...",
+        unsaved: "未保存更改",
+        history: "版本历史",
+        active: "当前使用",
+        rollback: "回滚"
+      },
+      assets: {
+        title: "网站素材管理",
+        desc: "在此管理静态网站图片和文件（目录 PDF、主横幅、工厂图片等）。上传后点击“保存更改”以应用。",
+        history: "素材历史",
+        save: "保存更改",
+        cancel: "取消",
+        reset: "重置为默认"
       }
     },
     siteConfig: {

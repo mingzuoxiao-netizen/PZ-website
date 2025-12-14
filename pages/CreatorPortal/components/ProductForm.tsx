@@ -121,7 +121,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                 </label>
                                 {!fixedCategoryId && (
                                     <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
-                                        + {t.creator.form.create}
+                                        {t.creator.form.create}
                                     </span>
                                 )}
                             </div>
@@ -150,7 +150,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                     {t.creator.form.subCat}
                                 </label>
                                 <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
-                                    + {t.creator.form.create}
+                                    {t.creator.form.create}
                                 </span >
                             </div>
                             <input 
@@ -164,22 +164,20 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* PRODUCT NAME */}
-                <div>
-                    <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                        {t.creator.form.nameEn} <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        value={formData.name || ''} 
-                        onChange={e => handleChange('name', e.target.value)}
-                        className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm placeholder-stone-300 transition-shadow"
-                        placeholder="e.g. Walnut Dining Table"
-                    />
-                </div>
-
-                {/* PRODUCT NAME (CN) & DESCRIPTION */}
+                {/* PRODUCT NAMES */}
                 <div className="grid grid-cols-1 gap-6">
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {t.creator.form.nameEn} <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            value={formData.name || ''} 
+                            onChange={e => handleChange('name', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm placeholder-stone-300 transition-shadow"
+                            placeholder="e.g. Walnut Dining Table"
+                        />
+                    </div>
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
                             {t.creator.form.nameZh}
@@ -192,6 +190,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                             placeholder="e.g. 黑胡桃餐桌"
                         />
                     </div>
+                </div>
+
+                {/* DESCRIPTIONS (EN & CN) */}
+                <div className="grid grid-cols-1 gap-6">
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
                             {t.creator.form.descEn}
@@ -202,6 +204,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                             onChange={e => handleChange('description', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
                             placeholder="Detailed product description..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {t.creator.form.descZh}
+                        </label>
+                        <textarea 
+                            rows={4}
+                            value={formData.description_cn || ''} 
+                            onChange={e => handleChange('description_cn', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
+                            placeholder="详细产品描述..."
                         />
                     </div>
                 </div>

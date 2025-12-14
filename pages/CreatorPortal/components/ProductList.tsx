@@ -38,7 +38,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 onClick={onBack}
                 className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest flex items-center mb-2 transition-colors group"
               >
-                <ArrowLeft size={14} className="mr-1 group-hover:-translate-x-1 transition-transform"/> Back to Categories
+                <ArrowLeft size={14} className="mr-1 group-hover:-translate-x-1 transition-transform"/> {t.creator.inventory.backCategories}
               </button>
               <h2 className="font-serif text-3xl text-stone-900 flex items-center gap-3">
                 {categoryTitle || "Products"} 
@@ -118,13 +118,13 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     {/* Typography */}
                     <h3 className="font-serif text-3xl text-stone-900 mb-4 tracking-tight">
-                        {isSearching ? `No matches for "${search}"` : "This collection is empty"}
+                        {isSearching ? `${t.creator.inventory.noMatchTitle} "${search}"` : t.creator.inventory.emptyTitle}
                     </h3>
                     
                     <p className="text-stone-500 max-w-md text-center text-sm leading-relaxed mb-10 font-light">
                         {isSearching 
-                            ? "We couldn't find any products matching your criteria. Try checking for typos or clear the search filters to view the full inventory." 
-                            : "Initialize your inventory by creating the first product record. This canvas is ready for your specifications."
+                            ? t.creator.inventory.noMatchDesc 
+                            : t.creator.inventory.emptyDesc
                         }
                     </p>
 
@@ -135,7 +135,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                 onClick={() => setSearch('')}
                                 className="px-8 py-4 border border-stone-200 bg-white text-stone-500 text-xs font-bold uppercase tracking-widest hover:border-stone-400 hover:text-stone-900 transition-all rounded-sm"
                             >
-                                Clear Search
+                                {t.creator.inventory.clearSearch}
                             </button>
                         )}
                         <button 
@@ -143,7 +143,7 @@ const ProductList: React.FC<ProductListProps> = ({
                             className="px-10 py-4 bg-stone-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-700 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all rounded-sm flex items-center justify-center"
                         >
                             <Plus size={16} className="mr-2" />
-                            {isSearching ? "Create New Anyway" : "Create Product"}
+                            {isSearching ? t.creator.inventory.createNewAnyway : t.creator.inventory.createProduct}
                         </button>
                     </div>
 

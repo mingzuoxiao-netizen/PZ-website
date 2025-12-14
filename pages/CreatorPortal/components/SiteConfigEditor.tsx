@@ -142,15 +142,15 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
       <div className="sticky top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
-            Site Configuration
+            {t.creator.config.title}
             {hasUnsavedChanges && (
               <span className="ml-3 text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold uppercase border border-amber-200 flex items-center animate-pulse">
-                <AlertCircle size={10} className="mr-1" /> Unsaved Changes
+                <AlertCircle size={10} className="mr-1" /> {t.creator.config.unsaved}
               </span>
             )}
           </h3>
           <p className="text-stone-500 text-xs mt-1">
-            Manage global content and hero images.
+            {t.creator.config.desc}
           </p>
         </div>
 
@@ -160,7 +160,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
               onClick={onRefresh}
               className="text-xs font-bold uppercase text-stone-500 hover:text-red-600"
             >
-              Discard
+              {t.creator.config.discard}
             </button>
           )}
 
@@ -179,7 +179,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Save size={14} className="mr-2" />
             )}
-            {isSaving ? 'Publishing…' : 'Publish Changes'}
+            {isSaving ? t.creator.config.publishing : t.creator.config.publish}
           </button>
         </div>
       </div>
@@ -217,7 +217,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
         <div className="mt-12 pt-12 border-t">
           <h3 className="font-serif text-xl mb-6 flex items-center">
             <History size={18} className="mr-2 text-stone-400" />
-            Version History
+            {t.creator.config.history}
           </h3>
 
           <div className="border rounded-sm overflow-hidden bg-white">
@@ -248,7 +248,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
                         <td className="p-4 text-right">
                           {isCurrent ? (
                             <span className="text-xs text-stone-400 flex justify-end items-center">
-                              <Check size={14} className="mr-1" /> Active
+                              <Check size={14} className="mr-1" /> {t.creator.config.active}
                             </span>
                           ) : (
                             <button
@@ -257,7 +257,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
                               className="text-xs font-bold uppercase text-amber-700 hover:text-amber-900 flex items-center ml-auto"
                             >
                               <RotateCcw size={12} className="mr-1" />
-                              Rollback
+                              {t.creator.config.rollback}
                             </button>
                           )}
                         </td>
