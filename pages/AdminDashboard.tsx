@@ -63,7 +63,8 @@ const AdminDashboard: React.FC = () => {
 
       try {
         // 1. Use adminFetch to get data (Automatically adds Auth Headers)
-        const json = await adminFetch<{ data: any[] }>('/', { 
+        // Updated endpoint to /products as requested
+        const json = await adminFetch<{ data: any[] }>('/products', { 
             params: { limit: '200' } 
         });
 

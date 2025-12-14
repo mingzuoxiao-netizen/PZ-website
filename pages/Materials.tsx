@@ -2,12 +2,21 @@
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Link } from 'react-router-dom';
-import { Layers, Droplet, Hammer, PanelTop, ArrowRight, Box } from 'lucide-react';
+import { Layers, Droplet, Hammer, PanelTop, ArrowRight, Box, Loader2 } from 'lucide-react';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Materials: React.FC = () => {
   const { t, language } = useLanguage();
-  const { config } = usePublishedSiteConfig(); // ✅ Updated
+  const { config, loading } = usePublishedSiteConfig(); // ✅ Updated
+
+  // Check for loading or null config before rendering
+  if (loading || !config) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-50 text-stone-400">
+        <Loader2 className="animate-spin mr-2" size={24} /> Loading...
+      </div>
+    );
+  }
 
   const woods = [
     { 

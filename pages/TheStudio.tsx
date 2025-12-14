@@ -9,7 +9,7 @@ const TheStudio: React.FC = () => {
   const { t } = useLanguage();
   const { config, loading } = usePublishedSiteConfig();
 
-  if (loading) {
+  if (loading || !config) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-stone-50 text-stone-400">
         <Loader2 className="animate-spin mr-2" size={24} /> Loading...

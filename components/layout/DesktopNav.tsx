@@ -93,9 +93,9 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   const getMenuImage = (path: string | null) => {
       switch(path) {
-          case '/manufacturing': return config.menu?.feat_mfg;
-          case '/capabilities': return config.menu?.feat_capabilities;
-          default: return config.menu?.feat_default;
+          case '/manufacturing': return config?.menu?.feat_mfg;
+          case '/capabilities': return config?.menu?.feat_capabilities;
+          default: return config?.menu?.feat_default;
       }
   }
 

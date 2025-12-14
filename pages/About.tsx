@@ -12,7 +12,8 @@ const About: React.FC = () => {
   // ✅ Hook automatically fetches structured config via Context
   const { config: site, loading } = usePublishedSiteConfig();
 
-  if (loading) {
+  // Check for loading or null config before rendering dependent data
+  if (loading || !site) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-500">
         <Loader2 className="animate-spin mr-2" size={24} /> Loading...

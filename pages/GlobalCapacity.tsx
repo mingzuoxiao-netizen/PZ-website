@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor } from 'lucide-react';
+import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
@@ -25,7 +25,16 @@ interface MapLocation {
 const GlobalCapacity: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
   const { t } = useLanguage();
-  const { config } = usePublishedSiteConfig(); // ✅ Updated
+  const { config, loading } = usePublishedSiteConfig(); // ✅ Updated
+
+  // Check for loading or null config before rendering dependent data
+  if (loading || !config) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-stone-50 text-stone-400">
+        <Loader2 className="animate-spin mr-2" size={24} /> Loading...
+      </div>
+    );
+  }
 
   const LOCATIONS: MapLocation[] = [
     { 
