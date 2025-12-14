@@ -6,7 +6,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Manufacturing from './pages/Manufacturing';
 import Capabilities from './pages/Capabilities';
-import Collections from './pages/Collections';
+import Portfolio from './pages/Portfolio';
 import Materials from './pages/Materials';
 import GlobalCapacity from './pages/GlobalCapacity';
 import Inquire from './pages/Inquire';
@@ -90,11 +90,11 @@ return (
             />
 
             <Route
-              path="/collections"
+              path="/portfolio"
               element={
                 <AuthGuard>
                   <Layout>
-                    <Collections />
+                    <Portfolio />
                   </Layout>
                 </AuthGuard>
               }
@@ -199,3 +199,4 @@ return (
 
 
 export default App;
+    

@@ -10,7 +10,7 @@ import { getAssetUrl } from '../utils/getAssetUrl';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 
-const Collections: React.FC = () => {
+const Portfolio: React.FC = () => {
   const { t } = useLanguage();
   const { config } = usePublishedSiteConfig();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -310,5 +310,5 @@ const Collections: React.FC = () => {
   );
 };
 
-export default Collections;
+export default Portfolio;
     

@@ -42,7 +42,7 @@ const Capabilities: React.FC = () => {
           
           {/* Added Link Note */}
           <Link 
-            to="/collections" 
+            to="/portfolio" 
             className="inline-block mt-8 text-xs font-mono text-stone-400 hover:text-safety-700 transition-colors border-b border-transparent hover:border-safety-700 pb-1"
           >
             For selected projects realizing these capabilities, please refer to our Portfolio.
@@ -209,3 +209,4 @@ const Capabilities: React.FC = () => {
 };
 
 export default Capabilities;
+    

@@ -39,7 +39,7 @@ const SearchResults: React.FC = () => {
           name: cat.title,
           description: cat.description,
           image: cat.image,
-          link: `/collections?category=${cat.id}`
+          link: `/portfolio?category=${cat.id}`
         });
       }
 
@@ -52,7 +52,7 @@ const SearchResults: React.FC = () => {
              name: sub.name,
              description: sub.description,
              image: sub.image,
-             link: `/collections?category=${cat.id}`
+             link: `/portfolio?category=${cat.id}`
            });
         }
 
@@ -73,7 +73,7 @@ const SearchResults: React.FC = () => {
                 description: normalized.description || '',
                 // Ensure rendering uses images array source
                 image: normalized.images[0] || '', 
-                link: `/collections?category=${cat.id}&product=${normalized.id || normalized.name}`
+                link: `/portfolio?category=${cat.id}&product=${normalized.id || normalized.name}`
               });
             }
           });
@@ -118,3 +118,4 @@ const SearchResults: React.FC = () => {
 };
 
 export default SearchResults;
+    
