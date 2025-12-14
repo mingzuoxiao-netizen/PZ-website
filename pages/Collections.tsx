@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX, Palette } from 'lucide-react';
+import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX, Palette, ChevronLeft } from 'lucide-react';
 import { Category, ProductVariant } from '../types';
 import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
@@ -123,10 +123,10 @@ const Portfolio: React.FC = () => {
   };
 
   return (
-    <div className="pt-24 md:pt-32 bg-white min-h-screen">
+    <div className="pt-20 md:pt-32 bg-white min-h-screen">
       
       {!activeProduct && (
-        <section className="bg-stone-50 border-b border-stone-200 py-16 relative overflow-hidden">
+        <section className="bg-stone-50 border-b border-stone-200 py-12 md:py-16 relative overflow-hidden">
           <div className="container mx-auto px-6 md:px-12 relative z-10">
             <div className="flex flex-col md:flex-row justify-between items-end">
                <div>
@@ -141,20 +141,20 @@ const Portfolio: React.FC = () => {
                    </p>
                </div>
                
-               <div className="mt-8 md:mt-0">
+               <div className="mt-8 md:mt-0 w-full md:w-auto">
                    {catalogPdfUrl ? (
                        <a 
                          href={catalogPdfUrl} 
                          target="_blank" 
                          rel="noopener noreferrer"
-                         className="inline-flex items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
+                         className="inline-flex justify-center w-full md:w-auto items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
                        >
                           <FileText size={16} className="mr-2"/> Download Catalog
                        </a>
                    ) : (
                        <Link 
                          to="/inquire?subject=Catalog"
-                         className="inline-flex items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
+                         className="inline-flex justify-center w-full md:w-auto items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
                        >
                           <FileText size={16} className="mr-2"/> Request Catalog
                        </Link>
@@ -170,27 +170,31 @@ const Portfolio: React.FC = () => {
               <Loader2 className="animate-spin text-stone-300" size={32} />
           </div>
       ) : activeProduct ? (
-          // ... PRODUCT DETAIL VIEW ...
-          <div className="container mx-auto px-6 md:px-12 py-12 animate-fade-in">
+          // ========================
+          // PRODUCT DETAIL VIEW
+          // ========================
+          <div className="container mx-auto px-6 md:px-12 py-8 md:py-12 animate-fade-in">
               <button 
                 onClick={() => setActiveProduct(null)}
-                className="flex items-center text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-safety-700 mb-8 transition-colors border-b border-transparent hover:border-safety-700 w-fit pb-1"
+                className="flex items-center text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-safety-700 mb-6 md:mb-8 transition-colors border-b border-transparent hover:border-safety-700 w-fit pb-1"
               >
-                  <Home size={14} className="mr-2" /> Back to Portfolio
+                  <ChevronLeft size={14} className="mr-1" /> Back to Portfolio
               </button>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-24">
+                  
+                  {/* LEFT COLUMN: Text Content (Order 2 on Mobile, 1 on Desktop) */}
                   <div className="lg:col-span-5 order-2 lg:order-1">
-                      <div className="sticky top-32">
-                          <span className="text-safety-700 font-bold uppercase tracking-widest text-xs mb-4 block flex items-center">
+                      <div className="lg:sticky lg:top-32">
+                          <span className="text-safety-700 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-3 md:mb-4 block flex items-center">
                               <Factory size={14} className="mr-2"/> Manufacturing Case Study
                           </span>
-                          <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-6 leading-tight">
+                          <h1 className="font-serif text-3xl md:text-5xl text-stone-900 mb-4 md:mb-6 leading-tight">
                               {activeProduct.name}
                           </h1>
-                          <div className="w-16 h-1 bg-wood-pattern opacity-50 mb-8"></div>
+                          <div className="w-12 md:w-16 h-1 bg-wood-pattern opacity-50 mb-6 md:mb-8"></div>
                           
-                          <p className="text-stone-600 text-lg leading-relaxed mb-8 font-light">
+                          <p className="text-stone-600 text-base md:text-lg leading-relaxed mb-8 font-light">
                               {activeProduct.description}
                           </p>
 
@@ -201,13 +205,12 @@ const Portfolio: React.FC = () => {
                                    <Palette size={14} className="mr-2"/> Available Finishes
                                 </h4>
                                 <div className="flex flex-wrap gap-3">
-                                   {/* Also show default variant if not already covered? Usually main image is one of them. */}
                                    <button 
                                       onClick={() => setCurrentMainImage(activeProduct.image)}
-                                      className={`border-2 p-1 rounded-sm transition-all ${currentMainImage === activeProduct.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
+                                      className={`border-2 p-0.5 rounded-sm transition-all ${currentMainImage === activeProduct.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
                                       title="Original"
                                    >
-                                      <div className="w-8 h-8 bg-stone-200 overflow-hidden relative">
+                                      <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
                                          <img src={activeProduct.image} className="w-full h-full object-cover" />
                                       </div>
                                    </button>
@@ -216,10 +219,10 @@ const Portfolio: React.FC = () => {
                                       <button 
                                         key={idx}
                                         onClick={() => setCurrentMainImage(color.image)}
-                                        className={`border-2 p-1 rounded-sm transition-all ${currentMainImage === color.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
+                                        className={`border-2 p-0.5 rounded-sm transition-all ${currentMainImage === color.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
                                         title={color.name}
                                       >
-                                         <div className="w-8 h-8 bg-stone-200 overflow-hidden relative">
+                                         <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
                                             <img src={color.image} className="w-full h-full object-cover" />
                                          </div>
                                       </button>
@@ -233,26 +236,26 @@ const Portfolio: React.FC = () => {
                              </div>
                           )}
 
-                          <div className="bg-stone-50 border border-stone-200 p-8 shadow-sm mb-8 relative">
+                          <div className="bg-stone-50 border border-stone-200 p-6 md:p-8 shadow-sm mb-8 relative">
                               <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
                                 {t.collections.pdp.techDims}
                               </h4>
                               <ul className="space-y-4 text-sm">
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">{t.collections.pdp.matSelection}</span>
-                                      <span className="font-bold text-stone-900">{activeProduct.material || 'Solid Hardwood'}</span>
+                                      <span className="font-bold text-stone-900 text-right">{activeProduct.material || 'Solid Hardwood'}</span>
                                   </li>
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">{t.capabilities.limits.maxDim}</span>
-                                      <span className="font-mono text-stone-900">{activeProduct.dimensions || 'Customizable'}</span>
+                                      <span className="font-mono text-stone-900 text-right">{activeProduct.dimensions || 'Customizable'}</span>
                                   </li>
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">{t.collections.pdp.finish}</span>
-                                      <span className="font-bold text-stone-900">Matte PU / UV</span>
+                                      <span className="font-bold text-stone-900 text-right">Matte PU / UV</span>
                                   </li>
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">Origin</span>
-                                      <span className="font-bold text-stone-900 flex items-center"><MapPin size={12} className="mr-1"/> China / Cambodia</span>
+                                      <span className="font-bold text-stone-900 flex items-center text-right"><MapPin size={12} className="mr-1"/> CN / KH</span>
                                   </li>
                                   {activeProduct.code && (
                                     <li className="flex justify-between pt-2">
@@ -265,15 +268,17 @@ const Portfolio: React.FC = () => {
 
                           <Link 
                             to={`/inquire?subject=Portfolio_Inquiry&product=${encodeURIComponent(activeProduct.name)}`}
-                            className="inline-block bg-[#281815] text-white px-10 py-4 font-bold uppercase tracking-widest text-xs hover:bg-safety-700 transition-colors shadow-lg"
+                            className="block w-full text-center md:inline-block bg-[#281815] text-white px-10 py-4 font-bold uppercase tracking-widest text-xs hover:bg-safety-700 transition-colors shadow-lg"
                           >
                               {t.collections.pdp.inquireOrder}
                           </Link>
                       </div>
                   </div>
 
-                  <div className="lg:col-span-7 order-1 lg:order-2 space-y-8">
-                      <div className="w-full bg-stone-100 aspect-[4/3] relative overflow-hidden shadow-2xl border border-stone-200">
+                  {/* RIGHT COLUMN: Images (Order 1 on Mobile, 2 on Desktop) */}
+                  <div className="lg:col-span-7 order-1 lg:order-2 space-y-4 md:space-y-8">
+                      {/* Main Image */}
+                      <div className="w-full bg-stone-100 aspect-[4/3] relative overflow-hidden shadow-xl border border-stone-200">
                           <img 
                             src={currentMainImage} 
                             className="w-full h-full object-cover transition-opacity duration-500" 
@@ -281,11 +286,16 @@ const Portfolio: React.FC = () => {
                           />
                       </div>
                       
+                      {/* Thumbnails - Horizontal Scroll on Mobile, Grid on Desktop */}
                       {activeProduct.images && activeProduct.images.length > 1 && (
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="flex overflow-x-auto gap-4 pb-2 md:grid md:grid-cols-2 md:gap-4 md:pb-0 md:overflow-visible snap-x">
                               {activeProduct.images.slice(1).map((img, idx) => (
-                                  <div key={idx} className="aspect-square bg-stone-100 overflow-hidden border border-stone-200 cursor-zoom-in" onClick={() => setCurrentMainImage(img)}>
-                                      <img src={img} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" />
+                                  <div 
+                                    key={idx} 
+                                    className="min-w-[40%] md:min-w-0 aspect-square bg-stone-100 overflow-hidden border border-stone-200 cursor-zoom-in snap-center" 
+                                    onClick={() => setCurrentMainImage(img)}
+                                  >
+                                      <img src={img} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" loading="lazy" />
                                   </div>
                               ))}
                           </div>
@@ -294,7 +304,10 @@ const Portfolio: React.FC = () => {
               </div>
           </div>
       ) : (
-          <div className="container mx-auto px-6 md:px-12 py-12">
+          // ========================
+          // CATEGORY LIST VIEW
+          // ========================
+          <div className="container mx-auto px-6 md:px-12 py-8 md:py-12">
               {/* Dynamic Categories Loop */}
               {displayCategories.map((category, index) => {
                 const products = getCategoryProducts(category);
@@ -304,15 +317,15 @@ const Portfolio: React.FC = () => {
                   <div 
                     key={category.id} 
                     id={category.id} 
-                    className="mb-24 last:mb-0 border-l-2 border-stone-100 pl-4 md:pl-0 md:border-l-0 scroll-mt-32"
+                    className="mb-16 md:mb-24 last:mb-0 border-l-2 border-stone-100 pl-4 md:pl-0 md:border-l-0 scroll-mt-32"
                   >
-                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-4 border-b border-stone-200">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 md:mb-10 pb-4 border-b border-stone-200">
                        <div className="max-w-2xl">
                           <div className="flex items-center gap-3 mb-2">
-                             <span className="text-safety-700 font-mono font-bold text-xl opacity-50">{(index + 1).toString().padStart(2, '0')}</span>
-                             <h2 className="font-serif text-3xl text-stone-900">{category.title}</h2>
+                             <span className="text-safety-700 font-mono font-bold text-lg md:text-xl opacity-50">{(index + 1).toString().padStart(2, '0')}</span>
+                             <h2 className="font-serif text-2xl md:text-3xl text-stone-900">{category.title}</h2>
                           </div>
-                          <p className="text-stone-500 font-light text-sm tracking-wide md:pl-10">
+                          <p className="text-stone-500 font-light text-xs md:text-sm tracking-wide md:pl-10">
                              {category.description}
                           </p>
                        </div>
@@ -323,7 +336,8 @@ const Portfolio: React.FC = () => {
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* MOBILE OPTIMIZED GRID: 2 Columns on Mobile, 3 on Desktop */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
                        {products.map((product, idx) => (
                           <div 
                              key={product.name + idx} 
@@ -333,14 +347,15 @@ const Portfolio: React.FC = () => {
                                window.scrollTo({ top: 0, behavior: 'smooth' });
                              }}
                           >
-                             <div className="aspect-[4/3] bg-stone-50 overflow-hidden border border-stone-200 relative mb-4 transition-all duration-500 shadow-sm hover:shadow-xl">
+                             <div className="aspect-[4/3] bg-stone-100 overflow-hidden border border-stone-200 relative mb-3 md:mb-4 transition-all duration-500 shadow-sm hover:shadow-xl">
                                 <img 
                                   src={product.image} 
                                   alt={product.name} 
+                                  loading="lazy"
                                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                                 />
                                 <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors"></div>
-                                <div className="absolute bottom-0 left-0 w-full p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur border-t border-stone-100">
+                                <div className="absolute bottom-0 left-0 w-full p-2 md:p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur border-t border-stone-100 hidden md:block">
                                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-900 flex items-center justify-between">
                                       View Details <ArrowRight size={12}/>
                                    </span>
@@ -348,15 +363,15 @@ const Portfolio: React.FC = () => {
                              </div>
                              
                              <div className="text-left px-1">
-                                 <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors truncate">
+                                 <h3 className="font-serif text-sm md:text-lg text-stone-900 group-hover:text-safety-700 transition-colors truncate leading-tight mb-1">
                                    {product.name}
                                  </h3>
-                                 <div className="flex justify-between items-start mt-1">
-                                    <p className="text-[10px] uppercase tracking-widest text-stone-400 line-clamp-1">
-                                      {product.description}
+                                 <div className="flex flex-col md:flex-row md:justify-between md:items-start">
+                                    <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-stone-400 line-clamp-1">
+                                      {product.subCategoryName || product.description}
                                     </p>
                                     {product.colors && product.colors.length > 0 && (
-                                       <span className="flex items-center text-[9px] font-bold text-amber-700 uppercase tracking-wider ml-2 whitespace-nowrap">
+                                       <span className="hidden md:flex items-center text-[9px] font-bold text-amber-700 uppercase tracking-wider ml-2 whitespace-nowrap">
                                           <Palette size={10} className="mr-1"/> {product.colors.length} Colors
                                        </span>
                                     )}
