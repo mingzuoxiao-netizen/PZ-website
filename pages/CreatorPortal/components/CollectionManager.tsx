@@ -61,6 +61,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                             maxImages={1}
                             aspectRatio={4/3}
                             className="w-full h-full"
+                            allowPhysicalDeletion={true}
                         />
                     </div>
                  ) : (

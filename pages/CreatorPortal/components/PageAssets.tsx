@@ -100,6 +100,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                     onError={(msg) => alert(msg)}
                     className="aspect-video w-full"
                     accept={isPdf ? "application/pdf" : "image/*"}
+                    allowPhysicalDeletion={false} // IMPORTANT: Keep assets for rollback history
                   />
 
                   <div className="p-4 flex justify-between items-center bg-white border-t border-stone-100">

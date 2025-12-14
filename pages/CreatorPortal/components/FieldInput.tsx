@@ -30,6 +30,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, h
           maxImages={1}
           className="w-full"
           accept={accept}
+          allowPhysicalDeletion={false} // CRITICAL: Disable physical deletion for Site Config fields to ensure Rollback history works
         />
         {help && <p className="text-[10px] text-stone-400 mt-1">{help}</p>}
       </div>

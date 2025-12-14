@@ -151,7 +151,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                 </label>
                                 <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
                                     + {t.creator.form.create}
-                                </span>
+                                </span >
                             </div>
                             <input 
                                 type="text"
@@ -279,6 +279,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                        }));
                      }}
                      onError={alert}
+                     allowPhysicalDeletion={true}
                    />
                 </div>
 

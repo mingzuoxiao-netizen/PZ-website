@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { SITE_SCHEMA } from '../../../utils/siteSchema';
 import { getByPath, setByPath } from '../../../utils/objectPath';
 import FieldInput from './FieldInput';
 import { Save, RefreshCw, History, RotateCcw, Check, AlertCircle } from 'lucide-react';
-import { SiteMeta } from '../../../utils/siteConfig';
+import { SiteMeta, SiteConfigEnvelope } from '../../../utils/siteConfig';
 import { adminFetch } from '../../../utils/adminFetch';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
@@ -57,7 +58,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   }, [meta?.version]);
 
   /* ------------------------------
-     Load history (FIXED)
+     Load history
   ------------------------------ */
   useEffect(() => {
     fetchHistory();
@@ -81,33 +82,46 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   };
 
   /* ------------------------------
-     Rollback (方案 C 正确实现)
+     Rollback Logic (Revised)
   ------------------------------ */
   const handleRollback = async (version: string) => {
     if (
       !confirm(
-        `Rollback to version ${version}?\n\nCurrent unsaved changes will be lost.`
+        `Are you sure you want to restore version ${version}?\n\nCurrent unsaved changes will be discarded.`
       )
     )
       return;
 
     setRollingBack(true);
     try {
+      // 1. Fetch the specific historic configuration
+      // Assuming GET /site-config?version=X returns { config: ... } or just the config object
+      console.log(`Fetching historic version: ${version}`);
+      
+      const historicData = await adminFetch<SiteConfigEnvelope>(`/site-config`, {
+          params: { version: version }
+      });
+
+      // Verify we got a config
+      if (!historicData || !historicData.config) {
+          throw new Error("Could not retrieve historic configuration data.");
+      }
+
+      // 2. Publish this historic config as the NEW active version
+      // This effectively "rolls forward" to the old state, preserving history
       await adminFetch('/site-config', {
-      method: 'POST',
-      body: JSON.stringify({
-    config,
-    message: 'Update navigation images'
-  })
-});
+        method: 'POST',
+        body: JSON.stringify(historicData.config)
+      });
 
-      await onRefresh();   // 刷新当前 config
-      await fetchHistory(); // 刷新历史列表
+      // 3. Refresh the editor state
+      await onRefresh();   
+      await fetchHistory(); 
 
-      alert('Rollback successful.');
-    } catch (e) {
-      console.error(e);
-      alert('Rollback failed.');
+      alert(`Successfully restored version ${version}.`);
+    } catch (e: any) {
+      console.error("Rollback failed:", e);
+      alert(`Rollback failed: ${e.message || "Unknown error"}`);
     } finally {
       setRollingBack(false);
     }
@@ -261,4 +275,3 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
 };
 
 export default SiteConfigEditor;
-
