@@ -5,7 +5,6 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { SiteConfig, SiteMeta } from '../../utils/siteConfig';
 import { ProductVariant, Category } from '../../types';
-import { Package, Globe, Image as ImageIcon, LayoutGrid } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory'; // Import static categories
@@ -15,7 +14,6 @@ import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import PageAssets from './components/PageAssets';
-import CollectionManager from './components/CollectionManager';
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
@@ -23,13 +21,16 @@ const CreatorPortal: React.FC = () => {
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // State
-  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets' | 'collections'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets'>('inventory');
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
-  // Initialize with static categories to ensure form has options even if API fails
+  
+  // STEP 1: Use Static Categories strictly. Do not fetch /categories or /collections.
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [configMeta, setConfigMeta] = useState<SiteMeta | null>(null);
+  
+  // Removed /assets/history fetching to prevent blocking
   const [assetHistory, setAssetHistory] = useState<Record<string, any[]>>({});
   const [viewingHistoryKey, setViewingHistoryKey] = useState<string | null>(null);
 
@@ -44,73 +45,25 @@ const CreatorPortal: React.FC = () => {
   // --- DATA FETCHING ---
   const loadData = async () => {
     setLoading(true);
+    try {
+      // STEP 2: Promise.all only keeps 'really needed' (Inventory & SiteConfig)
+      // Removed categoriesPromise and historyPromise to ensure stability.
+      const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500');
+      const configPromise = adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config');
 
-try {
-  const inventoryPromise = adminFetch('/admin/products?limit=500');
+      const results = await Promise.allSettled([
+        inventoryPromise,
+        configPromise,
+      ]);
 
-  const categoriesPromise = adminFetch('/categories');
-  const historyPromise = adminFetch('/assets/history');
-  const configPromise = adminFetch('/site-config');
-
-  const results = await Promise.allSettled([
-    inventoryPromise,
-    categoriesPromise,
-    historyPromise,
-    configPromise,
-  ]);
-
-  const inventoryRes =
-    results[0].status === 'fulfilled'
-      ? results[0].value
-      : { products: [] };
-
-  const categoriesRes =
-    results[1].status === 'fulfilled'
-      ? results[1].value
-      : { data: [] };
-
-  const historyRes =
-    results[2].status === 'fulfilled'
-      ? results[2].value
-      : { data: [] };
-
-  const configRes =
-    results[3].status === 'fulfilled'
-      ? results[3].value
-      : null;
-
-  // 🔍 关键 debug（你可以暂时留着）
-  console.log('[Inventory DEBUG]', inventoryRes);
-
-  const rawItems = inventoryRes.products || inventoryRes.data || [];
-  const normalizedItems = normalizeProducts(rawItems);
-
-  setLocalItems(normalizedItems);
-  setCategories(categoriesRes.data || []);
-  setHistory(historyRes.data || []);
-  setSiteConfig(configRes);
-
-} catch (e) {
-  console.error('Creator Portal fatal error', e);
-} finally {
-  setLoading(false);
-}
-
-
-      // 2. Process Inventory with Strict Normalization
-      // Support both new { products: [] } and legacy { data: [] } structures
+      // 1. Process Inventory
+      const inventoryRes = results[0].status === 'fulfilled' ? results[0].value : { products: [] };
       const rawItems = inventoryRes.products || inventoryRes.data || [];
       const normalizedItems = normalizeProducts(rawItems);
       setLocalItems(normalizedItems);
-      console.log(
-  "[Inventory DEBUG] rawItems:",
-  rawItems,
-  "normalizedItems:",
-  normalizedItems
-);
 
-
-      // 3. Process Config
+      // 2. Process Config
+      const configRes = results[1].status === 'fulfilled' ? results[1].value : null;
       if (configRes && configRes.config) {
         setSiteConfig(configRes.config);
         setConfigMeta({
@@ -119,18 +72,7 @@ try {
         });
       }
 
-      // 4. Process Categories (Merge with static if needed, or prefer API)
-      if (categoriesRes && categoriesRes.data && categoriesRes.data.length > 0) {
-        setCategories(categoriesRes.data);
-      } else {
-        // Keep static categories if API is empty
-        setCategories(staticCategories);
-      }
-
-      // 5. Process Asset History
-      if (historyRes && historyRes.history) {
-        setAssetHistory(historyRes.history);
-      }
+      // Note: Categories are statically loaded via import, no API call needed.
 
     } catch (e) {
       console.error("Failed to load Creator Portal data", e);
@@ -161,7 +103,6 @@ try {
       setIsCreating(false);
       loadData(); // Refresh list
     } catch (e: any) {
-      // Improved error handling to show actual server message
       alert(`Failed to save product: ${e.message || "Unknown Error"}`);
       console.error(e);
     }
@@ -201,19 +142,11 @@ try {
            method: 'POST',
            body: JSON.stringify({ key, url })
        });
-       loadData();
+       // No reload of data needed for asset update in this simplified version
+       alert("Asset updated.");
     } catch (e: any) {
        alert(`Failed to update asset: ${e.message}`);
     }
-  };
-
-  const handleCategoryUpdate = async (cat: Category) => {
-     try {
-         await adminFetch(`/categories/${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
-         loadData();
-     } catch (e: any) {
-         alert(`Failed to update category: ${e.message}`);
-     }
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center">Loading Creator Portal...</div>;
@@ -235,9 +168,7 @@ try {
              <button onClick={() => setActiveTab('config')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'config' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.config}
              </button>
-             <button onClick={() => setActiveTab('collections')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'collections' ? 'text-amber-700' : 'text-stone-400'}`}>
-                {t.creator.tabs.collections}
-             </button>
+             {/* Collections Tab Removed - simplified to remove API dependency */}
              <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.media}
              </button>
@@ -273,14 +204,6 @@ try {
                isSaving={savingConfig}
                onRefresh={loadData}
              />
-          )}
-
-          {activeTab === 'collections' && (
-              <CollectionManager 
-                categories={categories} 
-                onUpdate={handleCategoryUpdate} 
-                onDelete={(id) => alert("Delete not implemented in demo")} 
-              />
           )}
           
           {activeTab === 'assets' && (
