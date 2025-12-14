@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import {
   ArrowRight,
@@ -16,6 +17,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { getAssetUrl } from '../utils/getAssetUrl';
 
 const Home: React.FC = () => {
   /* =========================
@@ -28,12 +30,12 @@ const Home: React.FC = () => {
   /* =========================
      ✅ SAFE DERIVED DATA
   ========================= */
-  const heroBg = site?.home?.hero?.image || '';
+  const heroBg = getAssetUrl(site?.home?.hero?.image);
   const heroTitle = site?.home?.hero?.title || t.home.heroTitle;
-  const factoryImg = site?.home?.factory?.image || '';
-  const ctaBg = site?.home?.cta?.image || '';
-  const hubCnImg = site?.home?.hub_cn?.image || '';
-  const hubKhImg = site?.home?.hub_kh?.image || '';
+  const factoryImg = getAssetUrl(site?.home?.factory?.image);
+  const ctaBg = getAssetUrl(site?.home?.cta?.image);
+  const hubCnImg = getAssetUrl(site?.home?.hub_cn?.image);
+  const hubKhImg = getAssetUrl(site?.home?.hub_kh?.image);
 
   const hubs = useMemo(
     () => [

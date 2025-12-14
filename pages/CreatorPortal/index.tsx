@@ -4,7 +4,6 @@ import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircl
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
-import { CDN_DOMAIN } from '../../utils/imageHelpers';
 import { adminFetch } from '../../utils/adminFetch';
 import { Link } from 'react-router-dom';
 import { DEFAULT_CONFIG, fetchSiteConfig, SITE_CONFIG_STORAGE_KEY, SiteConfig, SiteMeta } from '../../utils/siteConfig';

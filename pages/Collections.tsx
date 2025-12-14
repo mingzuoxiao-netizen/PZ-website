@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { categories as staticCategories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { getAssetUrl } from '../utils/getAssetUrl';
 
 const Portfolio: React.FC = () => {
   const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
@@ -19,7 +20,7 @@ const Portfolio: React.FC = () => {
   const location = useLocation();
   const { config } = usePublishedSiteConfig();
 
-  const catalogPdfUrl = config?.catalog?.url;
+  const catalogPdfUrl = getAssetUrl(config?.catalog?.url);
 
   // --- DATA LOADING ---
   useEffect(() => {
@@ -211,7 +212,7 @@ const Portfolio: React.FC = () => {
                                       title="Original"
                                    >
                                       <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
-                                         <img src={activeProduct.image} className="w-full h-full object-cover" />
+                                         <img src={getAssetUrl(activeProduct.image)} className="w-full h-full object-cover" />
                                       </div>
                                    </button>
 
@@ -223,7 +224,7 @@ const Portfolio: React.FC = () => {
                                         title={color.name}
                                       >
                                          <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
-                                            <img src={color.image} className="w-full h-full object-cover" />
+                                            <img src={getAssetUrl(color.image)} className="w-full h-full object-cover" />
                                          </div>
                                       </button>
                                    ))}
@@ -280,7 +281,7 @@ const Portfolio: React.FC = () => {
                       {/* Main Image */}
                       <div className="w-full bg-stone-100 aspect-[4/3] relative overflow-hidden shadow-xl border border-stone-200">
                           <img 
-                            src={currentMainImage} 
+                            src={getAssetUrl(currentMainImage)} 
                             className="w-full h-full object-cover transition-opacity duration-500" 
                             alt={activeProduct.name} 
                           />
@@ -295,7 +296,7 @@ const Portfolio: React.FC = () => {
                                     className="min-w-[40%] md:min-w-0 aspect-square bg-stone-100 overflow-hidden border border-stone-200 cursor-zoom-in snap-center" 
                                     onClick={() => setCurrentMainImage(img)}
                                   >
-                                      <img src={img} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" loading="lazy" />
+                                      <img src={getAssetUrl(img)} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" loading="lazy" />
                                   </div>
                               ))}
                           </div>
@@ -349,7 +350,7 @@ const Portfolio: React.FC = () => {
                           >
                              <div className="aspect-[4/3] bg-stone-100 overflow-hidden border border-stone-200 relative mb-3 md:mb-4 transition-all duration-500 shadow-sm hover:shadow-xl">
                                 <img 
-                                  src={product.image} 
+                                  src={getAssetUrl(product.image)} 
                                   alt={product.name} 
                                   loading="lazy"
                                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"

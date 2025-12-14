@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { Trash2, AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { CDN_DOMAIN } from '../../../utils/imageHelpers';
 import { adminFetch } from '../../../utils/adminFetch';
+import { extractKeyFromUrl } from '../../../utils/getAssetUrl';
 
 const MediaTools: React.FC = () => {
   const [urls, setUrls] = useState('');
@@ -19,16 +19,16 @@ const MediaTools: React.FC = () => {
     const urlList = urls.split('\n').map(u => u.trim()).filter(u => u);
     const keysToDelete: string[] = [];
 
-    // Filter valid CDN URLs and extract keys
+    // Validated key extraction using the centralized utility
     urlList.forEach(url => {
-        if (url.includes(CDN_DOMAIN)) {
-            const key = url.replace(CDN_DOMAIN, "").replace(/^\/+/, "");
+        const key = extractKeyFromUrl(url);
+        if (key) {
             keysToDelete.push(key);
         }
     });
 
     if (keysToDelete.length === 0) {
-        alert("No valid CDN URLs found.");
+        alert("No valid managed URLs found in the input.");
         setProcessing(false);
         return;
     }
@@ -71,7 +71,7 @@ const MediaTools: React.FC = () => {
                         value={urls}
                         onChange={(e) => setUrls(e.target.value)}
                         className="w-full h-64 p-4 text-xs font-mono bg-stone-50 border border-stone-200 focus:border-red-500 focus:ring-1 focus:ring-red-200 outline-none resize-none mb-4"
-                        placeholder={`https://cdn.peng-zhan.com/image1.jpg\nhttps://cdn.peng-zhan.com/image2.jpg`}
+                        placeholder="https://..."
                     />
                     
                     {result && (
@@ -101,7 +101,7 @@ const MediaTools: React.FC = () => {
                     </p>
                     <ul className="list-disc pl-4 space-y-2">
                         <li>Broken images will appear if you delete a file that is still being used on the website.</li>
-                        <li>Only URLs starting with <strong>{CDN_DOMAIN}</strong> will be processed.</li>
+                        <li>Only URLs matching our configured CDN will be processed.</li>
                         <li>This action cannot be undone.</li>
                     </ul>
                 </div>

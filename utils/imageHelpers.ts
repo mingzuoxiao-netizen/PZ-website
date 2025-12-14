@@ -1,25 +1,30 @@
 
 import { adminFetch } from "./adminFetch";
-
-export const CDN_DOMAIN = "https://cdn.peng-zhan.com/";
+import { extractKeyFromUrl } from "./getAssetUrl";
 
 /**
  * Deletes an image from Cloudflare R2 bucket via the Worker API.
- * It converts the full CDN URL back to the storage key.
+ * Uses extractKeyFromUrl to safely parse the storage key.
  * Uses adminFetch to ensure the request is authenticated.
  */
 export async function deleteImageFromR2(url: string) {
     if (!url) return;
 
     try {
-        // Send to Worker (supports multiple)
-        // Authorization header is automatically injected by adminFetch
+        const key = extractKeyFromUrl(url);
+        
+        // If we can't extract a valid key, abort (it might be an external URL)
+        if (!key) {
+            console.warn("[R2] Skipping delete for non-managed asset:", url);
+            return;
+        }
+
         await adminFetch('/delete-images', {
             method: "POST",
-            body: JSON.stringify({ keys: [url] })
+            body: JSON.stringify({ keys: [key] })
         });
 
-        console.log("[R2] Deleted:", url);
+        console.log("[R2] Deleted:", key);
     } catch (err) {
         console.warn("[R2] Delete failed:", url, err);
     }

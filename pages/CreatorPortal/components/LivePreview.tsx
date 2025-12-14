@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Image as ImageIcon, ArrowLeft } from 'lucide-react';
+import { getAssetUrl } from '../../../utils/getAssetUrl';
 
 interface LivePreviewProps {
   formData: any;
@@ -21,7 +22,7 @@ const LivePreview: React.FC<LivePreviewProps> = ({ formData }) => {
           <div className="aspect-[4/3] w-full bg-stone-50 relative overflow-hidden flex items-center justify-center p-4">
             {formData.image ? (
               <img 
-                src={formData.image} 
+                src={getAssetUrl(formData.image)} 
                 alt="Preview" 
                 className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-700" 
               />

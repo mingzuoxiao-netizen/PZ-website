@@ -94,22 +94,21 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         formData.append('file', file);
 
         try {
-            const data = await adminFetch<{ url?: string; key?: string }>('/upload-image', {
+            const data = await adminFetch<{ success: boolean; key: string; url: string }>('/upload-image', {
                 method: 'POST',
                 body: formData,
             });
 
-            // FIX: Support both 'url' (absolute) and 'key' (relative) from Worker
-            const remoteKey = data.url || data.key;
+            // STRICT: The backend MUST return the 'url' property.
+            if (!data.url) {
+                throw new Error('Server violation: Missing URL in response');
+            }
 
-            if (!remoteKey) throw new Error('No URL/Key returned from server');
-
-            // Standardize URL using the centralized utility
-            const finalURL = getAssetUrl(remoteKey);
-            
             // Update Success
             setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item));
-            return finalURL;
+            
+            // Return the full URL
+            return data.url;
 
         } catch (err: any) {
             console.error('Upload error:', err);
@@ -248,11 +247,14 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           {isPdf(images[0]) ? (
              <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-stone-100 text-stone-500">
                 <FileText size={48} className="mb-2 text-amber-700"/>
-                <span className="text-xs font-mono break-all px-4 text-center">{images[0].split('/').pop()}</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest mt-2 bg-amber-100 text-amber-800 px-2 py-1 rounded">PDF Document</span>
+                <span className="text-xs font-mono break-all px-4 text-center">
+                    {/* Render filename manually if possible, or just PDF label */}
+                    PDF Document
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest mt-2 bg-amber-100 text-amber-800 px-2 py-1 rounded">View PDF</span>
              </div>
           ) : (
-             <img src={images[0]} className="w-full h-full object-cover" />
+             <img src={getAssetUrl(images[0])} className="w-full h-full object-cover" alt="Uploaded" />
           )}
 
           {/* Overlay actions */}
@@ -332,10 +334,10 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                   {isPdf(url) ? (
                      <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-500 p-2">
                         <FileText size={32} className="mb-2"/>
-                        <span className="text-[9px] font-mono break-all text-center leading-tight">{url.split('/').pop()}</span>
+                        <span className="text-[9px] font-mono break-all text-center leading-tight">PDF</span>
                      </div>
                   ) : (
-                     <img src={url} className="w-full h-full object-cover" />
+                     <img src={getAssetUrl(url)} className="w-full h-full object-cover" alt="Uploaded" />
                   )}
 
                   {idx === 0 && (
