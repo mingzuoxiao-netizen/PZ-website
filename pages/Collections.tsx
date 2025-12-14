@@ -28,18 +28,36 @@ const Collections: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE}/products?limit=1000`);
-        if (!response.ok) throw new Error("Failed to connect to product server");
+        // Add timestamp to prevent caching
+        const response = await fetch(`${API_BASE}/products?limit=1000&_t=${Date.now()}`);
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
         
         const json = await response.json();
-        // Normalize ensures 'images' is always an array and data structure is consistent
-        const loadedProducts = normalizeProducts(json.data || []);
+        
+        // Handle various response structures: { data: [...] } or [...] or { results: [...] }
+        let rawData = [];
+        if (Array.isArray(json)) {
+            rawData = json;
+        } else if (json.data && Array.isArray(json.data)) {
+            rawData = json.data;
+        } else if (json.results && Array.isArray(json.results)) {
+            rawData = json.results;
+        }
+
+        // Normalize data
+        let loadedProducts = normalizeProducts(rawData);
+        
+        // Filter only PUBLISHED products for the public site
+        // and robustly handle status case-sensitivity
+        loadedProducts = loadedProducts.filter(p => 
+            p.status && (p.status.toLowerCase() === 'published' || p.status.toLowerCase() === 'pub')
+        );
         
         console.log("Portfolio Loaded Products:", loadedProducts);
         setProducts(loadedProducts);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Portfolio Error:", e);
-        setError("Unable to load products. Please check your connection.");
+        setError(`Unable to load products. (${e.message})`);
       } finally {
         setIsLoading(false);
       }
@@ -51,8 +69,14 @@ const Collections: React.FC = () => {
   // 2. Derive Available Categories
   // Filter static categories to ONLY show ones that have uploaded products
   const availableCategories = useMemo(() => {
+    // Collect all unique categories from loaded products
     const validIds = new Set(products.map(p => p.category?.toLowerCase().trim()));
-    return staticCategories.filter(cat => validIds.has(cat.id.toLowerCase()));
+    
+    return staticCategories.filter(cat => {
+        // Check if the static category ID matches any product category
+        // Also checks if product category matches the static category TITLE (handling legacy data where Title was saved as ID)
+        return validIds.has(cat.id.toLowerCase()) || validIds.has(cat.title.toLowerCase());
+    });
   }, [products]);
 
   // 3. Handle URL Params (Deep Linking)
@@ -71,11 +95,15 @@ const Collections: React.FC = () => {
   const displayedProducts = useMemo(() => {
     if (activeCategory === 'all') return products;
     
-    // Loose matching: Compare trimmed lowercase IDs to handle data inconsistencies
     return products.filter(p => {
-        const productCat = (p.category || '').toLowerCase().trim();
-        const targetCat = activeCategory.toLowerCase().trim();
-        return productCat === targetCat;
+        const pCat = (p.category || '').toLowerCase().trim();
+        const tCat = activeCategory.toLowerCase().trim();
+        
+        // Match against ID or Title of the active category to be safe
+        const activeCategoryDef = staticCategories.find(c => c.id.toLowerCase() === tCat);
+        const activeTitle = activeCategoryDef ? activeCategoryDef.title.toLowerCase() : '';
+
+        return pCat === tCat || pCat === activeTitle;
     });
   }, [activeCategory, products]);
 
@@ -201,6 +229,12 @@ const Collections: React.FC = () => {
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-stone-400">
                 <AlertCircle className="mb-2 text-red-400" size={32} />
                 <p>{error}</p>
+                <button 
+                    onClick={() => window.location.reload()} 
+                    className="mt-4 text-xs font-bold uppercase border-b border-stone-400 hover:text-stone-900"
+                >
+                    Retry
+                </button>
             </div>
         )}
 
@@ -213,8 +247,10 @@ const Collections: React.FC = () => {
                 {/* Empty State */}
                 {products.length === 0 ? (
                     <div className="text-center py-20 bg-stone-100 border border-stone-200 rounded-sm">
-                        <p className="text-stone-500 font-serif text-lg mb-2">No products found.</p>
-                        <p className="text-xs text-stone-400">Please upload products via the Creator Portal to populate this page.</p>
+                        <p className="text-stone-500 font-serif text-lg mb-2">No published products found.</p>
+                        <p className="text-xs text-stone-400">
+                            Check that your products are set to "Published" status in the Creator Portal.
+                        </p>
                     </div>
                 ) : displayedProducts.length === 0 ? (
                     <div className="text-center py-20 text-stone-400">
