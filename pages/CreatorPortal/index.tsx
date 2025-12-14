@@ -6,8 +6,10 @@ import { SiteConfig, SiteMeta } from '../../utils/siteConfig';
 import { ProductVariant, Category } from '../../types';
 import { Package, Globe, Image as ImageIcon, LayoutGrid } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { normalizeProducts } from '../../utils/normalizeProduct';
+import { categories as staticCategories } from '../../data/inventory'; // Import static categories
 
-// Sub-components (Assuming these exist or I will provide them)
+// Sub-components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
@@ -22,7 +24,9 @@ const CreatorPortal: React.FC = () => {
   // State
   const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets' | 'collections'>('inventory');
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  // Initialize with static categories to ensure form has options even if API fails
+  const [categories, setCategories] = useState<Category[]>(staticCategories);
+  
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [configMeta, setConfigMeta] = useState<SiteMeta | null>(null);
   const [assetHistory, setAssetHistory] = useState<Record<string, any[]>>({});
@@ -44,29 +48,13 @@ const CreatorPortal: React.FC = () => {
       const [inventoryRes, configRes, categoriesRes, historyRes] = await Promise.all([
         adminFetch<{ data: any[] }>('/products?limit=500'),
         adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config'),
-        adminFetch<{ data: Category[] }>('/categories'),
+        adminFetch<{ data: Category[] }>('/categories').catch(() => ({ data: [] })), // Catch error gracefully
         adminFetch<{ history: any }>('/assets/history')
       ]);
 
-      // 2. Process Inventory
+      // 2. Process Inventory with Strict Normalization
       const rawItems = inventoryRes.data || [];
-      const normalizedItems = rawItems.map((i: any) => {
-          const imgs = Array.isArray(i.images) && i.images.length > 0 
-            ? i.images 
-            : (i.image ? [i.image] : []);
-            
-          return { 
-            ...i, 
-            category: i.category || i.categoryId,
-            sub_category: i.sub_category || i.subCategoryName,
-            name_cn: i.name_cn || i.name_zh,
-            description_cn: i.description_cn || i.description_zh,
-            size: i.size || i.dimensions,
-            status: i.status || 'published',
-            images: imgs,
-            image: imgs[0] || ''
-          };
-      });
+      const normalizedItems = normalizeProducts(rawItems);
       setLocalItems(normalizedItems);
 
       // 3. Process Config
@@ -78,9 +66,12 @@ const CreatorPortal: React.FC = () => {
         });
       }
 
-      // 4. Process Categories
-      if (categoriesRes && categoriesRes.data) {
+      // 4. Process Categories (Merge with static if needed, or prefer API)
+      if (categoriesRes && categoriesRes.data && categoriesRes.data.length > 0) {
         setCategories(categoriesRes.data);
+      } else {
+        // Keep static categories if API is empty
+        setCategories(staticCategories);
       }
 
       // 5. Process Asset History
@@ -151,13 +142,6 @@ const CreatorPortal: React.FC = () => {
   };
 
   const handleAssetUpdate = async (key: string, url: string) => {
-    // We update the siteConfig object directly for assets
-    if (!siteConfig) return;
-    // Find where this asset key lives in the config structure is complex
-    // Alternatively, we use a dedicated endpoint for asset overrides if structure differs
-    // But here we assume siteConfig contains all asset keys or we use a key-value store approach
-    // For simplicity, let's assume assets are part of Site Config JSON or handled via specialized endpoint
-    // If using the KV approach described in SiteConfigContext:
     try {
        await adminFetch('/assets', {
            method: 'POST',
@@ -247,7 +231,7 @@ const CreatorPortal: React.FC = () => {
           
           {activeTab === 'assets' && (
               <PageAssets 
-                customAssets={DEFAULT_ASSETS} // Needs actual custom assets from fetch
+                customAssets={DEFAULT_ASSETS} 
                 assetHistory={assetHistory}
                 onAssetUpdate={handleAssetUpdate}
                 onAssetReset={(k) => handleAssetUpdate(k, '')}

@@ -1,82 +1,90 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { X, ArrowRight, Loader2 } from 'lucide-react';
+import { X, Loader2, AlertCircle, Download, FileText } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
-import { Category, ProductVariant, SubCategory } from '../types';
+import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
 import { getAssetUrl } from '../utils/getAssetUrl';
-
-// Helper to flatten products
-const getAllProducts = (categories: Category[]): ProductVariant[] => {
-  let products: ProductVariant[] = [];
-  categories.forEach(cat => {
-    cat.subCategories.forEach(sub => {
-      if (sub.variants) {
-        products = [...products, ...sub.variants];
-      }
-    });
-  });
-  return products;
-};
+import { normalizeProducts } from '../utils/normalizeProduct';
+import { API_BASE } from '../utils/siteConfig';
 
 const Collections: React.FC = () => {
   const { t } = useLanguage();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { config } = usePublishedSiteConfig();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // State
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<ProductVariant | null>(null);
-  
-  // Normalize static data to ensure images[] exists
-  const [dynamicCategories, setDynamicCategories] = useState<Category[]>(() => {
-    return staticCategories.map(cat => ({
-      ...cat,
-      subCategories: cat.subCategories.map(sub => ({
-        ...sub,
-        variants: sub.variants?.map(v => {
-          const imgs = Array.isArray(v.images) && v.images.length > 0
-            ? v.images 
-            : (v.image ? [v.image] : []);
-          return {
-            ...v,
-            images: imgs,
-            image: imgs[0] || ''
-          };
-        })
-      }))
-    }));
-  });
+  const [products, setProducts] = useState<ProductVariant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
+  // 1. Fetch Products
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${API_BASE}/products?limit=1000`);
+        if (!response.ok) throw new Error("Failed to connect to product server");
+        
+        const json = await response.json();
+        const loadedProducts = normalizeProducts(json.data || []);
+        
+        // Sanity Check: Log loaded products to console for debugging
+        console.log("Portfolio Loaded Products:", loadedProducts);
+        
+        setProducts(loadedProducts);
+      } catch (e) {
+        console.error("Portfolio Error:", e);
+        setError("Unable to load products. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Parse query params
+    fetchPortfolio();
+  }, []);
+
+  // 2. Derive Available Categories (Dynamic Filtering)
+  // This ensures we only show buttons for categories that actually have products
+  const availableCategories = useMemo(() => {
+    const validIds = new Set(products.map(p => p.category?.toLowerCase().trim()));
+    return staticCategories.filter(cat => validIds.has(cat.id.toLowerCase()));
+  }, [products]);
+
+  // 3. Handle URL Params (Deep Linking)
   useEffect(() => {
     const cat = searchParams.get('category');
     if (cat) setActiveCategory(cat);
     
     const prodId = searchParams.get('product');
-    if (prodId) {
-      // Find product
-      const all = getAllProducts(dynamicCategories);
-      const found = all.find(p => p.id === prodId || p.name === prodId); // Fallback to name match for legacy
+    if (prodId && products.length > 0) {
+      const found = products.find(p => p.id === prodId || p.name === prodId);
       if (found) setSelectedProduct(found);
     }
-  }, [searchParams, dynamicCategories]);
+  }, [searchParams, products]);
 
-  // Update categories with config images if available (optional enhancement)
-  // For now just returning dynamicCategories
-  const displayCategories = useMemo(() => {
-    return dynamicCategories;
-  }, [dynamicCategories]);
+  // 4. Robust Filter Logic
+  const displayedProducts = useMemo(() => {
+    if (activeCategory === 'all') return products;
+    
+    // Loose matching: Compare trimmed lowercase IDs to handle data inconsistencies
+    return products.filter(p => {
+        const productCat = (p.category || '').toLowerCase().trim();
+        const targetCat = activeCategory.toLowerCase().trim();
+        return productCat === targetCat;
+    });
+  }, [activeCategory, products]);
 
+  // Handlers
   const openProduct = (product: ProductVariant) => {
     setSelectedProduct(product);
-    // Update URL without reload
     const params = new URLSearchParams(searchParams);
     if (product.id) params.set('product', product.id);
-    else params.set('product', product.name);
     setSearchParams(params, { replace: true });
   };
 
@@ -87,17 +95,6 @@ const Collections: React.FC = () => {
     setSearchParams(params, { replace: true });
   };
 
-  const filteredSubCategories = useMemo(() => {
-    if (activeCategory === 'all') {
-      // Flatten all subcategories
-      let subs: SubCategory[] = [];
-      displayCategories.forEach(c => subs = [...subs, ...c.subCategories]);
-      return subs;
-    }
-    const cat = displayCategories.find(c => c.id === activeCategory);
-    return cat ? cat.subCategories : [];
-  }, [activeCategory, displayCategories]);
-
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       
@@ -107,7 +104,7 @@ const Collections: React.FC = () => {
            <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
               <div className="w-full md:w-1/2 bg-stone-100 relative min-h-[300px]">
                  <img 
-                   src={getAssetUrl(selectedProduct.images?.[0])} 
+                   src={getAssetUrl(selectedProduct.images[0])} 
                    alt={selectedProduct.name} 
                    className="w-full h-full object-cover absolute inset-0 mix-blend-multiply"
                  />
@@ -150,69 +147,124 @@ const Collections: React.FC = () => {
 
       <div className="container mx-auto px-6 md:px-12">
         <div className="mb-12 text-center">
-            <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">{t.collections.title}</h1>
-            <p className="text-stone-500 max-w-2xl mx-auto">{t.collections.intro}</p>
+            <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">Portfolio</h1>
+            <p className="text-stone-500 max-w-2xl mx-auto mb-8">{t.collections.intro}</p>
+
+            {/* Catalog Download Section */}
+            {config?.catalog?.url && (
+                <div className="inline-block animate-fade-in-up">
+                    <a 
+                        href={getAssetUrl(config.catalog.url)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-4 bg-white border border-stone-200 hover:border-safety-700 px-6 py-4 shadow-sm group transition-all"
+                    >
+                        <div className="bg-stone-100 p-2 rounded-full text-stone-500 group-hover:bg-safety-700 group-hover:text-white transition-colors">
+                            <FileText size={20} />
+                        </div>
+                        <div className="text-left">
+                            <div className="text-xs font-bold uppercase tracking-widest text-stone-900 group-hover:text-safety-700 transition-colors">
+                                {t.collections.catalogDesc || "Download 2025 Catalog"}
+                            </div>
+                            <div className="text-[10px] text-stone-400 font-mono mt-1 flex items-center">
+                                PDF Document <Download size={10} className="ml-2" />
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            )}
         </div>
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap justify-center gap-4 mb-16">
-            <button 
-                onClick={() => { setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === 'all' ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
-            >
-                All
-            </button>
-            {displayCategories.map(cat => (
+        {/* Dynamic Category Filter */}
+        {products.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-4 mb-16">
                 <button 
-                    key={cat.id}
-                    onClick={() => { setActiveCategory(cat.id); setSearchParams({ category: cat.id }, { replace: true }); }}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === cat.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
+                    onClick={() => { setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === 'all' ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
                 >
-                    {cat.title}
+                    ALL
                 </button>
-            ))}
-        </div>
+                {/* Only render categories that actually exist in the product list */}
+                {availableCategories.map(cat => (
+                    <button 
+                        key={cat.id}
+                        onClick={() => { setActiveCategory(cat.id); setSearchParams({ category: cat.id }, { replace: true }); }}
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === cat.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
+                    >
+                        {cat.title}
+                    </button>
+                ))}
+            </div>
+        )}
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-           {filteredSubCategories.map((sub, idx) => (
-               <div key={idx} className="group">
-                   <div className="aspect-[4/3] bg-stone-200 overflow-hidden relative mb-4">
-                       <img 
-                         src={getAssetUrl(sub.image)} 
-                         alt={sub.name} 
-                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                       />
-                       {/* Overlay with View Products button if it has variants */}
-                       {sub.variants && sub.variants.length > 0 && (
-                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                               <button className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 hover:text-white transition-colors">
-                                   {t.collections.viewProducts}
-                               </button>
-                           </div>
-                       )}
-                   </div>
-                   <h3 className="font-serif text-xl text-stone-900">{sub.name}</h3>
-                   <p className="text-sm text-stone-500 mt-1 line-clamp-2">{sub.description}</p>
-                   
-                   {/* Variant List Preview */}
-                   {sub.variants && sub.variants.length > 0 && (
-                       <div className="mt-4 space-y-2 border-t border-stone-100 pt-3">
-                           {sub.variants.map((variant, vIdx) => (
-                               <div 
-                                 key={vIdx} 
-                                 onClick={() => openProduct(variant)}
-                                 className="flex items-center justify-between text-xs text-stone-600 hover:text-safety-700 cursor-pointer group/item"
-                               >
-                                   <span>{variant.name}</span>
-                                   <ArrowRight size={12} className="opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                               </div>
-                           ))}
-                       </div>
-                   )}
-               </div>
-           ))}
-        </div>
+        {/* Error / Loading State */}
+        {error && (
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-stone-400">
+                <AlertCircle className="mb-2 text-red-400" size={32} />
+                <p>{error}</p>
+            </div>
+        )}
+
+        {isLoading ? (
+             <div className="col-span-full flex justify-center py-20 text-stone-400">
+                <Loader2 className="animate-spin mr-2" /> Loading Portfolio...
+             </div>
+        ) : (
+            <>
+                {/* Empty State */}
+                {products.length === 0 ? (
+                    <div className="text-center py-20 bg-stone-100 border border-stone-200 rounded-sm">
+                        <p className="text-stone-500 font-serif text-lg mb-2">No products found.</p>
+                        <p className="text-xs text-stone-400">Please upload products via the Creator Portal to populate this page.</p>
+                    </div>
+                ) : displayedProducts.length === 0 ? (
+                    <div className="text-center py-20 text-stone-400">
+                        <p>No products found in the "{activeCategory}" category.</p>
+                        <button onClick={() => setActiveCategory('all')} className="mt-4 text-safety-700 underline text-sm">View All Products</button>
+                    </div>
+                ) : (
+                    /* Product Grid */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
+                        {displayedProducts.map((product, idx) => (
+                        <div 
+                            key={product.id || idx} 
+                            className="group cursor-pointer animate-fade-in-up" 
+                            style={{ animationDelay: `${idx * 50}ms` }}
+                            onClick={() => openProduct(product)}
+                        >
+                            <div className="aspect-[3/4] bg-stone-100 overflow-hidden relative mb-4">
+                                {/* Primary Image */}
+                                <img 
+                                    src={getAssetUrl(product.images[0])} 
+                                    alt={product.name} 
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 mix-blend-multiply"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=No+Image';
+                                    }}
+                                />
+                                
+                                {/* Hover Overlay */}
+                                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                                    <span className="bg-white text-stone-900 px-4 py-2 text-[10px] font-bold uppercase tracking-widest shadow-sm">
+                                        View Details
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors">{product.name}</h3>
+                                    <p className="text-xs text-stone-400 uppercase tracking-widest mt-1 font-bold">
+                                        {product.code || "Ref. " + (idx + 1).toString().padStart(3, '0')}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+                )}
+            </>
+        )}
 
       </div>
     </div>

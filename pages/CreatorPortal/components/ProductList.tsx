@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Edit, Trash2, Plus, Search } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
@@ -49,7 +50,8 @@ const ProductList: React.FC<ProductListProps> = ({ items, categories, onEdit, on
                   <div className="p-8 text-center text-stone-500">{t.creator.inventory.noItems}</div>
               ) : (
                 safeItems.map((item) => {
-                    const imageUrl = getAssetUrl(item.images?.[0] || item.image);
+                    // UI RULE: Strictly use images array
+                    const imageUrl = getAssetUrl(item.images[0]);
                     const categoryName = categories.find(c => c.id === item.category)?.title || item.category;
 
                     return (

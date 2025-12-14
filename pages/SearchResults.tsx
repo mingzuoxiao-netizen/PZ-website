@@ -1,8 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { categories } from '../data/inventory';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getAssetUrl } from '../utils/getAssetUrl';
+import { normalizeProduct } from '../utils/normalizeProduct';
 
 interface SearchResultItem {
   type: 'category' | 'subcategory' | 'variant';
@@ -61,18 +63,17 @@ const SearchResults: React.FC = () => {
                                  (variant.description && variant.description.toLowerCase().includes(lowerQuery));
             
             if (variantMatch) {
-              // Normalize on read
-              const imgs = Array.isArray(variant.images) && variant.images.length > 0 
-                ? variant.images 
-                : (variant.image ? [variant.image] : []);
+              // STRICT NORMALIZATION
+              const normalized = normalizeProduct(variant);
 
               foundItems.push({
                 type: 'variant',
                 categoryTitle: `${cat.title} / ${sub.name}`,
-                name: variant.name,
-                description: variant.description || '',
-                image: imgs[0] || '', 
-                link: `/collections?category=${cat.id}&product=${variant.id || variant.name}`
+                name: normalized.name,
+                description: normalized.description || '',
+                // Ensure rendering uses images array source
+                image: normalized.images[0] || '', 
+                link: `/collections?category=${cat.id}&product=${normalized.id || normalized.name}`
               });
             }
           });

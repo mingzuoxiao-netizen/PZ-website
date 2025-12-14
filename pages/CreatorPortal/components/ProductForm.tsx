@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ProductVariant, Category } from '../../../types';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -34,6 +35,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
     // ensure images is array
     if (!formData.images) formData.images = [];
     
+    // Normalization: Ensure Category is saved as the ID (lowercase), not the label
+    if (formData.category) {
+        formData.category = formData.category.toLowerCase().trim();
+    }
+
     onSave(formData as ProductVariant);
   };
 
@@ -107,7 +113,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                    <PZImageManager 
                      label="Product Images"
                      images={formData.images || []}
-                     onUpdate={(imgs) => handleChange('images', imgs)}
+                     onUpdate={(imgs) => {
+                       // Update both array and legacy string to ensure backend payload compatibility
+                       setFormData(prev => ({ 
+                         ...prev, 
+                         images: imgs,
+                         image: imgs[0] || '' 
+                       }));
+                     }}
                      onError={alert}
                    />
                 </div>

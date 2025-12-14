@@ -11,8 +11,8 @@ export interface ProductVariant {
   name_cn?: string;
   description?: string;
   description_cn?: string;
-  image: string;
-  images?: string[]; 
+  image: string; // Legacy fallback
+  images: string[]; // Primary Source of Truth
   material?: string;
   size?: string;
   code?: string;

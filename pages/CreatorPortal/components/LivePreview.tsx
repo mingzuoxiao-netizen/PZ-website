@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { ProductVariant } from '../../../types';
 import { getAssetUrl } from '../../../utils/getAssetUrl';
