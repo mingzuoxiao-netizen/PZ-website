@@ -23,17 +23,23 @@ export function normalizeProduct(input: any): ProductVariant {
   // 1. Normalize Images (Strict Array)
   let images: string[] = [];
 
-  if (Array.isArray(input.images)) {
-    // Filter valid strings
+  if (Array.isArray(input.images) && input.images.length > 0) {
+    // Primary Source: Array
     images = input.images.filter((url: any) => typeof url === 'string' && url.trim().length > 0);
   } else if (typeof input.image === 'string' && input.image.trim().length > 0) {
-    // Fallback: Migrate legacy single image to array
+    // Fallback Source: Single String (Legacy)
     images = [input.image];
   }
 
   // 2. Normalize Status
-  const validStatuses = ['published', 'draft', 'archived', 'hidden'];
-  const status = validStatuses.includes(input.status) ? input.status : 'draft';
+  // Force lowercase to avoid case-sensitive filtering issues
+  let status = 'draft';
+  if (input.status) {
+      const s = input.status.toLowerCase();
+      if (['published', 'draft', 'archived', 'hidden', 'pub'].includes(s)) {
+          status = s === 'pub' ? 'published' : s;
+      }
+  }
 
   return {
     ...input,
@@ -47,7 +53,7 @@ export function normalizeProduct(input: any): ProductVariant {
     image: images[0] || '',
 
     // FIELD NORMALIZATION (Handle schema evolution)
-    category: input.category || input.categoryId || '',
+    category: (input.category || input.categoryId || '').toLowerCase(), // Normalize ID
     sub_category: input.sub_category || input.subCategoryName || '',
     
     name_cn: input.name_cn || input.name_zh || '',

@@ -45,6 +45,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
     fetchHistory();
   }, [meta?.version]);
 
+  // STEP 6: NON-BLOCKING HISTORY FETCH
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
@@ -54,7 +55,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
       }
     } catch (e) {
       // Silently fail if endpoint is not implemented yet
-      console.warn("History API not available:", e);
+      console.warn("History API not available or failed:", e);
       setHistory([]); 
     } finally {
       setLoadingHistory(false);

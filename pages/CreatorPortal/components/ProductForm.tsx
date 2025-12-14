@@ -34,17 +34,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
         return;
     }
 
-    // 2. Prepare Payload (The Fix)
+    // 2. Prepare Payload (THE CRITICAL FIX)
+    // We enforce 'published' if status is missing to ensure visibility on frontend.
     const payload: ProductVariant = {
         ...(formData as ProductVariant),
-        // CRITICAL FIX: Default to 'published' if status is undefined/null
-        // This ensures new products appear on the frontend immediately.
+        // STEP 1: FORCE STATUS 'published' if undefined
         status: formData.status || 'published', 
-        // Normalize Category ID
+        // Normalize Category ID to lowercase to match frontend filters
         category: (formData.category || '').toLowerCase().trim(),
-        // Ensure images is always an array
+        // STEP 3: Ensure images is always an array
         images: Array.isArray(formData.images) ? formData.images : [],
-        // Legacy support (backend might need single image string)
+        // Legacy support: Populate 'image' string for older backend logic
         image: Array.isArray(formData.images) && formData.images.length > 0 ? formData.images[0] : (formData.image || '')
     };
 
@@ -119,12 +119,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 </div>
 
                 <div>
+                   {/* STEP 3: Image Sync */}
                    <PZImageManager 
                      label="Product Images"
                      images={formData.images || []}
                      onUpdate={(imgs) => {
-                       // Update both array and legacy string to ensure backend payload compatibility
-                       // This triggers re-render for LivePreview immediately
+                       // Update both array and legacy string immediately to refresh LivePreview
                        setFormData(prev => ({ 
                          ...prev, 
                          images: imgs,
