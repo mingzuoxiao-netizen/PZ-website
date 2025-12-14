@@ -6,37 +6,30 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { fetchSiteConfig, SiteConfig, SiteMeta, DEFAULT_CONFIG } from "../utils/siteConfig";
-
-/* =========================
-   Context Types
-========================= */
+import {
+  fetchSiteConfig,
+  SiteConfig,
+  SiteMeta,
+  DEFAULT_CONFIG,
+} from "../utils/siteConfig";
 
 interface SiteConfigContextValue {
-  config: SiteConfig;
-  meta: SiteMeta;
+  config: SiteConfig | null;
+  meta: SiteMeta; // Never null
   loading: boolean;
   error: boolean;
   refresh: () => void;
 }
 
-/* =========================
-   Context
-========================= */
-
 const SiteConfigContext = createContext<SiteConfigContextValue | null>(null);
 
-/* =========================
-   Provider
-========================= */
-
 export function SiteConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<SiteConfig | null>(null);
   
-  // Meta state for observability (Version / Published At)
+  // Initialize meta with a safe default object to prevent null access
   const [meta, setMeta] = useState<SiteMeta>({
-    version: "0.0.0",
-    published_at: null,
+    version: 'legacy',
+    published_at: null
   });
 
   const [loading, setLoading] = useState(true);
@@ -48,27 +41,28 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await fetchSiteConfig();
-      
-      if (result) {
-        // Check if response is the new Envelope format
-        if ('version' in result && 'config' in result) {
-           setConfig(result.config);
-           setMeta({
-             version: result.version,
-             published_at: result.published_at
-           });
-        } else {
-           // Fallback: Legacy raw config format
-           // We assign a default version to indicate it's not enveloped
-           setConfig(result as SiteConfig);
-           setMeta({ version: "legacy", published_at: null });
-        }
+
+      if (!result) {
+        throw new Error("No published site config");
+      }
+
+      // Check if result matches Envelope structure
+      if ("version" in result && "config" in result) {
+        setConfig(result.config);
+        setMeta({
+          version: result.version || 'legacy',
+          published_at: result.published_at ?? null,
+        });
       } else {
-        // No data found? Stick to default, but set error flag
-        setError(true);
+        // Legacy format fallback
+        setConfig(result as SiteConfig);
+        setMeta({ version: "legacy", published_at: null });
       }
     } catch (e) {
-      console.error("SiteConfigProvider load failed", e);
+      console.error("[SiteConfigProvider] load failed", e);
+      setConfig(null);
+      // Ensure meta remains a valid object even on error
+      setMeta({ version: "legacy", published_at: null });
       setError(true);
     } finally {
       setLoading(false);
@@ -93,10 +87,6 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
     </SiteConfigContext.Provider>
   );
 }
-
-/* =========================
-   Hook
-========================= */
 
 export function usePublishedSiteConfig() {
   const ctx = useContext(SiteConfigContext);

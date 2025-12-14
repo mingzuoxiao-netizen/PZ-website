@@ -19,7 +19,7 @@ const Portfolio: React.FC = () => {
   const location = useLocation();
   const { config } = usePublishedSiteConfig();
 
-  const catalogPdfUrl = config.catalog?.url;
+  const catalogPdfUrl = config?.catalog?.url;
 
   // --- DATA LOADING ---
   useEffect(() => {

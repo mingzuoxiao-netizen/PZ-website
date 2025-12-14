@@ -259,10 +259,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="border-t border-stone-200 pt-10 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400">
             <div className="flex flex-col md:flex-row items-center gap-4">
                <p>&copy; {new Date().getFullYear()} PZ. {t.common.rights}</p>
-               {meta.version !== '0.0.0' && (
+               {meta?.version && meta.version !== '0.0.0' && (
                  <span className="text-stone-300 hidden md:inline">|</span>
                )}
-               {meta.version !== '0.0.0' && (
+               {meta?.version && meta.version !== '0.0.0' && (
                  <span className="opacity-60 font-mono text-[10px]">
                     v{meta.version} • Published: {meta.published_at ? new Date(meta.published_at).toLocaleDateString() : 'Unknown'}
                  </span>
