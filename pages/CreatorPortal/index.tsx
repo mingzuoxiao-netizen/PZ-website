@@ -44,33 +44,58 @@ const CreatorPortal: React.FC = () => {
   // --- DATA FETCHING ---
   const loadData = async () => {
     setLoading(true);
-    try {
-      // 1. Fetch Inventory & Config
-      // CRITICAL FIX: Use /admin/products to fetch ALL items (Draft, Hidden, Published)
-      // The public /products endpoint filters by status='published', which hides drafts from the CMS.
-      const inventoryPromise = adminFetch('/admin/products?limit=500');
 
-const categoriesPromise = adminFetch('/categories').catch(() => ({
-  data: [],
-}));
+try {
+  const inventoryPromise = adminFetch('/admin/products?limit=500');
 
-const historyPromise = adminFetch('/assets/history').catch(() => ({
-  data: [],
-}));
+  const categoriesPromise = adminFetch('/categories');
+  const historyPromise = adminFetch('/assets/history');
+  const configPromise = adminFetch('/site-config');
 
-const configPromise = adminFetch('/site-config');
+  const results = await Promise.allSettled([
+    inventoryPromise,
+    categoriesPromise,
+    historyPromise,
+    configPromise,
+  ]);
 
-const [
-  inventoryRes,
-  categoriesRes,
-  historyRes,
-  configRes,
-] = await Promise.all([
-  inventoryPromise,
-  categoriesPromise,
-  historyPromise,
-  configPromise,
-]);
+  const inventoryRes =
+    results[0].status === 'fulfilled'
+      ? results[0].value
+      : { products: [] };
+
+  const categoriesRes =
+    results[1].status === 'fulfilled'
+      ? results[1].value
+      : { data: [] };
+
+  const historyRes =
+    results[2].status === 'fulfilled'
+      ? results[2].value
+      : { data: [] };
+
+  const configRes =
+    results[3].status === 'fulfilled'
+      ? results[3].value
+      : null;
+
+  // 🔍 关键 debug（你可以暂时留着）
+  console.log('[Inventory DEBUG]', inventoryRes);
+
+  const rawItems = inventoryRes.products || inventoryRes.data || [];
+  const normalizedItems = normalizeProducts(rawItems);
+
+  setLocalItems(normalizedItems);
+  setCategories(categoriesRes.data || []);
+  setHistory(historyRes.data || []);
+  setSiteConfig(configRes);
+
+} catch (e) {
+  console.error('Creator Portal fatal error', e);
+} finally {
+  setLoading(false);
+}
+
 
       // 2. Process Inventory with Strict Normalization
       // Support both new { products: [] } and legacy { data: [] } structures
