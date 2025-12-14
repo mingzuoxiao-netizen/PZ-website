@@ -51,7 +51,7 @@ const CreatorPortal: React.FC = () => {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isCreatingSubCategory, setIsCreatingSubCategory] = useState(false);
 
-  // Form Data State
+  // Form Data State - Single Source of Truth
   const initialFormState = {
     categoryId: staticCategories[0].id,
     subCategoryName: staticCategories[0].subCategories[0].name,
@@ -60,7 +60,7 @@ const CreatorPortal: React.FC = () => {
     description: '',
     description_zh: '',
     image: '',
-    images: [] as string[],
+    images: [] as string[], // Ensure images array exists
     material: '',
     dimensions: '',
     code: '',
@@ -392,7 +392,7 @@ const CreatorPortal: React.FC = () => {
             }
         }
 
-        // IMPORTANT: Variable named 'product' as requested to prevent ReferenceError in logging
+        // Construct the product payload from the single source of truth (formData)
         const product = {
             id: editingId || Math.random().toString(36).substr(2, 9),
             categoryId: finalCategoryId,
@@ -401,8 +401,8 @@ const CreatorPortal: React.FC = () => {
             name_zh: formData.name_zh,
             description: formData.description,
             description_zh: formData.description_zh,
-            image: formData.images[0],
-            images: formData.images,
+            image: formData.images[0], // Primary image is first in array
+            images: formData.images,   // Full array of image URLs
             material: formData.material,
             dimensions: formData.dimensions,
             code: formData.code,
@@ -412,7 +412,7 @@ const CreatorPortal: React.FC = () => {
         };
 
         // ---------------------------------------------------------
-        // CRITICAL FIX: Explicitly logging the correct variable
+        // CRITICAL FIX: Explicitly logging the correct variable 'product'
         // ---------------------------------------------------------
         console.log("POST /products payload:", product);
 
