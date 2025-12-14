@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { X, Loader2, AlertCircle, Download, FileText, ArrowRight } from 'lucide-react';
+import { X, Loader2, AlertCircle, Download, FileText, ArrowRight, LayoutGrid, ChevronLeft } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { ProductVariant } from '../types';
@@ -63,13 +63,20 @@ const Portfolio: React.FC = () => {
     fetchPortfolio();
   }, []);
 
-  // 2. Derive Available Categories (Only those with products)
+  // 2. Derive Available Categories
+  // Merge Static definitions with Dynamic overrides from SiteConfig
   const availableCategories = useMemo(() => {
     const validIds = new Set(products.map(p => p.category?.toLowerCase().trim()));
-    return staticCategories.filter(cat => {
+    
+    // Prefer config.categories if available (Dynamic), else fallback to static
+    const sourceCategories = (config?.categories && config.categories.length > 0) 
+        ? config.categories 
+        : staticCategories;
+
+    return sourceCategories.filter(cat => {
         return validIds.has(cat.id.toLowerCase()) || validIds.has(cat.title.toLowerCase());
     });
-  }, [products]);
+  }, [products, config]);
 
   // 3. Handle URL Params
   useEffect(() => {
@@ -83,19 +90,49 @@ const Portfolio: React.FC = () => {
     }
   }, [searchParams, products]);
 
-  // 4. Grouping Logic for "Exhibition Mode"
+  // Helper: Get products for specific category
   const getProductsByCategory = (catId: string) => {
       return products.filter(p => {
           const pCat = (p.category || '').toLowerCase().trim();
           const tCat = catId.toLowerCase().trim();
-          // Match ID or Title (legacy support)
-          const activeCategoryDef = staticCategories.find(c => c.id.toLowerCase() === tCat);
+          // Find definition in available (merged) categories
+          const activeCategoryDef = availableCategories.find(c => c.id.toLowerCase() === tCat);
           const activeTitle = activeCategoryDef ? activeCategoryDef.title.toLowerCase() : '';
           return pCat === tCat || pCat === activeTitle;
       });
   };
 
+  // Helper: Find first image of a category for the cover
+  // Now prioritizes the "Cover Image" set in Creator Mode (cat.image)
+  const getCategoryCover = (catId: string, defaultCover: string) => {
+      // 1. If explicit cover image from Config exists (and isn't a placeholder/unsplash), use it.
+      if (defaultCover && !defaultCover.includes('unsplash')) {
+          return defaultCover;
+      }
+      
+      // 2. Otherwise fallback to the first product image in that category
+      const catProducts = getProductsByCategory(catId);
+      if (catProducts.length > 0 && catProducts[0].images.length > 0) {
+          return catProducts[0].images[0];
+      }
+      
+      // 3. Last resort: keep the original default
+      return defaultCover;
+  };
+
   // Handlers
+  const handleCategorySelect = (catId: string) => {
+      setActiveCategory(catId);
+      setSearchParams({ category: catId }, { replace: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToOverview = () => {
+      setActiveCategory('all');
+      setSearchParams({}, { replace: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const openProduct = (product: ProductVariant) => {
     setSelectedProduct(product);
     const params = new URLSearchParams(searchParams);
@@ -110,7 +147,6 @@ const Portfolio: React.FC = () => {
     setSearchParams(params, { replace: true });
   };
 
-  // Language & Display Logic
   const getProductDisplay = (product: ProductVariant | null) => {
     if (!product) return { name: '', desc: '', size: '' };
     const name = language === 'zh' ? (product.name_cn || product.name) : product.name;
@@ -119,36 +155,7 @@ const Portfolio: React.FC = () => {
     return { name, desc, size };
   };
 
-  // --- RENDER COMPONENT: SINGLE PRODUCT CARD ---
-  const ProductCard = ({ product, idx }: { product: ProductVariant, idx: number }) => (
-    <div 
-        className="group cursor-pointer flex flex-col h-full" 
-        onClick={() => openProduct(product)}
-    >
-        <div className="aspect-[4/5] w-full bg-stone-100 relative overflow-hidden mb-4 shadow-sm border border-stone-100 transition-all duration-500 group-hover:shadow-md">
-            {/* Primary Image */}
-            <img 
-                src={getAssetUrl(product.images[0])} 
-                alt={product.name} 
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=No+Image';
-                }}
-            />
-            {/* Clean Hover Overlay */}
-            <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        </div>
-        
-        <div className="mt-auto">
-            <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors leading-tight mb-1">
-                {getProductDisplay(product).name}
-            </h3>
-            <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
-                {product.code || "Ref. " + (idx + 1).toString().padStart(3, '0')}
-            </p>
-        </div>
-    </div>
-  );
+  const activeCategoryDef = availableCategories.find(c => c.id === activeCategory);
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
@@ -172,7 +179,6 @@ const Portfolio: React.FC = () => {
                     <X size={24} />
                  </button>
                  
-                 {/* Dynamic Language Display */}
                  <h2 className="font-serif text-3xl text-stone-900 mb-6">
                     {getProductDisplay(selectedProduct).name}
                  </h2>
@@ -203,133 +209,175 @@ const Portfolio: React.FC = () => {
       )}
 
       <div className="container mx-auto px-6 md:px-12">
-        <div className="mb-16 text-center">
-            <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">Portfolio</h1>
-            <p className="text-stone-500 max-w-2xl mx-auto mb-8">{t.collections.intro}</p>
+        
+        {/* Header Section */}
+        <div className="mb-12">
+            <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-stone-200 pb-8">
+                <div>
+                    {activeCategory !== 'all' ? (
+                        <button 
+                            onClick={handleBackToOverview}
+                            className="group flex items-center text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest mb-4 transition-colors"
+                        >
+                            <ChevronLeft size={16} className="mr-1 group-hover:-translate-x-1 transition-transform"/> {t.collections.collection}
+                        </button>
+                    ) : (
+                        <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">Portfolio</h1>
+                    )}
+                    
+                    <h2 className="font-serif text-3xl md:text-5xl text-stone-900 leading-tight">
+                        {activeCategory === 'all' ? "Collections Overview" : activeCategoryDef?.title}
+                    </h2>
+                </div>
 
-            {/* Catalog Download Section */}
-            {config?.catalog?.url && (
-                <div className="inline-block animate-fade-in-up">
+                {/* Catalog Download Button (Always visible) */}
+                {config?.catalog?.url && (
                     <a 
                         href={getAssetUrl(config.catalog.url)} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-4 bg-white border border-stone-200 hover:border-safety-700 px-6 py-4 shadow-sm group transition-all"
+                        className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all"
                     >
-                        <div className="bg-stone-100 p-2 rounded-full text-stone-500 group-hover:bg-safety-700 group-hover:text-white transition-colors">
-                            <FileText size={20} />
-                        </div>
-                        <div className="text-left">
-                            <div className="text-xs font-bold uppercase tracking-widest text-stone-900 group-hover:text-safety-700 transition-colors">
-                                {t.collections.catalogDesc || "Download 2025 Catalog"}
-                            </div>
-                            <div className="text-[10px] text-stone-400 font-mono mt-1 flex items-center">
-                                PDF Document <Download size={10} className="ml-2" />
-                            </div>
-                        </div>
+                        <FileText size={18} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-stone-600 group-hover:text-stone-900">
+                            {t.collections.requestPdf}
+                        </span>
+                        <Download size={14} className="text-stone-400" />
                     </a>
-                </div>
+                )}
+            </div>
+            
+            {/* Description Text */}
+            {activeCategory === 'all' && (
+                <p className="text-stone-500 max-w-2xl mt-8 leading-relaxed">
+                    {t.collections.intro}
+                </p>
             )}
         </div>
 
-        {/* Filters */}
-        {products.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-4 mb-20 sticky top-[70px] md:top-[90px] z-30 bg-stone-50/95 backdrop-blur-sm py-4 -mx-6 px-6 shadow-sm border-b border-stone-200">
-                <button 
-                    onClick={() => { setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
-                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm ${activeCategory === 'all' ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900 border border-stone-200'}`}
-                >
-                    ALL
-                </button>
-                {/* Only render categories that actually exist in the product list */}
-                {availableCategories.map(cat => (
-                    <button 
-                        key={cat.id}
-                        onClick={() => { setActiveCategory(cat.id); setSearchParams({ category: cat.id }, { replace: true }); }}
-                        className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors rounded-sm ${activeCategory === cat.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900 border border-stone-200'}`}
-                    >
-                        {cat.title}
-                    </button>
-                ))}
-            </div>
-        )}
-
-        {/* Loading / Error / Empty States */}
-        {isLoading ? (
+        {/* Loading / Error */}
+        {isLoading && (
              <div className="col-span-full flex justify-center py-20 text-stone-400">
                 <Loader2 className="animate-spin mr-2" /> Loading Portfolio...
              </div>
-        ) : error ? (
+        )}
+        
+        {error && (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-stone-400">
                 <AlertCircle className="mb-2 text-red-400" size={32} />
                 <p>{error}</p>
             </div>
-        ) : products.length === 0 ? (
-            <div className="text-center py-20 bg-stone-100 border border-stone-200 rounded-sm">
-                <p className="text-stone-500 font-serif text-lg mb-2">No published products found.</p>
-            </div>
-        ) : (
-            /* 
-               ================================================================
-               EXHIBITION LAYOUT LOGIC
-               ================================================================
-            */
-            <div className="space-y-24">
-                {activeCategory === 'all' ? (
-                    /* EXHIBITION MODE: Stacked Categories */
-                    availableCategories.map((cat, catIdx) => {
-                        const catProducts = getProductsByCategory(cat.id);
-                        if (catProducts.length === 0) return null;
+        )}
 
-                        return (
-                            <section key={cat.id} className="animate-fade-in" style={{ animationDelay: `${catIdx * 100}ms` }}>
-                                {/* Sticky Category Header */}
-                                <div className="sticky top-[138px] md:top-[162px] z-20 bg-stone-50/95 backdrop-blur py-4 mb-8 border-b border-stone-200 flex justify-between items-end">
-                                    <div className="flex items-center gap-4">
-                                        <h2 className="font-serif text-2xl md:text-3xl text-stone-900">{cat.title}</h2>
-                                        <span className="text-xs font-mono text-stone-400 bg-white border border-stone-200 px-2 py-0.5 rounded-full">
-                                            {catProducts.length}
+        {/* Content Area */}
+        {!isLoading && !error && (
+            <>
+                {activeCategory === 'all' ? (
+                    /* ================= VIEW 1: CATEGORY GALLERY (Landing) ================= */
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-fade-in">
+                        {availableCategories.map((cat, idx) => {
+                            const count = getProductsByCategory(cat.id).length;
+                            const coverImage = getCategoryCover(cat.id, cat.image);
+
+                            return (
+                                <div 
+                                    key={cat.id} 
+                                    className="group cursor-pointer block h-full"
+                                    onClick={() => handleCategorySelect(cat.id)}
+                                >
+                                    <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
+                                        <img 
+                                            src={getAssetUrl(coverImage)} 
+                                            alt={cat.title} 
+                                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                        />
+                                        <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                        
+                                        {/* View Button Overlay */}
+                                        <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                                            <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center shadow-lg">
+                                                {t.collections.viewProducts} <ArrowRight size={14} className="ml-2"/>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-baseline pr-2">
+                                        <div>
+                                            <h3 className="font-serif text-2xl text-stone-900 mb-1 group-hover:text-safety-700 transition-colors">
+                                                {cat.title}
+                                            </h3>
+                                            <p className="text-xs text-stone-400 font-bold uppercase tracking-widest">
+                                                {cat.subtitle}
+                                            </p>
+                                        </div>
+                                        <span className="text-4xl font-serif text-stone-200 group-hover:text-stone-300 transition-colors">
+                                            {String(count).padStart(2, '0')}
                                         </span>
                                     </div>
-                                    <Link 
-                                        to={`?category=${cat.id}`}
-                                        className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-safety-700 flex items-center transition-colors pb-1"
-                                    >
-                                        View Full <ArrowRight size={12} className="ml-1"/>
-                                    </Link>
-                                </div>
-
-                                {/* Category Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10">
-                                    {catProducts.map((product, idx) => (
-                                        <ProductCard key={product.id || idx} product={product} idx={idx} />
-                                    ))}
-                                </div>
-                            </section>
-                        );
-                    })
-                ) : (
-                    /* FILTERED MODE: Single Grid */
-                    (() => {
-                        const filteredProducts = getProductsByCategory(activeCategory);
-                        if (filteredProducts.length === 0) {
-                            return (
-                                <div className="text-center py-20 text-stone-400">
-                                    <p>No products found in the "{activeCategory}" category.</p>
-                                    <button onClick={() => setActiveCategory('all')} className="mt-4 text-safety-700 underline text-sm">View All Products</button>
                                 </div>
                             );
-                        }
-                        return (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10 animate-fade-in">
-                                {filteredProducts.map((product, idx) => (
-                                    <ProductCard key={product.id || idx} product={product} idx={idx} />
-                                ))}
-                            </div>
-                        );
-                    })()
+                        })}
+                    </div>
+                ) : (
+                    /* ================= VIEW 2: PRODUCT GRID (Detail) ================= */
+                    <div className="animate-fade-in">
+                        {(() => {
+                            const catProducts = getProductsByCategory(activeCategory);
+                            
+                            if (catProducts.length === 0) {
+                                return (
+                                    <div className="text-center py-20 text-stone-400 bg-stone-100 border border-stone-200">
+                                        <p>No published products in this collection yet.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10">
+                                    {catProducts.map((product, idx) => (
+                                        <div 
+                                            key={product.id || idx} 
+                                            className="group cursor-pointer flex flex-col h-full" 
+                                            onClick={() => openProduct(product)}
+                                            style={{ animationDelay: `${idx * 50}ms` }}
+                                        >
+                                            <div className="aspect-[4/5] w-full bg-stone-100 relative overflow-hidden mb-4 shadow-sm border border-stone-100 transition-all duration-500 group-hover:shadow-md">
+                                                <img 
+                                                    src={getAssetUrl(product.images[0])} 
+                                                    alt={product.name} 
+                                                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=No+Image';
+                                                    }}
+                                                />
+                                                <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                            </div>
+                                            
+                                            <div className="mt-auto">
+                                                <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors leading-tight mb-1">
+                                                    {getProductDisplay(product).name}
+                                                </h3>
+                                                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
+                                                    {product.code || "Ref. " + (idx + 1).toString().padStart(3, '0')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+                        
+                        <div className="mt-20 border-t border-stone-200 pt-8 text-center">
+                            <button 
+                                onClick={handleBackToOverview}
+                                className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest transition-colors"
+                            >
+                                Back to All Collections
+                            </button>
+                        </div>
+                    </div>
                 )}
-            </div>
+            </>
         )}
 
       </div>

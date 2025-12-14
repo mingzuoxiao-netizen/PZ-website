@@ -63,7 +63,7 @@ const About: React.FC = () => {
   const milestoneYears = ['2014', '2018', '2021', '2024', '2025'];
 
   return (
-    <div className="bg-stone-50 min-h-screen pt-24 md:pt-32 pb-20">
+    <div className="bg-stone-50 min-h-screen pt-24 md:pt-32 pb-0">
       {/* Modal Gallery Overlay */}
       {isModalOpen && (
         <div 
@@ -107,124 +107,125 @@ const About: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="container mx-auto px-6 md:px-12 mb-16 md:mb-20 text-center">
-        <h3 className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-6">{t.about.since}</h3>
-        <h1 className="font-serif text-3xl md:text-6xl text-stone-900 mb-6 md:mb-8 leading-tight">
+      {/* Header - Transparent/Clean Look */}
+      <div className="container mx-auto px-6 md:px-12 mb-16 md:mb-24 text-center">
+        <h3 className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-6 inline-block border-b border-amber-700 pb-1">{t.about.since}</h3>
+        <h1 className="font-serif text-4xl md:text-7xl text-stone-900 mb-8 leading-tight tracking-tight">
           {t.about.title}
         </h1>
-        <p className="text-stone-600 max-w-3xl mx-auto text-base md:text-lg leading-relaxed font-light">
+        <p className="text-stone-600 max-w-3xl mx-auto text-lg md:text-xl leading-relaxed font-light">
           {t.about.intro}
         </p>
       </div>
 
-      {/* Cinematic Image Strip / Banner */}
-      <div className="w-full h-[40vh] md:h-[60vh] relative overflow-hidden mb-16 md:mb-24 group">
-        <div className="absolute inset-0 bg-stone-900/20 z-10"></div>
-        {/* Factory Floor Image */}
+      {/* Cinematic Image Strip / Banner - Full Bleed */}
+      <div className="w-full h-[50vh] md:h-[70vh] relative overflow-hidden group">
+        <div className="absolute inset-0 bg-stone-900/10 z-10 mix-blend-multiply"></div>
         <img 
           src={site.about?.banner}
           alt="Factory Floor" 
-          className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
+          className="w-full h-full object-cover transition-all duration-[20s] ease-linear transform scale-100 group-hover:scale-105"
         />
-        <div className="absolute bottom-8 md:bottom-12 left-6 md:left-12 z-20 max-w-[80%]">
-           <div className="bg-white/90 backdrop-blur-sm p-4 md:p-6 shadow-lg">
-             <p className="text-stone-900 font-serif text-xl md:text-2xl italic">{t.about.bannerText}</p>
+        <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 z-20 bg-gradient-to-t from-stone-900/80 to-transparent">
+           <div className="container mx-auto">
+             <p className="text-white font-serif text-2xl md:text-4xl italic max-w-2xl">{t.about.bannerText}</p>
            </div>
         </div>
       </div>
 
-      {/* NEW: Brand Story Section */}
-      <section className="py-16 md:py-24 bg-white mb-16 md:mb-24 border-y border-stone-100">
-        <div className="container mx-auto px-6 md:px-12 max-w-4xl text-center">
-           <span className="text-amber-700 font-bold tracking-[0.2em] uppercase text-xs mb-6 md:mb-8 block">
-              {t.about.storyTitle}
-           </span>
-           <p className="font-serif text-xl md:text-3xl text-stone-900 leading-relaxed mb-8 md:mb-12">
-              {t.about.storyP1}
-           </p>
-           <div className="text-stone-600 text-base md:text-lg leading-relaxed space-y-6 md:space-y-8 font-light text-left md:text-center">
+      {/* Story Section - Warm Grey Background with Paper Texture */}
+      <section className="py-20 md:py-32 bg-[#e7e5e4]">
+        <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+           <div>
+              <span className="text-amber-800 font-bold tracking-[0.2em] uppercase text-xs mb-6 block border-l-2 border-amber-800 pl-4">
+                  {t.about.storyTitle}
+              </span>
+              <h2 className="font-serif text-3xl md:text-5xl text-stone-900 leading-tight mb-8">
+                  {t.about.storyP1}
+              </h2>
+           </div>
+           <div className="text-stone-700 text-base md:text-lg leading-relaxed space-y-6 font-light">
               <p>{t.about.storyP2}</p>
               <p>{t.about.storyP3}</p>
+              <p className="font-medium text-stone-900">{t.about.storyP4}</p>
            </div>
-           
-           <div className="w-16 h-1 bg-[#281815] mx-auto mt-12 md:mt-16 opacity-10"></div>
         </div>
       </section>
 
-      {/* Core Pillars */}
-      <div className="container mx-auto px-6 md:px-12 mb-20 md:mb-32">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div className="border-l-2 border-amber-700/30 pl-6 md:pl-8">
-             <Award className="text-amber-700 mb-4 md:mb-6" size={28} />
-             <h3 className="text-lg md:text-xl font-serif text-stone-900 mb-3 md:mb-4">{t.about.pillars.elite}</h3>
-             <p className="text-stone-600 text-sm leading-relaxed">
-               {t.about.pillars.eliteDesc}
-             </p>
-          </div>
-          <div className="border-l-2 border-amber-700/30 pl-6 md:pl-8">
-             <Globe className="text-amber-700 mb-4 md:mb-6" size={28} />
-             <h3 className="text-lg md:text-xl font-serif text-stone-900 mb-3 md:mb-4">{t.about.pillars.dual}</h3>
-             <p className="text-stone-600 text-sm leading-relaxed">
-               {t.about.pillars.dualDesc}
-             </p>
-          </div>
-          <div className="border-l-2 border-amber-700/30 pl-6 md:pl-8">
-             <Warehouse className="text-amber-700 mb-4 md:mb-6" size={28} />
-             <h3 className="text-lg md:text-xl font-serif text-stone-900 mb-3 md:mb-4">{t.about.pillars.logistics}</h3>
-             <p className="text-stone-600 text-sm leading-relaxed">
-               {t.about.pillars.logisticsDesc}
-             </p>
-          </div>
+      {/* Core Pillars - White Cards on Stone Background */}
+      <div className="bg-stone-50 py-24">
+        <div className="container mx-auto px-6 md:px-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-10 shadow-sm hover:shadow-xl transition-shadow duration-500 border-t-4 border-stone-900">
+                <Award className="text-amber-700 mb-6" size={32} />
+                <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.elite}</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">
+                {t.about.pillars.eliteDesc}
+                </p>
+            </div>
+            <div className="bg-white p-10 shadow-sm hover:shadow-xl transition-shadow duration-500 border-t-4 border-stone-900">
+                <Globe className="text-amber-700 mb-6" size={32} />
+                <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.dual}</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">
+                {t.about.pillars.dualDesc}
+                </p>
+            </div>
+            <div className="bg-white p-10 shadow-sm hover:shadow-xl transition-shadow duration-500 border-t-4 border-stone-900">
+                <Warehouse className="text-amber-700 mb-6" size={32} />
+                <h3 className="text-xl font-serif text-stone-900 mb-4">{t.about.pillars.logistics}</h3>
+                <p className="text-stone-500 text-sm leading-relaxed">
+                {t.about.pillars.logisticsDesc}
+                </p>
+            </div>
+            </div>
         </div>
       </div>
 
-      {/* Manufacturing Process Gallery */}
-      <div className="bg-white py-16 md:py-24 mb-16 md:mb-24 border-y border-stone-100">
+      {/* Manufacturing Process Gallery - Dark Mode Section */}
+      <div className="bg-stone-900 text-white py-24">
         <div className="container mx-auto px-6 md:px-12">
-          <div className="flex flex-wrap justify-between items-end mb-8 md:mb-12 gap-4">
+          <div className="flex flex-wrap justify-between items-end mb-12 gap-4 border-b border-stone-800 pb-8">
             <div>
-               <h3 className="text-amber-700 font-bold tracking-widest uppercase text-xs mb-2 md:mb-4">{t.about.process.label}</h3>
-               <h2 className="font-serif text-2xl md:text-4xl text-stone-900">{t.about.process.title}</h2>
-               <p className="text-stone-500 mt-2 text-xs md:text-sm italic">{t.about.process.clickExpand}</p>
+               <h3 className="text-amber-500 font-bold tracking-widest uppercase text-xs mb-2">{t.about.process.label}</h3>
+               <h2 className="font-serif text-3xl md:text-4xl text-white">{t.about.process.title}</h2>
             </div>
             <div className="flex space-x-4">
-               <button onClick={prevImage} className="p-2 md:p-3 rounded-full border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors">
+               <button onClick={prevImage} className="p-3 rounded-full border border-stone-700 text-stone-400 hover:text-white hover:border-white transition-colors">
                  <ChevronLeft size={20} />
                </button>
-               <button onClick={nextImage} className="p-2 md:p-3 rounded-full border border-stone-200 text-stone-600 hover:bg-stone-100 transition-colors">
+               <button onClick={nextImage} className="p-3 rounded-full border border-stone-700 text-stone-400 hover:text-white hover:border-white transition-colors">
                  <ChevronRight size={20} />
                </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             {/* Main Active Image - Fixed Height */}
+             {/* Main Active Image */}
              <div 
-                className="lg:col-span-2 relative h-[300px] md:h-[500px] lg:h-[600px] bg-stone-100 group overflow-hidden cursor-zoom-in shadow-xl rounded-sm"
+                className="lg:col-span-2 relative h-[300px] md:h-[500px] lg:h-[600px] bg-stone-800 group overflow-hidden cursor-zoom-in"
                 onClick={() => openModal(activeImage)}
              >
                 <img 
                   src={galleryImages[activeImage].url} 
                   alt={galleryImages[activeImage].title}
-                  className="w-full h-full object-cover transition-all duration-700 transform group-hover:scale-105"
+                  className="w-full h-full object-cover transition-all duration-700 transform group-hover:scale-105 opacity-90 group-hover:opacity-100"
                 />
-                <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 to-transparent p-6 md:p-8">
-                   <h3 className="text-white font-serif text-xl md:text-2xl mb-2">{galleryImages[activeImage].title}</h3>
-                   <p className="text-stone-200 text-sm md:text-base line-clamp-2 md:line-clamp-none">{galleryImages[activeImage].desc}</p>
+                <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black to-transparent p-8">
+                   <h3 className="text-white font-serif text-2xl mb-2">{galleryImages[activeImage].title}</h3>
+                   <p className="text-stone-300 text-sm">{galleryImages[activeImage].desc}</p>
                 </div>
              </div>
 
-             {/* Thumbnails / List */}
-             <div className="flex lg:flex-col overflow-x-auto lg:overflow-y-auto space-x-4 lg:space-x-0 lg:space-y-4 h-auto lg:h-[600px] pb-4 lg:pb-0 lg:pr-2 snap-x">
+             {/* Dark Thumbnails List */}
+             <div className="flex lg:flex-col overflow-x-auto lg:overflow-y-auto space-x-4 lg:space-x-0 lg:space-y-0 h-auto lg:h-[600px] pb-4 lg:pb-0 border-l border-stone-800">
                 {galleryImages.map((img, idx) => (
                   <div 
                     key={idx}
                     onClick={() => setActiveImage(idx)}
-                    className={`min-w-[200px] lg:min-w-0 p-4 md:p-6 cursor-pointer transition-all border-l-0 border-t-4 lg:border-t-0 lg:border-l-4 shadow-sm snap-center ${activeImage === idx ? 'border-amber-700 bg-white' : 'border-transparent bg-stone-50 hover:bg-stone-100'}`}
+                    className={`min-w-[200px] lg:min-w-0 p-6 cursor-pointer transition-all border-l-4 ${activeImage === idx ? 'border-amber-500 bg-stone-800' : 'border-transparent hover:bg-stone-800/50'}`}
                   >
-                     <h4 className={`font-serif text-sm md:text-lg mb-1 ${activeImage === idx ? 'text-stone-900' : 'text-stone-500'}`}>{img.title}</h4>
-                     <p className="text-stone-600 text-xs mt-1 leading-relaxed line-clamp-2">{img.desc}</p>
+                     <span className="block text-[10px] font-mono text-stone-500 mb-1">0{idx + 1}</span>
+                     <h4 className={`font-serif text-sm md:text-lg mb-1 ${activeImage === idx ? 'text-white' : 'text-stone-400'}`}>{img.title}</h4>
                   </div>
                 ))}
              </div>
@@ -232,22 +233,19 @@ const About: React.FC = () => {
         </div>
       </div>
 
-      {/* Timeline / Milestones - Optimized Layout */}
-      <div className="bg-stone-50 py-12 md:py-24">
-        <div className="container mx-auto px-6 md:px-12">
-          <div className="text-center mb-12 md:mb-16">
-            <h2 className="font-serif text-3xl md:text-4xl text-stone-900 mb-4">{t.about.journey}</h2>
-            <div className="w-16 h-1 bg-amber-700 mx-auto"></div>
+      {/* Timeline - Grid Background */}
+      <div className="bg-stone-50 py-24 bg-grid relative overflow-hidden">
+        <div className="container mx-auto px-6 md:px-12 relative z-10">
+          <div className="text-center mb-16">
+            <h2 className="font-serif text-4xl text-stone-900 mb-4">{t.about.journey}</h2>
+            <div className="w-16 h-1 bg-stone-200 mx-auto"></div>
           </div>
           
           <div className="relative pl-2 md:pl-0">
-             {/* Desktop Horizontal Line */}
-             <div className="hidden md:block absolute top-[27px] left-0 w-full h-[2px] bg-stone-200"></div>
-             
-             {/* Mobile Vertical Line */}
-             <div className="md:hidden absolute top-0 bottom-0 left-[27px] w-[2px] bg-stone-200"></div>
+             {/* Timeline Track */}
+             <div className="hidden md:block absolute top-[27px] left-0 w-full h-[1px] bg-stone-300"></div>
+             <div className="md:hidden absolute top-0 bottom-0 left-[27px] w-[1px] bg-stone-300"></div>
 
-             {/* Updated Grid for 5 Columns */}
              <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
                 {milestoneYears.map((year, idx) => {
                   const milestone = t.about.milestones[year];
@@ -255,21 +253,18 @@ const About: React.FC = () => {
                     <div key={year} className="relative pl-16 md:pl-0 md:pt-16 group">
                       
                       {/* Timeline Dot */}
-                      <div className="absolute left-[20px] top-0 md:top-[20px] md:left-1/2 md:-translate-x-1/2 w-4 h-4 rounded-full bg-stone-50 border-[3px] border-stone-300 group-hover:border-amber-700 group-hover:scale-125 transition-all duration-300 z-10"></div>
+                      <div className="absolute left-[23px] top-0 md:top-[23px] md:left-1/2 md:-translate-x-1/2 w-3 h-3 rounded-full bg-stone-900 border-2 border-white shadow-md z-10 transition-transform group-hover:scale-150 group-hover:bg-amber-600"></div>
 
-                      {/* Content Card - Swapped Hierarchy */}
-                      <div className="md:text-center transition-transform duration-500 group-hover:-translate-y-2 pb-8 md:pb-0">
-                         {/* Year is now subtle/eyebrow */}
-                         <span className="block text-xs font-mono text-stone-400 mb-2 tracking-widest border border-stone-200 inline-block px-2 py-0.5 rounded-sm">
+                      <div className="md:text-center transition-all duration-500 group-hover:-translate-y-2 pb-8 md:pb-0">
+                         <span className="block text-4xl font-mono text-stone-200 font-bold mb-2 absolute -z-10 top-0 left-12 md:left-1/2 md:-translate-x-1/2 md:-top-6 group-hover:text-stone-300 transition-colors">
                            {year}
                          </span>
                          
-                         {/* Title is now dominant */}
-                         <h4 className="font-serif text-xl md:text-2xl text-stone-900 mb-3 md:mb-4 group-hover:text-amber-700 transition-colors leading-tight">
+                         <h4 className="font-serif text-xl text-stone-900 mb-3 pt-2 md:pt-4 group-hover:text-amber-700 transition-colors">
                            {milestone.title}
                          </h4>
 
-                         <p className="text-stone-600 text-sm leading-relaxed border-l-2 md:border-l-0 md:border-t-2 border-stone-100 pt-0 md:pt-4 pl-4 md:pl-0">
+                         <p className="text-stone-500 text-sm leading-relaxed">
                            {milestone.desc}
                          </p>
                       </div>

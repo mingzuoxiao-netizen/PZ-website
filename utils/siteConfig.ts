@@ -1,6 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_ASSETS, ASSET_KEYS } from './assets';
+import { Category } from '../types';
+import { categories as staticCategories } from '../data/inventory';
 
 /* =========================
    API
@@ -90,6 +92,8 @@ export interface SiteConfig {
     feat_capabilities: string;
     feat_default: string;
   };
+  // ✅ NEW: Categories / Collections Management
+  categories: Category[];
 }
 
 export interface SiteMeta {
@@ -169,7 +173,9 @@ export const DEFAULT_CONFIG: SiteConfig = {
     feat_mfg: DEFAULT_ASSETS[ASSET_KEYS.MENU_MFG],
     feat_capabilities: DEFAULT_ASSETS[ASSET_KEYS.MENU_CAPABILITIES],
     feat_default: DEFAULT_ASSETS[ASSET_KEYS.MENU_DEFAULT],
-  }
+  },
+  // Default to static categories if no config exists
+  categories: staticCategories,
 };
 
 /* =========================

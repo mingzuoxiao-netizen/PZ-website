@@ -15,6 +15,7 @@ import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import PageAssets from './components/PageAssets';
 import CategoryGrid from './components/CategoryGrid';
+import CollectionManager from './components/CollectionManager'; // Imported CollectionManager
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
@@ -22,7 +23,8 @@ const CreatorPortal: React.FC = () => {
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // State
-  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets'>('inventory');
+  // Added 'collections' to allowed tabs
+  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets' | 'collections'>('inventory');
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
   
   // Inventory UX State
@@ -64,6 +66,14 @@ const CreatorPortal: React.FC = () => {
       const configRes = results[1].status === 'fulfilled' ? results[1].value : null;
       if (configRes && configRes.config) {
         setSiteConfig(configRes.config);
+        
+        // Sync categories from config if available, otherwise fallback to static
+        if (configRes.config.categories && configRes.config.categories.length > 0) {
+            setCategories(configRes.config.categories);
+        } else {
+            setCategories(staticCategories);
+        }
+
         setConfigMeta({
           version: configRes.version,
           published_at: configRes.published_at
@@ -131,6 +141,37 @@ const CreatorPortal: React.FC = () => {
     }
   };
 
+  // Helper to save categories immediately via SiteConfig
+  const handleSaveCategories = async (updatedCategory: Category) => {
+      if (!siteConfig) return;
+      
+      const newCategories = categories.map(c => 
+          c.id === updatedCategory.id ? updatedCategory : c
+      );
+      
+      // Update local state
+      setCategories(newCategories);
+      
+      // Update config object
+      const newConfig = { ...siteConfig, categories: newCategories };
+      setSiteConfig(newConfig);
+
+      // Auto-save to cloud
+      setSavingConfig(true);
+      try {
+        await adminFetch('/site-config', {
+            method: 'POST',
+            body: JSON.stringify(newConfig)
+        });
+        refresh();
+        alert("Collection Updated.");
+      } catch (e: any) {
+        alert(`Failed to update collection: ${e.message}`);
+      } finally {
+        setSavingConfig(false);
+      }
+  };
+
   const handleAssetUpdate = async (key: string, url: string) => {
     try {
        await adminFetch('/assets', {
@@ -148,7 +189,6 @@ const CreatorPortal: React.FC = () => {
     ? categories.find(c => c.id === selectedCategoryId)?.title 
     : 'All Products';
 
-  // If a category is selected, filter items. If null (Master View), show all.
   const filteredItems = selectedCategoryId 
     ? localItems.filter(p => p.category?.toLowerCase() === selectedCategoryId.toLowerCase())
     : localItems;
@@ -168,6 +208,10 @@ const CreatorPortal: React.FC = () => {
           <div className="flex items-center space-x-6">
              <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.inventory}
+             </button>
+             {/* New Collections Tab */}
+             <button onClick={() => setActiveTab('collections')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'collections' ? 'text-amber-700' : 'text-stone-400'}`}>
+                {t.creator.tabs.collections}
              </button>
              <button onClick={() => setActiveTab('config')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'config' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.config}
@@ -229,6 +273,15 @@ const CreatorPortal: React.FC = () => {
                     </>
                 )}
              </>
+          )}
+
+          {/* New Collections Manager View */}
+          {activeTab === 'collections' && (
+              <CollectionManager 
+                  categories={categories}
+                  onUpdate={handleSaveCategories}
+                  onDelete={(id) => alert("Deletion via portal is restricted. Please contact engineering to remove a category structure.")}
+              />
           )}
 
           {activeTab === 'config' && siteConfig && (
