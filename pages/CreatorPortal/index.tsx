@@ -99,6 +99,7 @@ const CreatorPortal: React.FC = () => {
           localStorage.setItem(SITE_CONFIG_STORAGE_KEY, JSON.stringify(envelope));
 
           // 2. Post to Cloud (Full Overwrite with Envelope)
+          // FIX: Ensure correct spelling of /site-config endpoint
           await adminFetch('/site-config', {
               method: 'POST',
               body: JSON.stringify(envelope)

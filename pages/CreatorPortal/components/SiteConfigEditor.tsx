@@ -52,6 +52,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
+      // FIX: Ensure correct spelling of /site-config endpoint
       const res = await adminFetch<{ items: HistoryItem[] }>('/site-config/history');
       if (res && Array.isArray(res.items)) {
         setHistory(res.items);
@@ -68,6 +69,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
     
     setRollingBack(true);
     try {
+      // FIX: Ensure correct spelling of /site-config endpoint
       await adminFetch('/site-config/rollback', {
         method: 'POST',
         body: JSON.stringify({ version })

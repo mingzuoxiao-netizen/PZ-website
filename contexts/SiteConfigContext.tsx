@@ -43,7 +43,11 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
       const result = await fetchSiteConfig();
 
       if (!result) {
-        throw new Error("No published site config");
+        // Fallback to default if API fails or returns nothing (e.g. first run)
+        console.warn("[SiteConfigProvider] No remote config found, using default.");
+        setConfig(DEFAULT_CONFIG);
+        setMeta({ version: "default", published_at: null });
+        return;
       }
 
       // Check if result matches Envelope structure
@@ -60,9 +64,10 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("[SiteConfigProvider] load failed", e);
-      setConfig(null);
+      // Fallback to default on error so the app doesn't break
+      setConfig(DEFAULT_CONFIG);
       // Ensure meta remains a valid object even on error
-      setMeta({ version: "legacy", published_at: null });
+      setMeta({ version: "error-fallback", published_at: null });
       setError(true);
     } finally {
       setLoading(false);

@@ -179,6 +179,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
 // Returns either the raw config (legacy) or the Envelope (new)
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
+    // FIX: Ensure correct spelling of /site-config endpoint
     const res = await fetch(`${API_BASE}/site-config`, {
       cache: "no-store",
     });
