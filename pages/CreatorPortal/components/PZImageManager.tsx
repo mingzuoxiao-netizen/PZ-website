@@ -120,17 +120,29 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     // 3. Wait for all
     const results = await Promise.all(uploadPromises);
     
-    // Filter out failed uploads (nulls)
-    const successfulUrls = results.filter((url): url is string => url !== null);
+    // Filter out failed uploads (nulls) and strictly ensure strings
+    const successfulUrls = results.filter((url): url is string => typeof url === 'string' && url.length > 0);
 
-    // 4. Update Images State
+    // 4. Update Images State (Single Source of Truth)
     if (successfulUrls.length > 0) {
+      let updatedList: string[];
+
       if (isSingleMode) {
-        if (images.length > 0) await deleteImageFromR2(images[0]);
-        onUpdate([successfulUrls[0]]);
+        // Single Mode: Replace existing
+        if (images.length > 0) {
+            // Attempt to clean up replaced image from R2, but don't block if it fails
+            try { await deleteImageFromR2(images[0]); } catch(e) { console.warn("Cleanup failed", e); }
+        }
+        updatedList = [successfulUrls[0]];
       } else {
-        onUpdate([...images, ...successfulUrls]);
+        // Multi Mode: Append
+        // Concatenate current images (props) + new successful uploads
+        updatedList = [...images, ...successfulUrls];
       }
+
+      // Explicitly call the onUpdate prop with the final array of URL strings
+      console.log("PZImageManager: Upload success, updating parent with", updatedList);
+      onUpdate(updatedList);
     }
 
     setIsUploading(false);
@@ -144,7 +156,11 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   // ---------- Delete ----------
   const removeImage = async (index: number) => {
     const toDelete = images[index];
-    onUpdate(images.filter((_, i) => i !== index));
+    // Update local state via parent immediately
+    const updatedList = images.filter((_, i) => i !== index);
+    onUpdate(updatedList);
+    
+    // Async cleanup
     await deleteImageFromR2(toDelete);
   };
 
@@ -232,7 +248,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                           </div>
                           {/* Progress Bar Animation */}
                           {item.status === 'uploading' && (
-                              <div className="absolute bottom-0 left-0 h-0.5 bg-amber-500 animate-[pulse_1s_ease-in-out_infinite] w-full origin-left"></div>
+                              <div className="absolute bottom-0 left-0 h-0.5 bg-amber-50 animate-[pulse_1s_ease-in-out_infinite] w-full origin-left"></div>
                           )}
                       </div>
                   ))}

@@ -32,13 +32,19 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const { t } = useLanguage();
 
   // Helper to handle image updates for gallery
-  const handleImagesUpdate = (newImages: string[]) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      images: newImages,
-      // Keep main image synced with first gallery image IF no color variants are set
-      image: newImages.length > 0 ? newImages[0] : '' 
-    }));
+  // Ensures formData.images is the single source of truth and formData.image is always synced to index 0
+  const handleImagesUpdate = (newImageList: string[]) => {
+    setFormData((prev: any) => {
+      // Create unique set to prevent duplicates, though manager usually handles this
+      const nextImages = Array.from(new Set(newImageList)).filter(Boolean);
+      
+      return {
+        ...prev,
+        images: nextImages,
+        // STRICT SYNC: Main image is always the first image in the gallery
+        image: nextImages.length > 0 ? nextImages[0] : '' 
+      };
+    });
   };
 
   // Helper to handle adding a color variant
