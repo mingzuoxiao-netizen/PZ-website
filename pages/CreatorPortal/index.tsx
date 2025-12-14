@@ -60,6 +60,13 @@ const CreatorPortal: React.FC = () => {
       const rawItems = inventoryRes.products || inventoryRes.data || [];
       const normalizedItems = normalizeProducts(rawItems);
       setLocalItems(normalizedItems);
+      console.log(
+  "[Inventory DEBUG] rawItems:",
+  rawItems,
+  "normalizedItems:",
+  normalizedItems
+);
+
 
       // 3. Process Config
       if (configRes && configRes.config) {
