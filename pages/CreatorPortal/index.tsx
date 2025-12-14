@@ -70,7 +70,8 @@ const CreatorPortal: React.FC = () => {
     newCatDesc: '',
     newSubName: '',
     newSubNameZh: '',
-    newSubDesc: ''
+    newSubDesc: '',
+    colors: [] as { name: string; image: string }[]
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -299,7 +300,8 @@ const CreatorPortal: React.FC = () => {
       material: item.material || '',
       dimensions: item.dimensions || '',
       code: item.code || '',
-      status: item.status || 'published'
+      status: item.status || 'published',
+      colors: item.colors || []
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -320,7 +322,8 @@ const CreatorPortal: React.FC = () => {
       material: '', 
       dimensions: item.dimensions || '',
       code: '', 
-      status: 'draft' 
+      status: 'draft',
+      colors: []
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setSuccessMsg('Product duplicated. Please upload new images.');
@@ -389,7 +392,8 @@ const CreatorPortal: React.FC = () => {
             }
         }
 
-        const itemPayload = {
+        // IMPORTANT: Variable named 'product' as requested to prevent ReferenceError in logging
+        const product = {
             id: editingId || Math.random().toString(36).substr(2, 9),
             categoryId: finalCategoryId,
             subCategoryName: finalSubCategoryName,
@@ -403,14 +407,34 @@ const CreatorPortal: React.FC = () => {
             dimensions: formData.dimensions,
             code: formData.code,
             status: formData.status,
+            colors: formData.colors || [],
             date: editingId ? localItems.find(i => i.id === editingId)?.date : new Date().toLocaleDateString()
         };
 
+        // ---------------------------------------------------------
+        // CRITICAL FIX: Explicitly logging the correct variable
+        // ---------------------------------------------------------
+        console.log("POST /products payload:", product);
+
+        // API Submission Logic
+        if (editingId) {
+            await adminFetch(`/products/${editingId}`, {
+                method: 'PUT',
+                body: JSON.stringify(product)
+            });
+        } else {
+            await adminFetch('/products', {
+                method: 'POST',
+                body: JSON.stringify(product)
+            });
+        }
+
+        // Local Storage Update (Fallback/Cache)
         let updatedList;
         if (editingId) {
-            updatedList = localItems.map(item => item.id === editingId ? itemPayload : item);
+            updatedList = localItems.map(item => item.id === editingId ? product : item);
         } else {
-            updatedList = [itemPayload, ...localItems];
+            updatedList = [product, ...localItems];
         }
         
         if (structureUpdated) await saveToCloud('pz_custom_structure', customStructure);
@@ -425,8 +449,8 @@ const CreatorPortal: React.FC = () => {
         setIsCreatingSubCategory(false);
         
     } catch(e) {
-        console.error(e);
-        setErrorMsg('Save failed');
+        console.error("Save Error:", e);
+        setErrorMsg('Save failed. Check console for details.');
     } finally {
         setIsSavingProduct(false);
     }
@@ -439,17 +463,16 @@ const CreatorPortal: React.FC = () => {
     if (!itemToDelete) return;
     setIsDeleting(true);
     try {
-        // 1. Update List
+        // API Delete
+        await adminFetch(`/products/${itemToDelete}`, { method: 'DELETE' });
+
+        // Local Delete
         const updatedList = localItems.filter(i => i.id !== itemToDelete);
-        
-        // 2. Save
         await saveToCloud('pz_custom_inventory', updatedList);
         
-        // 3. Update State
         setLocalItems(updatedList);
         setSuccessMsg("Product deleted successfully");
         
-        // 4. Reset Editor if deleting the currently edited item
         if (editingId === itemToDelete) {
             setEditingId(null);
             setFormData(initialFormState);
@@ -462,7 +485,6 @@ const CreatorPortal: React.FC = () => {
     } finally {
         setIsDeleting(false);
         setItemToDelete(null);
-        // Clear message after delay
         setTimeout(() => setSuccessMsg(''), 3000);
     }
   };
