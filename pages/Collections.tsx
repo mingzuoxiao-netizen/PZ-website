@@ -22,7 +22,7 @@ const Collections: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Fetch Products
+  // 1. Fetch Products directly from API
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
@@ -32,15 +32,14 @@ const Collections: React.FC = () => {
         if (!response.ok) throw new Error("Failed to connect to product server");
         
         const json = await response.json();
+        // Normalize ensures 'images' is always an array and data structure is consistent
         const loadedProducts = normalizeProducts(json.data || []);
         
-        // Sanity Check: Log loaded products to console for debugging
         console.log("Portfolio Loaded Products:", loadedProducts);
-        
         setProducts(loadedProducts);
       } catch (e) {
         console.error("Portfolio Error:", e);
-        setError("Unable to load products. Please try again later.");
+        setError("Unable to load products. Please check your connection.");
       } finally {
         setIsLoading(false);
       }
@@ -49,8 +48,8 @@ const Collections: React.FC = () => {
     fetchPortfolio();
   }, []);
 
-  // 2. Derive Available Categories (Dynamic Filtering)
-  // This ensures we only show buttons for categories that actually have products
+  // 2. Derive Available Categories
+  // Filter static categories to ONLY show ones that have uploaded products
   const availableCategories = useMemo(() => {
     const validIds = new Set(products.map(p => p.category?.toLowerCase().trim()));
     return staticCategories.filter(cat => validIds.has(cat.id.toLowerCase()));
