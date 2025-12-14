@@ -60,14 +60,18 @@ const Portfolio: React.FC = () => {
            const customItems: any[] = JSON.parse(customInventoryStr);
            
            customItems.forEach(item => {
+              // Normalized to new schema: item.category (was item.categoryId)
+              const catId = item.category || item.categoryId;
+              const subName = item.sub_category || item.subCategoryName;
+
               // Find the category this item belongs to
-              const cat = allCategories.find((c: Category) => c.id === item.categoryId);
+              const cat = allCategories.find((c: Category) => c.id === catId);
               if (cat) {
                  // Find or Create SubCategory
-                 let sub = cat.subCategories.find((s: any) => s.name === item.subCategoryName);
+                 let sub = cat.subCategories.find((s: any) => s.name === subName);
                  if (!sub) {
                     sub = {
-                       name: item.subCategoryName || "General",
+                       name: subName || "General",
                        description: "",
                        image: item.image,
                        variants: []
@@ -79,6 +83,12 @@ const Portfolio: React.FC = () => {
                  // Avoid duplicates if merging with static data that might have same ID
                  const exists = sub.variants.find((v: any) => v.id === item.id);
                  if (!exists && item.status === 'published') {
+                    // Map legacy fields to proper ProductVariant type if necessary
+                    // Note: ProductVariant updated in types.ts to have sub_category, size, etc.
+                    // Fix: Populate size from dimensions if needed for legacy items
+                    if (!item.size && item.dimensions) {
+                        item.size = item.dimensions;
+                    }
                     sub.variants.push(item);
                  }
               }
@@ -255,7 +265,8 @@ const Portfolio: React.FC = () => {
                                   </li>
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">{t.capabilities.limits.maxDim}</span>
-                                      <span className="font-mono text-stone-900 text-right">{activeProduct.dimensions || 'Customizable'}</span>
+                                      {/* Updated to read activeProduct.size instead of dimensions */}
+                                      <span className="font-mono text-stone-900 text-right">{activeProduct.size || 'Customizable'}</span>
                                   </li>
                                   <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
                                       <span className="text-stone-500 font-medium">{t.collections.pdp.finish}</span>
@@ -375,8 +386,9 @@ const Portfolio: React.FC = () => {
                                    {product.name}
                                  </h3>
                                  <div className="flex flex-col md:flex-row md:justify-between md:items-start">
+                                    {/* Updated to read sub_category */}
                                     <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-stone-400 line-clamp-1">
-                                      {product.subCategoryName || product.description}
+                                      {product.sub_category || product.description}
                                     </p>
                                     {product.colors && product.colors.length > 0 && (
                                        <span className="hidden md:flex items-center text-[9px] font-bold text-amber-700 uppercase tracking-wider ml-2 whitespace-nowrap">
@@ -406,3 +418,4 @@ const Portfolio: React.FC = () => {
 };
 
 export default Portfolio;
+    

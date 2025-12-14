@@ -22,9 +22,10 @@ interface ProductItem {
   name?: string;
   image?: string | null;
   status?: 'published' | 'draft' | 'archived';
-  subCategoryName?: string;
+  sub_category?: string; // Renamed
   material?: string;
   code?: string;
+  size?: string; // Added size field visibility if needed
 }
 
 interface ProductListProps {
@@ -184,9 +185,9 @@ const ProductList: React.FC<ProductListProps> = ({
                       </div>
 
                       <div className="flex items-center text-[10px] text-stone-500 space-x-2">
-                        {item.subCategoryName && (
+                        {item.sub_category && (
                           <span className="bg-stone-100 px-2 py-0.5 rounded">
-                            {item.subCategoryName}
+                            {item.sub_category}
                           </span>
                         )}
                         {item.material && (

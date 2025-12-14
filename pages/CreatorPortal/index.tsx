@@ -52,17 +52,18 @@ const CreatorPortal: React.FC = () => {
   const [isCreatingSubCategory, setIsCreatingSubCategory] = useState(false);
 
   // Form Data State - Single Source of Truth
+  // Updated keys to match Backend Schema
   const initialFormState = {
-    categoryId: staticCategories[0].id,
-    subCategoryName: staticCategories[0].subCategories[0].name,
+    category: staticCategories[0].id,
+    sub_category: staticCategories[0].subCategories[0].name,
     name: '',
-    name_zh: '',
+    name_cn: '',
     description: '',
-    description_zh: '',
+    description_cn: '',
     image: '',
     images: [] as string[], // Ensure images array exists
     material: '',
-    dimensions: '',
+    size: '',
     code: '',
     status: 'published' as 'published' | 'draft' | 'archived',
     newCatTitle: '',
@@ -199,8 +200,16 @@ const CreatorPortal: React.FC = () => {
       
       // 1. Inventory
       let items = Array.isArray(data.inventory) ? data.inventory : [];
+      // Normalize legacy data to new schema
       const normalizedItems = items.map((i: any) => ({ 
           ...i, 
+          // Map legacy fields if present
+          category: i.category || i.categoryId,
+          sub_category: i.sub_category || i.subCategoryName,
+          name_cn: i.name_cn || i.name_zh,
+          description_cn: i.description_cn || i.description_zh,
+          size: i.size || i.dimensions,
+          
           status: i.status || 'published',
           images: Array.isArray(i.images) ? i.images : (i.image ? [i.image] : [])
       }));
@@ -288,18 +297,20 @@ const CreatorPortal: React.FC = () => {
     setIsCreatingCategory(false);
     setIsCreatingSubCategory(false);
     const itemImages = Array.isArray(item.images) && item.images.length > 0 ? item.images : (item.image ? [item.image] : []);
+    
+    // Map existing item fields to Form Data using NEW schema
     setFormData({
       ...initialFormState,
-      categoryId: item.categoryId,
-      subCategoryName: item.subCategoryName,
+      category: item.category,
+      sub_category: item.sub_category,
       name: item.name,
-      name_zh: item.name_zh || '',
+      name_cn: item.name_cn || '',
       description: item.description,
-      description_zh: item.description_zh || '',
+      description_cn: item.description_cn || '',
       image: itemImages[0] || '',
       images: itemImages,
       material: item.material || '',
-      dimensions: item.dimensions || '',
+      size: item.size || '',
       code: item.code || '',
       status: item.status || 'published',
       colors: item.colors || []
@@ -312,16 +323,16 @@ const CreatorPortal: React.FC = () => {
     setActiveTab('products');
     setFormData({
       ...initialFormState,
-      categoryId: item.categoryId,
-      subCategoryName: item.subCategoryName,
+      category: item.category,
+      sub_category: item.sub_category,
       name: item.name,
-      name_zh: item.name_zh || '',
+      name_cn: item.name_cn || '',
       description: item.description,
-      description_zh: item.description_zh || '',
+      description_cn: item.description_cn || '',
       image: '', 
       images: [],
       material: '', 
-      dimensions: item.dimensions || '',
+      size: item.size || '',
       code: '', 
       status: 'draft',
       colors: []
@@ -349,8 +360,8 @@ const CreatorPortal: React.FC = () => {
     setIsSavingProduct(true);
 
     try {
-        let finalCategoryId = formData.categoryId;
-        let finalSubCategoryName = formData.subCategoryName;
+        let finalCategoryId = formData.category;
+        let finalSubCategoryName = formData.sub_category;
         let structureUpdated = false;
         
         const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
@@ -393,27 +404,37 @@ const CreatorPortal: React.FC = () => {
             }
         }
 
-        // Construct the product payload from the single source of truth (formData)
+        // Construct the product payload using CANONICAL SCHEMA
         const product = {
             id: editingId || Math.random().toString(36).substr(2, 9),
-            categoryId: finalCategoryId,
-            subCategoryName: finalSubCategoryName,
+            
+            // Backend Schema Fields
             name: formData.name,
-            name_zh: formData.name_zh,
-            description: formData.description,
-            description_zh: formData.description_zh,
-            image: formData.images[0], // Primary image is first in array
-            images: formData.images,   // Full array of image URLs
+            name_cn: formData.name_cn,
+            category: finalCategoryId,
+            sub_category: finalSubCategoryName,
             material: formData.material,
-            dimensions: formData.dimensions,
+            size: formData.size,
             code: formData.code,
+            description: formData.description,
+            description_cn: formData.description_cn,
+            
+            // Image handling: Backend wants images[]
+            images: formData.images,
+            
+            // We also keep 'image' locally for convenience in frontend lists, but backend might ignore
+            image: formData.images[0], 
+            
             status: formData.status,
+            
+            // Colors not in minimal schema but kept for frontend logic
             colors: formData.colors || [],
+            
             date: editingId ? localItems.find(i => i.id === editingId)?.date : new Date().toLocaleDateString()
         };
 
         // ---------------------------------------------------------
-        // CRITICAL FIX: Explicitly logging the correct variable 'product'
+        // LOGGING PAYLOAD (Required verification)
         // ---------------------------------------------------------
         console.log("POST /products payload:", product);
 
@@ -498,7 +519,7 @@ const CreatorPortal: React.FC = () => {
     );
   }, [localItems, listSearch]);
 
-  const activeCategory = mergedCategories.find(c => c.id === formData.categoryId) || mergedCategories[0];
+  const activeCategory = mergedCategories.find(c => c.id === formData.category) || mergedCategories[0];
   const activeSubCategories = activeCategory?.subCategories || [];
 
   const generateProductCode = () => {

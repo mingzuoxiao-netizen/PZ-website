@@ -50,11 +50,11 @@ const LivePreview: React.FC<LivePreviewProps> = ({ formData }) => {
               {formData.description || "Premium solid wood construction."}
             </p>
             
-            {/* Specs Preview */}
-            {(formData.material || formData.dimensions) && (
+            {/* Specs Preview - Updated 'dimensions' to 'size' */}
+            {(formData.material || formData.size) && (
               <div className="text-[10px] text-stone-400 mb-4 border-t border-stone-100 pt-3 space-y-1">
                 {formData.material && <div className="flex justify-between"><span>Mat:</span> <span className="text-stone-600 font-medium">{formData.material}</span></div>}
-                {formData.dimensions && <div className="flex justify-between"><span>Dim:</span> <span className="text-stone-600 font-medium">{formData.dimensions}</span></div>}
+                {formData.size && <div className="flex justify-between"><span>Dim:</span> <span className="text-stone-600 font-medium">{formData.size}</span></div>}
               </div>
             )}
 

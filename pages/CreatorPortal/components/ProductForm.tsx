@@ -151,8 +151,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </div>
           ) : (
             <select
-              value={formData.categoryId}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, categoryId: e.target.value }))}
+              value={formData.category} // Renamed to category
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, category: e.target.value }))}
               className="w-full bg-white border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
             >
               {mergedCategories?.map((c: any) => (
@@ -194,8 +194,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
             ) : (
               <div className="pl-4 border-l-2 border-stone-200">
                 <select
-                  value={formData.subCategoryName}
-                  onChange={(e) => setFormData((prev: any) => ({ ...prev, subCategoryName: e.target.value }))}
+                  value={formData.sub_category} // Renamed to sub_category
+                  onChange={(e) => setFormData((prev: any) => ({ ...prev, sub_category: e.target.value }))}
                   className="w-full bg-white border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
                 >
                   {activeSubCategories?.map((sc: any, idx: number) => (
@@ -230,8 +230,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </label>
             <input
               type="text"
-              value={formData.name_zh || ''}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, name_zh: e.target.value }))}
+              value={formData.name_cn || ''} // Renamed to name_cn
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, name_cn: e.target.value }))}
               className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
               placeholder="例如：Zenith 餐桌"
             />
@@ -264,8 +264,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 type="text" 
                 className="w-full bg-white border border-stone-200 text-stone-900 px-3 py-2 text-sm focus:border-[#a16207] outline-none"
                 placeholder="e.g. 1200x600mm"
-                value={formData.dimensions}
-                onChange={e => setFormData((prev: any) => ({...prev, dimensions: e.target.value}))}
+                value={formData.size} // Renamed to size
+                onChange={e => setFormData((prev: any) => ({...prev, size: e.target.value}))}
               />
             </div>
             <div className="md:col-span-2 lg:col-span-1">
@@ -313,8 +313,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </label>
             <textarea
               rows={3}
-              value={formData.description_zh || ''}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, description_zh: e.target.value }))}
+              value={formData.description_cn || ''} // Renamed to description_cn
+              onChange={(e) => setFormData((prev: any) => ({ ...prev, description_cn: e.target.value }))}
               className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
               placeholder="简短的产品中文描述..."
             />

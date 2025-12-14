@@ -6,22 +6,26 @@ export interface NavItem {
 }
 
 export interface ProductVariant {
+  id?: string;
   name: string;
-  name_zh?: string;
+  name_cn?: string;
   description?: string;
-  description_zh?: string;
+  description_cn?: string;
   image: string;
   images?: string[]; 
   material?: string;
-  dimensions?: string;
+  size?: string;
   code?: string;
   status?: string;
-  subCategoryName?: string;
-  // New field for color variants
+  sub_category?: string;
+  // Category ID reference for flat structure
+  category?: string;
+  // New field for color variants (kept for frontend state, even if not in minimal schema)
   colors?: {
     name: string;
     image: string;
   }[];
+  date?: string;
 }
 
 export interface SubCategory {
