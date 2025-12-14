@@ -415,7 +415,7 @@ const translations = {
       title: "创作模式",
       editing: "编辑中",
       backAdmin: "返回管理后台",
-      tabs: { inventory: "库存管理", config: "网站配置", media: "媒体库" },
+      tabs: { inventory: "库存管理", collections: "分类管理", config: "网站配置", media: "媒体库" },
       status: { connected: "云端配置已连接", local: "本地模式", syncing: "同步中..." },
       inventory: {
         manage: "库存管理",

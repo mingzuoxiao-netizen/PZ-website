@@ -123,7 +123,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   return (
     <>
-      <nav className={`hidden lg:flex items-center space-x-4 lg:space-x-6 xl:space-x-8 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
+      <nav className={`hidden lg:flex items-center space-x-8 lg:space-x-10 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.path || activeMenu === item.path;
           const hasMegaMenu = !!(megaMenuData as any)[item.path];
@@ -137,7 +137,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
             >
               <Link
                 to={item.path}
-                className={`text-[10px] xl:text-[11px] font-bold tracking-[0.05em] uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
+                className={`text-[15px] font-bold tracking-[0.15em] uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
                   isActive
                     ? useWhiteNav ? 'text-safety-700' : 'text-white'
                     : navTextColor
@@ -146,7 +146,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                 {t.nav.header[item.key]}
                 {hasMegaMenu && (
                   <ChevronDown
-                    size={10}
+                    size={14}
                     className={`ml-1 transition-transform duration-300 opacity-60 ${activeMenu === item.path ? 'rotate-180' : ''}`}
                   />
                 )}
@@ -192,7 +192,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                              <Link
                                to={link.href}
                                onClick={() => handleMenuClick(link.href)}
-                               className="block text-[10px] font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
+                               className="block text-sm font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
                              >
                                {link.label}
                              </Link>

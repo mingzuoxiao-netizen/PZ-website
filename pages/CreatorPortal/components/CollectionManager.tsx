@@ -1,15 +1,16 @@
 
 import React, { useState } from 'react';
-import { Edit2, Save, X, LayoutGrid } from 'lucide-react';
+import { Edit2, Save, X, LayoutGrid, Trash2 } from 'lucide-react';
 import { Category } from '../../../types';
 import PZImageManager from './PZImageManager';
 
 interface CollectionManagerProps {
   categories: Category[];
   onUpdate: (cat: Category) => void;
+  onDelete: (id: string) => void;
 }
 
-const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate }) => {
+const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate, onDelete }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
 
@@ -122,9 +123,18 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                     <p className="text-stone-500 text-xs leading-relaxed line-clamp-3 mb-4">
                       {cat.description}
                     </p>
-                    <div className="mt-auto pt-4 border-t border-stone-100 flex justify-between items-center text-[10px] text-stone-400 uppercase font-bold tracking-widest">
-                       <span>{cat.subCategories?.length || 0} Sub-categories</span>
-                       <span>ID: {cat.id}</span>
+                    <div className="mt-auto pt-4 border-t border-stone-100 flex justify-between items-center">
+                       <span className="text-[10px] text-stone-400 uppercase font-bold tracking-widest">{cat.subCategories?.length || 0} Sub-categories</span>
+                       
+                       <button 
+                         onClick={() => {
+                           if(confirm('Are you sure you want to delete this collection? Products in it will remain but may be hidden.')) onDelete(cat.id);
+                         }}
+                         className="text-red-400 hover:text-red-600 p-1 bg-red-50 rounded-sm hover:bg-red-100 transition-colors"
+                         title="Delete Collection"
+                       >
+                         <Trash2 size={14} />
+                       </button>
                     </div>
                   </>
                 )}

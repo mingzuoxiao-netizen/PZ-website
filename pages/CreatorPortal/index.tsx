@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft, ImageMinus, RefreshCw, Wifi, WifiOff, Globe } from 'lucide-react';
+import { Trash2, ShoppingBag, LayoutTemplate, AlertTriangle, Loader2, CheckCircle, AlertCircle, ArrowLeft, ImageMinus, RefreshCw, Wifi, WifiOff, Globe, LayoutGrid } from 'lucide-react';
 import { categories as staticCategories } from '../../data/inventory';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Category, SubCategory } from '../../types';
@@ -11,15 +11,16 @@ import { DEFAULT_CONFIG, fetchSiteConfig, SITE_CONFIG_STORAGE_KEY, SiteConfig, S
 import ProductForm from './components/ProductForm';
 import ProductList from './components/ProductList';
 import LivePreview from './components/LivePreview';
-import SiteConfigEditor from './components/SiteConfigEditor'; // New
+import SiteConfigEditor from './components/SiteConfigEditor';
 import MediaTools from './components/MediaTools';
+import CollectionManager from './components/CollectionManager';
 
 const CreatorPortal: React.FC = () => {
   const { t, language, setLanguage } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mode Switching - Removed 'collections'
-  const [activeTab, setActiveTab] = useState<'products' | 'config' | 'media'>('products');
+  // Mode Switching
+  const [activeTab, setActiveTab] = useState<'products' | 'collections' | 'config' | 'media'>('products');
 
   // UI States
   const [successMsg, setSuccessMsg] = useState('');
@@ -225,11 +226,56 @@ const CreatorPortal: React.FC = () => {
               combined.push(customCat);
           }
       });
-      setMergedCategories(combined);
+
+      // Filter out deleted items (static ones included)
+      const deletedIds = JSON.parse(localStorage.getItem('pz_deleted_categories') || '[]');
+      const finalCategories = combined.filter((c: Category) => !deletedIds.includes(c.id));
+
+      setMergedCategories(finalCategories);
 
       // 3. Site Config
       setSiteConfigData(data.config);
       setSiteMeta(data.meta);
+  };
+
+  // --- COLLECTION HANDLERS ---
+  const handleUpdateCategory = async (updatedCat: Category) => {
+      const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
+      let customStructure: Category[] = JSON.parse(rawStructure);
+      
+      const idx = customStructure.findIndex(c => c.id === updatedCat.id);
+      if (idx > -1) {
+          customStructure[idx] = updatedCat;
+      } else {
+          // If editing a static category, we push it as an override/extension to custom structure
+          // OR if it's a new custom category being edited
+          customStructure.push(updatedCat);
+      }
+      
+      await saveToCloud('pz_custom_structure', customStructure);
+      initData();
+      setSuccessMsg("Collection updated successfully.");
+      setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+      // 1. Remove from Custom Structure (if exists)
+      const rawStructure = localStorage.getItem('pz_custom_structure') || '[]';
+      let customStructure: Category[] = JSON.parse(rawStructure);
+      const newStructure = customStructure.filter(c => c.id !== id);
+      await saveToCloud('pz_custom_structure', newStructure);
+
+      // 2. Add to Deleted List (to hide if it's a static category)
+      const rawDeleted = localStorage.getItem('pz_deleted_categories') || '[]';
+      let deletedIds: string[] = JSON.parse(rawDeleted);
+      if (!deletedIds.includes(id)) {
+          deletedIds.push(id);
+          await saveToCloud('pz_deleted_categories', deletedIds);
+      }
+      
+      initData();
+      setSuccessMsg("Collection deleted.");
+      setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   // --- HANDLERS ---
@@ -535,6 +581,9 @@ const CreatorPortal: React.FC = () => {
             <button onClick={() => setActiveTab('products')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'products' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <ShoppingBag size={16} className="mr-2" /> {t.creator.tabs.inventory}
             </button>
+            <button onClick={() => setActiveTab('collections')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'collections' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
+                <LayoutGrid size={16} className="mr-2" /> {t.creator.tabs.collections || 'Collections'}
+            </button>
             <button onClick={() => setActiveTab('config')} className={`px-8 py-4 font-bold uppercase tracking-widest text-xs flex items-center transition-all ${activeTab === 'config' ? 'border-b-2 border-amber-700 text-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>
                 <LayoutTemplate size={16} className="mr-2" /> {t.creator.tabs.config}
             </button>
@@ -570,6 +619,15 @@ const CreatorPortal: React.FC = () => {
                   searchQuery={listSearch} setSearchQuery={setListSearch}
               />
             </div>
+        )}
+
+        {/* --- VIEW: COLLECTIONS --- */}
+        {activeTab === 'collections' && (
+            <CollectionManager 
+                categories={mergedCategories} 
+                onUpdate={handleUpdateCategory}
+                onDelete={handleDeleteCategory}
+            />
         )}
 
         {/* --- VIEW: SITE CONFIG --- */}

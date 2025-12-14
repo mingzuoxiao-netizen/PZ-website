@@ -131,7 +131,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Language Switcher - Desktop Only */}
             <button
               onClick={toggleLanguage}
-              className={`hidden lg:block text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
+              className={`hidden lg:block text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
             >
               {language === 'en' ? 'EN / 中' : '中 / EN'}
             </button>

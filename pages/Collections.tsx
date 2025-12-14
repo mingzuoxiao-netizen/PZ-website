@@ -47,7 +47,14 @@ const Portfolio: React.FC = () => {
           });
         }
 
-        // 3. Get Custom Products from Inventory
+        // 3. Filter Deleted Categories
+        const deletedIdsStr = localStorage.getItem('pz_deleted_categories');
+        if (deletedIdsStr) {
+            const deletedIds: string[] = JSON.parse(deletedIdsStr);
+            allCategories = allCategories.filter((c: Category) => !deletedIds.includes(c.id));
+        }
+
+        // 4. Get Custom Products from Inventory
         const customInventoryStr = localStorage.getItem('pz_custom_inventory');
         if (customInventoryStr) {
            const customItems: any[] = JSON.parse(customInventoryStr);
@@ -78,7 +85,7 @@ const Portfolio: React.FC = () => {
            });
         }
 
-        // 4. Filter out empty categories
+        // 5. Filter out empty categories
         const nonEmptyCategories = allCategories.filter((c: Category) => 
             c.subCategories.some(s => s.variants && s.variants.length > 0)
         );

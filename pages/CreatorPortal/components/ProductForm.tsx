@@ -96,6 +96,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               <button
                 key={s}
                 type="button"
+                // Ensure we save the lowercase value 'published', 'draft', 'archived'
                 onClick={() => setFormData((p: any) => ({...p, status: s}))}
                 className={`px-3 py-1 text-xs uppercase font-bold tracking-wider border rounded-sm transition-all ${
                   formData.status === s 
@@ -103,7 +104,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   : 'bg-white text-stone-400 border-stone-200 hover:border-stone-400'
                 }`}
               >
-                {s === 'published' ? 'Pub' : s === 'draft' ? 'Draft' : 'Arch'}
+                {/* Display as PUB / DRAFT / ARCH, but logic above uses lowercase `s` */}
+                {s === 'published' ? 'PUB' : s === 'draft' ? 'DRAFT' : 'ARCH'}
               </button>
             ))}
           </div>
