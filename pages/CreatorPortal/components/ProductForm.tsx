@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProductVariant, Category } from '../../../types';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import { Save, X, Shuffle, Tag, Ruler, Box } from 'lucide-react';
+import { Save, X, Shuffle, Tag, Ruler, Box, Lock } from 'lucide-react';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
 
@@ -11,13 +11,21 @@ interface ProductFormProps {
   categories: Category[];
   onSave: (data: ProductVariant) => void;
   onCancel: () => void;
+  fixedCategoryId?: string; // New prop for scoped creation
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel }) => {
+const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel, fixedCategoryId }) => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const editingId = initialData.id;
+
+  // Auto-set category if fixed
+  useEffect(() => {
+    if (fixedCategoryId && !initialData.id) {
+        setFormData(prev => ({ ...prev, category: fixedCategoryId }));
+    }
+  }, [fixedCategoryId, initialData.id]);
 
   const handleChange = (field: keyof ProductVariant, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -58,6 +66,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
     // 3. Submit
     onSave(payload);
   };
+
+  // Find category name for display in locked mode
+  const fixedCategoryTitle = categories.find(c => c.id === fixedCategoryId)?.title;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
@@ -104,21 +115,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         {/* Main Category */}
                         <div>
                             <div className="flex justify-between items-center mb-2">
-                                <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">
+                                <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
                                     {t.creator.form.mainCat}
+                                    {fixedCategoryId && <Lock size={12} className="ml-2 text-amber-600"/>}
                                 </label>
-                                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
-                                    + {t.creator.form.create}
-                                </span>
+                                {!fixedCategoryId && (
+                                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
+                                        + {t.creator.form.create}
+                                    </span>
+                                )}
                             </div>
-                            <select 
-                                value={formData.category || ''}
-                                onChange={e => handleChange('category', e.target.value)}
-                                className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm transition-shadow appearance-none"
-                            >
-                                <option value="">Select Category...</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
+                            
+                            {fixedCategoryId ? (
+                                <div className="w-full bg-stone-100 border border-stone-200 p-4 text-sm font-bold text-stone-500 cursor-not-allowed flex justify-between items-center">
+                                    {fixedCategoryTitle}
+                                    <span className="text-[10px] uppercase tracking-widest text-amber-600">Locked to View</span>
+                                </div>
+                            ) : (
+                                <select 
+                                    value={formData.category || ''}
+                                    onChange={e => handleChange('category', e.target.value)}
+                                    className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm transition-shadow appearance-none"
+                                >
+                                    <option value="">Select Category...</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                </select>
+                            )}
                         </div>
                         
                         {/* Sub Category */}
@@ -298,4 +320,3 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
 };
 
 export default ProductForm;
-    

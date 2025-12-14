@@ -7,13 +7,14 @@ import { SiteConfig, SiteMeta } from '../../utils/siteConfig';
 import { ProductVariant, Category } from '../../types';
 import { Link } from 'react-router-dom';
 import { normalizeProducts } from '../../utils/normalizeProduct';
-import { categories as staticCategories } from '../../data/inventory'; // Import static categories
+import { categories as staticCategories } from '../../data/inventory'; 
 
 // Sub-components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import PageAssets from './components/PageAssets';
+import CategoryGrid from './components/CategoryGrid';
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
@@ -24,13 +25,12 @@ const CreatorPortal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets'>('inventory');
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
   
-  // STEP 1: Use Static Categories strictly. Do not fetch /categories or /collections.
-  const [categories, setCategories] = useState<Category[]>(staticCategories);
+  // Inventory UX State
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   
+  const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [configMeta, setConfigMeta] = useState<SiteMeta | null>(null);
-  
-  // Removed /assets/history fetching to prevent blocking
   const [assetHistory, setAssetHistory] = useState<Record<string, any[]>>({});
   const [viewingHistoryKey, setViewingHistoryKey] = useState<string | null>(null);
 
@@ -46,8 +46,6 @@ const CreatorPortal: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // STEP 2: Promise.all only keeps 'really needed' (Inventory & SiteConfig)
-      // Removed categoriesPromise and historyPromise to ensure stability.
       const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500');
       const configPromise = adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config');
 
@@ -71,9 +69,6 @@ const CreatorPortal: React.FC = () => {
           published_at: configRes.published_at
         });
       }
-
-      // Note: Categories are statically loaded via import, no API call needed.
-
     } catch (e) {
       console.error("Failed to load Creator Portal data", e);
     } finally {
@@ -101,7 +96,7 @@ const CreatorPortal: React.FC = () => {
       }
       setEditingItem(null);
       setIsCreating(false);
-      loadData(); // Refresh list
+      loadData(); 
     } catch (e: any) {
       alert(`Failed to save product: ${e.message || "Unknown Error"}`);
       console.error(e);
@@ -126,8 +121,8 @@ const CreatorPortal: React.FC = () => {
         method: 'POST',
         body: JSON.stringify(siteConfig)
       });
-      refresh(); // Update public context
-      loadData(); // Reload local state
+      refresh(); 
+      loadData(); 
       alert("Site Configuration Published!");
     } catch (e: any) {
       alert(`Failed to save config: ${e.message || "Unknown Error"}`);
@@ -142,12 +137,21 @@ const CreatorPortal: React.FC = () => {
            method: 'POST',
            body: JSON.stringify({ key, url })
        });
-       // No reload of data needed for asset update in this simplified version
        alert("Asset updated.");
     } catch (e: any) {
        alert(`Failed to update asset: ${e.message}`);
     }
   };
+
+  // --- DERIVED STATE FOR INVENTORY ---
+  const activeCategoryTitle = selectedCategoryId 
+    ? categories.find(c => c.id === selectedCategoryId)?.title 
+    : 'All Products';
+
+  // If a category is selected, filter items. If null (Master View), show all.
+  const filteredItems = selectedCategoryId 
+    ? localItems.filter(p => p.category?.toLowerCase() === selectedCategoryId.toLowerCase())
+    : localItems;
 
   if (loading) return <div className="h-screen flex items-center justify-center">Loading Creator Portal...</div>;
 
@@ -162,13 +166,12 @@ const CreatorPortal: React.FC = () => {
           </div>
           
           <div className="flex space-x-6">
-             <button onClick={() => setActiveTab('inventory')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
+             <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.inventory}
              </button>
              <button onClick={() => setActiveTab('config')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'config' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.config}
              </button>
-             {/* Collections Tab Removed - simplified to remove API dependency */}
              <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.media}
              </button>
@@ -176,23 +179,47 @@ const CreatorPortal: React.FC = () => {
        </div>
 
        <div className="container mx-auto px-6 md:px-12 py-12">
+          
           {activeTab === 'inventory' && (
-             isCreating || editingItem ? (
-                <ProductForm 
-                  initialData={editingItem || {}} 
-                  categories={categories}
-                  onSave={handleSaveProduct} 
-                  onCancel={() => { setEditingItem(null); setIsCreating(false); }} 
-                />
-             ) : (
-                <ProductList 
-                  items={localItems} 
-                  categories={categories}
-                  onEdit={setEditingItem} 
-                  onDelete={handleDeleteProduct}
-                  onCreate={() => setIsCreating(true)}
-                />
-             )
+             <>
+                {/* 1. PRODUCT FORM (Create/Edit) */}
+                {(isCreating || editingItem) ? (
+                    <ProductForm 
+                        initialData={editingItem || {}} 
+                        categories={categories}
+                        // Lock category if we are creating new item from inside a category view
+                        fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
+                        onSave={handleSaveProduct} 
+                        onCancel={() => { setEditingItem(null); setIsCreating(false); }} 
+                    />
+                ) : (
+                    /* 2. INVENTORY VIEWS */
+                    <>
+                        {/* 2a. CATEGORY GRID (Root Level) */}
+                        {!selectedCategoryId && !editingItem && !isCreating && (
+                            <CategoryGrid 
+                                categories={categories}
+                                products={localItems}
+                                onSelectCategory={setSelectedCategoryId}
+                                onSelectAll={() => setSelectedCategoryId('ALL_MASTER')} // Magic string to show list without filter
+                            />
+                        )}
+
+                        {/* 2b. PRODUCT LIST (Filtered Level) */}
+                        {selectedCategoryId && (
+                            <ProductList 
+                                items={filteredItems} 
+                                categories={categories}
+                                categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Master Inventory List' : activeCategoryTitle}
+                                onBack={() => setSelectedCategoryId(null)}
+                                onEdit={setEditingItem} 
+                                onDelete={handleDeleteProduct}
+                                onCreate={() => setIsCreating(true)}
+                            />
+                        )}
+                    </>
+                )}
+             </>
           )}
 
           {activeTab === 'config' && siteConfig && (

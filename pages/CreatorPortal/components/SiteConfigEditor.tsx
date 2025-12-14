@@ -93,10 +93,13 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
 
     setRollingBack(true);
     try {
-      await adminFetch('/site-config/rollback', {
-        method: 'POST',
-        body: JSON.stringify({ version })
-      });
+      await adminFetch('/site-config', {
+      method: 'POST',
+      body: JSON.stringify({
+    config,
+    message: 'Update navigation images'
+  })
+});
 
       await onRefresh();   // 刷新当前 config
       await fetchHistory(); // 刷新历史列表
