@@ -1,427 +1,147 @@
-
-import React from 'react';
-import { Save, Plus, Trash2, Loader2, CornerDownRight, Box, Ruler, Tag, Wand2, Palette, X } from 'lucide-react';
-import PZImageManager from './PZImageManager';
+import React, { useState } from 'react';
+import { ProductVariant, Category } from '../../../types';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { Save, X } from 'lucide-react';
+import PZImageManager from './PZImageManager';
+import LivePreview from './LivePreview';
 
 interface ProductFormProps {
-  formData: any;
-  setFormData: React.Dispatch<React.SetStateAction<any>>;
-  onSubmit: (e: React.FormEvent) => void;
-  isCreatingCategory: boolean;
-  setIsCreatingCategory: (v: boolean) => void;
-  isCreatingSubCategory: boolean;
-  setIsCreatingSubCategory: (v: boolean) => void;
-  mergedCategories: any[];
-  activeSubCategories: any[];
-  submitting: boolean;
-  editingId: string | null;
-  cancelEdit: () => void;
-  triggerDelete: (id: string) => void;
-  generateProductCode: () => void;
-  onError: (msg: string) => void;
+  initialData: Partial<ProductVariant>;
+  categories: Category[];
+  onSave: (data: ProductVariant) => void;
+  onCancel: () => void;
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({
-  formData, setFormData, onSubmit,
-  isCreatingCategory, setIsCreatingCategory,
-  isCreatingSubCategory, setIsCreatingSubCategory,
-  mergedCategories, activeSubCategories,
-  submitting, editingId, cancelEdit, triggerDelete, generateProductCode, onError
-}) => {
+const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel }) => {
   const { t } = useLanguage();
+  const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
+  const [submitting, setSubmitting] = useState(false);
+  const editingId = initialData.id;
 
-  // Helper to handle image updates for gallery
-  // Ensures formData.images is the single source of truth and formData.image is always synced to index 0
-  const handleImagesUpdate = (newImageList: string[]) => {
-    setFormData((prev: any) => {
-      // Create unique set to prevent duplicates, though manager usually handles this
-      const nextImages = Array.from(new Set(newImageList)).filter(Boolean);
-      
-      return {
-        ...prev,
-        images: nextImages,
-        // STRICT SYNC: Main image is always the first image in the gallery
-        image: nextImages.length > 0 ? nextImages[0] : '' 
-      };
-    });
+  const handleChange = (field: keyof ProductVariant, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Helper to handle adding a color variant
-  const addColorVariant = () => {
-    setFormData((prev: any) => ({
-      ...prev,
-      colors: [...(prev.colors || []), { name: 'New Color', image: '' }]
-    }));
-  };
-
-  const updateColorVariant = (index: number, field: 'name' | 'image', value: string) => {
-    const newColors = [...(formData.colors || [])];
-    newColors[index] = { ...newColors[index], [field]: value };
-    setFormData((prev: any) => ({ ...prev, colors: newColors }));
-  };
-
-  const removeColorVariant = (index: number) => {
-    const newColors = [...(formData.colors || [])];
-    newColors.splice(index, 1);
-    setFormData((prev: any) => ({ ...prev, colors: newColors }));
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    // Basic validation
+    if (!formData.name) {
+        alert("Name is required");
+        setSubmitting(false);
+        return;
+    }
+    // ensure images is array
+    if (!formData.images) formData.images = [];
+    
+    onSave(formData as ProductVariant);
   };
 
   return (
-    <div className={`bg-white p-6 md:p-12 border ${editingId ? 'border-amber-500 ring-4 ring-amber-500/10' : 'border-stone-200'} shadow-xl relative h-fit transition-all duration-300 order-1`}>
-                
-      {submitting && (
-        <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center">
-          <Loader2 size={48} className="text-[#a16207] animate-spin mb-4" />
-          <span className="text-stone-900 font-bold uppercase tracking-widest">
-            {t.creator.form.processing}
-          </span>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="font-bold text-stone-900 uppercase tracking-widest text-sm">
-          {editingId 
-            ? t.creator.form.edit 
-            : t.creator.form.add}
-        </h3>
-        {editingId && (
-          <button onClick={cancelEdit} className="text-xs text-stone-400 hover:text-stone-900 underline">
-            {t.creator.form.cancel}
-          </button>
-        )}
-      </div>
-
-      <form onSubmit={onSubmit} className="space-y-6">
-      
-        {/* Status Selector */}
-        <div className="bg-stone-50 p-4 border border-stone-200 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">{t.creator.form.status}</label>
-          <div className="flex space-x-2">
-            {['published', 'draft', 'archived'].map(s => (
-              <button
-                key={s}
-                type="button"
-                // Ensure we save the lowercase value 'published', 'draft', 'archived'
-                onClick={() => setFormData((p: any) => ({...p, status: s}))}
-                className={`px-3 py-1 text-xs uppercase font-bold tracking-wider border rounded-sm transition-all ${
-                  formData.status === s 
-                  ? (s === 'published' ? 'bg-green-600 text-white border-green-600' : s === 'draft' ? 'bg-amber-500 text-white border-amber-500' : 'bg-stone-500 text-white border-stone-500')
-                  : 'bg-white text-stone-400 border-stone-200 hover:border-stone-400'
-                }`}
-              >
-                {/* Display as PUB / DRAFT / ARCH, but logic above uses lowercase `s` */}
-                {s === 'published' ? 'PUB' : s === 'draft' ? 'DRAFT' : 'ARCH'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Category Section */}
-        <div className="space-y-4 bg-stone-50 p-6 rounded-sm border border-stone-100">
-          <div className="flex justify-between items-end mb-2">
-            <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-              {t.creator.form.mainCat}
-            </label>
-            {!editingId && (
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsCreatingCategory(!isCreatingCategory);
-                  setIsCreatingSubCategory(false);
-                }}
-                className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingCategory ? 'text-red-500' : 'text-amber-700'}`}
-              >
-                {isCreatingCategory 
-                  ? t.creator.form.cancelNew
-                  : t.creator.form.create}
-              </button>
-            )}
-          </div>
-
-          {isCreatingCategory ? (
-            <div className="space-y-3 animate-fade-in-up">
-              <input 
-                type="text"
-                placeholder="New Category Name"
-                className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
-                value={formData.newCatTitle}
-                onChange={e => setFormData((prev: any) => ({...prev, newCatTitle: e.target.value}))}
-              />
-            </div>
-          ) : (
-            <select
-              value={formData.category} // Renamed to category
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, category: e.target.value }))}
-              className="w-full bg-white border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-            >
-              {mergedCategories?.map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <div className="mt-6">
-            <div className="flex justify-between items-end mb-2 pl-4 border-l-2 border-stone-200">
-              <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-                <CornerDownRight size={12} className="mr-2" /> {t.creator.form.subCat}
-              </label>
-              {!editingId && !isCreatingCategory && (
-                <button 
-                  type="button"
-                  onClick={() => setIsCreatingSubCategory(!isCreatingSubCategory)}
-                  className={`text-[10px] uppercase font-bold tracking-widest flex items-center ${isCreatingSubCategory ? 'text-red-500' : 'text-amber-700'}`}
-                >
-                  {isCreatingSubCategory 
-                    ? t.creator.form.cancelNew
-                    : t.creator.form.create}
-                </button>
-              )}
-            </div>
-
-            {isCreatingCategory || isCreatingSubCategory ? (
-              <div className="space-y-3 pl-4 border-l-2 border-amber-200 animate-fade-in-up">
-                <input 
-                  type="text"
-                  placeholder="New Sub-Category Name"
-                  className="w-full bg-white border border-amber-300 text-stone-900 px-4 py-2 text-sm focus:border-[#a16207] outline-none"
-                  value={formData.newSubName}
-                  onChange={e => setFormData((prev: any) => ({...prev, newSubName: e.target.value}))}
-                />
-              </div>
-            ) : (
-              <div className="pl-4 border-l-2 border-stone-200">
-                <select
-                  value={formData.sub_category} // Renamed to sub_category
-                  onChange={(e) => setFormData((prev: any) => ({ ...prev, sub_category: e.target.value }))}
-                  className="w-full bg-white border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-                >
-                  {activeSubCategories?.map((sc: any, idx: number) => (
-                    <option key={idx} value={sc.name}>
-                      {sc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Name Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {t.creator.form.nameEn} <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="e.g., Zenith Dining Table"
-            />
-          </div>
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {t.creator.form.nameZh}
-            </label>
-            <input
-              type="text"
-              value={formData.name_cn || ''} // Renamed to name_cn
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, name_cn: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="例如：Zenith 餐桌"
-            />
-          </div>
-        </div>
-
-        {/* SPECIFICATIONS */}
-        <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
-          <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 mb-4 border-b border-stone-200 pb-2">
-            {t.creator.form.specs}
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="md:col-span-1 lg:col-span-1">
-              <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Box size={10} className="mr-1"/> {t.creator.form.material}
-              </label>
-              <input 
-                type="text" 
-                className="w-full bg-white border border-stone-200 text-stone-900 px-3 py-2 text-sm focus:border-[#a16207] outline-none"
-                placeholder="e.g. White Oak"
-                value={formData.material}
-                onChange={e => setFormData((prev: any) => ({...prev, material: e.target.value}))}
-              />
-            </div>
-            <div className="md:col-span-1 lg:col-span-1">
-              <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Ruler size={10} className="mr-1"/> {t.creator.form.dims}
-              </label>
-              <input 
-                type="text" 
-                className="w-full bg-white border border-stone-200 text-stone-900 px-3 py-2 text-sm focus:border-[#a16207] outline-none"
-                placeholder="e.g. 1200x600mm"
-                value={formData.size} // Renamed to size
-                onChange={e => setFormData((prev: any) => ({...prev, size: e.target.value}))}
-              />
-            </div>
-            <div className="md:col-span-2 lg:col-span-1">
-              <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-2 font-bold flex items-center">
-                <Tag size={10} className="mr-1"/> {t.creator.form.code}
-              </label>
-              <div className="flex">
-                <input 
-                  type="text" 
-                  className="w-full bg-white border border-stone-200 text-stone-900 px-3 py-2 text-sm focus:border-[#a16207] outline-none border-r-0"
-                  placeholder="e.g. PZ-TAB-2025-01"
-                  value={formData.code}
-                  onChange={e => setFormData((prev: any) => ({...prev, code: e.target.value}))}
-                />
-                <button 
-                  type="button"
-                  onClick={generateProductCode}
-                  className="bg-stone-200 px-3 hover:bg-amber-100 hover:text-amber-800 border border-stone-200 border-l-0 text-xs font-bold uppercase"
-                  title="Auto Generate"
-                >
-                  <Wand2 size={14} className="inline mr-1"/> {t.creator.form.autoGen}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {t.creator.form.descEn}
-            </label>
-            <textarea
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, description: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="Short product description..."
-            />
-          </div>
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2 font-bold">
-              {t.creator.form.descZh}
-            </label>
-            <textarea
-              rows={3}
-              value={formData.description_cn || ''} // Renamed to description_cn
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, description_cn: e.target.value }))}
-              className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 focus:border-[#a16207] outline-none"
-              placeholder="简短的产品中文描述..."
-            />
-          </div>
-        </div>
-
-        {/* --- COLOR VARIANTS SECTION --- */}
-        <div className="bg-stone-50 p-6 rounded-sm border border-stone-100">
-          <div className="flex justify-between items-center mb-4 border-b border-stone-200 pb-2">
-             <h4 className="text-xs uppercase tracking-widest font-bold text-stone-500 flex items-center">
-               <Palette size={14} className="mr-2"/> {t.creator.form.colors}
-             </h4>
-             <button 
-               type="button"
-               onClick={addColorVariant}
-               className="text-[10px] uppercase font-bold tracking-widest text-amber-700 hover:text-amber-900 flex items-center"
-             >
-               <Plus size={12} className="mr-1"/> {t.creator.form.addColor}
-             </button>
-          </div>
-          
-          <div className="space-y-4">
-             {(!formData.colors || formData.colors.length === 0) && (
-               <p className="text-xs text-stone-400 italic text-center py-4">No specific color variants added.</p>
-             )}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
+       <div className="lg:col-span-2">
+          <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
+             <h2 className="font-serif text-2xl text-stone-900 mb-6">
+                {editingId ? t.creator.form.edit : t.creator.form.add}
+             </h2>
              
-             {formData.colors?.map((color: any, idx: number) => (
-                <div key={idx} className="flex flex-col md:flex-row gap-4 bg-white p-4 border border-stone-200 items-start md:items-center">
-                   <div className="flex-none">
-                      <PZImageManager 
-                        images={color.image ? [color.image] : []}
-                        onUpdate={(imgs) => updateColorVariant(idx, 'image', imgs[0] || '')}
-                        onError={onError}
-                        maxImages={1}
-                        aspectRatio={4/3}
-                        className="w-24 h-24"
-                      />
-                   </div>
-                   <div className="flex-grow w-full">
-                      <label className="block text-[10px] uppercase font-bold text-stone-400 mb-1">Color Name</label>
+             <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                   <div>
+                      <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Name</label>
                       <input 
                         type="text" 
-                        value={color.name}
-                        onChange={(e) => updateColorVariant(idx, 'name', e.target.value)}
-                        className="w-full border border-stone-200 px-3 py-2 text-sm focus:border-amber-500 outline-none"
-                        placeholder="e.g. Walnut, Black Oak"
+                        value={formData.name || ''} 
+                        onChange={e => handleChange('name', e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
                       />
                    </div>
-                   <button 
-                     type="button"
-                     onClick={() => removeColorVariant(idx)}
-                     className="text-stone-400 hover:text-red-500 p-2"
-                   >
-                     <X size={16} />
-                   </button>
+                   <div>
+                      <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Code</label>
+                      <input 
+                        type="text" 
+                        value={formData.code || ''} 
+                        onChange={e => handleChange('code', e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                      />
+                   </div>
                 </div>
-             ))}
+
+                <div className="grid grid-cols-2 gap-6">
+                   <div>
+                      <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Category</label>
+                      <select 
+                        value={formData.category || ''}
+                        onChange={e => handleChange('category', e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                      >
+                         <option value="">Select Category</option>
+                         {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                      </select>
+                   </div>
+                   <div>
+                      <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Status</label>
+                      <select 
+                        value={formData.status || 'published'}
+                        onChange={e => handleChange('status', e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                      >
+                         <option value="published">Published</option>
+                         <option value="draft">Draft</option>
+                         <option value="hidden">Hidden</option>
+                      </select>
+                   </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Description</label>
+                    <textarea 
+                        rows={5}
+                        value={formData.description || ''}
+                        onChange={e => handleChange('description', e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none resize-none"
+                    />
+                </div>
+
+                <div>
+                   <PZImageManager 
+                     label="Product Images"
+                     images={formData.images || []}
+                     onUpdate={(imgs) => handleChange('images', imgs)}
+                     onError={alert}
+                   />
+                </div>
+
+                <div className="flex gap-4 pt-6 border-t border-stone-100">
+                    <button
+                        type="submit"
+                        disabled={submitting || !(formData.images && formData.images.length > 0)}
+                        className={`flex-1 text-white font-bold uppercase tracking-widest py-4 transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg
+                        ${editingId ? 'bg-amber-700 hover:bg-amber-800' : 'bg-[#281815] hover:bg-[#a16207]'}
+                        `}
+                    >
+                        {submitting ? (
+                          t.creator.form.processing
+                        ) : (
+                          <>
+                             <Save size={16} className="mr-2" /> {editingId ? t.creator.form.update : t.creator.form.publish}
+                          </>
+                        )}
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={onCancel}
+                        className="px-8 border border-stone-200 text-stone-500 hover:text-stone-900 uppercase font-bold text-xs tracking-widest"
+                    >
+                        {t.creator.form.cancel}
+                    </button>
+                </div>
+             </form>
           </div>
-        </div>
-
-        {/* Gallery Image Manager */}
-        <PZImageManager
-          label={t.creator.form.gallery}
-          images={formData.images || []}
-          onUpdate={handleImagesUpdate}
-          onError={onError}
-          maxImages={10} 
-          aspectRatio={4/3} 
-        />
-
-        <div className="flex space-x-4 pb-8 md:pb-0 mt-6">
-          {editingId && (
-            <button
-              type="button"
-              onClick={() => triggerDelete(editingId)}
-              className="flex-none w-14 bg-red-100 text-red-600 font-bold uppercase tracking-widest py-4 hover:bg-red-200 transition-colors flex justify-center items-center rounded-sm"
-              title={t.creator.form.delete}
-            >
-              <Trash2 size={18} />
-            </button>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting || !formData.image}
-            className={`flex-1 text-white font-bold uppercase tracking-widest py-4 transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg
-              ${editingId ? 'bg-amber-700 hover:bg-amber-800' : 'bg-[#281815] hover:bg-[#a16207]'}
-            `}
-          >
-            {submitting ? (
-              t.creator.form.processing
-            ) : (
-              <>
-                {editingId 
-                    ? t.creator.form.update
-                    : (formData.status === 'draft' 
-                        ? t.creator.form.saveDraft
-                        : t.creator.form.publish
-                      )
-                }
-                {editingId ? <Save size={16} className="ml-2" /> : <Plus size={16} className="ml-2 group-hover:rotate-90 transition-transform" />}
-              </>
-            )}
-          </button>
-        </div>
-
-      </form>
+       </div>
+       <div className="lg:col-span-1">
+          <LivePreview formData={formData} />
+       </div>
     </div>
   );
 };

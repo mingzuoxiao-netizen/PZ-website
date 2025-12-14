@@ -1,421 +1,222 @@
-
-import React, { useState, useEffect } from 'react';
-import { Home, Factory, MapPin, FileText, ArrowRight, Loader2, PackageX, Palette, ChevronLeft } from 'lucide-react';
-import { Category, ProductVariant } from '../types';
-import { Link, useLocation } from 'react-router-dom';
-import { categories as staticCategories } from '../data/inventory';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { X, ArrowRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { Category, ProductVariant, SubCategory } from '../types';
+import { categories as staticCategories } from '../data/inventory';
 import { getAssetUrl } from '../utils/getAssetUrl';
 
-const Portfolio: React.FC = () => {
-  const [activeProduct, setActiveProduct] = useState<ProductVariant | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [displayCategories, setDisplayCategories] = useState<Category[]>([]);
-  
-  // State for the currently displayed main image (handles color switching)
-  const [currentMainImage, setCurrentMainImage] = useState<string>('');
-  
+// Helper to flatten products
+const getAllProducts = (categories: Category[]): ProductVariant[] => {
+  let products: ProductVariant[] = [];
+  categories.forEach(cat => {
+    cat.subCategories.forEach(sub => {
+      if (sub.variants) {
+        products = [...products, ...sub.variants];
+      }
+    });
+  });
+  return products;
+};
+
+const Collections: React.FC = () => {
   const { t } = useLanguage();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { config } = usePublishedSiteConfig();
+  
+  // State
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<ProductVariant | null>(null);
+  
+  // Normalize static data to ensure images[] exists
+  const [dynamicCategories, setDynamicCategories] = useState<Category[]>(() => {
+    return staticCategories.map(cat => ({
+      ...cat,
+      subCategories: cat.subCategories.map(sub => ({
+        ...sub,
+        variants: sub.variants?.map(v => {
+          const imgs = Array.isArray(v.images) && v.images.length > 0
+            ? v.images 
+            : (v.image ? [v.image] : []);
+          return {
+            ...v,
+            images: imgs,
+            image: imgs[0] || ''
+          };
+        })
+      }))
+    }));
+  });
 
-  const catalogPdfUrl = getAssetUrl(config?.catalog?.url);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // --- DATA LOADING ---
+  // Parse query params
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // 1. Get Static Inventory
-        let allCategories = JSON.parse(JSON.stringify(staticCategories));
-
-        // 2. Get Custom Structure (Categories) from Storage
-        const customStructureStr = localStorage.getItem('pz_custom_structure');
-        if (customStructureStr) {
-          const customCats: Category[] = JSON.parse(customStructureStr);
-          // Merge custom categories
-          customCats.forEach(cCat => {
-             const existingIdx = allCategories.findIndex((sc: Category) => sc.id === cCat.id);
-             if (existingIdx > -1) {
-                // Update existing
-                allCategories[existingIdx] = { ...allCategories[existingIdx], ...cCat };
-             } else {
-                // Add new
-                allCategories.push(cCat);
-             }
-          });
-        }
-
-        // 3. Filter Deleted Categories
-        const deletedIdsStr = localStorage.getItem('pz_deleted_categories');
-        if (deletedIdsStr) {
-            const deletedIds: string[] = JSON.parse(deletedIdsStr);
-            allCategories = allCategories.filter((c: Category) => !deletedIds.includes(c.id));
-        }
-
-        // 4. Get Custom Products from Inventory
-        const customInventoryStr = localStorage.getItem('pz_custom_inventory');
-        if (customInventoryStr) {
-           const customItems: any[] = JSON.parse(customInventoryStr);
-           
-           customItems.forEach(item => {
-              // Normalized to new schema: item.category (was item.categoryId)
-              const catId = item.category || item.categoryId;
-              const subName = item.sub_category || item.subCategoryName;
-
-              // Find the category this item belongs to
-              const cat = allCategories.find((c: Category) => c.id === catId);
-              if (cat) {
-                 // Find or Create SubCategory
-                 let sub = cat.subCategories.find((s: any) => s.name === subName);
-                 if (!sub) {
-                    sub = {
-                       name: subName || "General",
-                       description: "",
-                       image: item.image,
-                       variants: []
-                    };
-                    cat.subCategories.push(sub);
-                 }
-                 if (!sub.variants) sub.variants = [];
-                 
-                 // Avoid duplicates if merging with static data that might have same ID
-                 const exists = sub.variants.find((v: any) => v.id === item.id);
-                 if (!exists && item.status === 'published') {
-                    // Map legacy fields to proper ProductVariant type if necessary
-                    // Note: ProductVariant updated in types.ts to have sub_category, size, etc.
-                    // Fix: Populate size from dimensions if needed for legacy items
-                    if (!item.size && item.dimensions) {
-                        item.size = item.dimensions;
-                    }
-                    sub.variants.push(item);
-                 }
-              }
-           });
-        }
-
-        // 5. Filter out empty categories
-        const nonEmptyCategories = allCategories.filter((c: Category) => 
-            c.subCategories.some(s => s.variants && s.variants.length > 0)
-        );
-
-        setDisplayCategories(nonEmptyCategories);
-
-      } catch (e) {
-        console.error("Failed to load portfolio data", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Update main image when product changes
-  useEffect(() => {
-    if (activeProduct) {
-      setCurrentMainImage(activeProduct.image);
+    const cat = searchParams.get('category');
+    if (cat) setActiveCategory(cat);
+    
+    const prodId = searchParams.get('product');
+    if (prodId) {
+      // Find product
+      const all = getAllProducts(dynamicCategories);
+      const found = all.find(p => p.id === prodId || p.name === prodId); // Fallback to name match for legacy
+      if (found) setSelectedProduct(found);
     }
-  }, [activeProduct]);
+  }, [searchParams, dynamicCategories]);
 
-  // Handle Hash Scrolling
-  useEffect(() => {
-    if (!loading && location.hash) {
-      const el = document.getElementById(location.hash.substring(1));
-      if (el) {
-        setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
-      }
-    }
-  }, [location.hash, loading]);
+  // Update categories with config images if available (optional enhancement)
+  // For now just returning dynamicCategories
+  const displayCategories = useMemo(() => {
+    return dynamicCategories;
+  }, [dynamicCategories]);
 
-  // Helper to flatten products for a category
-  const getCategoryProducts = (category: Category) => {
-      const products: ProductVariant[] = [];
-      category.subCategories.forEach(sub => {
-          if (sub.variants) {
-              sub.variants.forEach(v => products.push(v));
-          }
-      });
-      return products;
+  const openProduct = (product: ProductVariant) => {
+    setSelectedProduct(product);
+    // Update URL without reload
+    const params = new URLSearchParams(searchParams);
+    if (product.id) params.set('product', product.id);
+    else params.set('product', product.name);
+    setSearchParams(params, { replace: true });
   };
 
+  const closeProduct = () => {
+    setSelectedProduct(null);
+    const params = new URLSearchParams(searchParams);
+    params.delete('product');
+    setSearchParams(params, { replace: true });
+  };
+
+  const filteredSubCategories = useMemo(() => {
+    if (activeCategory === 'all') {
+      // Flatten all subcategories
+      let subs: SubCategory[] = [];
+      displayCategories.forEach(c => subs = [...subs, ...c.subCategories]);
+      return subs;
+    }
+    const cat = displayCategories.find(c => c.id === activeCategory);
+    return cat ? cat.subCategories : [];
+  }, [activeCategory, displayCategories]);
+
   return (
-    <div className="pt-20 md:pt-32 bg-white min-h-screen">
+    <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       
-      {!activeProduct && (
-        <section className="bg-stone-50 border-b border-stone-200 py-12 md:py-16 relative overflow-hidden">
-          <div className="container mx-auto px-6 md:px-12 relative z-10">
-            <div className="flex flex-col md:flex-row justify-between items-end">
-               <div>
-                   <span className="text-safety-700 font-bold tracking-[0.2em] uppercase text-xs mb-4 block">
-                     Full Portfolio
-                   </span>
-                   <h1 className="font-serif text-3xl md:text-5xl text-stone-900 mb-4">
-                     Craftsmanship & Capabilities
-                   </h1>
-                   <p className="text-stone-500 max-w-xl text-sm leading-relaxed">
-                     Explore our complete range of manufactured products, from solid wood components to complex mixed-material assemblies.
-                   </p>
-               </div>
-               
-               <div className="mt-8 md:mt-0 w-full md:w-auto">
-                   {catalogPdfUrl ? (
-                       <a 
-                         href={catalogPdfUrl} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         className="inline-flex justify-center w-full md:w-auto items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
-                       >
-                          <FileText size={16} className="mr-2"/> Download Catalog
-                       </a>
-                   ) : (
-                       <Link 
-                         to="/inquire?subject=Catalog"
-                         className="inline-flex justify-center w-full md:w-auto items-center bg-stone-900 text-white px-6 py-3 rounded-sm shadow-md hover:bg-safety-700 transition-all text-xs font-bold uppercase tracking-widest group"
-                       >
-                          <FileText size={16} className="mr-2"/> Request Catalog
-                       </Link>
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in" onClick={closeProduct}>
+           <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
+              <div className="w-full md:w-1/2 bg-stone-100 relative min-h-[300px]">
+                 <img 
+                   src={getAssetUrl(selectedProduct.images?.[0])} 
+                   alt={selectedProduct.name} 
+                   className="w-full h-full object-cover absolute inset-0 mix-blend-multiply"
+                 />
+                 <button onClick={closeProduct} className="absolute top-4 left-4 md:hidden bg-white/50 p-2 rounded-full">
+                    <X size={20} />
+                 </button>
+              </div>
+              <div className="w-full md:w-1/2 p-8 md:p-12 relative">
+                <button onClick={closeProduct} className="absolute top-8 right-8 hidden md:block text-stone-400 hover:text-stone-900">
+                    <X size={24} />
+                 </button>
+                 
+                 <h2 className="font-serif text-3xl text-stone-900 mb-2">{selectedProduct.name}</h2>
+                 {selectedProduct.name_cn && <p className="text-stone-500 mb-6">{selectedProduct.name_cn}</p>}
+                 
+                 <div className="w-12 h-1 bg-safety-700 mb-8"></div>
+                 
+                 <p className="text-stone-600 mb-8 leading-relaxed">
+                   {selectedProduct.description || selectedProduct.description_cn || t.collections.pdp.descExtra}
+                 </p>
+
+                 <div className="grid grid-cols-2 gap-6 text-sm text-stone-600 mb-10">
+                    <div>
+                        <span className="block text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">{t.collections.pdp.techDims}</span>
+                        {selectedProduct.size || "Standard"}
+                    </div>
+                    <div>
+                        <span className="block text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">{t.collections.pdp.matConst}</span>
+                        {selectedProduct.material || "Solid Wood"}
+                    </div>
+                 </div>
+
+                 <Link to="/inquire" className="inline-block bg-stone-900 text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors">
+                    {t.collections.pdp.inquireOrder}
+                 </Link>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-6 md:px-12">
+        <div className="mb-12 text-center">
+            <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">{t.collections.title}</h1>
+            <p className="text-stone-500 max-w-2xl mx-auto">{t.collections.intro}</p>
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex flex-wrap justify-center gap-4 mb-16">
+            <button 
+                onClick={() => { setActiveCategory('all'); setSearchParams({}, { replace: true }); }}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === 'all' ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
+            >
+                All
+            </button>
+            {displayCategories.map(cat => (
+                <button 
+                    key={cat.id}
+                    onClick={() => { setActiveCategory(cat.id); setSearchParams({ category: cat.id }, { replace: true }); }}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${activeCategory === cat.id ? 'bg-stone-900 text-white' : 'bg-white text-stone-500 hover:text-stone-900'}`}
+                >
+                    {cat.title}
+                </button>
+            ))}
+        </div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+           {filteredSubCategories.map((sub, idx) => (
+               <div key={idx} className="group">
+                   <div className="aspect-[4/3] bg-stone-200 overflow-hidden relative mb-4">
+                       <img 
+                         src={getAssetUrl(sub.image)} 
+                         alt={sub.name} 
+                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                       />
+                       {/* Overlay with View Products button if it has variants */}
+                       {sub.variants && sub.variants.length > 0 && (
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                               <button className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 hover:text-white transition-colors">
+                                   {t.collections.viewProducts}
+                               </button>
+                           </div>
+                       )}
+                   </div>
+                   <h3 className="font-serif text-xl text-stone-900">{sub.name}</h3>
+                   <p className="text-sm text-stone-500 mt-1 line-clamp-2">{sub.description}</p>
+                   
+                   {/* Variant List Preview */}
+                   {sub.variants && sub.variants.length > 0 && (
+                       <div className="mt-4 space-y-2 border-t border-stone-100 pt-3">
+                           {sub.variants.map((variant, vIdx) => (
+                               <div 
+                                 key={vIdx} 
+                                 onClick={() => openProduct(variant)}
+                                 className="flex items-center justify-between text-xs text-stone-600 hover:text-safety-700 cursor-pointer group/item"
+                               >
+                                   <span>{variant.name}</span>
+                                   <ArrowRight size={12} className="opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                               </div>
+                           ))}
+                       </div>
                    )}
                </div>
-            </div>
-          </div>
-        </section>
-      )}
+           ))}
+        </div>
 
-      {loading ? (
-          <div className="flex justify-center items-center h-64">
-              <Loader2 className="animate-spin text-stone-300" size={32} />
-          </div>
-      ) : activeProduct ? (
-          // ========================
-          // PRODUCT DETAIL VIEW
-          // ========================
-          <div className="container mx-auto px-6 md:px-12 py-8 md:py-12 animate-fade-in">
-              <button 
-                onClick={() => setActiveProduct(null)}
-                className="flex items-center text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-safety-700 mb-6 md:mb-8 transition-colors border-b border-transparent hover:border-safety-700 w-fit pb-1"
-              >
-                  <ChevronLeft size={14} className="mr-1" /> Back to Portfolio
-              </button>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-24">
-                  
-                  {/* LEFT COLUMN: Text Content (Order 2 on Mobile, 1 on Desktop) */}
-                  <div className="lg:col-span-5 order-2 lg:order-1">
-                      <div className="lg:sticky lg:top-32">
-                          <span className="text-safety-700 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-3 md:mb-4 block flex items-center">
-                              <Factory size={14} className="mr-2"/> Manufacturing Case Study
-                          </span>
-                          <h1 className="font-serif text-3xl md:text-5xl text-stone-900 mb-4 md:mb-6 leading-tight">
-                              {activeProduct.name}
-                          </h1>
-                          <div className="w-12 md:w-16 h-1 bg-wood-pattern opacity-50 mb-6 md:mb-8"></div>
-                          
-                          <p className="text-stone-600 text-base md:text-lg leading-relaxed mb-8 font-light">
-                              {activeProduct.description}
-                          </p>
-
-                          {/* --- COLOR VARIANT SWITCHER --- */}
-                          {activeProduct.colors && activeProduct.colors.length > 0 && (
-                             <div className="mb-8">
-                                <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 flex items-center">
-                                   <Palette size={14} className="mr-2"/> Available Finishes
-                                </h4>
-                                <div className="flex flex-wrap gap-3">
-                                   <button 
-                                      onClick={() => setCurrentMainImage(activeProduct.image)}
-                                      className={`border-2 p-0.5 rounded-sm transition-all ${currentMainImage === activeProduct.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
-                                      title="Original"
-                                   >
-                                      <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
-                                         <img src={getAssetUrl(activeProduct.image)} className="w-full h-full object-cover" />
-                                      </div>
-                                   </button>
-
-                                   {activeProduct.colors.map((color, idx) => (
-                                      <button 
-                                        key={idx}
-                                        onClick={() => setCurrentMainImage(color.image)}
-                                        className={`border-2 p-0.5 rounded-sm transition-all ${currentMainImage === color.image ? 'border-amber-700' : 'border-transparent hover:border-stone-300'}`}
-                                        title={color.name}
-                                      >
-                                         <div className="w-8 h-8 md:w-10 md:h-10 bg-stone-200 overflow-hidden relative">
-                                            <img src={getAssetUrl(color.image)} className="w-full h-full object-cover" />
-                                         </div>
-                                      </button>
-                                   ))}
-                                </div>
-                                <p className="text-xs text-stone-500 mt-2">
-                                   Selected: <span className="font-bold text-stone-900">
-                                      {activeProduct.colors.find(c => c.image === currentMainImage)?.name || 'Standard'}
-                                   </span>
-                                </p>
-                             </div>
-                          )}
-
-                          <div className="bg-stone-50 border border-stone-200 p-6 md:p-8 shadow-sm mb-8 relative">
-                              <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">
-                                {t.collections.pdp.techDims}
-                              </h4>
-                              <ul className="space-y-4 text-sm">
-                                  <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
-                                      <span className="text-stone-500 font-medium">{t.collections.pdp.matSelection}</span>
-                                      <span className="font-bold text-stone-900 text-right">{activeProduct.material || 'Solid Hardwood'}</span>
-                                  </li>
-                                  <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
-                                      <span className="text-stone-500 font-medium">{t.capabilities.limits.maxDim}</span>
-                                      {/* Updated to read activeProduct.size instead of dimensions */}
-                                      <span className="font-mono text-stone-900 text-right">{activeProduct.size || 'Customizable'}</span>
-                                  </li>
-                                  <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
-                                      <span className="text-stone-500 font-medium">{t.collections.pdp.finish}</span>
-                                      <span className="font-bold text-stone-900 text-right">Matte PU / UV</span>
-                                  </li>
-                                  <li className="flex justify-between border-b border-stone-200 pb-2 border-dashed">
-                                      <span className="text-stone-500 font-medium">Origin</span>
-                                      <span className="font-bold text-stone-900 flex items-center text-right"><MapPin size={12} className="mr-1"/> CN / KH</span>
-                                  </li>
-                                  {activeProduct.code && (
-                                    <li className="flex justify-between pt-2">
-                                        <span className="text-stone-500 font-medium">{t.collections.pdp.ref}</span>
-                                        <span className="font-mono text-xs bg-stone-200 px-2 py-1 text-stone-600">{activeProduct.code}</span>
-                                    </li>
-                                  )}
-                              </ul>
-                          </div>
-
-                          <Link 
-                            to={`/inquire?subject=Portfolio_Inquiry&product=${encodeURIComponent(activeProduct.name)}`}
-                            className="block w-full text-center md:inline-block bg-[#281815] text-white px-10 py-4 font-bold uppercase tracking-widest text-xs hover:bg-safety-700 transition-colors shadow-lg"
-                          >
-                              {t.collections.pdp.inquireOrder}
-                          </Link>
-                      </div>
-                  </div>
-
-                  {/* RIGHT COLUMN: Images (Order 1 on Mobile, 2 on Desktop) */}
-                  <div className="lg:col-span-7 order-1 lg:order-2 space-y-4 md:space-y-8">
-                      {/* Main Image */}
-                      <div className="w-full bg-stone-100 aspect-[4/3] relative overflow-hidden shadow-xl border border-stone-200">
-                          <img 
-                            src={getAssetUrl(currentMainImage)} 
-                            className="w-full h-full object-cover transition-opacity duration-500" 
-                            alt={activeProduct.name} 
-                          />
-                      </div>
-                      
-                      {/* Thumbnails - Horizontal Scroll on Mobile, Grid on Desktop */}
-                      {activeProduct.images && activeProduct.images.length > 1 && (
-                          <div className="flex overflow-x-auto gap-4 pb-2 md:grid md:grid-cols-2 md:gap-4 md:pb-0 md:overflow-visible snap-x">
-                              {activeProduct.images.slice(1).map((img, idx) => (
-                                  <div 
-                                    key={idx} 
-                                    className="min-w-[40%] md:min-w-0 aspect-square bg-stone-100 overflow-hidden border border-stone-200 cursor-zoom-in snap-center" 
-                                    onClick={() => setCurrentMainImage(img)}
-                                  >
-                                      <img src={getAssetUrl(img)} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" alt="Detail" loading="lazy" />
-                                  </div>
-                              ))}
-                          </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-      ) : (
-          // ========================
-          // CATEGORY LIST VIEW
-          // ========================
-          <div className="container mx-auto px-6 md:px-12 py-8 md:py-12">
-              {/* Dynamic Categories Loop */}
-              {displayCategories.map((category, index) => {
-                const products = getCategoryProducts(category);
-                if (products.length === 0) return null;
-
-                return (
-                  <div 
-                    key={category.id} 
-                    id={category.id} 
-                    className="mb-16 md:mb-24 last:mb-0 border-l-2 border-stone-100 pl-4 md:pl-0 md:border-l-0 scroll-mt-32"
-                  >
-                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 md:mb-10 pb-4 border-b border-stone-200">
-                       <div className="max-w-2xl">
-                          <div className="flex items-center gap-3 mb-2">
-                             <span className="text-safety-700 font-mono font-bold text-lg md:text-xl opacity-50">{(index + 1).toString().padStart(2, '0')}</span>
-                             <h2 className="font-serif text-2xl md:text-3xl text-stone-900">{category.title}</h2>
-                          </div>
-                          <p className="text-stone-500 font-light text-xs md:text-sm tracking-wide md:pl-10">
-                             {category.description}
-                          </p>
-                       </div>
-                       <div className="hidden md:block">
-                          <Link to={`/inquire?subject=${category.title}`} className="text-xs font-bold uppercase tracking-widest text-stone-400 hover:text-safety-700 flex items-center transition-colors">
-                             Inquire Collection <ArrowRight size={14} className="ml-2"/>
-                          </Link>
-                       </div>
-                    </div>
-
-                    {/* MOBILE OPTIMIZED GRID: 2 Columns on Mobile, 3 on Desktop */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
-                       {products.map((product, idx) => (
-                          <div 
-                             key={product.name + idx} 
-                             className="group cursor-pointer flex flex-col"
-                             onClick={() => {
-                               setActiveProduct(product);
-                               window.scrollTo({ top: 0, behavior: 'smooth' });
-                             }}
-                          >
-                             <div className="aspect-[4/3] bg-stone-100 overflow-hidden border border-stone-200 relative mb-3 md:mb-4 transition-all duration-500 shadow-sm hover:shadow-xl">
-                                <img 
-                                  src={getAssetUrl(product.image)} 
-                                  alt={product.name} 
-                                  loading="lazy"
-                                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors"></div>
-                                <div className="absolute bottom-0 left-0 w-full p-2 md:p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur border-t border-stone-100 hidden md:block">
-                                   <span className="text-[10px] font-bold uppercase tracking-widest text-stone-900 flex items-center justify-between">
-                                      View Details <ArrowRight size={12}/>
-                                   </span>
-                                </div>
-                             </div>
-                             
-                             <div className="text-left px-1">
-                                 <h3 className="font-serif text-sm md:text-lg text-stone-900 group-hover:text-safety-700 transition-colors truncate leading-tight mb-1">
-                                   {product.name}
-                                 </h3>
-                                 <div className="flex flex-col md:flex-row md:justify-between md:items-start">
-                                    {/* Updated to read sub_category */}
-                                    <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-stone-400 line-clamp-1">
-                                      {product.sub_category || product.description}
-                                    </p>
-                                    {product.colors && product.colors.length > 0 && (
-                                       <span className="hidden md:flex items-center text-[9px] font-bold text-amber-700 uppercase tracking-wider ml-2 whitespace-nowrap">
-                                          <Palette size={10} className="mr-1"/> {product.colors.length} Colors
-                                       </span>
-                                    )}
-                                 </div>
-                             </div>
-                          </div>
-                       ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {displayCategories.length === 0 && (
-                  <div className="text-center py-32 border border-dashed border-stone-300 bg-stone-50">
-                      <PackageX className="mx-auto text-stone-300 mb-4" size={48} />
-                      <p className="text-stone-400 text-sm uppercase tracking-widest font-bold">Portfolio is empty</p>
-                      <p className="text-stone-400 text-xs mt-2">Products will appear here once added in Creator Mode.</p>
-                  </div>
-              )}
-          </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default Portfolio;
-    
+export default Collections;
