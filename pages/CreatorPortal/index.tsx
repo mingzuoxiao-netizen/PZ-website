@@ -48,12 +48,29 @@ const CreatorPortal: React.FC = () => {
       // 1. Fetch Inventory & Config
       // CRITICAL FIX: Use /admin/products to fetch ALL items (Draft, Hidden, Published)
       // The public /products endpoint filters by status='published', which hides drafts from the CMS.
-      const [inventoryRes, configRes, categoriesRes, historyRes] = await Promise.all([
-        adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500'),
-        adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config'),
-        adminFetch<{ data: Category[] }>('/categories').catch(() => ({ data: [] })), // Catch error gracefully
-        adminFetch<{ history: any }>('/assets/history')
-      ]);
+      const inventoryPromise = adminFetch('/admin/products?limit=500');
+
+const categoriesPromise = adminFetch('/categories').catch(() => ({
+  data: [],
+}));
+
+const historyPromise = adminFetch('/assets/history').catch(() => ({
+  data: [],
+}));
+
+const configPromise = adminFetch('/site-config');
+
+const [
+  inventoryRes,
+  categoriesRes,
+  historyRes,
+  configRes,
+] = await Promise.all([
+  inventoryPromise,
+  categoriesPromise,
+  historyPromise,
+  configPromise,
+]);
 
       // 2. Process Inventory with Strict Normalization
       // Support both new { products: [] } and legacy { data: [] } structures
