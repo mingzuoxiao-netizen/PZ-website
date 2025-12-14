@@ -279,7 +279,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                        }));
                      }}
                      onError={alert}
-                     allowPhysicalDeletion={true}
                    />
                 </div>
 

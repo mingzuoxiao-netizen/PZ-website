@@ -35,10 +35,10 @@ export const categories: Category[] = [
     subCategories: []
   },
   {
-    id: 'surfaces',
-    title: "Surfaces",
-    subtitle: "Solid Wood Tops",
-    description: "Heavy-duty butcher block surfaces.",
+    id: 'butcher-block',
+    title: "Butcher Block",
+    subtitle: "Heavy Duty Surfaces",
+    description: "Solid wood butcher block surfaces for industrial and kitchen use.",
     image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=1000&auto=format&fit=crop",
     subCategories: []
   }

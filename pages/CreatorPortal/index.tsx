@@ -18,7 +18,7 @@ import CategoryGrid from './components/CategoryGrid';
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // State
@@ -165,7 +165,7 @@ const CreatorPortal: React.FC = () => {
               <h1 className="font-serif text-xl text-stone-900">{t.creator.title}</h1>
           </div>
           
-          <div className="flex space-x-6">
+          <div className="flex items-center space-x-6">
              <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.inventory}
              </button>
@@ -174,6 +174,15 @@ const CreatorPortal: React.FC = () => {
              </button>
              <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.media}
+             </button>
+
+             {/* Language Switcher */}
+             <div className="h-4 w-[1px] bg-stone-200 mx-2 hidden md:block"></div>
+             <button 
+                onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+                className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors border border-stone-200 px-3 py-1 rounded-sm hover:border-stone-400"
+             >
+                {language === 'en' ? 'EN / 中' : '中 / EN'}
              </button>
           </div>
        </div>

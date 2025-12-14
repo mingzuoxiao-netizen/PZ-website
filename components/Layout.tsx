@@ -78,10 +78,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     : 'text-stone-300 hover:text-white';
   
   const getHeaderBackground = () => {
-    // If mobile menu is open, the menu overlay provides background. Header stays transparent or white.
-    // If search is open, white background.
     if (isSearchOpen) return 'bg-white shadow-none border-b border-stone-100';
-    if (isMobileMenuOpen) return 'bg-transparent'; // Mobile menu has its own blur bg
+    if (isMobileMenuOpen) return 'bg-transparent'; 
     if (isMegaMenuActive) return 'bg-white border-b border-stone-200 shadow-sm';
     if (useWhiteNav) return 'bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-sm';
     return 'bg-transparent border-b border-white/10';
@@ -94,11 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 font-sans transition-colors duration-500">
       
-      {/* 
-          HEADER BAR 
-          Responsive Height: 70px Mobile, 90px Desktop
-          Always FIXED at top.
-      */}
+      {/* HEADER BAR */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 h-[70px] md:h-[90px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
       >
@@ -116,7 +110,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </Link>
 
-          {/* DESKTOP NAV (Hidden on Mobile/Tablet) */}
+          {/* DESKTOP NAV */}
           <DesktopNav 
             activeMenu={activeMenu}
             setActiveMenu={setActiveMenu}
@@ -128,7 +122,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center space-x-6 z-50">
-            {/* Language Switcher - Desktop Only */}
+            {/* Language Switcher */}
             <button
               onClick={toggleLanguage}
               className={`hidden lg:block text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
@@ -166,10 +160,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* MOBILE MENU OVERLAY */}
+      {/* MOBILE MENU */}
       <MobileNav isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} textColor={textColor} />
 
-      {/* SEARCH OVERLAY - Adjusted top position for mobile/desktop heights */}
+      {/* SEARCH OVERLAY */}
       <div
         className={`fixed inset-0 top-[70px] md:top-[90px] z-30 bg-white/90 backdrop-blur-sm transition-opacity duration-500 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
         onClick={() => setIsSearchOpen(false)}
@@ -209,20 +203,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <main className="flex-grow">{children}</main>
 
+      {/* REFINED FOOTER */}
       <footer className="bg-stone-50 border-t border-stone-200 pt-24 pb-12 text-stone-500 relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-wood-pattern opacity-50"></div>
         <div className="container mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-3 mb-8">
-                 <div className="font-serif text-2xl text-stone-900 font-bold">
-                    PZ
-                 </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-y-12 gap-x-8 mb-20">
+            
+            {/* 1. Brand Identity (Span 4) */}
+            <div className="md:col-span-4 flex flex-col justify-between h-full">
+              <div>
+                <Link to="/" className="inline-block font-serif text-3xl text-stone-900 font-bold tracking-tight mb-6">
+                   PZ
+                </Link>
+                <p className="text-stone-500 max-w-xs mb-8 leading-relaxed text-sm font-light">
+                  {t.home.heroQuote} <br/>
+                  <span className="opacity-70 mt-4 block">{t.home.strengthDesc1.split('.')[0]}.</span>
+                </p>
               </div>
-              <p className="text-stone-500 max-w-sm mb-8 leading-relaxed text-sm font-light">
-                {t.home.heroQuote} {t.home.strengthDesc1}
-              </p>
-              <div className="flex space-x-6 text-xs uppercase tracking-widest font-bold">
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] uppercase tracking-widest font-bold text-stone-400">
                 <span className="text-stone-900">Zhaoqing</span>
                 <span className="text-stone-300">/</span>
                 <span className="text-stone-900">Kandal</span>
@@ -231,12 +230,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-xs font-bold tracking-widest text-stone-900 uppercase mb-8">{t.common.explore}</h3>
+            {/* Spacer (Span 2) */}
+            <div className="hidden md:block md:col-span-2"></div>
+
+            {/* 2. Explore Navigation (Span 3) */}
+            <div className="md:col-span-3">
+              <h3 className="text-[10px] font-bold tracking-[0.2em] text-stone-900 uppercase mb-8 border-b border-stone-200 pb-4 inline-block w-full">{t.common.explore}</h3>
               <ul className="space-y-4">
-                {NAV_ITEMS.slice(0, 4).map((item) => (
+                {NAV_ITEMS.slice(0, 5).map((item) => (
                   <li key={item.path}>
-                    <Link to={item.path} className="text-stone-500 hover:text-safety-700 transition-colors text-sm hover:translate-x-1 inline-block">
+                    <Link 
+                      to={item.path} 
+                      className="text-stone-500 hover:text-safety-700 transition-colors text-sm font-medium hover:pl-2 duration-300 block"
+                    >
                       {t.nav.header[item.key]}
                     </Link>
                   </li>
@@ -244,34 +250,44 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </ul>
             </div>
 
-            <div>
-              <h3 className="text-xs font-bold tracking-widest text-stone-900 uppercase mb-8">{t.common.connect}</h3>
+            {/* 3. Connect & Legal (Span 3) */}
+            <div className="md:col-span-3">
+              <h3 className="text-[10px] font-bold tracking-[0.2em] text-stone-900 uppercase mb-8 border-b border-stone-200 pb-4 inline-block w-full">{t.common.connect}</h3>
               <ul className="space-y-4">
                 <li>
-                  <Link to="/inquire" className="text-stone-500 hover:text-safety-700 transition-colors flex items-center group text-sm">
+                  <Link to="/inquire" className="text-stone-900 hover:text-safety-700 transition-colors flex items-center group text-sm font-bold">
                     {t.common.startProject} <ArrowRight size={14} className="ml-2 group-hover:translate-x-1 transition-transform" />
                   </Link>
+                </li>
+                <li className="pt-4">
+                   <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-600 transition-colors text-xs font-mono">
+                      {t.common.adminAccess}
+                   </Link>
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-stone-200 pt-10 flex flex-col md:flex-row justify-between items-center text-xs text-stone-400">
-            <div className="flex flex-col md:flex-row items-center gap-4">
-               <p>&copy; {new Date().getFullYear()} PZ. {t.common.rights}</p>
+          {/* Bottom Bar */}
+          <div className="border-t border-stone-200 pt-8 flex flex-col-reverse md:flex-row justify-between items-center text-xs text-stone-400 gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6">
+               <p className="font-medium text-stone-500">&copy; {new Date().getFullYear()} PZ.</p>
+               <span className="hidden md:inline text-stone-200">|</span>
+               <p>{t.common.rights}</p>
+               
                {meta?.version && meta.version !== '0.0.0' && (
-                 <span className="text-stone-300 hidden md:inline">|</span>
-               )}
-               {meta?.version && meta.version !== '0.0.0' && (
-                 <span className="opacity-60 font-mono text-[10px]">
-                    v{meta.version} • Published: {meta.published_at ? new Date(meta.published_at).toLocaleDateString() : 'Unknown'}
-                 </span>
+                 <>
+                   <span className="hidden md:inline text-stone-200">|</span>
+                   <span className="opacity-60 font-mono text-[10px] bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                      v{meta.version}
+                   </span>
+                 </>
                )}
             </div>
             
-            <div className="flex space-x-8 mt-4 md:mt-0">
-              <Link to="/privacy" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.privacy}</Link>
-              <Link to="/terms" className="hover:text-stone-600 cursor-pointer transition-colors">{t.common.terms}</Link>
+            <div className="flex space-x-8">
+              <Link to="/privacy" className="hover:text-stone-900 cursor-pointer transition-colors border-b border-transparent hover:border-stone-300 pb-0.5">{t.common.privacy}</Link>
+              <Link to="/terms" className="hover:text-stone-900 cursor-pointer transition-colors border-b border-transparent hover:border-stone-300 pb-0.5">{t.common.terms}</Link>
             </div>
           </div>
         </div>

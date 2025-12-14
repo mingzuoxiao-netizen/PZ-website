@@ -1,11 +1,12 @@
 
 // ============================================================
 //  PZImageManager — Enterprise Image & File Upload Manager
+//  SAFE MODE: Cloud Deletion Disabled
 // ============================================================
 
 import React, { useRef, useState } from 'react';
 import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
-import { processImage, deleteImageFromR2 } from '../../../utils/imageHelpers';
+import { processImage } from '../../../utils/imageHelpers';
 import { adminFetch } from '../../../utils/adminFetch';
 import { getAssetUrl } from '../../../utils/getAssetUrl';
 
@@ -18,7 +19,7 @@ interface PZImageManagerProps {
   className?: string;
   aspectRatio?: number; // Optional: Enforce aspect ratio (e.g., 4/3) - Images only
   accept?: string; // e.g. "image/*" or "application/pdf"
-  allowPhysicalDeletion?: boolean; // Control whether X deletes from R2 cloud storage
+  allowPhysicalDeletion?: boolean;
 }
 
 interface FileStatus {
@@ -37,7 +38,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   className,
   aspectRatio,
   accept = "image/*",
-  allowPhysicalDeletion = false // Default to safe mode (soft delete only)
+  allowPhysicalDeletion = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -130,12 +131,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
       let updatedList: string[];
 
       if (isSingleMode) {
-        // Single Mode: Replace existing
-        // If we are replacing in Single Mode, should we delete the old one?
-        // To be safe, we will rely on explicit user deletion or garbage collection unless allowPhysicalDeletion is explicit.
-        if (allowPhysicalDeletion && images.length > 0) {
-             deleteImageFromR2(images[0]).catch(console.warn);
-        }
+        // Single Mode: Replace existing (Soft Replace - no deletion of old file)
         updatedList = [successfulUrls[0]];
       } else {
         // Multi Mode: Append
@@ -155,27 +151,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     }, 4000);
   };
 
-  // ---------- Delete ----------
-  const removeImage = async (index: number) => {
-    const toDeleteUrl = images[index];
-    
+  // ---------- Delete (Soft Only) ----------
+  const removeImage = (index: number) => {
     // Update local state via parent immediately
-    // We remove the reference from the list. 
+    // We simply unlink the image from this product. The file remains in the cloud.
+    // If allowPhysicalDeletion is enabled, we could trigger a delete here, but for safety we stick to soft delete by default.
     const updatedList = images.filter((_, i) => i !== index);
     onUpdate(updatedList);
-    
-    // Physical Deletion Handling
-    if (allowPhysicalDeletion && toDeleteUrl) {
-        console.log(`[PZImageManager] Physically deleting image: ${toDeleteUrl}`);
-        try {
-            await deleteImageFromR2(toDeleteUrl);
-        } catch (e) {
-            console.error("Failed to physically delete image:", e);
-            // We don't block the UI update if this fails, but we log it.
-        }
-    } else {
-        console.log(`[PZImageManager] Soft delete only (Unlinked): ${toDeleteUrl}`);
-    }
   };
 
   // ---------- Sorting ----------
@@ -278,7 +260,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
              <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-stone-100 text-stone-500">
                 <FileText size={48} className="mb-2 text-amber-700"/>
                 <span className="text-xs font-mono break-all px-4 text-center">
-                    {/* Render filename manually if possible, or just PDF label */}
                     PDF Document
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-widest mt-2 bg-amber-100 text-amber-800 px-2 py-1 rounded">View PDF</span>
@@ -299,7 +280,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               onClick={() => removeImage(0)}
               className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700"
             >
-              <X size={14} className="inline-block mr-2" /> Unlink
+              <X size={14} className="inline-block mr-2" /> Remove
             </button>
           </div>
 
