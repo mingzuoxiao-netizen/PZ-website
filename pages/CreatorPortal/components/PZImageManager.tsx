@@ -5,8 +5,9 @@
 
 import React, { useRef, useState } from 'react';
 import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
-import { deleteImageFromR2, CDN_DOMAIN, processImage } from '../../../utils/imageHelpers';
+import { deleteImageFromR2, processImage } from '../../../utils/imageHelpers';
 import { adminFetch } from '../../../utils/adminFetch';
+import { getAssetUrl } from '../../../utils/getAssetUrl';
 
 interface PZImageManagerProps {
   images: string[];
@@ -46,20 +47,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   // Check if a URL looks like an image or a PDF
   const isPdf = (url: string) => url.toLowerCase().endsWith('.pdf');
 
-  // ---------- Fix: Correct CDN domain replacement ----------
-  const applyCDN = (raw: string) => {
-    try {
-      const urlObj = new URL(raw);
-      const cdnObj = new URL(CDN_DOMAIN);
-      urlObj.hostname = cdnObj.hostname;
-      urlObj.protocol = cdnObj.protocol;
-      return urlObj.toString();
-    } catch (e) {
-      console.warn("CDN URL processing failed:", e);
-      return raw;
-    }
-  };
-
   // ---------- Upload Handler (Parallel) ----------
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
@@ -78,8 +65,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         status: 'pending'
     }));
     setUploadQueue(newQueue);
-
-    const uploadedFiles: string[] = [];
 
     // 2. Create Upload Promises
     const uploadPromises = Array.from(fileList).map(async (originalFile, index) => {
@@ -109,14 +94,18 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         formData.append('file', file);
 
         try {
-            const data = await adminFetch('/upload-image', {
+            const data = await adminFetch<{ url?: string; key?: string }>('/upload-image', {
                 method: 'POST',
                 body: formData,
             });
 
-            if (!data.url) throw new Error('No URL returned');
+            // FIX: Support both 'url' (absolute) and 'key' (relative) from Worker
+            const remoteKey = data.url || data.key;
 
-            const finalURL = applyCDN(data.url);
+            if (!remoteKey) throw new Error('No URL/Key returned from server');
+
+            // Standardize URL using the centralized utility
+            const finalURL = getAssetUrl(remoteKey);
             
             // Update Success
             setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item));
@@ -124,7 +113,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
         } catch (err: any) {
             console.error('Upload error:', err);
-            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: 'Server error' } : item));
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: err.message || 'Server error' } : item));
             return null;
         }
     });

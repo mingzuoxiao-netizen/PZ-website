@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Search,
@@ -10,6 +11,7 @@ import {
   ImageOff,
 } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { getAssetUrl } from '../../../utils/getAssetUrl';
 
 /* =========================
    Types
@@ -33,24 +35,6 @@ interface ProductListProps {
   editingId: string | null;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-}
-
-/* =========================
-   Utils
-========================= */
-
-// 🔒 SINGLE SOURCE OF TRUTH
-const CDN_BASE = 'https://cdn.peng-zhan.com';
-
-// ✅ Resolve all image formats safely
-function resolveImageUrl(image?: string | null): string | null {
-  if (!image) return null;
-
-  // Already absolute
-  if (image.startsWith('http')) return image;
-
-  // Stored as key: uploads/xxx.png
-  return `${CDN_BASE}/${image.replace(/^\/+/, '')}`;
 }
 
 const ProductList: React.FC<ProductListProps> = ({
@@ -139,7 +123,7 @@ const ProductList: React.FC<ProductListProps> = ({
           ) : (
             <div className="divide-y divide-stone-100">
               {safeItems.map((item) => {
-                const imageUrl = resolveImageUrl(item.image);
+                const imageUrl = getAssetUrl(item.image);
 
                 return (
                   <div
@@ -254,5 +238,3 @@ const ProductList: React.FC<ProductListProps> = ({
 };
 
 export default ProductList;
-
-
