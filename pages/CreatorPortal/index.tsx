@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -45,15 +46,18 @@ const CreatorPortal: React.FC = () => {
     setLoading(true);
     try {
       // 1. Fetch Inventory & Config
+      // CRITICAL FIX: Use /admin/products to fetch ALL items (Draft, Hidden, Published)
+      // The public /products endpoint filters by status='published', which hides drafts from the CMS.
       const [inventoryRes, configRes, categoriesRes, historyRes] = await Promise.all([
-        adminFetch<{ data: any[] }>('/products?limit=500'),
+        adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500'),
         adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config'),
         adminFetch<{ data: Category[] }>('/categories').catch(() => ({ data: [] })), // Catch error gracefully
         adminFetch<{ history: any }>('/assets/history')
       ]);
 
       // 2. Process Inventory with Strict Normalization
-      const rawItems = inventoryRes.data || [];
+      // Support both new { products: [] } and legacy { data: [] } structures
+      const rawItems = inventoryRes.products || inventoryRes.data || [];
       const normalizedItems = normalizeProducts(rawItems);
       setLocalItems(normalizedItems);
 
@@ -107,8 +111,9 @@ const CreatorPortal: React.FC = () => {
       setEditingItem(null);
       setIsCreating(false);
       loadData(); // Refresh list
-    } catch (e) {
-      alert("Failed to save product");
+    } catch (e: any) {
+      // Improved error handling to show actual server message
+      alert(`Failed to save product: ${e.message || "Unknown Error"}`);
       console.error(e);
     }
   };
@@ -118,8 +123,8 @@ const CreatorPortal: React.FC = () => {
     try {
       await adminFetch(`/products/${id}`, { method: 'DELETE' });
       loadData();
-    } catch (e) {
-      alert("Failed to delete");
+    } catch (e: any) {
+      alert(`Failed to delete: ${e.message || "Unknown Error"}`);
     }
   };
 
@@ -134,8 +139,8 @@ const CreatorPortal: React.FC = () => {
       refresh(); // Update public context
       loadData(); // Reload local state
       alert("Site Configuration Published!");
-    } catch (e) {
-      alert("Failed to save config");
+    } catch (e: any) {
+      alert(`Failed to save config: ${e.message || "Unknown Error"}`);
     } finally {
       setSavingConfig(false);
     }
@@ -148,8 +153,8 @@ const CreatorPortal: React.FC = () => {
            body: JSON.stringify({ key, url })
        });
        loadData();
-    } catch (e) {
-       alert("Failed to update asset");
+    } catch (e: any) {
+       alert(`Failed to update asset: ${e.message}`);
     }
   };
 
@@ -157,8 +162,8 @@ const CreatorPortal: React.FC = () => {
      try {
          await adminFetch(`/categories/${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
          loadData();
-     } catch (e) {
-         alert("Failed to update category");
+     } catch (e: any) {
+         alert(`Failed to update category: ${e.message}`);
      }
   };
 

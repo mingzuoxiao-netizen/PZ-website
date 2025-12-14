@@ -33,13 +33,19 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
         setSubmitting(false);
         return;
     }
+    
+    if (!formData.category) {
+        alert("Please select a Category");
+        setSubmitting(false);
+        return;
+    }
 
-    // 2. Prepare Payload (THE CRITICAL FIX)
-    // We enforce 'published' if status is missing to ensure visibility on frontend.
+    // 2. Prepare Payload (Strict Status Control)
     const payload: ProductVariant = {
         ...(formData as ProductVariant),
-        // STEP 1: FORCE STATUS 'published' if undefined
-        status: formData.status || 'published', 
+        // CRITICAL FIX: Default to 'draft' if undefined.
+        // We do NOT assume 'published'. Publication must be an explicit choice or action.
+        status: formData.status || 'draft', 
         // Normalize Category ID to lowercase to match frontend filters
         category: (formData.category || '').toLowerCase().trim(),
         // STEP 3: Ensure images is always an array
@@ -97,12 +103,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                    <div>
                       <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">Status</label>
                       <select 
-                        value={formData.status || 'published'}
+                        value={formData.status || 'draft'}
                         onChange={e => handleChange('status', e.target.value)}
                         className="w-full bg-stone-50 border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
                       >
-                         <option value="published">Published</option>
                          <option value="draft">Draft</option>
+                         <option value="published">Published</option>
                          <option value="hidden">Hidden</option>
                       </select>
                    </div>
