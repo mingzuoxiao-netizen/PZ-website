@@ -61,25 +61,25 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
+       {/* LEFT COLUMN: FORM */}
        <div className="lg:col-span-2">
           <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
-             <h2 className="font-serif text-xs font-bold uppercase tracking-[0.2em] text-stone-900 mb-8 border-b border-stone-100 pb-4">
+             <h2 className="font-serif text-lg font-bold uppercase tracking-[0.1em] text-stone-900 mb-8 border-b border-stone-100 pb-4">
                 {editingId ? t.creator.form.edit : t.creator.form.add}
              </h2>
              
              <form onSubmit={handleSubmit} className="space-y-8">
                 
-                {/* STATUS TOGGLE */}
+                {/* STATUS TOGGLE (Segmented Control) */}
                 <div>
-                    <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                    <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-3">
                         {t.creator.form.status}
                     </label>
-                    <div className="flex border border-stone-200 rounded-sm overflow-hidden w-full max-w-sm">
+                    <div className="flex border border-stone-200 rounded-sm overflow-hidden w-full max-w-md">
                         {['published', 'draft', 'hidden'].map(status => {
                             const isActive = (formData.status || 'draft') === status;
-                            let label = status;
+                            let label = 'DRAFT';
                             if(status === 'published') label = 'PUB';
-                            if(status === 'draft') label = 'DRAFT';
                             if(status === 'hidden') label = 'ARCH';
 
                             return (
@@ -98,43 +98,45 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* CATEGORIES */}
+                {/* CATEGORIES GROUP */}
                 <div className="bg-stone-50/50 p-6 border border-stone-100 rounded-sm space-y-6">
                     <div className="grid grid-cols-1 gap-6">
+                        {/* Main Category */}
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">
                                     {t.creator.form.mainCat}
                                 </label>
                                 <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
-                                    + Create New
+                                    + {t.creator.form.create}
                                 </span>
                             </div>
                             <select 
                                 value={formData.category || ''}
                                 onChange={e => handleChange('category', e.target.value)}
-                                className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm"
+                                className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm transition-shadow appearance-none"
                             >
-                                <option value="">Select Category</option>
+                                <option value="">Select Category...</option>
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                         </div>
                         
+                        {/* Sub Category */}
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-xs uppercase tracking-wider text-stone-500 font-bold">
                                     {t.creator.form.subCat}
                                 </label>
                                 <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest cursor-pointer hover:text-amber-800">
-                                    + Create New
+                                    + {t.creator.form.create}
                                 </span>
                             </div>
                             <input 
                                 type="text"
                                 value={formData.sub_category || ''}
                                 onChange={e => handleChange('sub_category', e.target.value)}
-                                placeholder="Optional sub-category"
-                                className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm"
+                                placeholder="e.g. Dining, Lounge, Storage..."
+                                className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm transition-shadow"
                             />
                         </div>
                     </div>
@@ -146,18 +148,46 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         {t.creator.form.nameEn} <span className="text-red-500">*</span>
                     </label>
                     <input 
-                    type="text" 
-                    value={formData.name || ''} 
-                    onChange={e => handleChange('name', e.target.value)}
-                    className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm placeholder-stone-300"
-                    placeholder="e.g. Walnut Dining Table"
+                        type="text" 
+                        value={formData.name || ''} 
+                        onChange={e => handleChange('name', e.target.value)}
+                        className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm placeholder-stone-300 transition-shadow"
+                        placeholder="e.g. Walnut Dining Table"
                     />
                 </div>
 
-                {/* SPECIFICATIONS GROUP */}
+                {/* PRODUCT NAME (CN) & DESCRIPTION */}
+                <div className="grid grid-cols-1 gap-6">
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {t.creator.form.nameZh}
+                        </label>
+                        <input 
+                            type="text" 
+                            value={formData.name_cn || ''} 
+                            onChange={e => handleChange('name_cn', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm"
+                            placeholder="e.g. 黑胡桃餐桌"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {t.creator.form.descEn}
+                        </label>
+                        <textarea 
+                            rows={4}
+                            value={formData.description || ''} 
+                            onChange={e => handleChange('description', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
+                            placeholder="Detailed product description..."
+                        />
+                    </div>
+                </div>
+
+                {/* SPECIFICATIONS GROUP (Gray Box) */}
                 <div className="bg-stone-50 p-6 border border-stone-200 rounded-sm">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 border-b border-stone-200 pb-2">
-                        Specifications
+                        {t.creator.form.specs}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Material */}
@@ -169,7 +199,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                 type="text" 
                                 value={formData.material || ''} 
                                 onChange={e => handleChange('material', e.target.value)}
-                                className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                                className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none transition-shadow"
                                 placeholder="Walnut, Oak..."
                             />
                         </div>
@@ -183,7 +213,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                 type="text" 
                                 value={formData.size || ''} 
                                 onChange={e => handleChange('size', e.target.value)}
-                                className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                                className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none transition-shadow"
                                 placeholder="e.g. 1200x600mm"
                             />
                         </div>
@@ -193,18 +223,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
                                 <Tag size={12} className="mr-1"/> {t.creator.form.code}
                             </label>
-                            <div className="flex">
+                            <div className="flex shadow-sm">
                                 <input 
                                     type="text" 
                                     value={formData.code || ''} 
                                     onChange={e => handleChange('code', e.target.value)}
-                                    className="w-full bg-white border border-stone-200 border-r-0 p-3 text-sm focus:border-amber-700 outline-none font-mono uppercase"
+                                    className="w-full bg-white border border-stone-200 border-r-0 p-3 text-sm focus:border-amber-700 outline-none font-mono uppercase transition-shadow"
                                     placeholder="PZ-0000"
                                 />
                                 <button 
                                     type="button"
                                     onClick={generateCode}
-                                    className="bg-stone-200 px-3 hover:bg-stone-300 text-stone-600 transition-colors border border-stone-200"
+                                    className="bg-stone-100 px-3 hover:bg-stone-200 text-stone-600 transition-colors border border-stone-200 border-l-0"
                                     title="Generate Code"
                                 >
                                     <Shuffle size={14} />
@@ -231,7 +261,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 </div>
 
                 {/* ACTIONS */}
-                <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur p-4 -mx-4 -mb-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur-md p-4 -mx-4 -mb-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                     <button 
                         type="button" 
                         onClick={onCancel}
@@ -258,6 +288,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
              </form>
           </div>
        </div>
+
+       {/* RIGHT COLUMN: LIVE PREVIEW (Sticky) */}
        <div className="lg:col-span-1">
           <LivePreview formData={formData} />
        </div>
