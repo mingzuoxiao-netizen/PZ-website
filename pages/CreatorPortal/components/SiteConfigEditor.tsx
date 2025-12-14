@@ -14,7 +14,7 @@ interface SiteConfigEditorProps {
   onChange: (nextConfig: any) => void;
   onSave: () => void;
   isSaving: boolean;
-  onRefresh: () => void; // Reload data from source
+  onRefresh: () => void;
 }
 
 interface HistoryItem {
@@ -28,23 +28,19 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   
-  // Track initial config to detect unsaved changes
   const [initialConfigStr, setInitialConfigStr] = useState('');
   const hasUnsavedChanges = JSON.stringify(config) !== initialConfigStr && initialConfigStr !== '';
 
-  // Initialize initial config when config loads and initial is empty
   useEffect(() => {
     if (config && initialConfigStr === '') {
         setInitialConfigStr(JSON.stringify(config));
     }
   }, [config]);
 
-  // Reset initial config after a successful save (version change)
   useEffect(() => {
     setInitialConfigStr(JSON.stringify(config));
   }, [meta?.version]);
 
-  // Fetch History on Mount
   useEffect(() => {
     fetchHistory();
   }, [meta?.version]);
@@ -52,13 +48,14 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
-      // FIX: Ensure correct spelling of /site-config endpoint
       const res = await adminFetch<{ items: HistoryItem[] }>('/site-config/history');
       if (res && Array.isArray(res.items)) {
         setHistory(res.items);
       }
     } catch (e) {
-      console.warn("Failed to fetch config history", e);
+      // Silently fail if endpoint is not implemented yet
+      console.warn("History API not available:", e);
+      setHistory([]); 
     } finally {
       setLoadingHistory(false);
     }
@@ -69,7 +66,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
     
     setRollingBack(true);
     try {
-      // FIX: Ensure correct spelling of /site-config endpoint
       await adminFetch('/site-config/rollback', {
         method: 'POST',
         body: JSON.stringify({ version })
@@ -78,7 +74,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
       alert("Rollback successful.");
     } catch (e) {
       console.error(e);
-      alert("Rollback failed.");
+      alert("Rollback failed. The server might not support this feature yet.");
     } finally {
       setRollingBack(false);
     }
@@ -88,10 +84,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
 
   return (
     <div className="animate-fade-in pb-20 relative">
-      
-      {/* 
-          UX Optimization: Sticky Header with Enhanced Actions
-      */}
       <div 
         className="sticky top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all"
         style={{ marginTop: '-1px' }}
@@ -108,7 +100,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
             <p className="text-stone-500 text-xs mt-1">Manage global content and hero images.</p>
         </div>
         
-        {/* Action Bar */}
         <div className="flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
             <div className="hidden lg:block text-right pr-6 border-r border-stone-200 mr-2">
                 <div className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Live Version</div>
@@ -144,7 +135,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
 
       <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
         {SITE_SCHEMA.map((section) => {
-          // Dynamic section translation
           const translatedSection = t.siteConfig?.sections?.[section.section] || section.section;
 
           return (
@@ -156,8 +146,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
               <div className="space-y-2">
                 {section.fields.map((field) => {
                   const value = getByPath(config, field.path);
-                  
-                  // Lookup Translation based on path key
                   const fieldTranslation = t.siteConfig?.fields?.[field.path];
                   const label = fieldTranslation?.label || field.label;
                   const help = fieldTranslation?.help || field.help;
@@ -181,7 +169,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({ config, meta, onCha
           );
         })}
 
-        {/* History Section */}
         <div className="mt-12 pt-12 border-t border-stone-200">
             <h3 className="font-serif text-xl text-stone-900 mb-6 flex items-center">
                <History size={20} className="mr-3 text-stone-400" /> Version History

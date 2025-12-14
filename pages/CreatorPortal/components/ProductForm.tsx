@@ -26,21 +26,30 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // Basic validation
+    
+    // 1. Validation
     if (!formData.name) {
         alert("Name is required");
         setSubmitting(false);
         return;
     }
-    // ensure images is array
-    if (!formData.images) formData.images = [];
-    
-    // Normalization: Ensure Category is saved as the ID (lowercase), not the label
-    if (formData.category) {
-        formData.category = formData.category.toLowerCase().trim();
-    }
 
-    onSave(formData as ProductVariant);
+    // 2. Prepare Payload (The Fix)
+    const payload: ProductVariant = {
+        ...(formData as ProductVariant),
+        // CRITICAL FIX: Default to 'published' if status is undefined/null
+        // This ensures new products appear on the frontend immediately.
+        status: formData.status || 'published', 
+        // Normalize Category ID
+        category: (formData.category || '').toLowerCase().trim(),
+        // Ensure images is always an array
+        images: Array.isArray(formData.images) ? formData.images : [],
+        // Legacy support (backend might need single image string)
+        image: Array.isArray(formData.images) && formData.images.length > 0 ? formData.images[0] : (formData.image || '')
+    };
+
+    // 3. Submit
+    onSave(payload);
   };
 
   return (
@@ -115,6 +124,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                      images={formData.images || []}
                      onUpdate={(imgs) => {
                        // Update both array and legacy string to ensure backend payload compatibility
+                       // This triggers re-render for LivePreview immediately
                        setFormData(prev => ({ 
                          ...prev, 
                          images: imgs,
@@ -128,7 +138,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 <div className="flex gap-4 pt-6 border-t border-stone-100">
                     <button
                         type="submit"
-                        disabled={submitting || !(formData.images && formData.images.length > 0)}
+                        disabled={submitting}
                         className={`flex-1 text-white font-bold uppercase tracking-widest py-4 transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg
                         ${editingId ? 'bg-amber-700 hover:bg-amber-800' : 'bg-[#281815] hover:bg-[#a16207]'}
                         `}
