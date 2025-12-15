@@ -1,26 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, KeyRound, Hammer, Ruler, Axe } from 'lucide-react';
+import { ArrowRight, KeyRound, Hammer, Ruler, Axe, User, Lock } from 'lucide-react';
 import { ASSET_KEYS } from '../utils/assets';
 import { useAssets } from '../contexts/AssetContext';
+import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from '../utils/adminFetch';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
-// CONFIGURATION
-const PASSWORD = "PZ!2025-admin-only"; 
-const SESSION_KEY = "pz_auth_token";
-
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   // --- STATE MANAGEMENT ---
-  // We no longer conditionally render 'children'. They are always rendered behind the scenes.
-  // We only control the visibility of the Lock Screen Overlay.
   
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLockScreen, setShowLockScreen] = useState(true);
 
-  const [input, setInput] = useState("");
+  // Login Credentials
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  
   const [error, setError] = useState(false);
   
   // Animation Stages: 
@@ -32,55 +30,80 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const heroImage = assets[ASSET_KEYS.HOME_HERO_BG];
 
   useEffect(() => {
-    // Check previous session
-    try {
-      const isAuth = sessionStorage.getItem(SESSION_KEY);
-      if (isAuth === 'true') {
-        setIsAuthenticated(true);
-        setShowLockScreen(false); // Immediate unlock if previously logged in
-        setAnimStage('done');
-      }
-    } catch (e) {
-      console.warn("Session storage access denied");
+    // 1. Check for the UNIFIED backend token
+    const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    
+    if (token) {
+      setIsAuthenticated(true);
+      setShowLockScreen(false); // Immediate unlock if previously logged in
+      setAnimStage('done');
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (input === PASSWORD) {
-      // 1. Verifying: Lock spins
-      setAnimStage('verifying');
-      
-      try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch (e) {}
-      // We set authenticated true here to allow any interaction logic to prep,
-      // but the overlay is still covering everything.
-      setIsAuthenticated(true);
+    setError(false);
+    
+    // 1. Verifying: Lock spins (Visual Feedback)
+    setAnimStage('verifying');
 
-      // 2. Tension: Mechanical Clunk
-      setTimeout(() => {
-          setAnimStage('tension');
-      }, 800);
+    try {
+        // 2. Real Backend Authentication
+        const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ 
+                username, 
+                password 
+            }),
+        });
 
-      // 3. Blast: Light explosion
-      setTimeout(() => {
-          setAnimStage('blast');
-      }, 1400);
+        if (!response.ok) {
+            throw new Error("Auth failed");
+        }
 
-      // 4. Opening: Doors slide
-      // Since the app is ALREADY mounted behind, this reveal will be instant.
-      setTimeout(() => {
-          setAnimStage('opening');
-      }, 1500);
+        const data = await response.json();
 
-      // 5. Cleanup: Remove lock screen from DOM entirely to free up resources
-      setTimeout(() => {
-          setAnimStage('done');
-          setShowLockScreen(false); 
-      }, 3200);
+        if (data.token) {
+            // 3. Success: Store the standard token
+            sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
+            
+            // Set authenticated state (App starts rendering behind scene)
+            setIsAuthenticated(true);
 
-    } else {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
+            // 4. Trigger Door Opening Animation Sequence
+            // Tension: Mechanical Clunk
+            setTimeout(() => {
+                setAnimStage('tension');
+            }, 800);
+
+            // Blast: Light explosion
+            setTimeout(() => {
+                setAnimStage('blast');
+            }, 1400);
+
+            // Opening: Doors slide
+            setTimeout(() => {
+                setAnimStage('opening');
+            }, 1500);
+
+            // Cleanup: Remove lock screen from DOM
+            setTimeout(() => {
+                setAnimStage('done');
+                setShowLockScreen(false); 
+            }, 3200);
+        } else {
+            throw new Error("Invalid token received");
+        }
+
+    } catch (err) {
+        console.error("Login failed:", err);
+        // Reset animation to idle on failure so user can try again
+        setAnimStage('idle');
+        setError(true);
+        setTimeout(() => setError(false), 2000);
     }
   };
 
@@ -103,30 +126,19 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         }
       `}</style>
 
-      {/* 
-          1. PRELOADER 
-          Force browser to download Hero Image immediately on page load, 
-          so it's ready in cache when the doors open.
-      */}
+      {/* PRELOADER */}
       {heroImage && (
           <img src={heroImage} alt="" style={{display: 'none'}} />
       )}
 
-      {/* 
-          2. THE APP LAYER (Z-INDEX 0)
-          CRITICAL CHANGE: This is now ALWAYS rendered.
-          It sits behind the lock screen.
-          
-          Update: We remove transform/filter classes when 'done' to ensure position:fixed elements
-          inside the app (like the Header) work correctly relative to the viewport.
-      */}
+      {/* THE APP LAYER (Z-INDEX 0) */}
       <div 
         className={`
             relative z-0 min-h-screen bg-stone-900 
             ${animStage !== 'done' ? 'transition-all duration-[2000ms] ease-out' : ''}
             ${
               animStage === 'done' 
-                ? '' // Removes transforms/filters completely to fix fixed positioning
+                ? '' 
                 : animStage === 'opening' 
                   ? 'scale-100 blur-0 brightness-100' 
                   : 'scale-[0.98] blur-[2px] brightness-50 overflow-hidden h-screen'
@@ -136,14 +148,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         {children}
       </div>
 
-      {/* 
-          3. THE LOCK SCREEN LAYER (Z-INDEX 9999)
-          This covers the App. We only unmount it (showLockScreen) after animation is fully done.
-      */}
+      {/* THE LOCK SCREEN LAYER (Z-INDEX 9999) */}
       {showLockScreen && (
         <div className="fixed inset-0 z-[9999] overflow-hidden flex items-center justify-center bg-transparent perspective-[1200px]">
             
-            {/* BACKGROUND BLACKOUT (Prevents peeking edges during scale effect) */}
+            {/* BACKGROUND BLACKOUT */}
             <div className={`absolute inset-0 bg-black transition-opacity duration-1000 ${animStage === 'opening' ? 'opacity-0' : 'opacity-100'}`}></div>
 
             {/* LEFT DOOR */}
@@ -157,7 +166,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                 `}
             >
                 <div className="absolute inset-0 noise-overlay"></div>
-                {/* Hardware */}
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 w-3 h-48 bg-gradient-to-b from-[#2a2a2a] via-[#4a4a4a] to-[#2a2a2a] rounded-full shadow-[2px_2px_10px_black] opacity-80 border-l border-white/10"></div>
             </div>
 
@@ -172,11 +180,10 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                 `}
             >
                 <div className="absolute inset-0 noise-overlay"></div>
-                {/* Hardware */}
                 <div className="absolute left-8 top-1/2 -translate-y-1/2 w-3 h-48 bg-gradient-to-b from-[#2a2a2a] via-[#4a4a4a] to-[#2a2a2a] rounded-full shadow-[-2px_2px_10px_black] opacity-80 border-r border-white/10"></div>
             </div>
 
-            {/* LIGHT BLOOM (Hides the seam during opening) */}
+            {/* VISUAL EFFECTS */}
             <div 
                 className={`
                     absolute inset-0 z-20 bg-white pointer-events-none mix-blend-overlay
@@ -184,8 +191,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                     ${animStage === 'blast' ? 'opacity-40' : 'opacity-0'}
                 `}
             ></div>
-            
-            {/* GOD RAY (The burst) */}
             <div className={`
                 absolute top-0 bottom-0 left-1/2 w-[4px] -translate-x-1/2 z-10 bg-amber-500 blur-[20px] pointer-events-none
                 transition-all duration-300
@@ -204,7 +209,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                 `}
             >
                 <div className="bg-[#1c1917]/90 backdrop-blur-md border border-[#44403c] p-10 shadow-[0_20px_60px_rgba(0,0,0,0.7)]">
-                    <div className="text-center mb-10">
+                    <div className="text-center mb-8">
                          <div className={`
                             w-16 h-16 mx-auto bg-[#292524] rounded-full border border-[#57534e] flex items-center justify-center mb-6 text-stone-300 shadow-inner
                             transition-all duration-500
@@ -216,29 +221,56 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                          <p className="text-[#a8a29e] text-[10px] uppercase tracking-[0.3em]">Restricted Access</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        {/* Username */}
                         <div className="relative group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57534e]">
+                                <User size={14} />
+                            </div>
                             <input
-                                type="password"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="ENTER CODE"
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="USERNAME"
                                 className={`
-                                    w-full bg-[#0c0a09] border-l-2 text-center text-lg text-[#d6d3d1] font-serif py-4
-                                    focus:outline-none focus:bg-black transition-all placeholder-[#292524] tracking-widest
-                                    ${error ? 'border-red-500 text-red-500' : 'border-[#57534e] focus:border-amber-700'}
+                                    w-full bg-[#0c0a09] border border-[#292524] pl-10 pr-4 py-3 text-sm text-[#d6d3d1] font-mono uppercase
+                                    focus:outline-none focus:border-amber-700 transition-all placeholder-[#292524] tracking-widest
                                 `}
-                                autoFocus
                                 disabled={animStage !== 'idle'}
                             />
                         </div>
+
+                        {/* Password */}
+                        <div className="relative group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57534e]">
+                                <Lock size={14} />
+                            </div>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="PASSWORD"
+                                className={`
+                                    w-full bg-[#0c0a09] border border-[#292524] pl-10 pr-4 py-3 text-sm text-[#d6d3d1] font-mono uppercase
+                                    focus:outline-none focus:border-amber-700 transition-all placeholder-[#292524] tracking-widest
+                                    ${error ? 'border-red-900 text-red-500' : ''}
+                                `}
+                                disabled={animStage !== 'idle'}
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="text-red-500 text-[10px] font-bold uppercase tracking-widest text-center animate-pulse">
+                                Access Denied
+                            </div>
+                        )}
 
                         <button
                             type="submit"
                             disabled={animStage !== 'idle'}
                             className={`
                                 w-full py-4 text-[10px] font-bold uppercase tracking-[0.25em] transition-all duration-300
-                                flex items-center justify-center
+                                flex items-center justify-center mt-2
                                 ${animStage === 'idle' 
                                     ? 'bg-[#292524] text-[#a8a29e] hover:bg-[#3E2723] hover:text-white' 
                                     : 'bg-amber-800 text-white cursor-wait'}
@@ -247,7 +279,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                             {animStage === 'idle' ? (
                                 <>Unlock Studio <ArrowRight size={12} className="ml-2 opacity-50" /></>
                             ) : (
-                                <span className="animate-pulse">Authorizing...</span>
+                                <span className="animate-pulse">Verifying...</span>
                             )}
                         </button>
                     </form>
