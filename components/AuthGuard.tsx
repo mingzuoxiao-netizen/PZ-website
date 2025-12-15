@@ -9,7 +9,7 @@ interface AuthGuardProps {
 }
 
 // CONFIGURATION
-const PASSWORD = "PZ2025."; 
+const PASSWORD = "PZ!2025-admin-only"; 
 const SESSION_KEY = "pz_auth_token";
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
