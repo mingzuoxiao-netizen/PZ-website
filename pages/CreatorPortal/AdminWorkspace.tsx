@@ -59,7 +59,9 @@ const AdminWorkspace: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500');
+      // Reverted to /products (auth header handled by adminFetch)
+      const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/products?limit=500');
+      // Reverted to /site-config (auth header handled by adminFetch)
       const configPromise = adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config');
 
       const results = await Promise.allSettled([inventoryPromise, configPromise]);
@@ -120,12 +122,14 @@ const AdminWorkspace: React.FC = () => {
     if (!siteConfig) return;
     setSavingConfig(true);
     try {
+      // Reverted to /site-config
       await adminFetch('/site-config', { method: 'POST', body: JSON.stringify({ config: siteConfig }) });
       refresh(); loadData(); alert("Config Saved");
     } catch (e: any) { alert(e.message); } finally { setSavingConfig(false); }
   };
 
   const handleAssetUpdate = async (key: string, url: string) => {
+    // Reverted to /assets
     try { await adminFetch('/assets', { method: 'POST', body: JSON.stringify({ key, url }) }); alert("Asset Saved"); } 
     catch (e: any) { alert(e.message); }
   };
@@ -133,6 +137,7 @@ const AdminWorkspace: React.FC = () => {
   const handleAdminUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
+    // Reverted to /upload-image
     const data = await adminFetch<{ url: string }>('/upload-image', {
         method: 'POST',
         body: formData,
@@ -239,6 +244,7 @@ const AdminWorkspace: React.FC = () => {
                             if (siteConfig) {
                                 const newConfig = { ...siteConfig, categories: newCats };
                                 setSiteConfig(newConfig);
+                                // Reverted to /site-config
                                 adminFetch('/site-config', { method: 'POST', body: JSON.stringify({ config: newConfig }) }).then(refresh);
                             }
                             setActiveTab('inventory');

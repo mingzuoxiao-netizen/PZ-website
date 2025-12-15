@@ -19,6 +19,7 @@ export async function deleteImageFromR2(url: string) {
             return;
         }
 
+        // Reverted to /delete-images
         await adminFetch('/delete-images', {
             method: "POST",
             body: JSON.stringify({ keys: [key] })

@@ -34,6 +34,7 @@ const MediaTools: React.FC = () => {
     }
 
     try {
+        // Reverted to /delete-images
         await adminFetch('/delete-images', {
             method: "POST",
             body: JSON.stringify({ keys: keysToDelete })

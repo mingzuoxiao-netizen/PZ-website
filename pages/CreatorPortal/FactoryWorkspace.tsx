@@ -68,7 +68,7 @@ const FactoryWorkspace: React.FC = () => {
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    // Factory uses the standard upload endpoint. Backend handles role verification.
+    // Reverted to /upload-image (no /admin prefix)
     const data = await factoryFetch<{ url: string }>('/upload-image', {
         method: 'POST',
         body: formData,
