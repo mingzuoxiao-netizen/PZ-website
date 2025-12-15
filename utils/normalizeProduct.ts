@@ -32,12 +32,17 @@ export function normalizeProduct(input: any): ProductVariant {
   }
 
   // 2. Normalize Status
-  // Force lowercase to avoid case-sensitive filtering issues
+  // Backend statuses: draft, pending, published, rejected, archived
   let status = 'draft';
   if (input.status) {
       const s = input.status.toLowerCase();
-      if (['published', 'draft', 'archived', 'hidden', 'pub'].includes(s)) {
-          status = s === 'pub' ? 'published' : s;
+      // Map legacy/frontend-only terms to backend terms if necessary
+      if (s === 'pending_review') {
+          status = 'pending';
+      } else if (s === 'pub') {
+          status = 'published';
+      } else if (['published', 'draft', 'archived', 'pending', 'rejected'].includes(s)) {
+          status = s;
       }
   }
 

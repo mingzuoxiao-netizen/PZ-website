@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { ShieldCheck, ArrowRight, Lock, Loader2, User } from "lucide-react";
+import { ShieldCheck, ArrowRight, Lock, Loader2, User, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
 
 interface AdminLoginProps {
@@ -19,7 +19,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setError(false);
 
     try {
-      // UPDATED: Post to /admin/login-db with username and password
+      // 1. POST Credentials to Backend
+      // The backend is responsible for verifying identity AND determining role
       const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
         headers: {
@@ -38,8 +39,18 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (data.token) {
-        // Store the token received from the backend (dev-token-xxx)
+        // 2. Store Session Token (HttpOnly cookies preferred in prod, simple token here)
         sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
+        
+        // 3. Store UI-Specific User Data (Returned by Backend)
+        // NOTE: This data is for DISPLAY ONLY. Real security relies on the 'token' validating requests on the server.
+        // We fallback to safe defaults if the backend doesn't return the shape yet (for demo continuity).
+        const uiRole = data.user?.role || 'FACTORY'; // Default to lowest privilege if undefined
+        const uiName = data.user?.username || username;
+
+        sessionStorage.setItem("pz_user_role", uiRole);
+        sessionStorage.setItem("pz_user_name", uiName);
+        
         onLoginSuccess();
       } else {
         throw new Error("Invalid response from server");
@@ -47,7 +58,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     } catch (err) {
       console.error("Login error:", err);
       setError(true);
-      // Reset error state after animation
       setTimeout(() => setError(false), 2000);
     } finally {
       setLoading(false);
@@ -57,18 +67,20 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] bg-stone-50 px-6">
       <div className="bg-white p-10 md:p-16 shadow-2xl border border-stone-200 max-w-md w-full text-center relative overflow-hidden">
-        {/* Decorative Top Bar */}
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-stone-400 to-stone-600"></div>
         
         <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-8 text-stone-700">
-           <ShieldCheck size={40} strokeWidth={1.5} />
+           {username.toLowerCase().includes('factory') ? <Factory size={40} strokeWidth={1.5}/> : <ShieldCheck size={40} strokeWidth={1.5} />}
         </div>
         
-        <h2 className="font-serif text-3xl text-stone-900 mb-2">Admin Portal</h2>
-        <p className="text-stone-500 text-sm mb-10 tracking-wide">Restricted Access. Identity Verification Required.</p>
+        <h2 className="font-serif text-3xl text-stone-900 mb-2">
+            {username.toLowerCase().includes('factory') ? 'Factory Portal' : 'Admin Portal'}
+        </h2>
+        <p className="text-stone-500 text-sm mb-10 tracking-wide">
+            {username.toLowerCase().includes('factory') ? 'Content Management System' : 'Restricted Access. Identity Verification Required.'}
+        </p>
 
         <form onSubmit={handleLogin} className="space-y-6">
-            {/* Username Input */}
             <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
                     <User size={18} />
@@ -83,7 +95,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                 />
             </div>
 
-            {/* Password Input */}
             <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
                     <Lock size={18} />
@@ -94,7 +105,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
                     className={`w-full bg-stone-50 border ${error ? 'border-red-400' : 'border-stone-200'} pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans`}
-                    autoFocus
                     disabled={loading}
                 />
             </div>
@@ -116,13 +126,15 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                   </span>
                 ) : (
                   <>
-                    Dashboard <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                    Sign In <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
             </button>
         </form>
       </div>
-      <p className="mt-8 text-stone-400 text-xs uppercase tracking-widest">Secure Connection</p>
+      <p className="mt-8 text-stone-400 text-xs uppercase tracking-widest">
+        System: Secure RBAC Login
+      </p>
     </div>
   );
 };

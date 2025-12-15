@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, KeyRound, Hammer, Ruler, Axe, User, Lock } from 'lucide-react';
+import { ArrowRight, KeyRound, Hammer, Ruler, Axe, Lock } from 'lucide-react';
 import { ASSET_KEYS } from '../utils/assets';
 import { useAssets } from '../contexts/AssetContext';
-import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from '../utils/adminFetch';
+
+// --- CLIENT-SIDE PROTECTION CONFIG ---
+const PASSWORD = "PZ2025.";
+const SESSION_KEY = "pz_public_access";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -11,14 +14,11 @@ interface AuthGuardProps {
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   // --- STATE MANAGEMENT ---
-  
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLockScreen, setShowLockScreen] = useState(true);
-
-  // Login Credentials
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   
+  // Single input for Access Code
+  const [input, setInput] = useState("");
   const [error, setError] = useState(false);
   
   // Animation Stages: 
@@ -30,45 +30,29 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const heroImage = assets[ASSET_KEYS.HOME_HERO_BG];
 
   useEffect(() => {
-    // 1. Check for the UNIFIED backend token
-    const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    // Check for the simple site-wide token in session storage
+    const token = sessionStorage.getItem(SESSION_KEY);
     
-    if (token) {
+    if (token === "granted") {
       setIsAuthenticated(true);
       setShowLockScreen(false); // Immediate unlock if previously logged in
       setAnimStage('done');
     }
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
     setError(false);
     
     // 1. Verifying: Lock spins (Visual Feedback)
     setAnimStage('verifying');
 
-    try {
-        // 2. Real Backend Authentication
-        const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ 
-                username, 
-                password 
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error("Auth failed");
-        }
-
-        const data = await response.json();
-
-        if (data.token) {
-            // 3. Success: Store the standard token
-            sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
+    // Simulate brief mechanical delay for effect
+    setTimeout(() => {
+        // 2. Simple Local Validation
+        if (input === PASSWORD) {
+            // 3. Success: Store local access flag
+            sessionStorage.setItem(SESSION_KEY, "granted");
             
             // Set authenticated state (App starts rendering behind scene)
             setIsAuthenticated(true);
@@ -77,34 +61,30 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
             // Tension: Mechanical Clunk
             setTimeout(() => {
                 setAnimStage('tension');
-            }, 800);
+            }, 500);
 
             // Blast: Light explosion
             setTimeout(() => {
                 setAnimStage('blast');
-            }, 1400);
+            }, 1100);
 
             // Opening: Doors slide
             setTimeout(() => {
                 setAnimStage('opening');
-            }, 1500);
+            }, 1200);
 
             // Cleanup: Remove lock screen from DOM
             setTimeout(() => {
                 setAnimStage('done');
                 setShowLockScreen(false); 
-            }, 3200);
+            }, 2900);
         } else {
-            throw new Error("Invalid token received");
+            // Failure
+            setAnimStage('idle');
+            setError(true);
+            setTimeout(() => setError(false), 2000);
         }
-
-    } catch (err) {
-        console.error("Login failed:", err);
-        // Reset animation to idle on failure so user can try again
-        setAnimStage('idle');
-        setError(true);
-        setTimeout(() => setError(false), 2000);
-    }
+    }, 800);
   };
 
   return (
@@ -221,47 +201,29 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
                          <p className="text-[#a8a29e] text-[10px] uppercase tracking-[0.3em]">Restricted Access</p>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        {/* Username */}
-                        <div className="relative group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57534e]">
-                                <User size={14} />
-                            </div>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                placeholder="USERNAME"
-                                className={`
-                                    w-full bg-[#0c0a09] border border-[#292524] pl-10 pr-4 py-3 text-sm text-[#d6d3d1] font-mono uppercase
-                                    focus:outline-none focus:border-amber-700 transition-all placeholder-[#292524] tracking-widest
-                                `}
-                                disabled={animStage !== 'idle'}
-                            />
-                        </div>
-
-                        {/* Password */}
+                    <form onSubmit={handleUnlock} className="space-y-4">
                         <div className="relative group">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57534e]">
                                 <Lock size={14} />
                             </div>
                             <input
                                 type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="PASSWORD"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="ENTER ACCESS CODE"
                                 className={`
                                     w-full bg-[#0c0a09] border border-[#292524] pl-10 pr-4 py-3 text-sm text-[#d6d3d1] font-mono uppercase
                                     focus:outline-none focus:border-amber-700 transition-all placeholder-[#292524] tracking-widest
                                     ${error ? 'border-red-900 text-red-500' : ''}
                                 `}
                                 disabled={animStage !== 'idle'}
+                                autoFocus
                             />
                         </div>
 
                         {error && (
                             <div className="text-red-500 text-[10px] font-bold uppercase tracking-widest text-center animate-pulse">
-                                Access Denied
+                                Incorrect Code
                             </div>
                         )}
 

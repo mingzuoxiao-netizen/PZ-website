@@ -180,10 +180,13 @@ const ProductList: React.FC<ProductListProps> = ({
                             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                 <span className="font-mono text-[10px] text-stone-400 bg-stone-100 px-1.5 rounded">{item.code || "NO-CODE"}</span>
                                 <span className="text-[10px] text-stone-500 uppercase tracking-wide border-l border-stone-200 pl-3">{categoryName}</span>
+                                
                                 <span className={`uppercase font-bold text-[9px] tracking-wider px-2 py-0.5 rounded-full ${
-                                    item.status === 'published' 
-                                        ? 'bg-green-100 text-green-700' 
-                                        : item.status === 'hidden' ? 'bg-stone-200 text-stone-500' : 'bg-amber-100 text-amber-700'
+                                    item.status === 'published' ? 'bg-green-100 text-green-700' : 
+                                    item.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    item.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    item.status === 'archived' ? 'bg-stone-800 text-stone-200' :
+                                    'bg-stone-200 text-stone-500' // Draft / Hidden
                                 }`}>
                                     {item.status === 'published' ? 'Live' : item.status || 'Draft'}
                                 </span>

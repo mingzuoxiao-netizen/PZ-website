@@ -52,6 +52,7 @@ const AdminDashboard: React.FC = () => {
   const { t } = useLanguage();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   
   // Filter & Sort State
   const [filterType, setFilterType] = useState<string>('All');
@@ -144,10 +145,23 @@ const AdminDashboard: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    // Reload page to trigger AdminGuard to switch back to AdminLogin
-    window.location.reload();
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    
+    try {
+        // 1. Call backend logout
+        await adminFetch("/admin/logout", {
+            method: "POST",
+        });
+    } catch (e) {
+        console.warn("Backend logout failed, forcing local logout", e);
+    } finally {
+        // 2. Clear local token
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        // 3. Reload page to trigger AdminGuard to switch back to AdminLogin
+        window.location.reload();
+    }
   };
 
   const downloadCSV = () => {
@@ -205,9 +219,14 @@ const AdminDashboard: React.FC = () => {
             </Link>
             <button
                 onClick={handleLogout}
-                className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest transition-colors"
+                disabled={loggingOut}
+                className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
             >
-                {t.admin.logout} <LogOut size={16} className="ml-2" />
+                {loggingOut ? (
+                    <><Loader2 size={16} className="mr-2 animate-spin" /> {t.admin.logout}...</>
+                ) : (
+                    <>{t.admin.logout} <LogOut size={16} className="ml-2" /></>
+                )}
             </button>
           </div>
         </div>
