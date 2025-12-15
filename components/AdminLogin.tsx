@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { ShieldCheck, ArrowRight, Lock, Loader2 } from "lucide-react";
+import { ShieldCheck, ArrowRight, Lock, Loader2, User } from "lucide-react";
 import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
 
 interface AdminLoginProps {
@@ -8,7 +8,8 @@ interface AdminLoginProps {
 }
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
-  const [input, setInput] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -18,13 +19,16 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setError(false);
 
     try {
-      // UPDATED: Use the /admin/login-db endpoint as requested
+      // UPDATED: Post to /admin/login-db with username and password
       const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ password: input }),
+        body: JSON.stringify({ 
+            username, 
+            password 
+        }),
       });
 
       if (!response.ok) {
@@ -64,15 +68,31 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         <p className="text-stone-500 text-sm mb-10 tracking-wide">Restricted Access. Identity Verification Required.</p>
 
         <form onSubmit={handleLogin} className="space-y-6">
+            {/* Username Input */}
+            <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
+                    <User size={18} />
+                </div>
+                <input 
+                    type="text" 
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className="w-full bg-stone-50 border border-stone-200 pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans"
+                    disabled={loading}
+                />
+            </div>
+
+            {/* Password Input */}
             <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
                     <Lock size={18} />
                 </div>
                 <input 
                     type="password" 
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Enter Admin Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
                     className={`w-full bg-stone-50 border ${error ? 'border-red-400' : 'border-stone-200'} pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans`}
                     autoFocus
                     disabled={loading}
