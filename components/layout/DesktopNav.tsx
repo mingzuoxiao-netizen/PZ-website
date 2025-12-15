@@ -18,7 +18,7 @@ interface DesktopNavProps {
 const DesktopNav: React.FC<DesktopNavProps> = ({ 
   activeMenu, setActiveMenu, isSearchOpen, navTextColor, useWhiteNav 
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const location = useLocation();
   const { config } = usePublishedSiteConfig();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,9 +121,14 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     };
   }, []);
 
+  // Optimized font size for English to prevent crowding
+  const navLinkClasses = language === 'en' 
+    ? 'text-[11px] lg:text-[12px] xl:text-[13px] font-bold tracking-[0.1em]' 
+    : 'text-[14px] lg:text-[15px] font-bold tracking-[0.05em]';
+
   return (
     <>
-      <nav className={`hidden lg:flex items-center space-x-8 lg:space-x-10 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
+      <nav className={`hidden lg:flex items-center space-x-6 lg:space-x-8 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.path || activeMenu === item.path;
           const hasMegaMenu = !!(megaMenuData as any)[item.path];
@@ -137,7 +142,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
             >
               <Link
                 to={item.path}
-                className={`text-[15px] font-bold tracking-[0.15em] uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
+                className={`${navLinkClasses} uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
                   isActive
                     ? useWhiteNav ? 'text-safety-700' : 'text-white'
                     : navTextColor
@@ -163,7 +168,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
       <div
         className={`
-           fixed top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-2xl overflow-hidden transition-all duration-300 ease-in-out z-40
+           fixed top-[70px] md:top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-2xl overflow-hidden transition-all duration-300 ease-in-out z-40
            ${activeMenu ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}
          `}
         onMouseEnter={() => {
@@ -192,7 +197,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                              <Link
                                to={link.href}
                                onClick={() => handleMenuClick(link.href)}
-                               className="block text-sm font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
+                               className="block text-xs font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
                              >
                                {link.label}
                              </Link>

@@ -9,70 +9,13 @@ const Manufacturing: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'process' | 'machinery' | 'qc'>('process');
   const { config } = usePublishedSiteConfig();
 
-  const processes = [
-    {
-      title: "Lumber Selection & Moisture Control",
-      icon: <Layers size={24} />,
-      desc: "Incoming lumber is graded for structural integrity and grain consistency. Moisture levels are stabilized through controlled drying to ensure long-term dimensional stability."
-    },
-    {
-      title: "Panel Jointing & Structural Bonding",
-      icon: <Hammer size={24} />,
-      desc: "Panels and butcher blocks are engineered through controlled color matching and high-strength bonding systems to ensure uniform stress distribution and durability."
-    },
-    {
-      title: "Precision CNC Machining",
-      icon: <Cpu size={24} />,
-      desc: "Digitally programmed machining workflows execute complex joinery and shaping operations with tight dimensional control and repeatable accuracy."
-    },
-    {
-      title: "Surface Preparation & Finishing",
-      icon: <Layers size={24} />,
-      desc: "Surface preparation and finishing processes are engineered for consistent texture, color stability, and coating performance across production runs."
-    },
-    {
-      title: "Assembly & Final Integration",
-      icon: <Settings size={24} />,
-      desc: "Components are assembled using engineered joinery methods reinforced with modern adhesives and hardware systems for structural reliability and serviceability."
-    },
-    {
-      title: "Quality Control & Packaging",
-      icon: <Package size={24} />,
-      desc: "Each finished unit undergoes final inspection against structural, dimensional, and aesthetic standards. Packaging systems are designed to protect products through long-distance logistics."
-    },
-  ];
-
-  const machinery = [
-    { 
-      name: "CNC MACHINING SYSTEMS", 
-      type: "Processing", 
-      desc: "Multi-axis CNC routing platforms supporting complex 3D shaping, precision joinery, and repeatable dimensional control." 
-    },
-    { 
-      name: "PROFILE MILLING", 
-      type: "Milling", 
-      desc: "High-speed moulding and profiling systems for consistent edge geometry and surface definition across long production runs." 
-    },
-    { 
-      name: "AUTOMATED SURFACE FINISHING", 
-      type: "Finishing", 
-      desc: "Continuous finishing lines integrating spray application, controlled drying, and curing processes for uniform surface quality." 
-    },
-    { 
-      name: "PRECISION SANDING & CALIBRATION", 
-      type: "Sanding", 
-      desc: "Automated sanding and surface calibration systems ensuring thickness accuracy and finish readiness prior to coating." 
-    },
-    { 
-      name: "PANEL BONDING & ASSEMBLY", 
-      type: "Assembly", 
-      desc: "Engineered bonding and pressing systems designed for structural stability in laminated panels and mixed-material assemblies." 
-    },
-    { 
-      name: "CENTRALIZED FACILITY SYSTEMS", 
-      type: "Infrastructure", 
-      desc: "Plant-wide dust extraction, air filtration, and environmental control infrastructure supporting process consistency and operator safety." 
-    }
+  const processIcons = [
+    <Layers size={24} />,
+    <Hammer size={24} />,
+    <Cpu size={24} />,
+    <Layers size={24} />,
+    <Settings size={24} />,
+    <Package size={24} />
   ];
 
   /* --- REUSABLE COMPONENT BLOCKS --- */
@@ -80,12 +23,12 @@ const Manufacturing: React.FC = () => {
   const ProcessSection = () => (
     <div className="animate-fade-in py-12">
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {processes.map((proc, idx) => (
+          {t.manufacturing.steps.map((proc, idx) => (
             <div key={idx} className="group bg-white p-8 border border-stone-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                <div className="flex items-center justify-between mb-6 border-b border-stone-100 pb-4">
                   <span className="text-4xl font-serif text-stone-200 group-hover:text-amber-700 transition-colors">0{idx + 1}</span>
                   <div className="text-stone-300 group-hover:text-stone-900 transition-colors bg-stone-50 p-3 rounded-full">
-                     {proc.icon}
+                     {processIcons[idx % processIcons.length]}
                   </div>
                </div>
                <h3 className="font-bold text-lg text-stone-900 mb-3 uppercase tracking-wide">{proc.title}</h3>
@@ -133,7 +76,7 @@ const Manufacturing: React.FC = () => {
        </div>
        
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {machinery.map((m, idx) => (
+          {t.manufacturing.machineryList.map((m, idx) => (
              <div key={idx} className="bg-stone-800/50 border border-stone-700 p-8 hover:bg-stone-800 transition-colors group">
                 <div className="text-[10px] font-mono text-amber-500 mb-2 tracking-widest uppercase">{m.type}</div>
                 <h4 className="text-white font-bold text-lg mb-3">{m.name}</h4>

@@ -19,56 +19,16 @@ const Materials: React.FC = () => {
   }
 
   const woods = [
-    { 
-      name: "White Oak", 
-      desc: "Durable hardwood with distinct grain patterns and excellent stability.", 
-      image: config.materials?.wood_oak
-    },
-    { 
-      name: "Walnut", 
-      desc: "Rich dark tones with a naturally luxurious finish.", 
-      image: config.materials?.wood_walnut
-    },
-    { 
-      name: "Rubberwood", 
-      desc: "Sustainable hardwood with fine, uniform grain and eco-friendly sourcing.", 
-      image: config.materials?.wood_rubber
-    },
-    { 
-      name: "Ash", 
-      desc: "Light-toned hardwood known for its strength, flexibility, and striking grain.", 
-      image: config.materials?.wood_ash
-    },
-    { 
-      name: "Beech", 
-      desc: "Smooth, fine-grained hardwood ideal for curved structures and warm, natural finishes.", 
-      image: config.materials?.wood_beech
-    },
-    { 
-      name: "Maple", 
-      desc: "Dense, smooth-textured hardwood with a clean, modern look and excellent durability.", 
-      image: config.materials?.wood_maple
-    },
-    { 
-      name: "Birch", 
-      desc: "Light-toned hardwood known for its fine, even grain, excellent formability, and clean modern aesthetic.", 
-      image: config.materials?.wood_birch
-    },
-    { 
-      name: "Teak", 
-      desc: "Premium tropical hardwood with rich natural oils, exceptional durability, and timeless golden tones.", 
-      image: config.materials?.wood_teak
-    },
-    { 
-      name: "Acacia", 
-      desc: "Durable hardwood with bold, contrasting grain patterns and strong visual character.", 
-      image: config.materials?.wood_acacia
-    },
-    { 
-      name: "Bamboo", 
-      desc: "Sustainable, fast-growing material with high hardness and distinct linear grain.", 
-      image: config.materials?.wood_bamboo
-    },
+    { ...t.materials.species.oak, image: config.materials?.wood_oak },
+    { ...t.materials.species.walnut, image: config.materials?.wood_walnut },
+    { ...t.materials.species.rubber, image: config.materials?.wood_rubber },
+    { ...t.materials.species.ash, image: config.materials?.wood_ash },
+    { ...t.materials.species.beech, image: config.materials?.wood_beech },
+    { ...t.materials.species.maple, image: config.materials?.wood_maple },
+    { ...t.materials.species.birch, image: config.materials?.wood_birch },
+    { ...t.materials.species.teak, image: config.materials?.wood_teak },
+    { ...t.materials.species.acacia, image: config.materials?.wood_acacia },
+    { ...t.materials.species.bamboo, image: config.materials?.wood_bamboo },
   ];
 
   const butcherBlockImg = config.materials?.const_butcher;

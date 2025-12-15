@@ -13,13 +13,15 @@ import Inquire from './pages/Inquire';
 import AdminDashboard from './pages/AdminDashboard';
 import SearchResults from './pages/SearchResults';
 import CreatorPortal from './pages/CreatorPortal';
+import AdminWorkspace from './pages/CreatorPortal/AdminWorkspace';
+import FactoryWorkspace from './pages/CreatorPortal/FactoryWorkspace';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AssetProvider } from './contexts/AssetContext'; 
-import { SiteConfigProvider } from './contexts/SiteConfigContext'; // New Provider
+import { SiteConfigProvider } from './contexts/SiteConfigContext';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -180,11 +182,31 @@ return (
               }
             />
 
+            {/* Creator Dispatcher */}
             <Route
               path="/creator"
               element={
                 <AdminGuard>
                   <CreatorPortal />
+                </AdminGuard>
+              }
+            />
+
+            {/* Dedicated Workspaces */}
+            <Route
+              path="/creator/admin"
+              element={
+                <AdminGuard>
+                  <AdminWorkspace />
+                </AdminGuard>
+              }
+            />
+
+            <Route
+              path="/creator/factory"
+              element={
+                <AdminGuard>
+                  <FactoryWorkspace />
                 </AdminGuard>
               }
             />
@@ -199,4 +221,3 @@ return (
 
 
 export default App;
-    

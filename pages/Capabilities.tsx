@@ -7,14 +7,14 @@ import { Link } from 'react-router-dom';
 const Capabilities: React.FC = () => {
   const { t } = useLanguage();
 
-  const productCats = [
-    { name: "Accent Chairs", icon: <Armchair size={28}/>, desc: "Solid wood frames, complex joinery, upholstery." },
-    { name: "Bar Stools", icon: <ArrowUpRight size={28}/>, desc: "Counter and bar height, swivel mechanisms, metal footrests." },
-    { name: "Cabinets and Casegoods", icon: <BoxSelect size={28}/>, desc: "Sideboards, media consoles, soft-close hardware." },
-    { name: "Dining Tops", icon: <Table size={28}/>, desc: "Solid wood, butcher block, live-edge processing." },
-    { name: "Work Surfaces", icon: <Ruler size={28}/>, desc: "Office desks, adjustable height tops, workbenches." },
-    { name: "Hotel Furniture", icon: <Briefcase size={28}/>, desc: "Guest room FF&E, lobby seating, high-traffic finishes." },
-    { name: "Custom Projects", icon: <PenTool size={28}/>, desc: "Bespoke specifications, mixed materials (stone/metal)." },
+  const icons = [
+    <Armchair size={28}/>,
+    <ArrowUpRight size={28}/>,
+    <BoxSelect size={28}/>,
+    <Table size={28}/>,
+    <Ruler size={28}/>,
+    <Briefcase size={28}/>,
+    <PenTool size={28}/>
   ];
 
   return (
@@ -49,10 +49,12 @@ const Capabilities: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {productCats.map((cat, idx) => (
+                {t.capabilities.productCats.map((cat, idx) => (
                     <div key={idx} className="bg-white p-8 border-t-4 border-stone-100 hover:border-amber-700 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between min-h-[240px]">
                         <div>
-                            <div className="text-stone-300 group-hover:text-amber-700 mb-6 transition-colors">{cat.icon}</div>
+                            <div className="text-stone-300 group-hover:text-amber-700 mb-6 transition-colors">
+                                {icons[idx % icons.length]}
+                            </div>
                             <h4 className="font-serif text-stone-900 mb-3 text-xl leading-tight">{cat.name}</h4>
                         </div>
                         <p className="text-sm text-stone-500 leading-relaxed font-medium pt-4 border-t border-stone-50 group-hover:border-stone-100 transition-colors">

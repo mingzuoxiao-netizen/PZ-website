@@ -47,11 +47,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
         // 4. IMMEDIATE DIVERSION (The "Right Door" Logic)
         if (uiRole === 'ADMIN') {
-            // Admin goes to Dashboard
-            navigate("/admin-pzf-2025");
+            navigate("/creator/admin");
         } else {
-            // Factory goes straight to Creator Portal
-            navigate("/creator");
+            navigate("/creator/factory");
         }
 
       } else {

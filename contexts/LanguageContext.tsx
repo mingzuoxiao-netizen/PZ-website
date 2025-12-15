@@ -1,13 +1,13 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Simplified to only English
-type Language = 'en';
+type Language = 'en' | 'zh';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: any;
+  toggleLanguage: () => void;
+  t: typeof translations.en;
 }
 
 const translations = {
@@ -206,13 +206,38 @@ const translations = {
         fqc: "Final QC (FQC)",
         fqcDesc: "Pre-shipment inspection based on AQL 2.5/4.0. Assembly testing and carton drop tests.",
         compliance: "Compliance"
-      }
+      },
+      steps: [
+        { title: "Lumber Selection & Moisture Control", desc: "Incoming lumber is graded for structural integrity and grain consistency. Moisture levels are stabilized through controlled drying to ensure long-term dimensional stability." },
+        { title: "Panel Jointing & Structural Bonding", desc: "Panels and butcher blocks are engineered through controlled color matching and high-strength bonding systems to ensure uniform stress distribution and durability." },
+        { title: "Precision CNC Machining", desc: "Digitally programmed machining workflows execute complex joinery and shaping operations with tight dimensional control and repeatable accuracy." },
+        { title: "Surface Preparation & Finishing", desc: "Surface preparation and finishing processes are engineered for consistent texture, color stability, and coating performance across production runs." },
+        { title: "Assembly & Final Integration", desc: "Components are assembled using engineered joinery methods reinforced with modern adhesives and hardware systems for structural reliability and serviceability." },
+        { title: "Quality Control & Packaging", desc: "Each finished unit undergoes final inspection against structural, dimensional, and aesthetic standards. Packaging systems are designed to protect products through long-distance logistics." }
+      ],
+      machineryList: [
+        { name: "CNC MACHINING SYSTEMS", type: "Processing", desc: "Multi-axis CNC routing platforms supporting complex 3D shaping, precision joinery, and repeatable dimensional control." },
+        { name: "PROFILE MILLING", type: "Milling", desc: "High-speed moulding and profiling systems for consistent edge geometry and surface definition across long production runs." },
+        { name: "AUTOMATED SURFACE FINISHING", type: "Finishing", desc: "Continuous finishing lines integrating spray application, controlled drying, and curing processes for uniform surface quality." },
+        { name: "PRECISION SANDING & CALIBRATION", type: "Sanding", desc: "Automated sanding and surface calibration systems ensuring thickness accuracy and finish readiness prior to coating." },
+        { name: "PANEL BONDING & ASSEMBLY", type: "Assembly", desc: "Engineered bonding and pressing systems designed for structural stability in laminated panels and mixed-material assemblies." },
+        { name: "CENTRALIZED FACILITY SYSTEMS", type: "Infrastructure", desc: "Plant-wide dust extraction, air filtration, and environmental control infrastructure supporting process consistency and operator safety." }
+      ]
     },
     capabilities: {
       title: "Technical Capabilities",
       subtitle: "Engineering Your Vision",
       intro: "Manufacturing is more than just execution; it is about problem-solving. Our engineering team works upstream with your designers to ensure feasibility, cost-efficiency, and structural integrity.",
       categories: "Product Categories",
+      productCats: [
+        { name: "Accent Chairs", desc: "Solid wood frames, complex joinery, upholstery." },
+        { name: "Bar Stools", desc: "Counter and bar height, swivel mechanisms, metal footrests." },
+        { name: "Cabinets and Casegoods", desc: "Sideboards, media consoles, soft-close hardware." },
+        { name: "Dining Tops", desc: "Solid wood, butcher block, live-edge processing." },
+        { name: "Work Surfaces", desc: "Office desks, adjustable height tops, workbenches." },
+        { name: "Hotel Furniture", desc: "Guest room FF&E, lobby seating, high-traffic finishes." },
+        { name: "Custom Projects", desc: "Bespoke specifications, mixed materials (stone/metal)." }
+      ],
       limits: {
         title: "Size and Technical Limits",
         subtitle: "Engineering constraints for standard production lines.",
@@ -308,7 +333,19 @@ const translations = {
       uvDesc: "Ultraviolet cured coatings for high-volume, instant-cure lines. Extremely consistent and chemically resistant.",
       request: "Request Samples",
       requestDesc: "We provide physical wood and finish samples for development teams.",
-      orderKit: "Order Sample Kit"
+      orderKit: "Order Sample Kit",
+      species: {
+        oak: { name: "White Oak", desc: "Durable hardwood with distinct grain patterns and excellent stability." },
+        walnut: { name: "Walnut", desc: "Rich dark tones with a naturally luxurious finish." },
+        rubber: { name: "Rubberwood", desc: "Sustainable hardwood with fine, uniform grain and eco-friendly sourcing." },
+        ash: { name: "Ash", desc: "Light-toned hardwood known for its strength, flexibility, and striking grain." },
+        beech: { name: "Beech", desc: "Smooth, fine-grained hardwood ideal for curved structures and warm, natural finishes." },
+        maple: { name: "Maple", desc: "Dense, smooth-textured hardwood with a clean, modern look and excellent durability." },
+        birch: { name: "Birch", desc: "Light-toned hardwood known for its fine, even grain, excellent formability, and clean modern aesthetic." },
+        teak: { name: "Teak", desc: "Premium tropical hardwood with rich natural oils, exceptional durability, and timeless golden tones." },
+        acacia: { name: "Acacia", desc: "Durable hardwood with bold, contrasting grain patterns and strong visual character." },
+        bamboo: { name: "Bamboo", desc: "Sustainable, fast-growing material with high hardness and distinct linear grain." }
+      }
     },
     inquire: {
       title: "Start a Conversation",
@@ -415,7 +452,7 @@ const translations = {
       title: "Creator Mode",
       editing: "Editing",
       backAdmin: "Back to Admin",
-      tabs: { inventory: "Inventory", collections: "Collections", config: "Site Config", media: "Media" },
+      tabs: { inventory: "Inventory", collections: "Collections", config: "Site Config", media: "Media", review: "Review Queue", accounts: "Accounts", assets: "Assets" },
       status: { connected: "Cloud Config Connected", local: "Local Mode", syncing: "Syncing..." },
       inventory: {
         manage: "Manage Inventory",
@@ -441,25 +478,28 @@ const translations = {
         edit: "Edit Product",
         add: "Add New Product",
         cancel: "Cancel",
-        status: "Status",
+        status: "Current Status",
         mainCat: "Main Category",
         subCat: "Sub-Category",
         create: "+ Create New",
         cancelNew: "Cancel New",
         nameEn: "Product Name (EN)",
-        nameZh: "Product Name (Secondary)", // CHANGED: "CN" to Secondary
+        nameZh: "Product Name (Secondary)",
         specs: "Specifications",
         material: "Material",
         dims: "Dimensions",
         code: "Product Code",
         autoGen: "Generate",
         descEn: "Description (EN)",
-        descZh: "Description (Secondary)", // CHANGED: "CN" to Secondary
+        descZh: "Description (Secondary)",
         colors: "Color Variants",
         addColor: "Add Color",
         gallery: "Gallery",
         saveDraft: "Save Draft",
         publish: "Publish Product",
+        submit: "Submit for Review",
+        setDraft: "Set Draft",
+        forcePub: "Force Publish",
         update: "Update Product",
         processing: "Processing...",
         delete: "Delete Product"
@@ -543,19 +583,604 @@ const translations = {
         "materials.wood_bamboo": { label: "Bamboo" }
       }
     }
+  },
+  zh: {
+    common: {
+      readMore: "阅读更多",
+      viewDetails: "查看详情",
+      learnMore: "了解更多",
+      contactUs: "联系我们",
+      search: "搜索",
+      searchPlaceholder: "输入产品名称...",
+      searchRefine: "优化搜索条件...",
+      backHome: "返回首页",
+      loading: "加载中",
+      close: "关闭",
+      explore: "探索",
+      connect: "联系",
+      privacy: "隐私政策",
+      terms: "服务条款",
+      rights: "版权所有",
+      startProject: "启动项目",
+      tradeProgram: "贸易合作",
+      adminAccess: "管理员入口",
+      location_cn: "中国肇庆",
+      location_kh: "柬埔寨干拉省",
+      factory_01: "一号工厂"
+    },
+    nav: {
+      header: {
+        home: "首页",
+        capabilities: "核心能力",
+        manufacturing: "生产制造",
+        materials: "材质库",
+        portfolio: "产品案例",
+        capacity: "全球产能",
+        about: "关于我们",
+        inquire: "业务咨询"
+      },
+      mega: {
+        solidWoodProjects: "实木项目",
+        diningTables: "餐桌",
+        butcherBlock: "多层实木台面",
+        solidComponents: "实木组件",
+        seatingProjects: "座椅项目",
+        diningChairs: "餐椅",
+        accentChairs: "休闲椅",
+        barStools: "吧椅",
+        metalMixed: "金属与混合材质",
+        metalBases: "金属底座",
+        mixedMaterials: "混合材质",
+        customFabrication: "定制制造",
+        casegoods: "柜类家具",
+        mediaConsoles: "电视柜",
+        nightstands: "床头柜",
+        storageUnits: "储物单元",
+        process: "工艺流程",
+        lumberPrep: "备料工段",
+        cnc5Axis: "五轴 CNC",
+        autoFinishing: "自动涂装",
+        standards: "质量标准",
+        incomingQC: "IQC (进料检验)",
+        inProcessQC: "IPQC (制程检验)",
+        finalInspection: "FQC (最终检验)",
+        services: "服务体系",
+        oemProduction: "OEM 代工",
+        odmDesign: "ODM 设计",
+        valueEngineering: "价值工程",
+        compliance: "合规性",
+        tscaTitleVI: "TSCA Title VI",
+        fscCertification: "FSC 认证",
+        istaPackaging: "ISTA 包装测试",
+        focusSolid: "专注实木",
+        focusPrecision: "精密制造",
+        focusEng: "工程驱动",
+        focusLogistics: "物流交付"
+      }
+    },
+    home: {
+      subtitle: "家具制造",
+      heroTitle: "专为规模化制造打造",
+      heroSub: "PZ",
+      heroQuote: "\"将全球设计与精密制造完美融合。\"",
+      heroBtnPrimary: "工厂能力",
+      heroBtnSecondary: "生产流程",
+      heroBtnTertiary: "木材与材质库",
+      viewLibrary: "查看木材库",
+      factoryProfile: "工厂概况",
+      factoryStrength: "工厂实力",
+      strengthTitle: "为高端零售而生",
+      strengthDesc1: "PZ 是一家服务于设计驱动型品牌的实木制造合作伙伴。我们专注于材料控制、精密执行和规模化稳定生产——支持需要一致性的长期项目，而不仅仅是一次性订单。",
+      strengthDesc2: "我们弥合了美国顶级品牌所需的精品级质量与亚洲高效制造能力之间的差距——按照全球标准提供设计精度、工程稳定性和一致的产量。",
+      strengthSection: {
+        autoFinishDesc: "集成的涂装工作流程结合了自动喷涂、受控固化和熟练的人工干预，确保生产批次间的表面一致性。",
+        highPrecisionDesc: "精密的 CNC 加工系统支持复杂的榫卯结构、弯曲轮廓和实木及混合材料组件的严格尺寸公差。",
+        climateDesc: "温控车间和集中式除尘系统旨在保持材料在铣削、组装和涂装阶段的稳定性。"
+      },
+      stats: {
+        factories: "工厂 (中国 + 柬埔寨)",
+        exp: "年经验",
+        partners: "美国合作伙伴"
+      },
+      competencies: "核心竞争力",
+      comp1Title: "材料掌控",
+      comp1Desc: "专注于实木加工，严格控制采购来源、含水率管理和生产批次间的材料一致性。",
+      comp2Title: "双岸供应",
+      comp2Desc: "在中国和柬埔寨均设有生产能力，允许根据关税、交货期和订单规模灵活规划产地。",
+      comp3Title: "先进榫卯",
+      comp3Desc: "将 CNC 加工与成熟的榫卯方法相结合，生产结构可靠、配合紧密且表面一致的家具组件。",
+      visitUs: "参观工厂",
+      globalHubs: "全球制造中心",
+      globalDesc: "我们的双岸战略确保我们能够满足任何产量或关税要求。联系我们安排工厂参观或审核。",
+      chinaLoc: "总部及主要设施",
+      cambodiaLoc: "低关税工厂",
+      readyToScale: "准备好扩大规模了吗？",
+      exploreMfg: "探索制造能力"
+    },
+    about: {
+      since: "始于 2014",
+      title: "工程驱动，将创意转化为产品",
+      intro: "PZ 是一家以工业规模运营的工程驱动型实木制造商。通过整合材料科学、生产系统和过程控制，我们将概念转化为可靠、可重复的制造结果。",
+      bannerText: "\"规模化的工匠精神。\"",
+      storyTitle: "我们的故事",
+      storyP1: "PZ 的建立是为了证明，现代实木工厂可以在提供规模和控制的同时，不将质量视为例外。",
+      storyP2: "随着品牌的发展，我们看到了设计初衷与制造现实之间经常存在的差距。许多工厂为了产量进行了优化，但并没有为了精细化、工程反馈或长期合作伙伴关系进行优化。",
+      storyP3: "我们将 PZ 建立在流程清晰、可重复性和协作的基础上——因此改进是持续的，而不是被动的。",
+      storyP4: "从自动化生产线到数据驱动的质量控制，从多树种实木加工到灵活的组装工作流程，PZ 持续投资于能够让我们应对快速变化的行业的能力。每年，我们都在升级设备、扩展品类并完善生产工程——因为我们服务的品牌在不断增长，我们也随之增长。",
+      storyP5: "我们的优势不仅仅是机械设备。更是我们倾听、分析、优化和执行的能力。作为技术问题解决者，我们与设计师和买手合作，将草图和原型转化为稳定、可重复且高效制造的产品。",
+      storyP6: "最初的一个车间已经发展成为一个面向未来的制造平台——建立在纪律、创新和对长期合作伙伴关系的承诺之上。我们不仅仅是在生产家具；我们正在构建全球品牌可以依赖的未来制造业。",
+      pillars: {
+        elite: "精英合作伙伴",
+        eliteDesc: "我们与美国家具零售业最负盛名的品牌建立了长期的 OEM/ODM 关系。我们对该地区'High Street'质量标准的理解是无与伦比的。",
+        dual: "中国 + 柬埔寨",
+        dualDesc: "通过在中国（肇庆）和柬埔寨（干拉）拥有全资设施，我们为合作伙伴提供了应对关税的战略灵活性。这是一个有弹性的'双岸'战略。",
+        logistics: "美国物流",
+        logisticsDesc: "我们位于洛杉矶的 129,167 平方英尺仓库支持美国国内履行和一件代发项目，确保您的产品始终能够触达客户。"
+      },
+      process: {
+        label: "工艺流程",
+        title: "工厂内部",
+        clickExpand: "点击图片展开"
+      },
+      galleryItems: {
+        raw: { title: "原木精选", desc: "我们主要采购 FAS 级硬木板材，专注于一致的纹理、受控的含水率以及对家具和建筑应用的适用性。" },
+        milling: { title: "精密铣削", desc: "在组装前，使用基于 CNC 的铣削工艺来实现精确的榫卯、光滑的轮廓和可重复的零件几何形状。" },
+        automation: { title: "生产自动化", desc: "在机械加工和涂装阶段应用选择性自动化，以提高一致性和产量，同时保持定制和混合订单生产的灵活性。" },
+        finishing: { title: "手工涂装", desc: "在需要的地方进行手工打磨和涂装，以完善受益于人工检查和调整的表面、边缘和过渡部分。" },
+        qc: { title: "质量控制", desc: "质量检查贯穿于关键生产阶段，包括材料进料、机械加工、涂装和最终检验，以支持耐用性和视觉一致性。" }
+      },
+      journey: "发展历程",
+      milestones: {
+        2014: { 
+          title: "PZ 起源", 
+          desc: "成立于广东东莞。旅程始于对纯实木工艺的专注。" 
+        },
+        2018: { 
+          title: "能力扩展", 
+          desc: "将制造业务从东莞迁至肇庆以扩大产能，同时启用洛杉矶仓库用于美国履行。" 
+        },
+        2021: { 
+          title: "供应链与风险工程", 
+          desc: "在西哈努克开设了我们的第一家海外工厂，以构建低关税生产路径。这使我们能够在中国以外测试跨境供应链控制、劳动力培训和质量一致性。" 
+        },
+        2024: { 
+          title: "制造系统升级", 
+          desc: "肇庆总部扩建，专注于自动化和工艺稳定性。投资于先进的涂装线、受控环境和可重复生产系统，以减少规模化生产中的变异。" 
+        },
+        2025: { 
+          title: "中国 + 1 战略", 
+          desc: "战略性地重新进入柬埔寨，建立中国 + 1 制造结构。通过在中国和东南亚运营并行生产系统，PZ 被设计为能够适应全球政策转变、关税变化和供应链不确定性——而不牺牲质量或交付可靠性。" 
+        }
+      }
+    },
+    manufacturing: {
+      title: "工程化制造系统",
+      subtitle: "工业的艺术",
+      intro: "我们设计并运营着优先考虑精度、可重复性和规模化产出的集成制造系统——专为长生产运行和复杂的实木项目而构建。",
+      tabs: {
+        process: "生产流程",
+        machinery: "机械与技术",
+        qc: "质量控制"
+      },
+      machinery: {
+        title: "设计带来的一致性",
+        desc: "我们的制造基础设施旨在最大限度地减少跨材料、工艺和生产量的变异。通过结合 CNC 机械加工、自动涂装工作流程和严格控制的环境条件，我们确保标准化项目和设计驱动型组件的稳定产出。",
+        highPrecision: "高精度铣削",
+        autoFinish: "自动化涂装",
+        climate: "受控基础设施"
+      },
+      qc: {
+        title: "严格的标准",
+        desc: "质量不是事后诸葛亮；它嵌入在每一步中。我们遵循严格的 AQL 标准和美国合规性法规。",
+        iqc: "进料检验 (IQC)",
+        iqcDesc: "板材分级、含水率检查 (8-12%) 和五金验证。",
+        ipqc: "制程检验 (IPQC)",
+        ipqcDesc: "首件检查、CNC 尺寸检查和打磨质量审查。",
+        fqc: "最终检验 (FQC)",
+        fqcDesc: "基于 AQL 2.5/4.0 的装运前检查。组装测试和纸箱跌落测试。",
+        compliance: "合规性"
+      },
+      steps: [
+        { title: "木材精选与含水率控制", desc: "入厂木材经过结构完整性和纹理一致性分级。通过受控干燥稳定含水率，确保长期尺寸稳定性。" },
+        { title: "板材拼接与结构粘合", desc: "通过受控的配色和高强度粘合系统设计拼板和多层实木，确保应力分布均匀和耐用性。" },
+        { title: "精密 CNC 加工", desc: "数字化编程的加工流程执行复杂的榫卯和成型操作，具有严格的尺寸控制和可重复的精度。" },
+        { title: "表面处理与涂装", desc: "表面处理和涂装工艺旨在确保生产批次间的纹理一致性、颜色稳定性和涂层性能。" },
+        { title: "组装与最终集成", desc: "使用现代粘合剂和五金系统增强的工程榫卯方法组装组件，以实现结构可靠性和可维修性。" },
+        { title: "质量控制与包装", desc: "每个成品单元都要经过结构、尺寸和美学标准的最终检查。包装系统旨在保护产品经受长途物流。" }
+      ],
+      machineryList: [
+        { name: "CNC 加工系统", type: "加工", desc: "支持复杂 3D 成型、精密榫卯和可重复尺寸控制的多轴 CNC 路由平台。" },
+        { name: "型材铣削", type: "铣削", desc: "高速线条和型材系统，用于在长生产运行中保持一致的边缘几何形状和表面清晰度。" },
+        { name: "自动表面涂装", type: "涂装", desc: "集成喷涂、受控干燥和固化工艺的连续涂装线，以获得均匀的表面质量。" },
+        { name: "精密砂光与定厚", type: "砂光", desc: "自动砂光和表面校准系统，确保涂装前的厚度精度和表面准备。" },
+        { name: "板材粘合与组装", type: "组装", desc: "专为层压板和混合材料组件的结构稳定性而设计的工程粘合和压制系统。" },
+        { name: "集中式设施系统", type: "基础设施", desc: "全厂除尘、空气过滤和环境控制基础设施，支持工艺一致性和操作员安全。" }
+      ]
+    },
+    capabilities: {
+      title: "技术能力",
+      subtitle: "工程化您的愿景",
+      intro: "制造不仅仅是执行；它是关于解决问题。我们的工程团队与您的设计师在上游合作，以确许可行性、成本效益和结构完整性。",
+      categories: "产品类别",
+      productCats: [
+        { name: "休闲椅", desc: "实木框架，复杂榫卯，软包。" },
+        { name: "吧椅", desc: "柜台和吧台高度，旋转机制，金属脚踏。" },
+        { name: "柜类家具", desc: "餐边柜，电视柜，软关合五金。" },
+        { name: "餐桌台面", desc: "实木，多层拼板，自然边加工。" },
+        { name: "工作台面", desc: "办公桌，可调节高度台面，工作台。" },
+        { name: "酒店家具", desc: "客房 FF&E，大堂座椅，高流量饰面。" },
+        { name: "定制项目", desc: "定制规格，混合材料（石材/金属）。" }
+      ],
+      limits: {
+        title: "尺寸与技术限制",
+        subtitle: "标准生产线的工程约束。",
+        request: "请求定制评估",
+        maxDim: "最大尺寸",
+        precision: "精度",
+        materials: "材料",
+        length: "长度",
+        width: "宽度",
+        thickness: "厚度",
+        cncTol: "CNC 公差",
+        moisture: "含水率",
+        gloss: "光泽度",
+        solidWood: "实木",
+        veneer: "木皮",
+        mixed: "混合 (金属/石材)"
+      },
+      oem: {
+        service: "服务模式",
+        title: "OEM 和 ODM 服务",
+        desc: "无论您是有准备好制造的完整 CAD 图纸 (OEM)，还是需要我们从概念草图开发产品 (ODM)，我们的工程团队都会融入到流程中。",
+        oemTitle: "OEM (按图制造)",
+        oemDesc: "精确执行您的技术图纸。材料匹配和严格的公差遵守。",
+        odmTitle: "ODM (设计支持)",
+        odmDesc: "我们提供结构工程、价值工程和原型制作来实现您的愿景。"
+      },
+      compliance: {
+        title: "技术合规",
+        desc: "我们确保所有产品符合目的地市场的监管标准，特别关注美国和欧盟市场。",
+        safety: "化学安全",
+        safetyDesc: "TSCA Title VI (甲醛), CA Prop 65 合规。",
+        sustain: "可持续性",
+        sustainDesc: "可应要求提供 FSC 认证板材。符合 EUTR 采购标准。",
+        pack: "包装",
+        packDesc: "适用于电商耐用性的 ISTA-3A / 6A 测试。"
+      },
+      cta: {
+        title: "有定制项目？",
+        btn: "开始开发"
+      }
+    },
+    collections: {
+      title: "系列与能力",
+      intro: "按制造学科分类。我们专注于住宅和商业应用的纯实木制造。",
+      collection: "系列",
+      viewProducts: "查看产品",
+      overview: "概览",
+      needCatalog: "需要目录？",
+      catalogDesc: "下载此系列的完整 PDF 规格表。",
+      requestPdf: "请求 PDF",
+      availableSpecs: "可用规格",
+      viewOptions: "查看选项",
+      pdp: {
+        techDims: "技术尺寸",
+        drawingUnavailable: "无数字图纸",
+        ref: "编号",
+        matSelection: "材料选择",
+        inquireOrder: "咨询下单",
+        share: "分享产品",
+        description: "描述",
+        descExtra: "设计时考虑了耐用性和美学纯度。这件作品体现了我们对精密制造的承诺，利用了五轴 CNC 技术和传统榫卯。",
+        matConst: "材料与结构",
+        primaryWood: "主材",
+        finish: "涂装",
+        joinery: "榫卯",
+        hardware: "五金",
+        downloads: "下载",
+        specSheet: "产品规格表 (PDF)",
+        model3d: "3D 模型 (STEP)",
+        related: "相关产品",
+        viewDetails: "查看详情",
+        customSizes: "可定制尺寸"
+      }
+    },
+    materials: {
+      title: "材料与工艺",
+      construction: "结构方法与变体",
+      library: "木材库",
+      fingerJoint: "指接",
+      fingerJointDesc: "切入木块末端的互锁'手指'以延长长度。提供巨大的结构强度并最大化板材利用率。非常适合油漆框架和长台面。",
+      edgeGlue: "直拼 (全长板)",
+      edgeGlueDesc: "板条并排胶合，贯穿整件作品的长度。创造出连续、高级的纹理外观。首选用于高端餐桌和优质可见表面。",
+      butcherBlock: "多层实木拼板",
+      butcherBlockDesc: "厚木条胶合在一起。极其耐用和稳定。通常用于重型工作台、厨房岛台和工业风格台面。",
+      finishes: "涂装与规格",
+      moisture: "含水率",
+      moistureDesc: "所有板材在生产前均经过窑干 (KD) 至 8-10% 以防止翘曲和开裂。通过电子水分仪监控。",
+      pu: "PU 涂装",
+      puDesc: "聚氨酯涂层提供耐用、坚硬的外壳，防水、耐热、耐刮擦。非常适合餐桌。",
+      nc: "NC 涂装",
+      ncDesc: "硝基纤维素漆提供自然、薄膜般的外观，增强纹理深度。更易于修复，但耐水性较差。",
+      uv: "UV 涂装",
+      uvDesc: "用于大批量、即时固化生产线的紫外线固化涂料。极其一致且耐化学腐蚀。",
+      request: "索取样品",
+      requestDesc: "我们为开发团队提供物理木材和涂装样品。",
+      orderKit: "订购样品包",
+      species: {
+        oak: { name: "白橡木", desc: "耐用硬木，纹理清晰，稳定性极佳。" },
+        walnut: { name: "黑胡桃", desc: "色泽深沉丰富，具有天然奢华的饰面效果。" },
+        rubber: { name: "橡胶木", desc: "可持续硬木，纹理细腻均匀，环保采购。" },
+        ash: { name: "白蜡木", desc: "色调明亮，以强度、柔韧性和醒目的纹理著称。" },
+        beech: { name: "榉木", desc: "表面光滑，纹理细腻，适合弯曲结构和温暖自然的饰面。" },
+        maple: { name: "枫木", desc: "致密，质地光滑，具有干净的现代外观和出色的耐用性。" },
+        birch: { name: "桦木", desc: "色调明亮，纹理细腻均匀，成型性好，现代美感简洁。" },
+        teak: { name: "柚木", desc: "优质热带硬木，富含天然油脂，极其耐用，色泽金黄恒久。" },
+        acacia: { name: "相思木", desc: "耐用硬木，具有大胆的对比纹理和强烈的视觉特征。" },
+        bamboo: { name: "竹", desc: "可持续，生长迅速，硬度高，具有独特的线性纹理。" }
+      }
+    },
+    inquire: {
+      title: "开始对话",
+      desc: "无论您是寻找 ODM 合作伙伴的全球家具品牌，还是为商业项目指定产品的建筑师，我们都准备好执行您的愿景。",
+      trade: "贸易计划",
+      tradeDesc: "为室内设计师和建筑师提供的独家定价和定制能力。",
+      oem: "ODM / OEM 服务",
+      oemDesc: "零售品牌的全规模制造。适用最低订购量。",
+      catalog: "数字目录",
+      catalogDesc: "通过表格索取我们的综合规格指南。包括完整的材料库、榫卯细节和工厂能力。",
+      companyProfile: "公司简介",
+      profileDesc: "下载我们的综合能力声明和工厂概况 (PDF)。",
+      downloadPdf: "下载 PDF",
+      form: {
+        name: "姓名",
+        company: "公司",
+        email: "电子邮件地址",
+        type: "咨询类型",
+        message: "留言",
+        send: "发送咨询",
+        sending: "发送中...",
+        success: "谢谢",
+        successDesc: "您的咨询已收到。我们的团队将审核您的项目需求并尽快回复。",
+        again: "发送另一条消息"
+      },
+      types: {
+        general: "一般咨询",
+        catalog: "索取目录",
+        trade: "贸易计划申请",
+        oem: "ODM / OEM 合作伙伴"
+      }
+    },
+    capacity: {
+      footprint: "制造足迹",
+      title: "全球规模，本地精度",
+      desc: "PZ 运营着战略性的双岸制造网络。凭借在中国和柬埔寨的大规模设施，加上洛杉矶的国内仓库，我们提供了一个不受单点故障影响的弹性供应链。",
+      clientDist: "全球客户分布",
+      clientDesc: "我们服务于北美、欧洲和中东的客户，主要集中在美国和加拿大市场。",
+      stats: {
+        sqft: "总产能 (平方英尺)",
+        brands: "主要美国品牌",
+        units: "月产能 (件)",
+        logistics: "美国物流中心"
+      },
+      locations: {
+        cn_title: "肇庆总部",
+        cn_desc: "我们的主要园区专注于复杂的研发、混合材料制造和大师级工艺。我们的卓越工程中心。",
+        kh_title: "柬埔寨工厂",
+        kh_desc: "位于干拉省的战略性低关税制造中心，专为大批量生产和具有成本效益的可扩展性而定制。",
+        usa_title: "美国市场",
+        usa_desc: "我们最大的市场。我们通过直接集装箱计划和经由洛杉矶仓库的国内库存解决方案支持 30 多个主要美国品牌。",
+        can_title: "加拿大市场",
+        can_desc: "为加拿大零售商提供具有抗寒气候涂装和结构的优质实木家具。",
+        uk_title: "英国",
+        uk_desc: "出口符合英国标准的独特榫卯结构和符合阻燃标准的软体家具给英国分销商。",
+        de_title: "欧盟 (德国)",
+        de_desc: "满足挑剔的欧洲客户严格的欧盟可持续性 (EUTR) 和化学安全标准。",
+        me_title: "中东",
+        me_desc: "服务于该地区的豪华酒店项目和高端住宅开发。"
+      },
+      leadTime: "交货期概览",
+      sampleDev: "样品开发",
+      initProd: "初始生产",
+      reOrder: "返单生产",
+      leadTimeNote: "* 交货期可能因材料可用性和订单量而异。",
+      logisticsTitle: "物流与 FOB",
+      chinaOrigin: "中国原产",
+      khOrigin: "柬埔寨原产",
+      shippingDesc: "我们支持 FCL (整箱装载) 和 LCL 拼箱。可通过我们的美国仓库提供一件代发计划。",
+      supplyChain: "供应链解决方案",
+      supplyChainDesc: "我们不仅仅制造家具；我们交付家具。从东南亚的 FOB 制造到美国的最后一公里能力。",
+      flexible: "灵活出口",
+      flexibleDesc: "根据您的关税策略和交货期要求，在中国或柬埔寨原产地之间进行选择。",
+      warehouse: "美国仓库 (洛杉矶)",
+      warehouseDesc: "位于加利福尼亚州的 129,000 平方英尺设施，允许国内补货和一件代发计划。"
+    },
+    studio: {
+       title: "工作室",
+       subtitle: "设计与精密的交汇",
+       design: "设计",
+       designTitle: "建筑思维",
+       designDesc1: "我们不只是把家具看作物体，而是看作建筑元素。每一条曲线和接合都被深思熟虑。",
+       designDesc2: "我们的内部设计团队与全球合作伙伴协作，将草图变为现实。",
+       eng: "工程",
+       engTitle: "结构完整性",
+       engDesc: "美必须是耐用的。我们的工程流程确保了长寿命。",
+       raw: "原材料",
+       rawTitle: "精选优材",
+       rawDesc: "我们只从可持续森林采购最好的硬木。",
+       exploreMat: "探索材料"
+    },
+    admin: {
+      dashboard: "管理仪表盘",
+      openCreator: "打开创作者工作室",
+      viewSite: "查看站点",
+      logout: "登出",
+      inquiries: "咨询",
+      exportCsv: "导出 CSV",
+      noData: "未找到符合条件的咨询。",
+      loading: "加载数据中...",
+      cols: { date: "日期", name: "姓名", company: "公司", type: "类型", msg: "消息", status: "状态" }
+    },
+    creator: {
+      title: "创作者模式",
+      editing: "编辑中",
+      backAdmin: "返回管理后台",
+      tabs: { inventory: "库存", collections: "系列", config: "网站配置", media: "媒体", review: "审核队列", accounts: "账号管理", assets: "资产" },
+      status: { connected: "云配置已连接", local: "本地模式", syncing: "同步中..." },
+      inventory: {
+        manage: "库存管理",
+        desc: "搜索并管理您的产品库存。",
+        search: "搜索库存...",
+        noItems: "未找到项目",
+        duplicate: "复制 / 变体",
+        delete: "删除",
+        edit: "编辑",
+        header: "库存管理",
+        selectCat: "选择一个类别以管理现有产品或添加新产品。",
+        viewMaster: "查看总表",
+        backCategories: "返回类别",
+        emptyTitle: "此系列为空",
+        emptyDesc: "通过创建第一条产品记录来初始化您的库存。",
+        noMatchTitle: "未找到匹配项",
+        noMatchDesc: "我们无法找到符合您标准的产品。",
+        clearSearch: "清除搜索",
+        createNewAnyway: "无论如何新建",
+        createProduct: "创建产品"
+      },
+      form: {
+        edit: "编辑产品",
+        add: "添加新产品",
+        cancel: "取消",
+        status: "当前状态",
+        mainCat: "主分类",
+        subCat: "子分类",
+        create: "+ 新建",
+        cancelNew: "取消新建",
+        nameEn: "产品名称 (英文)",
+        nameZh: "产品名称 (辅助语言)",
+        specs: "规格参数",
+        material: "材质",
+        dims: "尺寸",
+        code: "产品编码",
+        autoGen: "生成",
+        descEn: "描述 (英文)",
+        descZh: "描述 (辅助语言)",
+        colors: "颜色变体",
+        addColor: "添加颜色",
+        gallery: "图库",
+        saveDraft: "保存草稿",
+        publish: "发布产品",
+        submit: "提交审核",
+        setDraft: "设为草稿",
+        forcePub: "强制发布",
+        update: "更新产品",
+        processing: "处理中...",
+        delete: "删除产品"
+      },
+      config: {
+        title: "网站配置",
+        desc: "管理全局内容和首图。",
+        discard: "丢弃",
+        publish: "发布更改",
+        publishing: "发布中...",
+        unsaved: "未保存的更改",
+        history: "版本历史",
+        active: "当前",
+        rollback: "回滚"
+      },
+      assets: {
+        title: "网站资产管理",
+        desc: "在此处管理静态网站图片和文件（目录 PDF、首图横幅、工厂图片等）。上传后点击“保存”以应用更改。",
+        history: "资产历史",
+        save: "保存更改",
+        cancel: "取消",
+        reset: "重置为默认"
+      }
+    },
+    siteConfig: {
+      sections: {
+        "Global Settings": "全局设置",
+        "Navigation Menu (Featured Images)": "导航菜单 (特色图片)",
+        "Home Page / Hero": "首页 / 首图",
+        "Home Page / Sections": "首页 / 版块",
+        "Home Page / Global Hubs": "首页 / 全球中心",
+        "The Studio Page": "工作室页面",
+        "About Page": "关于我们页面",
+        "Manufacturing Page": "生产制造页面",
+        "Global Capacity / Locations": "全球产能 / 地点",
+        "Materials / Construction": "材料 / 结构",
+        "Materials / Wood Library": "材料 / 木材库",
+      },
+      fields: {
+        "catalog.url": { label: "目录 PDF", help: "上传主产品目录 (PDF)。出现在产品案例和咨询页面。" },
+        "menu.feat_collections": { label: "产品案例菜单图片" },
+        "menu.feat_mfg": { label: "生产制造菜单图片" },
+        "menu.feat_capabilities": { label: "核心能力菜单图片" },
+        "menu.feat_default": { label: "默认菜单图片" },
+        "home.hero.title": { label: "首图标题" },
+        "home.hero.image": { label: "首图背景图片" },
+        "home.factory.image": { label: "工厂版块图片" },
+        "home.cta.image": { label: "页脚 CTA 背景" },
+        "home.hub_cn.image": { label: "中国中心图片" },
+        "home.hub_kh.image": { label: "柬埔寨中心图片" },
+        "studio.hero": { label: "工作室首图图片" },
+        "studio.design": { label: "设计版块图片" },
+        "about.banner": { label: "主电影感横幅" },
+        "about.gallery.raw": { label: "图库：原木" },
+        "about.gallery.milling": { label: "图库：精密铣削" },
+        "about.gallery.automation": { label: "图库：自动化" },
+        "about.gallery.finishing": { label: "图库：手工涂装" },
+        "about.gallery.qc": { label: "图库：质量控制" },
+        "manufacturing.hero_machinery": { label: "机械首图" },
+        "manufacturing.hero_qc": { label: "质检/实验室首图" },
+        "capacity.map_bg": { label: "世界地图背景" },
+        "capacity.card_cn": { label: "中国总部卡片" },
+        "capacity.card_kh": { label: "柬埔寨工厂卡片" },
+        "capacity.loc_usa": { label: "地点：美国" },
+        "capacity.loc_can": { label: "地点：加拿大" },
+        "capacity.loc_uk": { label: "地点：英国" },
+        "capacity.loc_de": { label: "地点：德国" },
+        "capacity.loc_me": { label: "地点：中东" },
+        "materials.const_finger": { label: "指接" },
+        "materials.const_edge": { label: "直拼" },
+        "materials.const_butcher": { label: "多层拼板" },
+        "materials.wood_oak": { label: "白橡木" },
+        "materials.wood_walnut": { label: "黑胡桃" },
+        "materials.wood_rubber": { label: "橡胶木" },
+        "materials.wood_ash": { label: "白蜡木" },
+        "materials.wood_beech": { label: "榉木" },
+        "materials.wood_maple": { label: "枫木" },
+        "materials.wood_teak": { label: "柚木" },
+        "materials.wood_acacia": { label: "相思木" },
+        "materials.wood_birch": { label: "桦木" },
+        "materials.wood_bamboo": { label: "竹" }
+      }
+    }
   }
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  // Always English
-  const [language, setLanguage] = useState<Language>('en');
+  // Use state to manage language, initialize from localStorage if available
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('pz_lang');
+    return (saved === 'en' || saved === 'zh') ? saved : 'en';
+  });
+
+  const toggleLanguage = () => {
+    setLanguage(prev => {
+      const next = prev === 'en' ? 'zh' : 'en';
+      localStorage.setItem('pz_lang', next);
+      return next;
+    });
+  };
 
   const value = {
     language,
-    setLanguage: () => {}, // No-op, force English
-    t: translations['en']
+    setLanguage,
+    toggleLanguage,
+    t: translations[language]
   };
 
   return (

@@ -4,6 +4,7 @@ import { ProductVariant, Category } from '../../../types';
 import { Save, X, Shuffle, Tag, Ruler, Box, Lock, Send, Clock, CheckCircle, Ban } from 'lucide-react';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface ProductFormProps {
   initialData: Partial<ProductVariant>;
@@ -12,55 +13,14 @@ interface ProductFormProps {
   onCancel: () => void;
   fixedCategoryId?: string;
   userRole: 'ADMIN' | 'FACTORY';
-  lang: 'en' | 'zh'; // New Prop
+  lang: 'en' | 'zh'; 
 }
 
-// Simple Labels Map
-const LABELS = {
-  en: {
-    status: "Current Status",
-    edit: "Edit Product",
-    add: "Add New Product",
-    mainCat: "Main Category",
-    selectCat: "Select Category...",
-    nameEn: "Product Name (EN)",
-    descEn: "Description (EN)",
-    specs: "Specifications",
-    material: "Material",
-    dims: "Dimensions",
-    code: "Product Code",
-    timeline: "Audit Timeline",
-    cancel: "Cancel",
-    processing: "Processing...",
-    publish: "Publish Changes",
-    submit: "Submit for Review",
-    setDraft: "Set Draft",
-    forcePub: "Force Publish"
-  },
-  zh: {
-    status: "当前状态",
-    edit: "编辑产品",
-    add: "添加新产品",
-    mainCat: "主分类",
-    selectCat: "选择分类...",
-    nameEn: "产品名称 (英文)",
-    descEn: "产品描述 (英文)",
-    specs: "规格参数",
-    material: "材质",
-    dims: "尺寸 (mm)",
-    code: "产品编码",
-    timeline: "审计时间轴",
-    cancel: "取消",
-    processing: "处理中...",
-    publish: "发布更改",
-    submit: "提交审核",
-    setDraft: "设为草稿",
-    forcePub: "强制发布"
-  }
-};
-
 const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel, fixedCategoryId, userRole, lang }) => {
-  const txt = LABELS[lang];
+  // Use global translation context
+  const { t } = useLanguage();
+  const txt = t.creator.form;
+
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const editingId = initialData.id;
@@ -174,7 +134,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                     onChange={e => handleChange('category', e.target.value)}
                                     className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm appearance-none"
                                 >
-                                    <option value="">{txt.selectCat}</option>
+                                    <option value="">{t.creator.inventory.selectCat}</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                 </select>
                             )}
@@ -262,7 +222,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 {/* IMAGES */}
                 <div>
                    <PZImageManager 
-                     label="Gallery / 图片库"
+                     label={txt.gallery}
                      images={formData.images || []}
                      onUpdate={(imgs) => {
                        setFormData(prev => ({ 
