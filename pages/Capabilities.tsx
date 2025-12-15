@@ -5,24 +5,17 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Link } from 'react-router-dom';
 
 const Capabilities: React.FC = () => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   const productCats = [
-    { name: "Accent Chairs", name_zh: "休閒椅", icon: <Armchair size={28}/>, desc: "Solid wood frames, complex joinery, upholstery.", desc_zh: "實木框架，複雜榫卯，軟包。" },
-    { name: "Bar Stools", name_zh: "吧台椅", icon: <ArrowUpRight size={28}/>, desc: "Counter and bar height, swivel mechanisms, metal footrests.", desc_zh: "吧台/櫃台高度，旋轉機制，金屬腳踏。" },
-    { name: "Cabinets and Casegoods", name_zh: "櫃類 & 箱體家具", icon: <BoxSelect size={28}/>, desc: "Sideboards, media consoles, soft-close hardware.", desc_zh: "餐邊櫃，電視櫃，緩衝五金。" },
-    { name: "Dining Tops", name_zh: "餐桌檯面", icon: <Table size={28}/>, desc: "Solid wood, butcher block, live-edge processing.", desc_zh: "實木，層壓木，自然邊工藝。" },
-    { name: "Work Surfaces", name_zh: "工作檯面", icon: <Ruler size={28}/>, desc: "Office desks, adjustable height tops, workbenches.", desc_zh: "辦公桌，升降桌檯面，工作台。" },
-    { name: "Hotel Furniture", name_zh: "酒店家具", icon: <Briefcase size={28}/>, desc: "Guest room FF&E, lobby seating, high-traffic finishes.", desc_zh: "客房 FF&E，大堂座椅，耐磨塗裝。" },
-    { name: "Custom Projects", name_zh: "定制項目", icon: <PenTool size={28}/>, desc: "Bespoke specifications, mixed materials (stone/metal).", desc_zh: "定制規格，混合材質（石材/金屬）。" },
+    { name: "Accent Chairs", icon: <Armchair size={28}/>, desc: "Solid wood frames, complex joinery, upholstery." },
+    { name: "Bar Stools", icon: <ArrowUpRight size={28}/>, desc: "Counter and bar height, swivel mechanisms, metal footrests." },
+    { name: "Cabinets and Casegoods", icon: <BoxSelect size={28}/>, desc: "Sideboards, media consoles, soft-close hardware." },
+    { name: "Dining Tops", icon: <Table size={28}/>, desc: "Solid wood, butcher block, live-edge processing." },
+    { name: "Work Surfaces", icon: <Ruler size={28}/>, desc: "Office desks, adjustable height tops, workbenches." },
+    { name: "Hotel Furniture", icon: <Briefcase size={28}/>, desc: "Guest room FF&E, lobby seating, high-traffic finishes." },
+    { name: "Custom Projects", icon: <PenTool size={28}/>, desc: "Bespoke specifications, mixed materials (stone/metal)." },
   ];
-
-  const getStr = (obj: any, key: string) => {
-    if (language === 'zh' && obj[`${key}_zh`]) {
-        return obj[`${key}_zh`];
-    }
-    return obj[key];
-  };
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
@@ -60,10 +53,10 @@ const Capabilities: React.FC = () => {
                     <div key={idx} className="bg-white p-8 border-t-4 border-stone-100 hover:border-amber-700 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between min-h-[240px]">
                         <div>
                             <div className="text-stone-300 group-hover:text-amber-700 mb-6 transition-colors">{cat.icon}</div>
-                            <h4 className="font-serif text-stone-900 mb-3 text-xl leading-tight">{getStr(cat, 'name')}</h4>
+                            <h4 className="font-serif text-stone-900 mb-3 text-xl leading-tight">{cat.name}</h4>
                         </div>
                         <p className="text-sm text-stone-500 leading-relaxed font-medium pt-4 border-t border-stone-50 group-hover:border-stone-100 transition-colors">
-                            {getStr(cat, 'desc')}
+                            {cat.desc}
                         </p>
                     </div>
                 ))}

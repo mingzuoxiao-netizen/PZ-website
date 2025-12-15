@@ -18,8 +18,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setError(false);
 
     try {
-      // Submit password to backend for verification
-      const response = await fetch(`${ADMIN_API_BASE}/admin/login`, {
+      // UPDATED: Use the /admin/login-db endpoint as requested
+      const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -34,7 +34,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       const data = await response.json();
 
       if (data.token) {
-        // Store the token received from the backend
+        // Store the token received from the backend (dev-token-xxx)
         sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
         onLoginSuccess();
       } else {

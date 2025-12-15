@@ -20,7 +20,7 @@ import AccountsManager from './components/AccountsManager'; // New Import
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // State
@@ -235,15 +235,6 @@ const CreatorPortal: React.FC = () => {
              {/* New Accounts Tab Button */}
              <button onClick={() => setActiveTab('accounts')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'accounts' ? 'text-amber-700' : 'text-stone-400'}`}>
                 Accounts
-             </button>
-
-             {/* Language Switcher */}
-             <div className="h-4 w-[1px] bg-stone-200 mx-2 hidden md:block"></div>
-             <button 
-                onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
-                className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors border border-stone-200 px-3 py-1 rounded-sm hover:border-stone-400"
-             >
-                {language === 'en' ? 'EN / 中' : '中 / EN'}
              </button>
           </div>
        </div>

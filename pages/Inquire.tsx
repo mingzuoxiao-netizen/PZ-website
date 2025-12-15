@@ -15,7 +15,7 @@ declare global {
 
 const Inquire: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
 
   const getSafeCurrentUrl = () => {
@@ -76,7 +76,7 @@ const Inquire: React.FC = () => {
             },
             'expired-callback': () => {
               setTurnstileToken('');
-              setError(language === 'zh' ? '安全验证已过期，请重新验证。' : 'Security check expired. Please verify again.');
+              setError('Security check expired. Please verify again.');
             },
             'error-callback': (err: any) => console.warn('[Turnstile] Widget error:', err)
           });
@@ -97,7 +97,7 @@ const Inquire: React.FC = () => {
       }, 200);
       return () => clearInterval(interval);
     }
-  }, [language]);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -110,7 +110,7 @@ const Inquire: React.FC = () => {
     setError('');
 
     if (!turnstileToken) {
-      setError(language === 'zh' ? '正在进行安全验证，请稍候再试。' : 'Security verification in progress, please try again in a moment.');
+      setError('Security verification in progress, please try again in a moment.');
       if(window.turnstile) { try { window.turnstile.reset(); } catch(e) {} }
       setLoading(false);
       return;
@@ -152,7 +152,7 @@ const Inquire: React.FC = () => {
       setSubmitted(true);
     } catch (err) {
       console.error('Error submitting inquiry:', err);
-      setError(language === 'zh' ? '发送失败，请稍后重试或直接联系我们。' : 'There was a problem sending your inquiry. Please try again or contact us directly.');
+      setError('There was a problem sending your inquiry. Please try again or contact us directly.');
       if (typeof window !== 'undefined' && window.turnstile) { try { window.turnstile.reset(); } catch {} }
       setTurnstileToken('');
     } finally {

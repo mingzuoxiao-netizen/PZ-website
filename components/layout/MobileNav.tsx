@@ -11,11 +11,7 @@ interface MobileNavProps {
 }
 
 const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
-  const { t, language, setLanguage } = useLanguage();
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
+  const { t } = useLanguage();
 
   return (
     <>
@@ -58,14 +54,6 @@ const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
               {/* Updated to match Desktop Nav 'Inquire' */}
               {t.nav.header.inquire}
             </Link>
-
-            {/* Language Switcher */}
-            <button
-              onClick={toggleLanguage}
-              className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors py-2"
-            >
-              {language === 'en' ? 'Switch to Chinese' : 'Switch to English'}
-            </button>
           </div>
         </nav>
       </div>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Inquiry } from '../types';
-import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, PenTool, Globe } from 'lucide-react';
+import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, PenTool } from 'lucide-react';
 import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -49,7 +49,7 @@ type SortConfig = {
 } | null;
 
 const AdminDashboard: React.FC = () => {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -177,10 +177,6 @@ const AdminDashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
-
   const SortIcon = ({ columnKey }: { columnKey: keyof Inquiry }) => {
     if (sortConfig?.key !== columnKey) return <ArrowUpDown size={14} className="ml-1 text-stone-300" />;
     return sortConfig.direction === 'asc' 
@@ -195,14 +191,6 @@ const AdminDashboard: React.FC = () => {
           <h1 className="font-serif text-3xl text-stone-900">{t.admin.dashboard}</h1>
           <div className="flex items-center space-x-6 flex-wrap gap-y-4">
             
-            <button
-              onClick={toggleLanguage}
-              className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors border border-stone-200 px-3 py-1.5 rounded-sm hover:border-stone-400 flex items-center bg-white"
-            >
-              <Globe size={12} className="mr-2" />
-              {language === 'en' ? 'EN / 中' : '中 / EN'}
-            </button>
-
             <Link
                 to="/creator"
                 className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 transition-colors rounded-sm flex items-center shadow-lg"

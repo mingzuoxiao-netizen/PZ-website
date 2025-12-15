@@ -24,7 +24,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { meta } = usePublishedSiteConfig();
 
   // Scroll Detection
@@ -85,10 +85,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return 'bg-transparent border-b border-white/10';
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'zh' : 'en');
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 font-sans transition-colors duration-500">
       
@@ -122,13 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center space-x-6 z-50">
-            {/* Language Switcher */}
-            <button
-              onClick={toggleLanguage}
-              className={`hidden lg:block text-sm font-bold uppercase tracking-widest transition-colors duration-300 ${navTextColor} hover:text-safety-700`}
-            >
-              {language === 'en' ? 'EN / 中' : '中 / EN'}
-            </button>
+            {/* Removed Language Switcher */}
 
             {/* Search Toggle */}
             <button

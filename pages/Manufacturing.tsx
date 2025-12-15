@@ -5,112 +5,75 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 const Manufacturing: React.FC = () => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'process' | 'machinery' | 'qc'>('process');
   const { config } = usePublishedSiteConfig();
 
   const processes = [
     {
       title: "Lumber Selection & Moisture Control",
-      title_zh: "木材筛选與含水率控制",
       icon: <Layers size={24} />,
-      desc: "Incoming lumber is graded for structural integrity and grain consistency. Moisture levels are stabilized through controlled drying to ensure long-term dimensional stability.",
-      desc_zh: "對來料木材進行結構強度與紋理一致性篩選，通過受控乾燥穩定含水率，確保長期尺寸穩定性。"
+      desc: "Incoming lumber is graded for structural integrity and grain consistency. Moisture levels are stabilized through controlled drying to ensure long-term dimensional stability."
     },
     {
       title: "Panel Jointing & Structural Bonding",
-      title_zh: "拼板與結構膠合",
       icon: <Hammer size={24} />,
-      desc: "Panels and butcher blocks are engineered through controlled color matching and high-strength bonding systems to ensure uniform stress distribution and durability.",
-      desc_zh: "通過色澤匹配與高強度結構膠合工藝，對板材進行工程化處理，確保受力均勻與整體耐久性。"
+      desc: "Panels and butcher blocks are engineered through controlled color matching and high-strength bonding systems to ensure uniform stress distribution and durability."
     },
     {
       title: "Precision CNC Machining",
-      title_zh: "高精度數控加工",
       icon: <Cpu size={24} />,
-      desc: "Digitally programmed machining workflows execute complex joinery and shaping operations with tight dimensional control and repeatable accuracy.",
-      desc_zh: "採用數字化編程的數控加工流程，實現複雜榫卯與造型加工，確保尺寸精度與批量一致性。"
+      desc: "Digitally programmed machining workflows execute complex joinery and shaping operations with tight dimensional control and repeatable accuracy."
     },
     {
       title: "Surface Preparation & Finishing",
-      title_zh: "表面處理與塗裝",
       icon: <Layers size={24} />,
-      desc: "Surface preparation and finishing processes are engineered for consistent texture, color stability, and coating performance across production runs.",
-      desc_zh: "通過系統化的表面處理與塗裝流程，確保產品在不同批次中保持一致的手感、色澤與塗層性能。"
+      desc: "Surface preparation and finishing processes are engineered for consistent texture, color stability, and coating performance across production runs."
     },
     {
       title: "Assembly & Final Integration",
-      title_zh: "組裝與整體集成",
       icon: <Settings size={24} />,
-      desc: "Components are assembled using engineered joinery methods reinforced with modern adhesives and hardware systems for structural reliability and serviceability.",
-      desc_zh: "採用工程化榫卯結構，並結合現代膠合與五金系統完成組裝，兼顧結構可靠性與後期維護需求。"
+      desc: "Components are assembled using engineered joinery methods reinforced with modern adhesives and hardware systems for structural reliability and serviceability."
     },
     {
       title: "Quality Control & Packaging",
-      title_zh: "質量控制與包裝",
       icon: <Package size={24} />,
-      desc: "Each finished unit undergoes final inspection against structural, dimensional, and aesthetic standards. Packaging systems are designed to protect products through long-distance logistics.",
-      desc_zh: "所有成品均經過結構、尺寸與外觀的最終檢驗，包裝系統針對長途運輸與終端交付進行防護設計。"
+      desc: "Each finished unit undergoes final inspection against structural, dimensional, and aesthetic standards. Packaging systems are designed to protect products through long-distance logistics."
     },
   ];
 
   const machinery = [
     { 
       name: "CNC MACHINING SYSTEMS", 
-      name_zh: "CNC 加工系統",
       type: "Processing", 
-      type_zh: "加工", 
-      desc: "Multi-axis CNC routing platforms supporting complex 3D shaping, precision joinery, and repeatable dimensional control.", 
-      desc_zh: "多軸 CNC 路由平台，支持複雜的 3D 成型、精密榫卯和可重複的尺寸控制。" 
+      desc: "Multi-axis CNC routing platforms supporting complex 3D shaping, precision joinery, and repeatable dimensional control." 
     },
     { 
       name: "PROFILE MILLING", 
-      name_zh: "型材銑削",
       type: "Milling", 
-      type_zh: "銑削", 
-      desc: "High-speed moulding and profiling systems for consistent edge geometry and surface definition across long production runs.", 
-      desc_zh: "高速成型和輪廓系統，用於在長期生產運行中保持一致的邊緣幾何形狀和表面清晰度。" 
+      desc: "High-speed moulding and profiling systems for consistent edge geometry and surface definition across long production runs." 
     },
     { 
       name: "AUTOMATED SURFACE FINISHING", 
-      name_zh: "自動化表面塗裝",
       type: "Finishing", 
-      type_zh: "塗裝", 
-      desc: "Continuous finishing lines integrating spray application, controlled drying, and curing processes for uniform surface quality.", 
-      desc_zh: "集成噴塗、受控乾燥和固化工藝的連續塗裝線，以獲得均勻的表面質量。" 
+      desc: "Continuous finishing lines integrating spray application, controlled drying, and curing processes for uniform surface quality." 
     },
     { 
       name: "PRECISION SANDING & CALIBRATION", 
-      name_zh: "精密砂光與定厚",
       type: "Sanding", 
-      type_zh: "砂光", 
-      desc: "Automated sanding and surface calibration systems ensuring thickness accuracy and finish readiness prior to coating.", 
-      desc_zh: "自動砂光和表面定厚系統，確保塗裝前的厚度精度和表面準備。" 
+      desc: "Automated sanding and surface calibration systems ensuring thickness accuracy and finish readiness prior to coating." 
     },
     { 
       name: "PANEL BONDING & ASSEMBLY", 
-      name_zh: "板材拼合與組裝",
       type: "Assembly", 
-      type_zh: "組裝", 
-      desc: "Engineered bonding and pressing systems designed for structural stability in laminated panels and mixed-material assemblies.", 
-      desc_zh: "工程化的粘合和壓制系統，專為層壓板和混合材料組件的結構穩定性而設計。" 
+      desc: "Engineered bonding and pressing systems designed for structural stability in laminated panels and mixed-material assemblies." 
     },
     { 
       name: "CENTRALIZED FACILITY SYSTEMS", 
-      name_zh: "中央設施系統",
       type: "Infrastructure", 
-      type_zh: "基礎設施", 
-      desc: "Plant-wide dust extraction, air filtration, and environmental control infrastructure supporting process consistency and operator safety.", 
-      desc_zh: "全廠除塵、空氣過濾和環境控制基礎設施，支持工藝一致性和操作員安全。" 
+      desc: "Plant-wide dust extraction, air filtration, and environmental control infrastructure supporting process consistency and operator safety." 
     }
   ];
-
-  const getStr = (obj: any, key: string) => {
-    if (language === 'zh' && obj[`${key}_zh`]) {
-      return obj[`${key}_zh`];
-    }
-    return obj[key];
-  };
 
   /* --- REUSABLE COMPONENT BLOCKS --- */
 
@@ -125,9 +88,9 @@ const Manufacturing: React.FC = () => {
                      {proc.icon}
                   </div>
                </div>
-               <h3 className="font-bold text-lg text-stone-900 mb-3 uppercase tracking-wide">{getStr(proc, 'title')}</h3>
+               <h3 className="font-bold text-lg text-stone-900 mb-3 uppercase tracking-wide">{proc.title}</h3>
                <p className="text-stone-500 text-sm leading-relaxed">
-                  {getStr(proc, 'desc')}
+                  {proc.desc}
                </p>
             </div>
           ))}
@@ -172,9 +135,9 @@ const Manufacturing: React.FC = () => {
        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {machinery.map((m, idx) => (
              <div key={idx} className="bg-stone-800/50 border border-stone-700 p-8 hover:bg-stone-800 transition-colors group">
-                <div className="text-[10px] font-mono text-amber-500 mb-2 tracking-widest uppercase">{getStr(m, 'type')}</div>
-                <h4 className="text-white font-bold text-lg mb-3">{getStr(m, 'name')}</h4>
-                <p className="text-stone-400 text-sm leading-relaxed">{getStr(m, 'desc')}</p>
+                <div className="text-[10px] font-mono text-amber-500 mb-2 tracking-widest uppercase">{m.type}</div>
+                <h4 className="text-white font-bold text-lg mb-3">{m.name}</h4>
+                <p className="text-stone-400 text-sm leading-relaxed">{m.desc}</p>
              </div>
           ))}
        </div>

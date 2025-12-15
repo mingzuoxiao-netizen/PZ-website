@@ -11,7 +11,7 @@ import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 
 const Portfolio: React.FC = () => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { config } = usePublishedSiteConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -149,8 +149,8 @@ const Portfolio: React.FC = () => {
 
   const getProductDisplay = (product: ProductVariant | null) => {
     if (!product) return { name: '', desc: '', size: '' };
-    const name = language === 'zh' ? (product.name_cn || product.name) : product.name;
-    const desc = language === 'zh' ? (product.description_cn || product.description) : product.description;
+    const name = product.name;
+    const desc = product.description;
     const size = product.size || t.collections.pdp.customSizes;
     return { name, desc, size };
   };
