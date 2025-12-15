@@ -9,9 +9,10 @@ interface CategoryGridProps {
   products: ProductVariant[];
   onSelectCategory: (categoryId: string) => void;
   onSelectAll: () => void;
+  onCreateCategory?: () => void; // New prop for creating category
 }
 
-const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll }) => {
+const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll, onCreateCategory }) => {
   const { t } = useLanguage();
   
   // Helper to count items per category
@@ -26,6 +27,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
             <h2 className="font-serif text-3xl text-stone-900 mb-2">{t.creator.inventory.header}</h2>
             <p className="text-stone-500 text-sm">{t.creator.inventory.selectCat}</p>
         </div>
+        {/* 'View Master List' Button moved to header for access */}
         <button 
             onClick={onSelectAll}
             className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest flex items-center transition-colors"
@@ -65,16 +67,16 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
           );
         })}
 
-        {/* Master View Card */}
+        {/* New Action Card: Create Category */}
         <div 
-            onClick={onSelectAll}
-            className="group bg-stone-50 border-2 border-dashed border-stone-300 hover:border-stone-400 transition-all cursor-pointer flex flex-col items-center justify-center p-8 min-h-[220px]"
+            onClick={onCreateCategory}
+            className="group bg-stone-50 border-2 border-dashed border-stone-300 hover:border-amber-500 hover:bg-amber-50/30 transition-all cursor-pointer flex flex-col items-center justify-center p-8 min-h-[220px]"
         >
-            <div className="bg-white p-4 rounded-full mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                <Package size={24} className="text-stone-400" />
+            <div className="bg-white p-4 rounded-full mb-4 shadow-sm group-hover:scale-110 transition-transform group-hover:text-amber-600">
+                <Plus size={24} className="text-stone-400 group-hover:text-amber-600 transition-colors" />
             </div>
-            <h3 className="font-bold text-stone-600 uppercase tracking-widest text-sm mb-1">{t.creator.inventory.viewMaster}</h3>
-            <p className="text-stone-400 text-xs">View all {products.length} items</p>
+            <h3 className="font-bold text-stone-600 group-hover:text-amber-700 uppercase tracking-widest text-sm mb-1 transition-colors">Create New Collection</h3>
+            <p className="text-stone-400 text-xs group-hover:text-amber-600/60 transition-colors">Add category</p>
         </div>
       </div>
     </div>

@@ -15,7 +15,8 @@ import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import PageAssets from './components/PageAssets';
 import CategoryGrid from './components/CategoryGrid';
-import CollectionManager from './components/CollectionManager'; // Imported CollectionManager
+import CollectionManager from './components/CollectionManager';
+import AccountsManager from './components/AccountsManager'; // New Import
 import { DEFAULT_ASSETS } from '../../utils/assets';
 
 const CreatorPortal: React.FC = () => {
@@ -23,8 +24,8 @@ const CreatorPortal: React.FC = () => {
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // State
-  // Added 'collections' to allowed tabs
-  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets' | 'collections'>('inventory');
+  // Added 'accounts' to allowed tabs
+  const [activeTab, setActiveTab] = useState<'inventory' | 'config' | 'assets' | 'collections' | 'accounts'>('inventory');
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
   
   // Inventory UX State
@@ -124,12 +125,18 @@ const CreatorPortal: React.FC = () => {
   };
 
   const handleSaveConfig = async () => {
-    if (!siteConfig) return;
+    // 🛡️ SAFETY FUSE: Validate before network call
+    if (!siteConfig || typeof siteConfig !== 'object') {
+        alert('Config invalid, abort publish');
+        return;
+    }
+
     setSavingConfig(true);
     try {
+      // ✅ Fix: Wrapped in { config: ... }
       await adminFetch('/site-config', {
         method: 'POST',
-        body: JSON.stringify(siteConfig)
+        body: JSON.stringify({ config: siteConfig })
       });
       refresh(); 
       loadData(); 
@@ -156,12 +163,19 @@ const CreatorPortal: React.FC = () => {
       const newConfig = { ...siteConfig, categories: newCategories };
       setSiteConfig(newConfig);
 
+      // 🛡️ SAFETY FUSE: Validate payload structure
+      if (!newConfig || typeof newConfig !== 'object') {
+          alert('Config invalid, abort publish');
+          return;
+      }
+
       // Auto-save to cloud
       setSavingConfig(true);
       try {
+        // ✅ Fix: Wrapped in { config: ... }
         await adminFetch('/site-config', {
             method: 'POST',
-            body: JSON.stringify(newConfig)
+            body: JSON.stringify({ config: newConfig })
         });
         refresh();
         alert("Collection Updated.");
@@ -209,7 +223,6 @@ const CreatorPortal: React.FC = () => {
              <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.inventory}
              </button>
-             {/* New Collections Tab */}
              <button onClick={() => setActiveTab('collections')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'collections' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.collections}
              </button>
@@ -218,6 +231,10 @@ const CreatorPortal: React.FC = () => {
              </button>
              <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-amber-700' : 'text-stone-400'}`}>
                 {t.creator.tabs.media}
+             </button>
+             {/* New Accounts Tab Button */}
+             <button onClick={() => setActiveTab('accounts')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'accounts' ? 'text-amber-700' : 'text-stone-400'}`}>
+                Accounts
              </button>
 
              {/* Language Switcher */}
@@ -255,6 +272,7 @@ const CreatorPortal: React.FC = () => {
                                 products={localItems}
                                 onSelectCategory={setSelectedCategoryId}
                                 onSelectAll={() => setSelectedCategoryId('ALL_MASTER')} // Magic string to show list without filter
+                                onCreateCategory={() => setActiveTab('collections')} // Switch tab
                             />
                         )}
 
@@ -275,7 +293,7 @@ const CreatorPortal: React.FC = () => {
              </>
           )}
 
-          {/* New Collections Manager View */}
+          {/* Collections Manager View */}
           {activeTab === 'collections' && (
               <CollectionManager 
                   categories={categories}
@@ -305,6 +323,11 @@ const CreatorPortal: React.FC = () => {
                 viewingHistoryKey={viewingHistoryKey}
                 setViewingHistoryKey={setViewingHistoryKey}
               />
+          )}
+
+          {/* New Accounts View */}
+          {activeTab === 'accounts' && (
+              <AccountsManager />
           )}
        </div>
     </div>

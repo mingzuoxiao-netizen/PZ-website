@@ -82,7 +82,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   };
 
   /* ------------------------------
-     Rollback Logic (Revised)
+     Rollback Logic (Enhanced)
   ------------------------------ */
   const handleRollback = async (version: string) => {
     if (
@@ -95,23 +95,33 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
     setRollingBack(true);
     try {
       // 1. Fetch the specific historic configuration
-      // Assuming GET /site-config?version=X returns { config: ... } or just the config object
       console.log(`Fetching historic version: ${version}`);
       
-      const historicData = await adminFetch<SiteConfigEnvelope>(`/site-config`, {
+      const historicData = await adminFetch<any>(`/site-config`, {
           params: { version: version }
       });
 
-      // Verify we got a config
-      if (!historicData || !historicData.config) {
-          throw new Error("Could not retrieve historic configuration data.");
+      // Robust check: Support both { config: {...} } envelope AND raw config object
+      let configToRestore = null;
+      
+      if (historicData && typeof historicData === 'object') {
+          if (historicData.config) {
+              configToRestore = historicData.config;
+          } else if (historicData.home) {
+              // Heuristic: If it has 'home' key, assume it's the raw config
+              configToRestore = historicData;
+          }
+      }
+
+      if (!configToRestore) {
+          throw new Error("Could not retrieve valid configuration data for this version.");
       }
 
       // 2. Publish this historic config as the NEW active version
-      // This effectively "rolls forward" to the old state, preserving history
+      // ✅ FIX: Wrapped in { config: ... } to match backend requirements
       await adminFetch('/site-config', {
         method: 'POST',
-        body: JSON.stringify(historicData.config)
+        body: JSON.stringify({ config: configToRestore })
       });
 
       // 3. Refresh the editor state

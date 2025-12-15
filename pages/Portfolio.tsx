@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { X, Loader2, AlertCircle, Download, FileText, ArrowRight, LayoutGrid, ChevronLeft } from 'lucide-react';
+import { X, Loader2, AlertCircle, Download, FileText, ArrowRight, LayoutGrid, ChevronLeft, Box, Layers } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { ProductVariant } from '../types';
@@ -282,7 +282,7 @@ const Portfolio: React.FC = () => {
                             return (
                                 <div 
                                     key={cat.id} 
-                                    className="group cursor-pointer block h-full"
+                                    className="group cursor-pointer block h-full flex flex-col"
                                     onClick={() => handleCategorySelect(cat.id)}
                                 >
                                     <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
@@ -301,17 +301,18 @@ const Portfolio: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-between items-baseline pr-2">
+                                    <div className="flex justify-between items-start mt-auto">
                                         <div>
-                                            <h3 className="font-serif text-2xl text-stone-900 mb-1 group-hover:text-safety-700 transition-colors">
+                                            <h3 className="font-serif text-2xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors">
                                                 {cat.title}
                                             </h3>
-                                            <p className="text-xs text-stone-400 font-bold uppercase tracking-widest">
+                                            <p className="text-xs text-stone-400 font-bold uppercase tracking-widest line-clamp-1">
                                                 {cat.subtitle}
                                             </p>
                                         </div>
-                                        <span className="text-4xl font-serif text-stone-200 group-hover:text-stone-300 transition-colors">
-                                            {String(count).padStart(2, '0')}
+                                        {/* Quantity Display - Explicit Count Badge */}
+                                        <span className="flex items-center text-[10px] font-bold uppercase tracking-widest bg-stone-100 border border-stone-200 text-stone-500 px-3 py-1 rounded-full whitespace-nowrap mt-1">
+                                            <Layers size={10} className="mr-2 opacity-50"/> {count} Items
                                         </span>
                                     </div>
                                 </div>
