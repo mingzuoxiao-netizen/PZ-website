@@ -1,13 +1,11 @@
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShieldCheck, ArrowRight, Lock, Loader2, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
 
-interface AdminLoginProps {
-  onLoginSuccess: () => void;
-}
-
-const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
+const AdminLogin: React.FC = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
@@ -19,6 +17,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setError(false);
 
     try {
+      // 1. Atomic Fetch
       const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,26 +27,27 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       if (!response.ok) throw new Error("Authentication failed");
 
       const data = await response.json();
-      const token = data.access_token;
-
-      if (token) {
-        // 1. Single Source of Truth: Store Token Only
-        sessionStorage.setItem(ADMIN_SESSION_KEY, token);
-        
-        // 2. Clear stale session data
-        sessionStorage.removeItem("pz_user_role");
-        sessionStorage.removeItem("pz_user_name");
-
-        // 3. Trigger Re-Verification in Guard
-        onLoginSuccess();
-      } else {
-        throw new Error("Invalid response: Missing access_token");
+      
+      // 2. Validate Token
+      if (!data.access_token) {
+        throw new Error("Missing access_token in response");
       }
+
+      // 3. Write Token (Atomic Sync)
+      sessionStorage.setItem(ADMIN_SESSION_KEY, data.access_token);
+      
+      // Clear legacy/UI cache
+      sessionStorage.removeItem("pz_user_role");
+      sessionStorage.removeItem("pz_user_name");
+
+      // 4. Navigate Immediately
+      // No setState here to prevent re-rendering AdminGuard before navigation completes
+      navigate("/creator", { replace: true });
+
     } catch (err) {
       console.error("Login error:", err);
       setError(true);
       setTimeout(() => setError(false), 2000);
-    } finally {
       setLoading(false);
     }
   };

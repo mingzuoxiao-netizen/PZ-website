@@ -13,23 +13,25 @@ interface AdminGuardProps {
 const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
 
   const validateSession = useCallback(async () => {
     const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
     
+    // 1. Strict Token Check (Pre-Fetch)
     if (!token) {
-      setStatus('unauthenticated');
+      setChecking(false);
+      setAuthorized(false);
       return;
     }
 
     try {
-      // 1. Verify Identity against Backend (Single Source of Truth)
+      // 2. Token Exists -> Verify with Backend
       const user = await adminFetch<{ username: string; role: string }>('/admin/me', { method: 'GET' });
-      
       const backendRole = (user.role || '').toUpperCase();
 
-      // 2. Enforce Workspace Isolation
+      // 3. Enforce Workspace Isolation
       if (requiredRole && backendRole !== requiredRole) {
           console.warn(`[Guard] Role mismatch. User: ${backendRole}, Required: ${requiredRole}`);
           // Redirect to correct workspace
@@ -38,17 +40,19 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
           return;
       }
 
-      // 3. Cache Display Info (UI Only)
+      // 4. Cache Display Info (UI Only)
       sessionStorage.setItem("pz_user_role", backendRole);
       sessionStorage.setItem("pz_user_name", user.username);
       
-      setStatus('authenticated');
+      setAuthorized(true);
     } catch (e) {
-      console.warn("[Guard] Session invalid:", e);
+      console.warn("[Guard] Session invalid or expired:", e);
       sessionStorage.removeItem(ADMIN_SESSION_KEY);
       sessionStorage.removeItem("pz_user_role");
       sessionStorage.removeItem("pz_user_name");
-      setStatus('unauthenticated');
+      setAuthorized(false);
+    } finally {
+      setChecking(false);
     }
   }, [navigate, requiredRole]);
 
@@ -56,7 +60,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     validateSession();
   }, [validateSession, location.pathname]);
 
-  if (status === 'loading') {
+  if (checking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
@@ -65,15 +69,12 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     );
   }
 
-  if (status === 'authenticated') {
+  if (authorized) {
     return <>{children}</>;
   }
 
-  return (
-    <AdminLogin
-      onLoginSuccess={() => setStatus('loading')} 
-    />
-  );
+  // Fallback to Login if no token or invalid token
+  return <AdminLogin />;
 };
 
 export default AdminGuard;

@@ -1,9 +1,8 @@
 
 import { API_BASE } from './siteConfig';
 
-// ✅ Link to the single source of truth
+// ✅ Single source of truth for auth token
 export const ADMIN_API_BASE = API_BASE;
-
 export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
@@ -23,17 +22,14 @@ export async function adminFetch<T = any>(
     ...(customConfig.headers || {}),
   };
 
-  // ✅ Only set JSON content type if NOT FormData (file upload)
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
-  // ✅ Standard Bearer Auth using the Single Source Token
   if (!skipAuth && token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Construct URL, ensuring endpoint is appended correctly to base
   let url = endpoint.startsWith("http")
     ? endpoint
     : `${ADMIN_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
@@ -50,8 +46,8 @@ export async function adminFetch<T = any>(
   });
 
   if (response.status === 401 || response.status === 403) {
-    console.warn("[adminFetch] Unauthorized - Token may be invalid or expired");
-    // We let the caller handle the 401/403 or global guard catches it
+    // Optional: could emit event or handle global logout here
+    console.warn("[adminFetch] 401/403 Unauthorized");
   }
 
   if (!response.ok) {
