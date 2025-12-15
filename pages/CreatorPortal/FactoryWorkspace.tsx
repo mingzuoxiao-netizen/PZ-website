@@ -1,26 +1,26 @@
 
 import React, { useEffect, useState } from 'react';
-import { adminFetch } from '../../utils/adminFetch';
+import { useNavigate } from 'react-router-dom';
+import { factoryFetch } from '../../utils/factoryFetch';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory'; 
-import { DEFAULT_ASSETS } from '../../utils/assets';
 import { useLanguage } from '../../contexts/LanguageContext';
 import PortalLayout from './PortalLayout';
 
 // Sub-components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import PageAssets from './components/PageAssets';
 import CategoryGrid from './components/CategoryGrid';
 
 const FactoryWorkspace: React.FC = () => {
+  const navigate = useNavigate();
   const { t, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<string>('inventory');
   
   // Data
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
-  const [categories, setCategories] = useState<Category[]>(staticCategories);
+  // Factory uses STATIC categories only - strictly decoupled from dynamic site config
+  const categories: Category[] = staticCategories;
   
   // UI
   const [loading, setLoading] = useState(true);
@@ -29,20 +29,22 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
 
   const userName = sessionStorage.getItem('pz_user_name') || 'Factory';
+  const userRole = sessionStorage.getItem('pz_user_role');
 
-  const txt = t.creator.tabs;
+  // Strict Redirect: Admins should not see this view
+  useEffect(() => {
+    if (userRole === 'ADMIN') {
+        navigate('/creator/admin', { replace: true });
+    }
+  }, [userRole, navigate]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500');
+      // SECURITY: Use factoryFetch for safe access
+      const res = await factoryFetch<{ products?: any[], data?: any[] }>('/products?limit=500');
       const rawItems = res.products || res.data || [];
       setLocalItems(normalizeProducts(rawItems));
-      
-      const configRes = await adminFetch<any>('/site-config');
-      if (configRes?.config?.categories) {
-          setCategories(configRes.config.categories);
-      }
     } catch (e) {
       console.error("Factory load error", e);
     } finally {
@@ -55,9 +57,9 @@ const FactoryWorkspace: React.FC = () => {
   const handleSaveProduct = async (product: ProductVariant) => {
     try {
       if (product.id) {
-        await adminFetch(`/products/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
+        await factoryFetch(`/products/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
       } else {
-        await adminFetch('/products', { method: 'POST', body: JSON.stringify(product) });
+        await factoryFetch('/products', { method: 'POST', body: JSON.stringify(product) });
       }
       setEditingItem(null);
       setIsCreating(false);
@@ -66,6 +68,17 @@ const FactoryWorkspace: React.FC = () => {
     } catch (e: any) {
       alert(`Error: ${e.message}`);
     }
+  };
+
+  const handleUpload = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const data = await factoryFetch<{ url: string }>('/upload-image', {
+        method: 'POST',
+        body: formData,
+    });
+    if (!data.url) throw new Error("Upload failed: No URL returned");
+    return data.url;
   };
 
   const filteredItems = selectedCategoryId 
@@ -77,69 +90,46 @@ const FactoryWorkspace: React.FC = () => {
         role="FACTORY" 
         userName={userName} 
         navActions={
-            <>
-                <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-blue-700' : 'text-stone-400'}`}>
-                    {txt.inventory}
-                </button>
-                <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-blue-700' : 'text-stone-400'}`}>
-                    {txt.media}
-                </button>
-            </>
+            <span className="text-xs font-bold text-stone-400 uppercase tracking-widest px-3 py-1 bg-stone-100 rounded">
+                Inventory Mode
+            </span>
         }
     >
         {loading ? <div className="text-center py-20 text-stone-400">Loading Factory Portal...</div> : (
             <>
-                {/* 1. INVENTORY */}
-                {activeTab === 'inventory' && (
+                {(isCreating || editingItem) ? (
+                    <ProductForm 
+                        lang={language}
+                        initialData={editingItem || {}} 
+                        categories={categories}
+                        fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
+                        onSave={handleSaveProduct} 
+                        onCancel={() => { setEditingItem(null); setIsCreating(false); }}
+                        onUpload={handleUpload}
+                        userRole="FACTORY"
+                    />
+                ) : (
                     <>
-                        {(isCreating || editingItem) ? (
-                            <ProductForm 
-                                lang={language}
-                                initialData={editingItem || {}} 
+                        {!selectedCategoryId ? (
+                            <CategoryGrid 
                                 categories={categories}
-                                fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
-                                onSave={handleSaveProduct} 
-                                onCancel={() => { setEditingItem(null); setIsCreating(false); }}
-                                userRole="FACTORY"
+                                products={localItems}
+                                onSelectCategory={setSelectedCategoryId}
+                                onSelectAll={() => setSelectedCategoryId('ALL_MASTER')}
                             />
                         ) : (
-                            <>
-                                {!selectedCategoryId ? (
-                                    <CategoryGrid 
-                                        categories={categories}
-                                        products={localItems} // Factory sees all to know what exists
-                                        onSelectCategory={setSelectedCategoryId}
-                                        onSelectAll={() => setSelectedCategoryId('ALL_MASTER')}
-                                        // No create category for factory
-                                    />
-                                ) : (
-                                    <ProductList 
-                                        lang={language}
-                                        items={filteredItems} 
-                                        categories={categories}
-                                        categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Inventory List' : categories.find(c=>c.id===selectedCategoryId)?.title}
-                                        onBack={() => setSelectedCategoryId(null)}
-                                        onEdit={setEditingItem} 
-                                        onDelete={() => alert("Restricted: Factory cannot delete. Please archive.")}
-                                        onCreate={() => setIsCreating(true)}
-                                    />
-                                )}
-                            </>
+                            <ProductList 
+                                lang={language}
+                                items={filteredItems} 
+                                categories={categories}
+                                categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Inventory List' : categories.find(c=>c.id===selectedCategoryId)?.title}
+                                onBack={() => setSelectedCategoryId(null)}
+                                onEdit={setEditingItem} 
+                                // onDelete restricted
+                                onCreate={() => setIsCreating(true)}
+                            />
                         )}
                     </>
-                )}
-
-                {/* 2. ASSETS (Media Library) */}
-                {activeTab === 'assets' && (
-                    <PageAssets 
-                        customAssets={DEFAULT_ASSETS} 
-                        assetHistory={{}}
-                        onAssetUpdate={(k, u) => adminFetch('/assets', { method: 'POST', body: JSON.stringify({ key: k, url: u }) }).then(() => alert("Saved"))}
-                        onAssetReset={() => {}}
-                        onAssetRollback={() => {}}
-                        viewingHistoryKey={null}
-                        setViewingHistoryKey={() => {}}
-                    />
                 )}
             </>
         )}

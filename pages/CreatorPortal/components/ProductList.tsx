@@ -9,7 +9,7 @@ interface ProductListProps {
   categories: Category[];
   categoryTitle?: string;
   onEdit: (item: ProductVariant) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onCreate: () => void;
   onBack: () => void;
   lang: 'en' | 'zh'; // Added lang
@@ -137,9 +137,11 @@ const ProductList: React.FC<ProductListProps> = ({
                             <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-amber-700 hover:bg-white border border-transparent hover:border-stone-200 rounded transition-all" title="Edit">
                                 <Edit size={18} />
                             </button>
-                            <button onClick={() => item.id && onDelete(item.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 rounded transition-all" title="Delete">
-                                <Trash2 size={18} />
-                            </button>
+                            {onDelete && (
+                                <button onClick={() => item.id && onDelete(item.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 rounded transition-all" title="Delete">
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
                         </div>
                     </div>
                     );

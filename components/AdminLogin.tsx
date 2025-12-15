@@ -31,12 +31,17 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       if (!response.ok) throw new Error("Authentication failed");
 
       const data = await response.json();
+      
+      // Strict token expectation: backend returns 'access_token'
+      // We check for access_token first, then fallback to token if backend hasn't updated yet, but prefer access_token.
+      const token = data.access_token || data.token;
 
-      if (data.token) {
-        // 2. Store Session Data
-        sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
+      if (token) {
+        // 2. Store Session Data (Single Source of Truth)
+        sessionStorage.setItem(ADMIN_SESSION_KEY, token);
         
-        const uiRole = data.user?.role || 'FACTORY';
+        // Normalize role to UPPERCASE to ensure strict routing equality
+        const uiRole = (data.user?.role || 'FACTORY').toUpperCase();
         const uiName = data.user?.username || username;
 
         sessionStorage.setItem("pz_user_role", uiRole);
@@ -47,13 +52,13 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
         // 4. IMMEDIATE DIVERSION (The "Right Door" Logic)
         if (uiRole === 'ADMIN') {
-            navigate("/creator/admin");
+            navigate("/creator/admin", { replace: true });
         } else {
-            navigate("/creator/factory");
+            navigate("/creator/factory", { replace: true });
         }
 
       } else {
-        throw new Error("Invalid response from server");
+        throw new Error("Invalid response: Missing access_token");
       }
     } catch (err) {
       console.error("Login error:", err);

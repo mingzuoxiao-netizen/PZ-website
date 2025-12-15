@@ -4,7 +4,7 @@ import { SITE_SCHEMA } from '../../../utils/siteSchema';
 import { getByPath, setByPath } from '../../../utils/objectPath';
 import FieldInput from './FieldInput';
 import { Save, RefreshCw, History, RotateCcw, Check, AlertCircle } from 'lucide-react';
-import { SiteMeta, SiteConfigEnvelope } from '../../../utils/siteConfig';
+import { SiteMeta } from '../../../utils/siteConfig';
 import { adminFetch } from '../../../utils/adminFetch';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
@@ -15,6 +15,7 @@ interface SiteConfigEditorProps {
   onSave: () => void;
   isSaving: boolean;
   onRefresh: () => void;
+  onUpload: (file: File) => Promise<string>;
 }
 
 interface HistoryItem {
@@ -29,7 +30,8 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   onChange,
   onSave,
   isSaving,
-  onRefresh
+  onRefresh,
+  onUpload
 }) => {
   const { t } = useLanguage();
 
@@ -42,9 +44,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   const hasUnsavedChanges =
     initialConfigStr !== '' && JSON.stringify(config) !== initialConfigStr;
 
-  /* ------------------------------
-     Track baseline config
-  ------------------------------ */
   useEffect(() => {
     if (config && initialConfigStr === '') {
       setInitialConfigStr(JSON.stringify(config));
@@ -57,9 +56,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
     }
   }, [meta?.version]);
 
-  /* ------------------------------
-     Load history
-  ------------------------------ */
   useEffect(() => {
     fetchHistory();
   }, [meta?.version]);
@@ -81,9 +77,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
     }
   };
 
-  /* ------------------------------
-     Rollback Logic (Enhanced)
-  ------------------------------ */
   const handleRollback = async (version: string) => {
     if (
       !confirm(
@@ -94,21 +87,16 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
 
     setRollingBack(true);
     try {
-      // 1. Fetch the specific historic configuration
-      console.log(`Fetching historic version: ${version}`);
-      
       const historicData = await adminFetch<any>(`/site-config`, {
           params: { version: version }
       });
 
-      // Robust check: Support both { config: {...} } envelope AND raw config object
       let configToRestore = null;
       
       if (historicData && typeof historicData === 'object') {
           if (historicData.config) {
               configToRestore = historicData.config;
           } else if (historicData.home) {
-              // Heuristic: If it has 'home' key, assume it's the raw config
               configToRestore = historicData;
           }
       }
@@ -117,14 +105,11 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           throw new Error("Could not retrieve valid configuration data for this version.");
       }
 
-      // 2. Publish this historic config as the NEW active version
-      // ✅ FIX: Wrapped in { config: ... } to match backend requirements
       await adminFetch('/site-config', {
         method: 'POST',
         body: JSON.stringify({ config: configToRestore })
       });
 
-      // 3. Refresh the editor state
       await onRefresh();   
       await fetchHistory(); 
 
@@ -148,7 +133,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   return (
     <div className="animate-fade-in pb-20 relative">
 
-      {/* ================= Toolbar ================= */}
       <div className="sticky top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
@@ -194,7 +178,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
         </div>
       </div>
 
-      {/* ================= Config Fields ================= */}
       <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
         {SITE_SCHEMA.map(section => (
           <div key={section.section} className="bg-white border p-8">
@@ -217,13 +200,13 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
                   onChange={val =>
                     onChange(setByPath(config, field.path, val))
                   }
+                  onUpload={onUpload}
                 />
               ))}
             </div>
           </div>
         ))}
 
-        {/* ================= History ================= */}
         <div className="mt-12 pt-12 border-t">
           <h3 className="font-serif text-xl mb-6 flex items-center">
             <History size={18} className="mr-2 text-stone-400" />

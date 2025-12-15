@@ -8,16 +8,14 @@ interface FieldInputProps {
   type: FieldType;
   value: any;
   onChange: (val: any) => void;
+  onUpload: (file: File) => Promise<string>;
   help?: string;
 }
 
-const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, help }) => {
+const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, onUpload, help }) => {
   
   if (type === 'image' || type === 'file') {
-    // NOTE: image field currently stores single image URL (string)
     const imageValue = value as ImageValue; 
-    
-    // Determine accepted types
     const accept = type === 'file' ? 'application/pdf' : 'image/*';
 
     return (
@@ -27,6 +25,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, h
           images={imageValue ? [imageValue] : []}
           onUpdate={(imgs) => onChange(imgs[0] || "")}
           onError={(msg) => alert(msg)}
+          onUpload={onUpload}
           maxImages={1}
           className="w-full"
           accept={accept}

@@ -9,13 +9,11 @@ const CreatorPortal: React.FC = () => {
   useEffect(() => {
     const role = sessionStorage.getItem('pz_user_role');
     
-    // Safety check: redirect based on role if user manually hits /creator
+    // Explicit dispatch based on role
     if (role === 'ADMIN') {
         navigate('/creator/admin', { replace: true });
-    } else if (role === 'FACTORY') {
-        navigate('/creator/factory', { replace: true });
     } else {
-        // Fallback or if token exists but role missing
+        // Default to Factory for any other role or missing role (assuming AuthGuard passed)
         navigate('/creator/factory', { replace: true });
     }
   }, [navigate]);

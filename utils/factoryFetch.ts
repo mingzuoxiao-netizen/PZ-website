@@ -1,19 +1,21 @@
 
 import { API_BASE } from './siteConfig';
+import { ADMIN_SESSION_KEY } from './adminFetch';
 
-// ✅ Link to the single source of truth
-export const ADMIN_API_BASE = API_BASE;
-
-export const ADMIN_SESSION_KEY = "pz_admin_token";
+export const FACTORY_API_BASE = API_BASE;
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
-  skipAuth?: boolean;
 }
 
-export async function adminFetch<T = any>(
+/**
+ * Factory-Safe Data Fetcher
+ * Strictly limited to factory-safe endpoints.
+ * Uses the same session token but logically separated from Admin capabilities.
+ */
+export async function factoryFetch<T = any>(
   endpoint: string,
-  { params, skipAuth = false, ...customConfig }: FetchOptions = {}
+  { params, ...customConfig }: FetchOptions = {}
 ): Promise<T> {
   const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
 
@@ -23,21 +25,18 @@ export async function adminFetch<T = any>(
     ...(customConfig.headers || {}),
   };
 
-  // ✅ Only set JSON content type if NOT FormData (file upload)
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
-  // ✅ Standard Bearer Auth using the Single Source Token
-  // No dev-token fallbacks allowed.
-  if (!skipAuth && token) {
+  if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Construct URL, ensuring endpoint is appended correctly to base
+  // Construct URL
   let url = endpoint.startsWith("http")
     ? endpoint
-    : `${ADMIN_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
+    : `${FACTORY_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
   if (params) {
     const search = new URLSearchParams(params).toString();
@@ -51,8 +50,7 @@ export async function adminFetch<T = any>(
   });
 
   if (response.status === 401 || response.status === 403) {
-    console.warn("[adminFetch] Unauthorized - Token may be invalid or expired");
-    // Optional: Could trigger a global logout event here if needed
+    console.warn("[factoryFetch] Unauthorized access.");
   }
 
   if (!response.ok) {

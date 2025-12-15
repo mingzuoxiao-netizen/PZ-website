@@ -13,20 +13,19 @@ interface PageAssetsProps {
   onAssetRollback: (key: string, url: string) => void;
   viewingHistoryKey: string | null;
   setViewingHistoryKey: (key: string | null) => void;
+  onUpload: (file: File) => Promise<string>;
 }
 
 const PageAssets: React.FC<PageAssetsProps> = ({ 
   customAssets, assetHistory, onAssetUpdate, onAssetReset, onAssetRollback, 
-  viewingHistoryKey, setViewingHistoryKey
+  viewingHistoryKey, setViewingHistoryKey, onUpload
 }) => {
   const { t } = useLanguage();
-  // Store pending changes locally before saving
   const [pendingUpdates, setPendingUpdates] = useState<Record<string, string>>({});
 
   return (
     <div className="grid grid-cols-1 gap-12 animate-fade-in">
         
-      {/* History Modal */}
       {viewingHistoryKey && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white max-w-2xl w-full shadow-2xl border border-stone-200 flex flex-col max-h-[90vh]">
@@ -82,27 +81,24 @@ const PageAssets: React.FC<PageAssetsProps> = ({
             {group.keys?.map((asset) => {
               const savedUrl = customAssets[asset.key] || DEFAULT_ASSETS[asset.key];
               const pendingUrl = pendingUpdates[asset.key];
-              
-              // If we have a pending update, show that, otherwise show saved
               const currentUrl = pendingUrl !== undefined ? pendingUrl : savedUrl;
               
               const isDefault = !customAssets[asset.key];
               const hasHistory = assetHistory[asset.key] && assetHistory[asset.key].length > 0;
               const isPdf = asset.key === ASSET_KEYS.CATALOG_DOCUMENT;
-              
               const hasChanges = pendingUrl && pendingUrl !== savedUrl;
 
               return (
                 <div key={asset.key} className={`bg-white border transition-all ${hasChanges ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200 hover:border-stone-400'}`}>
-                  {/* Unified PZImageManager in Single Mode */}
                   <PZImageManager 
                     images={currentUrl ? [currentUrl] : []}
                     onUpdate={(imgs) => setPendingUpdates(prev => ({ ...prev, [asset.key]: imgs[0] }))}
+                    onUpload={onUpload}
                     maxImages={1}
                     onError={(msg) => alert(msg)}
                     className="aspect-video w-full"
                     accept={isPdf ? "application/pdf" : "image/*"}
-                    allowPhysicalDeletion={false} // IMPORTANT: Keep assets for rollback history
+                    allowPhysicalDeletion={false}
                   />
 
                   <div className="p-4 flex justify-between items-center bg-white border-t border-stone-100">
@@ -115,7 +111,6 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                         <>
                             <button 
                                 onClick={() => {
-                                    // Cancel changes
                                     setPendingUpdates(prev => {
                                         const next = { ...prev };
                                         delete next[asset.key];
@@ -128,7 +123,6 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                             </button>
                             <button 
                                 onClick={() => {
-                                    // Commit changes
                                     onAssetUpdate(asset.key, pendingUrl);
                                     setPendingUpdates(prev => {
                                         const next = { ...prev };

@@ -11,13 +11,17 @@ interface ProductFormProps {
   categories: Category[];
   onSave: (data: ProductVariant) => void;
   onCancel: () => void;
+  // Upload function passed from parent (AdminWorkspace or FactoryWorkspace)
+  onUpload: (file: File) => Promise<string>;
   fixedCategoryId?: string;
   userRole: 'ADMIN' | 'FACTORY';
   lang: 'en' | 'zh'; 
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel, fixedCategoryId, userRole, lang }) => {
-  // Use global translation context
+const ProductForm: React.FC<ProductFormProps> = ({ 
+  initialData, categories, onSave, onCancel, onUpload, 
+  fixedCategoryId, userRole, lang 
+}) => {
   const { t } = useLanguage();
   const txt = t.creator.form;
 
@@ -57,7 +61,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
         return;
     }
 
-    // Role-based Status Logic
     let finalStatus = formData.status || 'draft';
     if (userRole === 'FACTORY' && finalStatus === 'published' && initialData.status !== 'published') {
         finalStatus = 'pending';
@@ -78,10 +81,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
-       {/* LEFT COLUMN: FORM */}
        <div className="lg:col-span-2">
-          
-          {/* Status Header */}
           <div className="flex items-center justify-between bg-white border border-stone-200 p-6 mb-6 shadow-sm">
              <div>
                 <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">{txt.status}</span>
@@ -111,8 +111,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
              </h2>
              
              <form onSubmit={handleSubmit} className="space-y-8">
-                
-                {/* CATEGORIES GROUP */}
                 <div className="bg-stone-50/50 p-6 border border-stone-100 rounded-sm space-y-6">
                     <div className="grid grid-cols-1 gap-6">
                         <div>
@@ -142,7 +140,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* DETAILS */}
                 <div className="grid grid-cols-1 gap-6">
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
@@ -168,7 +165,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* SPECIFICATIONS */}
                 <div className="bg-stone-50 p-6 border border-stone-200 rounded-sm">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 border-b border-stone-200 pb-2">
                         {txt.specs}
@@ -219,7 +215,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* IMAGES */}
                 <div>
                    <PZImageManager 
                      label={txt.gallery}
@@ -232,10 +227,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                        }));
                      }}
                      onError={alert}
+                     onUpload={onUpload}
                    />
                 </div>
 
-                {/* ACTIONS */}
                 <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur-md p-4 -mx-4 -mb-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                     <button 
                         type="button" 
@@ -274,7 +269,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
           </div>
        </div>
 
-       {/* RIGHT COLUMN: LIVE PREVIEW (Sticky) */}
        <div className="lg:col-span-1">
           <LivePreview formData={formData} />
        </div>

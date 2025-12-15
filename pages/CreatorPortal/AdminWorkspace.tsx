@@ -23,7 +23,6 @@ import ReviewQueue from './components/ReviewQueue';
 
 const AdminWorkspace: React.FC = () => {
   const navigate = useNavigate();
-  // Remove local language state, use Global
   const { t, language } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<string>('review');
@@ -47,7 +46,6 @@ const AdminWorkspace: React.FC = () => {
   const userName = sessionStorage.getItem('pz_user_name') || 'Admin';
   const userRole = sessionStorage.getItem('pz_user_role');
 
-  // Use global dictionary
   const txt = t.creator.tabs;
 
   // --- ROLE CHECK ---
@@ -66,12 +64,10 @@ const AdminWorkspace: React.FC = () => {
 
       const results = await Promise.allSettled([inventoryPromise, configPromise]);
 
-      // 1. Process Inventory
       const inventoryRes = results[0].status === 'fulfilled' ? results[0].value : { products: [] };
       const rawItems = inventoryRes.products || inventoryRes.data || [];
       setLocalItems(normalizeProducts(rawItems));
 
-      // 2. Process Config
       const configRes = results[1].status === 'fulfilled' ? results[1].value : null;
       if (configRes && configRes.config) {
         setSiteConfig(configRes.config);
@@ -124,6 +120,17 @@ const AdminWorkspace: React.FC = () => {
   const handleAssetUpdate = async (key: string, url: string) => {
     try { await adminFetch('/assets', { method: 'POST', body: JSON.stringify({ key, url }) }); alert("Asset Saved"); } 
     catch (e: any) { alert(e.message); }
+  };
+
+  const handleAdminUpload = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const data = await adminFetch<{ url: string }>('/upload-image', {
+        method: 'POST',
+        body: formData,
+    });
+    if (!data.url) throw new Error("Upload failed: No URL returned");
+    return data.url;
   };
 
   const filteredItems = selectedCategoryId 
@@ -184,6 +191,7 @@ const AdminWorkspace: React.FC = () => {
                                 fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
                                 onSave={handleSaveProduct} 
                                 onCancel={() => { setEditingItem(null); setIsCreating(false); }}
+                                onUpload={handleAdminUpload}
                                 userRole="ADMIN"
                             />
                         ) : (
@@ -213,7 +221,7 @@ const AdminWorkspace: React.FC = () => {
                     </>
                 )}
 
-                {/* 3. COLLECTIONS (Hidden Tab, triggered by Create Category) */}
+                {/* 3. COLLECTIONS */}
                 {activeTab === 'collections' && (
                     <CollectionManager 
                         categories={categories}
@@ -228,6 +236,7 @@ const AdminWorkspace: React.FC = () => {
                             setActiveTab('inventory');
                         }}
                         onDelete={() => alert("Restricted.")}
+                        onUpload={handleAdminUpload}
                     />
                 )}
 
@@ -240,6 +249,7 @@ const AdminWorkspace: React.FC = () => {
                         onSave={handleSaveConfig} 
                         isSaving={savingConfig}
                         onRefresh={loadData}
+                        onUpload={handleAdminUpload}
                     />
                 )}
 
@@ -256,6 +266,7 @@ const AdminWorkspace: React.FC = () => {
                         onAssetRollback={(k, u) => handleAssetUpdate(k, u)}
                         viewingHistoryKey={viewingHistoryKey}
                         setViewingHistoryKey={setViewingHistoryKey}
+                        onUpload={handleAdminUpload}
                     />
                 )}
             </>

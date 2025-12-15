@@ -8,9 +8,10 @@ interface CollectionManagerProps {
   categories: Category[];
   onUpdate: (cat: Category) => void;
   onDelete: (id: string) => void;
+  onUpload: (file: File) => Promise<string>;
 }
 
-const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate, onDelete }) => {
+const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate, onDelete, onUpload }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
 
@@ -58,6 +59,7 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                             images={editForm.image ? [editForm.image] : []}
                             onUpdate={(imgs) => setEditForm(prev => ({...prev, image: imgs[0]}))}
                             onError={(msg) => alert(msg)}
+                            onUpload={onUpload}
                             maxImages={1}
                             aspectRatio={4/3}
                             className="w-full h-full"

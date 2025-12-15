@@ -7,13 +7,14 @@
 import React, { useRef, useState } from 'react';
 import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { processImage } from '../../../utils/imageHelpers';
-import { adminFetch } from '../../../utils/adminFetch';
 import { getAssetUrl } from '../../../utils/getAssetUrl';
 
 interface PZImageManagerProps {
   images: string[];
   onUpdate: (images: string[]) => void;
   onError: (msg: string) => void;
+  // New Prop: Decoupled Upload Function
+  onUpload: (file: File) => Promise<string>; 
   label?: string;
   maxImages?: number;
   className?: string;
@@ -33,6 +34,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   images = [],
   onUpdate,
   onError,
+  onUpload,
   label,
   maxImages = Infinity,
   className,
@@ -47,10 +49,8 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
   const isSingleMode = maxImages === 1;
 
-  // Check if a URL looks like an image or a PDF
   const isPdf = (url: string) => url.toLowerCase().endsWith('.pdf');
 
-  // ---------- Upload Handler (Parallel) ----------
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
 
@@ -61,7 +61,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
     setIsUploading(true);
 
-    // 1. Initialize Queue State
     const newQueue: FileStatus[] = Array.from(fileList).map(f => ({
         id: Math.random().toString(36).substring(7),
         name: f.name,
@@ -69,16 +68,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     }));
     setUploadQueue(newQueue);
 
-    // 2. Create Upload Promises
     const uploadPromises = Array.from(fileList).map(async (originalFile, index) => {
         const queueId = newQueue[index].id;
-        
-        // Update to Uploading
         setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'uploading' } : item));
 
         let file = originalFile;
 
-        // Auto-Crop / Resize if aspectRatio is set AND it is an image
+        // Auto-Crop / Resize
         if (aspectRatio && file.type.startsWith('image/')) {
             try {
                 file = await processImage(file, aspectRatio);
@@ -87,31 +83,17 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             }
         }
 
-        // Size Check (20MB)
         if (file.size > 20 * 1024 * 1024) {
             setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: 'File too large (>20MB)' } : item));
             return null;
         }
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const data = await adminFetch<{ success: boolean; key: string; url: string }>('/upload-image', {
-                method: 'POST',
-                body: formData,
-            });
+            // Use injected upload function
+            const url = await onUpload(file);
 
-            // STRICT: The backend MUST return the 'url' property.
-            if (!data.url) {
-                throw new Error('Server violation: Missing URL in response');
-            }
-
-            // Update Success
             setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item));
-            
-            // Return the full URL
-            return data.url;
+            return url;
 
         } catch (err: any) {
             console.error('Upload error:', err);
@@ -120,58 +102,36 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         }
     });
 
-    // 3. Wait for all
     const results = await Promise.all(uploadPromises);
-    
-    // Filter out failed uploads (nulls) and strictly ensure strings
     const successfulUrls = results.filter((url): url is string => typeof url === 'string' && url.length > 0);
 
-    // 4. Update Images State (Single Source of Truth)
     if (successfulUrls.length > 0) {
       let updatedList: string[];
-
       if (isSingleMode) {
-        // Single Mode: Replace existing (Soft Replace - no deletion of old file)
         updatedList = [successfulUrls[0]];
       } else {
-        // Multi Mode: Append
         updatedList = [...images, ...successfulUrls];
       }
-
-      // Explicitly call the onUpdate prop with the final array of URL strings
-      console.log("PZImageManager: Upload success, updating parent with", updatedList);
       onUpdate(updatedList);
     }
 
     setIsUploading(false);
-    
-    // Clear queue after a delay
-    setTimeout(() => {
-        setUploadQueue([]);
-    }, 4000);
+    setTimeout(() => { setUploadQueue([]); }, 4000);
   };
 
-  // ---------- Delete (Soft Only) ----------
   const removeImage = (index: number) => {
-    // Update local state via parent immediately
-    // We simply unlink the image from this product. The file remains in the cloud.
-    // If allowPhysicalDeletion is enabled, we could trigger a delete here, but for safety we stick to soft delete by default.
     const updatedList = images.filter((_, i) => i !== index);
     onUpdate(updatedList);
   };
 
-  // ---------- Sorting ----------
   const moveImage = (index: number, dir: 'left' | 'right') => {
     const newArr = [...images];
     const newIndex = dir === 'left' ? index - 1 : index + 1;
-
     if (newIndex < 0 || newIndex >= newArr.length) return;
-
     [newArr[index], newArr[newIndex]] = [newArr[newIndex], newArr[index]];
     onUpdate(newArr);
   };
 
-  // ---------- Set Main (index 0) ----------
   const setAsMain = (index: number) => {
     if (index === 0) return;
     const list = [...images];
@@ -180,16 +140,11 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     onUpdate(list);
   };
 
-  // ---------- Drag Drop ----------
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     handleFiles(e.dataTransfer.files);
   };
-
-  // ============================================================
-  // UI Rendering Section
-  // ============================================================
 
   return (
     <div className={className}>
@@ -204,7 +159,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         </label>
       )}
 
-      {/* File input (hidden) */}
       <input
         type="file"
         accept={accept}
@@ -214,7 +168,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         className="hidden"
       />
 
-      {/* ---------- UPLOAD QUEUE VISUALIZER ---------- */}
       {uploadQueue.length > 0 && (
           <div className="mb-4 bg-stone-50 border border-stone-200 rounded-sm p-3 max-h-40 overflow-y-auto">
               <p className="text-[10px] font-bold uppercase text-stone-400 mb-2">Upload Queue</p>
@@ -242,7 +195,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                                   {item.status === 'pending' && <span className="text-stone-300">...</span>}
                               </div>
                           </div>
-                          {/* Progress Bar Animation */}
                           {item.status === 'uploading' && (
                               <div className="absolute bottom-0 left-0 h-0.5 bg-amber-50 animate-[pulse_1s_ease-in-out_infinite] w-full origin-left"></div>
                           )}
@@ -252,7 +204,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           </div>
       )}
 
-      {/* ---------- SINGLE MODE VIEW ---------- */}
       {isSingleMode && images.length > 0 ? (
         <div className="relative group border border-stone-200 rounded-sm overflow-hidden min-h-[100px] h-full bg-stone-50">
           
@@ -268,18 +219,11 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
              <img src={getAssetUrl(images[0])} className="w-full h-full object-cover" alt="Uploaded" />
           )}
 
-          {/* Overlay actions */}
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-4">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-white px-4 py-2 text-xs font-bold uppercase hover:bg-amber-200"
-            >
+            <button onClick={() => fileInputRef.current?.click()} className="bg-white px-4 py-2 text-xs font-bold uppercase hover:bg-amber-200">
               <RefreshCw size={14} className="inline-block mr-2" /> Replace
             </button>
-            <button
-              onClick={() => removeImage(0)}
-              className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700"
-            >
+            <button onClick={() => removeImage(0)} className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700">
               <X size={14} className="inline-block mr-2" /> Remove
             </button>
           </div>
@@ -292,56 +236,34 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         </div>
       ) : (
         <>
-          {/* ---------- UPLOAD BUTTON (MULTI MODE) ---------- */}
           <div
             className={`border-2 border-dashed rounded-sm p-6 text-center cursor-pointer transition ${
               isDragging ? 'border-amber-600 bg-amber-50' : 'border-stone-300 bg-stone-50 hover:border-amber-600'
             }`}
             onClick={() => !isUploading && fileInputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
           >
             {isUploading ? (
               <>
                 <Loader2 size={28} className="animate-spin mx-auto text-amber-600" />
-                <p className="text-xs mt-2 text-stone-500 font-bold">
-                  Processing Files...
-                </p>
+                <p className="text-xs mt-2 text-stone-500 font-bold">Processing Files...</p>
               </>
             ) : (
               <>
                 <Upload size={28} className="mx-auto text-stone-400" />
-                <p className="text-xs text-stone-500 font-bold mt-2">
-                  Click or Drag to Upload
-                </p>
-                {aspectRatio && accept.startsWith('image') && (
-                    <p className="text-[10px] text-stone-400 mt-1 italic">
-                        Images auto-cropped to fit
-                    </p>
-                )}
-                {!accept.startsWith('image') && (
-                    <p className="text-[10px] text-stone-400 mt-1 italic">
-                        PDF files supported
-                    </p>
-                )}
+                <p className="text-xs text-stone-500 font-bold mt-2">Click or Drag to Upload</p>
+                {aspectRatio && accept.startsWith('image') && <p className="text-[10px] text-stone-400 mt-1 italic">Images auto-cropped</p>}
+                {!accept.startsWith('image') && <p className="text-[10px] text-stone-400 mt-1 italic">PDF supported</p>}
               </>
             )}
           </div>
 
-          {/* ---------- IMAGE/FILE GRID ---------- */}
           {images.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
               {images.map((url, idx) => (
-                <div
-                  key={url + idx}
-                  className={`relative aspect-square border-2 rounded-sm overflow-hidden group ${
-                    idx === 0 ? 'border-amber-600 ring-2 ring-amber-600/30' : 'border-stone-200'
-                  }`}
-                >
+                <div key={url + idx} className={`relative aspect-square border-2 rounded-sm overflow-hidden group ${idx === 0 ? 'border-amber-600 ring-2 ring-amber-600/30' : 'border-stone-200'}`}>
                   {isPdf(url) ? (
                      <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-500 p-2">
                         <FileText size={32} className="mb-2"/>
@@ -350,54 +272,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                   ) : (
                      <img src={getAssetUrl(url)} className="w-full h-full object-cover" alt="Uploaded" />
                   )}
-
-                  {idx === 0 && (
-                    <div className="absolute top-0 left-0 bg-amber-600 text-white text-[10px] px-2 py-1 uppercase">
-                      Main
-                    </div>
-                  )}
-
-                  {/* Overlay */}
+                  {idx === 0 && <div className="absolute top-0 left-0 bg-amber-600 text-white text-[10px] px-2 py-1 uppercase">Main</div>}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-between">
-                    {/* Delete */}
-                    <button
-                      onClick={() => removeImage(idx)}
-                      className="self-end p-1.5 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      <X size={12} />
-                    </button>
-
-                    {/* Bottom actions */}
+                    <button onClick={() => removeImage(idx)} className="self-end p-1.5 bg-red-500 text-white rounded hover:bg-red-600"><X size={12} /></button>
                     <div className="flex justify-between items-center">
-                      {/* Move Left */}
-                      {idx > 0 && (
-                        <button
-                          onClick={() => moveImage(idx, 'left')}
-                          className="p-1.5 bg-white rounded hover:bg-amber-400"
-                        >
-                          <ArrowLeft size={12} />
-                        </button>
-                      )}
-
-                      {/* Move Right */}
-                      {idx < images.length - 1 && (
-                        <button
-                          onClick={() => moveImage(idx, 'right')}
-                          className="p-1.5 bg-white rounded hover:bg-amber-400"
-                        >
-                          <ArrowRight size={12} />
-                        </button>
-                      )}
-
-                      {/* Set as Main */}
-                      {idx !== 0 && (
-                        <button
-                          onClick={() => setAsMain(idx)}
-                          className="p-1.5 bg-stone-200 rounded hover:bg-amber-600 hover:text-white"
-                        >
-                          <Star size={12} />
-                        </button>
-                      )}
+                      {idx > 0 && <button onClick={() => moveImage(idx, 'left')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowLeft size={12} /></button>}
+                      {idx < images.length - 1 && <button onClick={() => moveImage(idx, 'right')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowRight size={12} /></button>}
+                      {idx !== 0 && <button onClick={() => setAsMain(idx)} className="p-1.5 bg-stone-200 rounded hover:bg-amber-600 hover:text-white"><Star size={12} /></button>}
                     </div>
                   </div>
                 </div>
