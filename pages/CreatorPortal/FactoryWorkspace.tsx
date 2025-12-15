@@ -28,14 +28,15 @@ const FactoryWorkspace: React.FC = () => {
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
+  // We use sessionStorage for UI display only. Security is handled by AdminGuard wrapper + API Token.
   const userName = sessionStorage.getItem('pz_user_name') || 'Factory';
-  // Note: We use sessionStorage for UI display only. Security is handled by AdminGuard wrapper.
 
   const loadData = async () => {
     setLoading(true);
     try {
       // SECURITY: Use factoryFetch for safe access
       // Factory fetches products via /products (public/shared endpoint), NOT /admin/products
+      // Explicitly uses factoryFetch to ensure correct token usage and endpoint targeting
       const res = await factoryFetch<{ products?: any[], data?: any[] }>('/products?limit=500');
       const rawItems = res.products || res.data || [];
       setLocalItems(normalizeProducts(rawItems));

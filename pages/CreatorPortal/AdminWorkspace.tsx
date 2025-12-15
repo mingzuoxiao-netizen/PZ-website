@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminFetch } from '../../utils/adminFetch';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
-import { SiteConfig, SiteMeta } from '../../utils/siteConfig';
+import { SiteConfig, SiteMeta, DEFAULT_CONFIG } from '../../utils/siteConfig';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory'; 
@@ -69,15 +69,23 @@ const AdminWorkspace: React.FC = () => {
       setLocalItems(normalizeProducts(rawItems));
 
       const configRes = results[1].status === 'fulfilled' ? results[1].value : null;
+      
+      // ✅ Fallback logic: Use Remote Config if exists, otherwise load Local Default
       if (configRes && configRes.config) {
         setSiteConfig(configRes.config);
         if (configRes.config.categories?.length > 0) {
             setCategories(configRes.config.categories);
         }
         setConfigMeta({ version: configRes.version, published_at: configRes.published_at });
+      } else {
+        console.warn("No remote config found. Initializing with defaults.");
+        setSiteConfig(DEFAULT_CONFIG);
+        setConfigMeta(null);
       }
     } catch (e) {
       console.error("Failed to load Admin data", e);
+      // Ensure UI doesn't break on total failure
+      setSiteConfig(DEFAULT_CONFIG);
     } finally {
       setLoading(false);
     }

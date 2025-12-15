@@ -1,8 +1,9 @@
 
 import { API_BASE } from './siteConfig';
 
-// ✅ Single source of truth for auth token
-export const ADMIN_API_BASE = API_BASE;
+// ✅ STRICT HOST ENFORCEMENT
+// We explicitly use the worker URL. Relative paths are forbidden for API calls.
+export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
@@ -30,13 +31,22 @@ export async function adminFetch<T = any>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // ✅ Force Absolute URL Construction
+  // This prevents fetches to http://localhost:5173/site-config which causes 404s
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  
   let url = endpoint.startsWith("http")
     ? endpoint
-    : `${ADMIN_API_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
+    : `${ADMIN_API_BASE}/${cleanEndpoint}`;
 
   if (params) {
     const search = new URLSearchParams(params).toString();
     url += `${url.includes("?") ? "&" : "?"}${search}`;
+  }
+
+  // Debug log for development to catch relative path slips
+  if (process.env.NODE_ENV === 'development') {
+      // console.debug(`[adminFetch] ${customConfig.method || 'GET'} ${url}`);
   }
 
   const response = await fetch(url, {
@@ -46,12 +56,15 @@ export async function adminFetch<T = any>(
   });
 
   if (response.status === 401 || response.status === 403) {
-    // Optional: could emit event or handle global logout here
-    console.warn("[adminFetch] 401/403 Unauthorized");
+    console.warn(`[adminFetch] Unauthorized (${response.status}) on ${url}`);
   }
 
   if (!response.ok) {
     const text = await response.text();
+    // Provide a cleaner error message for 404s
+    if (response.status === 404) {
+        throw new Error(`API Endpoint Not Found: ${url}`);
+    }
     throw new Error(text || `HTTP ${response.status}`);
   }
 
