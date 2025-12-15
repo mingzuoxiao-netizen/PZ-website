@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ADMIN_SESSION_KEY, adminFetch } from "../utils/adminFetch";
 import AdminLogin from "./AdminLogin";
@@ -13,76 +13,65 @@ interface AdminGuardProps {
 const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [checking, setChecking] = useState<boolean>(true);
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+
+  const validateSession = useCallback(async () => {
+    const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
+    
+    if (!token) {
+      setStatus('unauthenticated');
+      return;
+    }
+
+    try {
+      // 1. Verify Identity against Backend (Single Source of Truth)
+      const user = await adminFetch<{ username: string; role: string }>('/admin/me', { method: 'GET' });
+      
+      const backendRole = (user.role || '').toUpperCase();
+
+      // 2. Enforce Workspace Isolation
+      if (requiredRole && backendRole !== requiredRole) {
+          console.warn(`[Guard] Role mismatch. User: ${backendRole}, Required: ${requiredRole}`);
+          // Redirect to correct workspace
+          const target = backendRole === 'ADMIN' ? '/creator/admin' : '/creator/factory';
+          navigate(target, { replace: true });
+          return;
+      }
+
+      // 3. Cache Display Info (UI Only)
+      sessionStorage.setItem("pz_user_role", backendRole);
+      sessionStorage.setItem("pz_user_name", user.username);
+      
+      setStatus('authenticated');
+    } catch (e) {
+      console.warn("[Guard] Session invalid:", e);
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      sessionStorage.removeItem("pz_user_role");
+      sessionStorage.removeItem("pz_user_name");
+      setStatus('unauthenticated');
+    }
+  }, [navigate, requiredRole]);
 
   useEffect(() => {
-    const validateSession = async () => {
-      const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-      const role = sessionStorage.getItem("pz_user_role");
-      
-      if (!token) {
-        setChecking(false);
-        setIsAuthenticated(false);
-        return;
-      }
-
-      // --- ROLE ENFORCEMENT ---
-      // If we are already authenticated (token exists), check role immediately before API call
-      // to prevent flashing the wrong content or unnecessary fetches.
-      if (requiredRole && role) {
-        if (role !== requiredRole) {
-            console.warn(`[AdminGuard] Role mismatch. Required: ${requiredRole}, Found: ${role}. Redirecting...`);
-            // Redirect to the workspace that matches their actual role
-            const target = role === 'ADMIN' ? '/creator/admin' : '/creator/factory';
-            navigate(target, { replace: true });
-            return;
-        }
-      }
-
-      try {
-        // Validate token with backend. 
-        // We use a lightweight call like /auth/check or just reuse /products with a low limit to check 401s
-        // If this throws (401/403), we know the token is invalid.
-        await adminFetch('/products?limit=1', { method: 'GET' });
-        
-        setIsAuthenticated(true);
-      } catch (e) {
-        console.warn("Session validation failed:", e);
-        sessionStorage.removeItem(ADMIN_SESSION_KEY);
-        sessionStorage.removeItem("pz_user_role");
-        sessionStorage.removeItem("pz_user_name");
-        setIsAuthenticated(false);
-      } finally {
-        setChecking(false);
-      }
-    };
-
     validateSession();
-  }, [navigate, requiredRole, location.pathname]);
+  }, [validateSession, location.pathname]);
 
-  // 1️⃣ Checking: Show secure loader
-  if (checking) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Verifying Security Token...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Verifying Identity...</p>
       </div>
     );
   }
 
-  // 2️⃣ Authenticated: Render App
-  if (isAuthenticated) {
+  if (status === 'authenticated') {
     return <>{children}</>;
   }
 
-  // 3️⃣ Not Authenticated: Render Login
   return (
     <AdminLogin
-      onLoginSuccess={() => {
-        setIsAuthenticated(true);
-        // Login success logic handles the specific redirect in AdminLogin.tsx
-      }}
+      onLoginSuccess={() => setStatus('loading')} 
     />
   );
 };

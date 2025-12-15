@@ -29,19 +29,13 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
 
   const userName = sessionStorage.getItem('pz_user_name') || 'Factory';
-  const userRole = sessionStorage.getItem('pz_user_role');
-
-  // Strict Redirect: Admins should not see this view
-  useEffect(() => {
-    if (userRole === 'ADMIN') {
-        navigate('/creator/admin', { replace: true });
-    }
-  }, [userRole, navigate]);
+  // Note: We use sessionStorage for UI display only. Security is handled by AdminGuard wrapper.
 
   const loadData = async () => {
     setLoading(true);
     try {
       // SECURITY: Use factoryFetch for safe access
+      // Factory fetches products via /products (public/shared endpoint), NOT /admin/products
       const res = await factoryFetch<{ products?: any[], data?: any[] }>('/products?limit=500');
       const rawItems = res.products || res.data || [];
       setLocalItems(normalizeProducts(rawItems));
@@ -73,6 +67,7 @@ const FactoryWorkspace: React.FC = () => {
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
+    // Factory uses the standard upload endpoint. Backend handles role verification.
     const data = await factoryFetch<{ url: string }>('/upload-image', {
         method: 'POST',
         body: formData,
@@ -125,7 +120,7 @@ const FactoryWorkspace: React.FC = () => {
                                 categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Inventory List' : categories.find(c=>c.id===selectedCategoryId)?.title}
                                 onBack={() => setSelectedCategoryId(null)}
                                 onEdit={setEditingItem} 
-                                // onDelete restricted
+                                // onDelete restricted (Prop intentionally omitted)
                                 onCreate={() => setIsCreating(true)}
                             />
                         )}

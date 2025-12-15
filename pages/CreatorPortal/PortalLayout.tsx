@@ -8,19 +8,17 @@ interface PortalLayoutProps {
   children: React.ReactNode;
   role: 'ADMIN' | 'FACTORY';
   userName: string;
-  // Allows injecting specific nav items
   navActions?: React.ReactNode;
 }
 
 const PortalLayout: React.FC<PortalLayoutProps> = ({ 
   children, role, userName, navActions 
 }) => {
-  // Use global language context
-  const { t, language, toggleLanguage } = useLanguage();
+  const { language, toggleLanguage } = useLanguage();
   
   const txt = {
-    en: { exit: "Exit System", roleAdmin: "Decision Maker", roleFactory: "Factory Editor" },
-    zh: { exit: "退出系统", roleAdmin: "管理员", roleFactory: "内容创作者" }
+    en: { exit: "Exit System", labelAdmin: "Admin Workspace", labelFactory: "Factory Workspace" },
+    zh: { exit: "退出系统", labelAdmin: "管理员工作区", labelFactory: "工厂工作区" }
   }[language];
 
   return (
@@ -32,20 +30,19 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                  ← {txt.exit}
               </Link>
               <div className="flex items-center space-x-3 border-l border-stone-200 pl-4">
-                  <div className={`p-1.5 rounded-sm ${role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                  <div className={`p-1.5 rounded-sm ${role === 'ADMIN' ? 'bg-stone-900 text-white' : 'bg-blue-600 text-white'}`}>
                       {role === 'ADMIN' ? <Shield size={16} /> : <Factory size={16} />}
                   </div>
                   <div>
                       <h1 className="font-serif text-sm font-bold text-stone-900 leading-none">{userName}</h1>
-                      <p className="text-[10px] text-stone-500 uppercase tracking-widest">
-                          {role === 'ADMIN' ? txt.roleAdmin : txt.roleFactory}
+                      <p className="text-[10px] text-stone-500 uppercase tracking-widest font-bold mt-0.5">
+                          {role === 'ADMIN' ? txt.labelAdmin : txt.labelFactory}
                       </p>
                   </div>
               </div>
           </div>
           
           <div className="flex items-center space-x-8">
-             {/* Language Switcher */}
              <button 
                 onClick={toggleLanguage}
                 className="flex items-center text-xs font-bold text-stone-500 hover:text-stone-900 uppercase tracking-widest border border-stone-200 px-3 py-1.5 rounded-sm transition-colors"
@@ -54,7 +51,6 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                 {language === 'en' ? 'EN / 中文' : '中文 / EN'}
              </button>
 
-             {/* Dynamic Workspace Tabs */}
              {navActions}
           </div>
        </div>

@@ -1,7 +1,6 @@
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ShieldCheck, ArrowRight, Lock, Loader2, User, Factory } from "lucide-react";
+import { ShieldCheck, ArrowRight, Lock, Loader2, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
 
 interface AdminLoginProps {
@@ -9,7 +8,6 @@ interface AdminLoginProps {
 }
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
-  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
@@ -21,7 +19,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setError(false);
 
     try {
-      // 1. POST Credentials to Backend
       const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -31,32 +28,18 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       if (!response.ok) throw new Error("Authentication failed");
 
       const data = await response.json();
-      
-      // Strict token expectation: backend returns 'access_token'
-      // We check for access_token first, then fallback to token if backend hasn't updated yet, but prefer access_token.
-      const token = data.access_token || data.token;
+      const token = data.access_token;
 
       if (token) {
-        // 2. Store Session Data (Single Source of Truth)
+        // 1. Single Source of Truth: Store Token Only
         sessionStorage.setItem(ADMIN_SESSION_KEY, token);
         
-        // Normalize role to UPPERCASE to ensure strict routing equality
-        const uiRole = (data.user?.role || 'FACTORY').toUpperCase();
-        const uiName = data.user?.username || username;
+        // 2. Clear stale session data
+        sessionStorage.removeItem("pz_user_role");
+        sessionStorage.removeItem("pz_user_name");
 
-        sessionStorage.setItem("pz_user_role", uiRole);
-        sessionStorage.setItem("pz_user_name", uiName);
-        
-        // 3. Trigger State Update
+        // 3. Trigger Re-Verification in Guard
         onLoginSuccess();
-
-        // 4. IMMEDIATE DIVERSION (The "Right Door" Logic)
-        if (uiRole === 'ADMIN') {
-            navigate("/creator/admin", { replace: true });
-        } else {
-            navigate("/creator/factory", { replace: true });
-        }
-
       } else {
         throw new Error("Invalid response: Missing access_token");
       }
@@ -82,34 +65,28 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
             System Login
         </h2>
         <p className="text-stone-500 text-sm mb-10 tracking-wide">
-            Restricted Access. Identity Verification Required.
+            Restricted Access.
         </p>
 
         <form onSubmit={handleLogin} className="space-y-6">
             <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
-                    <User size={18} />
-                </div>
                 <input 
                     type="text" 
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Username"
-                    className="w-full bg-stone-50 border border-stone-200 pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans"
+                    className="w-full bg-stone-50 border border-stone-200 pl-4 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans"
                     disabled={loading}
                 />
             </div>
 
             <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400">
-                    <Lock size={18} />
-                </div>
                 <input 
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
-                    className={`w-full bg-stone-50 border ${error ? 'border-red-400' : 'border-stone-200'} pl-12 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans`}
+                    className={`w-full bg-stone-50 border ${error ? 'border-red-400' : 'border-stone-200'} pl-4 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans`}
                     disabled={loading}
                 />
             </div>
@@ -137,9 +114,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
             </button>
         </form>
       </div>
-      <p className="mt-8 text-stone-400 text-xs uppercase tracking-widest">
-        System: Secure RBAC Login
-      </p>
     </div>
   );
 };

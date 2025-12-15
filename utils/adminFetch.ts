@@ -4,7 +4,7 @@ import { API_BASE } from './siteConfig';
 // ✅ Link to the single source of truth
 export const ADMIN_API_BASE = API_BASE;
 
-export const ADMIN_SESSION_KEY = "pz_admin_token";
+export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
@@ -29,7 +29,6 @@ export async function adminFetch<T = any>(
   }
 
   // ✅ Standard Bearer Auth using the Single Source Token
-  // No dev-token fallbacks allowed.
   if (!skipAuth && token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -52,7 +51,7 @@ export async function adminFetch<T = any>(
 
   if (response.status === 401 || response.status === 403) {
     console.warn("[adminFetch] Unauthorized - Token may be invalid or expired");
-    // Optional: Could trigger a global logout event here if needed
+    // We let the caller handle the 401/403 or global guard catches it
   }
 
   if (!response.ok) {
