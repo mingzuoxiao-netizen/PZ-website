@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { SiteConfig, SiteMeta } from '../../utils/siteConfig';
 import { ProductVariant, Category } from '../../types';
@@ -9,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory'; 
 import { DEFAULT_ASSETS } from '../../utils/assets';
-import { Bell, Shield, Factory } from 'lucide-react';
+import { Shield, Factory, Globe } from 'lucide-react';
 
 // Sub-components
 import ProductList from './components/ProductList';
@@ -21,8 +20,47 @@ import CollectionManager from './components/CollectionManager';
 import AccountsManager from './components/AccountsManager';
 import ReviewQueue from './components/ReviewQueue';
 
+// --- LOCALIZATION DICTIONARY ---
+const PORTAL_TEXT = {
+  en: {
+    exit: "Exit System",
+    roleAdmin: "Decision Maker",
+    roleFactory: "Factory Editor",
+    tabs: {
+      review: "Review Queue",
+      inventory: "Master Inventory",
+      myInventory: "My Products",
+      assets: "Media Library",
+      accounts: "Accounts",
+      config: "Site Config"
+    },
+    status: {
+      loading: "Loading System..."
+    }
+  },
+  zh: {
+    exit: "退出系统",
+    roleAdmin: "管理员",
+    roleFactory: "内容创作者",
+    tabs: {
+      review: "审核队列",
+      inventory: "库存总表",
+      myInventory: "我的产品",
+      assets: "媒体资料库",
+      accounts: "账号管理",
+      config: "网站配置"
+    },
+    status: {
+      loading: "系统加载中..."
+    }
+  }
+};
+
 const CreatorPortal: React.FC = () => {
-  const { t } = useLanguage();
+  // --- UI STATE ---
+  const [lang, setLang] = useState<'en' | 'zh'>('en');
+  const t = PORTAL_TEXT[lang];
+
   const { config: publishedConfig, meta, refresh } = usePublishedSiteConfig();
   
   // --- AUTH & ROLE STATE ---
@@ -40,7 +78,7 @@ const CreatorPortal: React.FC = () => {
   const [assetHistory, setAssetHistory] = useState<Record<string, any[]>>({});
   const [viewingHistoryKey, setViewingHistoryKey] = useState<string | null>(null);
 
-  // --- UI STATE ---
+  // --- LOADING STATE ---
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -98,7 +136,6 @@ const CreatorPortal: React.FC = () => {
   }, []);
 
   // --- COMPUTED ---
-  // Updated status check to 'pending'
   const pendingReviewCount = localItems.filter(i => i.status === 'pending').length;
 
   // --- ACTIONS ---
@@ -187,7 +224,7 @@ const CreatorPortal: React.FC = () => {
   };
 
   // --- RENDER ---
-  if (loading) return <div className="h-screen flex items-center justify-center font-mono text-sm text-stone-500">Loading System...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-mono text-sm text-stone-500">{t.status.loading}</div>;
 
   const activeCategoryTitle = selectedCategoryId 
     ? categories.find(c => c.id === selectedCategoryId)?.title 
@@ -203,7 +240,7 @@ const CreatorPortal: React.FC = () => {
        <div className="bg-white border-b border-stone-200 sticky top-0 z-40 px-6 md:px-12 py-4 flex items-center justify-between">
           <div className="flex items-center">
               <Link to="/admin-pzf-2025" className="text-stone-400 hover:text-stone-900 mr-4 font-bold text-xs uppercase tracking-widest">
-                 ← Exit
+                 ← {t.exit}
               </Link>
               <div className="flex items-center space-x-3 border-l border-stone-200 pl-4">
                   <div className={`p-1.5 rounded-sm ${role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -211,17 +248,29 @@ const CreatorPortal: React.FC = () => {
                   </div>
                   <div>
                       <h1 className="font-serif text-sm font-bold text-stone-900 leading-none">{userName}</h1>
-                      <p className="text-[10px] text-stone-500 uppercase tracking-widest">{role === 'ADMIN' ? 'Decision Maker' : 'Factory Editor'}</p>
+                      <p className="text-[10px] text-stone-500 uppercase tracking-widest">
+                          {role === 'ADMIN' ? t.roleAdmin : t.roleFactory}
+                      </p>
                   </div>
               </div>
           </div>
           
           <div className="flex items-center space-x-8">
+             
+             {/* Language Switcher */}
+             <button 
+                onClick={() => setLang(prev => prev === 'en' ? 'zh' : 'en')}
+                className="flex items-center text-xs font-bold text-stone-500 hover:text-stone-900 uppercase tracking-widest border border-stone-200 px-3 py-1.5 rounded-sm transition-colors"
+             >
+                <Globe size={14} className="mr-2" />
+                {lang === 'en' ? 'EN / 中文' : '中文 / EN'}
+             </button>
+
              {/* ADMIN TABS */}
              {role === 'ADMIN' && (
                  <>
                     <button onClick={() => setActiveTab('review')} className={`relative text-sm font-bold uppercase tracking-widest ${activeTab === 'review' ? 'text-amber-700' : 'text-stone-400'}`}>
-                        Review
+                        {t.tabs.review}
                         {pendingReviewCount > 0 && (
                             <span className="absolute -top-2 -right-3 w-4 h-4 bg-red-500 text-white text-[9px] flex items-center justify-center rounded-full animate-pulse">
                                 {pendingReviewCount}
@@ -229,13 +278,13 @@ const CreatorPortal: React.FC = () => {
                         )}
                     </button>
                     <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700' : 'text-stone-400'}`}>
-                        Inventory
+                        {t.tabs.inventory}
                     </button>
                     <button onClick={() => setActiveTab('accounts')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'accounts' ? 'text-amber-700' : 'text-stone-400'}`}>
-                        Accounts
+                        {t.tabs.accounts}
                     </button>
                     <button onClick={() => setActiveTab('config')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'config' ? 'text-amber-700' : 'text-stone-400'}`}>
-                        Config
+                        {t.tabs.config}
                     </button>
                  </>
              )}
@@ -244,10 +293,10 @@ const CreatorPortal: React.FC = () => {
              {role === 'FACTORY' && (
                  <>
                     <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-blue-700' : 'text-stone-400'}`}>
-                        My Inventory
+                        {t.tabs.myInventory}
                     </button>
                     <button onClick={() => setActiveTab('assets')} className={`text-sm font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-blue-700' : 'text-stone-400'}`}>
-                        Media Library
+                        {t.tabs.assets}
                     </button>
                  </>
              )}
@@ -259,17 +308,14 @@ const CreatorPortal: React.FC = () => {
           {/* --- ADMIN: REVIEW QUEUE --- */}
           {activeTab === 'review' && role === 'ADMIN' && (
               <ReviewQueue 
+                lang={lang} // Pass Language
                 products={localItems.filter(i => i.status === 'pending')} 
                 onProcess={(id, action, note) => {
-                    // Find item
                     const item = localItems.find(i => i.id === id);
                     if (!item) return;
-                    
-                    // Update status locally for speed, then save
                     const updated = {
                         ...item,
-                        status: action === 'approve' ? 'published' : 'rejected', // Updated to 'rejected'
-                        // In real app, we'd append to an audit log here
+                        status: action === 'approve' ? 'published' : 'rejected',
                     };
                     handleSaveProduct(updated);
                     alert(`Product ${action === 'approve' ? 'Approved' : 'Rejected'}.`);
@@ -282,12 +328,13 @@ const CreatorPortal: React.FC = () => {
              <>
                 {(isCreating || editingItem) ? (
                     <ProductForm 
+                        lang={lang} // Pass Language
                         initialData={editingItem || {}} 
                         categories={categories}
                         fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
                         onSave={handleSaveProduct} 
                         onCancel={() => { setEditingItem(null); setIsCreating(false); }}
-                        userRole={role} // Pass role to restrict form actions
+                        userRole={role} 
                     />
                 ) : (
                     <>
@@ -295,7 +342,7 @@ const CreatorPortal: React.FC = () => {
                         {!selectedCategoryId && !editingItem && !isCreating && (
                             <CategoryGrid 
                                 categories={categories}
-                                products={role === 'ADMIN' ? localItems : localItems} // Factory sees all or filtered? Usually all to know what exists.
+                                products={role === 'ADMIN' ? localItems : localItems} 
                                 onSelectCategory={setSelectedCategoryId}
                                 onSelectAll={() => setSelectedCategoryId('ALL_MASTER')}
                                 onCreateCategory={role === 'ADMIN' ? () => setActiveTab('collections') : undefined}
@@ -305,6 +352,7 @@ const CreatorPortal: React.FC = () => {
                         {/* Filtered List */}
                         {selectedCategoryId && (
                             <ProductList 
+                                lang={lang} // Pass Language
                                 items={filteredItems} 
                                 categories={categories}
                                 categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Master Inventory List' : activeCategoryTitle}

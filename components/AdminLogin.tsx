@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShieldCheck, ArrowRight, Lock, Loader2, User, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
 
@@ -8,6 +9,7 @@ interface AdminLoginProps {
 }
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
@@ -20,38 +22,38 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
     try {
       // 1. POST Credentials to Backend
-      // The backend is responsible for verifying identity AND determining role
       const response = await fetch(`${ADMIN_API_BASE}/admin/login-db`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-            username, 
-            password 
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
 
-      if (!response.ok) {
-        throw new Error("Authentication failed");
-      }
+      if (!response.ok) throw new Error("Authentication failed");
 
       const data = await response.json();
 
       if (data.token) {
-        // 2. Store Session Token (HttpOnly cookies preferred in prod, simple token here)
+        // 2. Store Session Data
         sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
         
-        // 3. Store UI-Specific User Data (Returned by Backend)
-        // NOTE: This data is for DISPLAY ONLY. Real security relies on the 'token' validating requests on the server.
-        // We fallback to safe defaults if the backend doesn't return the shape yet (for demo continuity).
-        const uiRole = data.user?.role || 'FACTORY'; // Default to lowest privilege if undefined
+        const uiRole = data.user?.role || 'FACTORY';
         const uiName = data.user?.username || username;
 
         sessionStorage.setItem("pz_user_role", uiRole);
         sessionStorage.setItem("pz_user_name", uiName);
         
+        // 3. Trigger State Update
         onLoginSuccess();
+
+        // 4. IMMEDIATE DIVERSION (The "Right Door" Logic)
+        if (uiRole === 'ADMIN') {
+            // Admin goes to Dashboard
+            navigate("/admin-pzf-2025");
+        } else {
+            // Factory goes straight to Creator Portal
+            navigate("/creator");
+        }
+
       } else {
         throw new Error("Invalid response from server");
       }
@@ -74,10 +76,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         </div>
         
         <h2 className="font-serif text-3xl text-stone-900 mb-2">
-            {username.toLowerCase().includes('factory') ? 'Factory Portal' : 'Admin Portal'}
+            System Login
         </h2>
         <p className="text-stone-500 text-sm mb-10 tracking-wide">
-            {username.toLowerCase().includes('factory') ? 'Content Management System' : 'Restricted Access. Identity Verification Required.'}
+            Restricted Access. Identity Verification Required.
         </p>
 
         <form onSubmit={handleLogin} className="space-y-6">

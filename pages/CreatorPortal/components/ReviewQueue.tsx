@@ -2,16 +2,44 @@
 import React, { useState } from 'react';
 import { ProductVariant } from '../../../types';
 import { getAssetUrl } from '../../../utils/getAssetUrl';
-import { CheckCircle, XCircle, Clock, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface ReviewQueueProps {
   products: ProductVariant[];
   onProcess: (id: string, action: 'approve' | 'reject', note?: string) => void;
+  lang: 'en' | 'zh';
 }
 
-const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
+const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) => {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+
+  const txt = {
+      en: { 
+          empty: "All Caught Up", 
+          emptyDesc: "No products are currently pending review.",
+          title: `Pending Review: ${products.length} Items`,
+          sub: "Items submitted by factory accounts require approval.",
+          submitted: "Submitted Today",
+          rejectReason: "Reason for Rejection",
+          confirmReject: "Confirm Reject",
+          cancel: "Cancel",
+          approve: "Approve & Publish",
+          reject: "Reject"
+      },
+      zh: {
+          empty: "全部已处理",
+          emptyDesc: "目前没有待审核的产品。",
+          title: `待审核: ${products.length} 项`,
+          sub: "工厂账号提交的产品需要批准后才能上线。",
+          submitted: "今日提交",
+          rejectReason: "拒绝原因",
+          confirmReject: "确认拒绝",
+          cancel: "取消",
+          approve: "批准并发布",
+          reject: "拒绝"
+      }
+  }[lang];
 
   if (products.length === 0) {
       return (
@@ -19,8 +47,8 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
               <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle size={32} />
               </div>
-              <h3 className="font-serif text-xl text-stone-900 mb-2">All Caught Up</h3>
-              <p className="text-stone-500">No products are currently pending review.</p>
+              <h3 className="font-serif text-xl text-stone-900 mb-2">{txt.empty}</h3>
+              <p className="text-stone-500">{txt.emptyDesc}</p>
           </div>
       );
   }
@@ -31,10 +59,10 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
             <Clock className="text-amber-700 mt-1 mr-4" size={24} />
             <div>
                 <h3 className="font-bold text-amber-900 uppercase tracking-widest text-sm mb-1">
-                    Pending Review: {products.length} Items
+                    {txt.title}
                 </h3>
                 <p className="text-amber-800/70 text-sm">
-                    Items submitted by factory accounts require approval before going live.
+                    {txt.sub}
                 </p>
             </div>
         </div>
@@ -63,7 +91,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
                             </div>
                             <div className="text-right">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">Pending Review</span>
-                                <div className="text-[10px] text-stone-400 mt-1">Submitted Today</div>
+                                <div className="text-[10px] text-stone-400 mt-1">{txt.submitted}</div>
                             </div>
                         </div>
 
@@ -72,10 +100,10 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
                         {/* Action Area */}
                         {rejectId === product.id ? (
                             <div className="bg-red-50 p-4 border border-red-100 animate-fade-in">
-                                <label className="block text-xs font-bold text-red-700 uppercase mb-2">Reason for Rejection</label>
+                                <label className="block text-xs font-bold text-red-700 uppercase mb-2">{txt.rejectReason}</label>
                                 <textarea 
                                     className="w-full border border-red-200 p-2 text-sm text-stone-900 mb-2 focus:outline-none"
-                                    placeholder="e.g. Missing dimensions, wrong material..."
+                                    placeholder="..."
                                     value={rejectNote}
                                     onChange={e => setRejectNote(e.target.value)}
                                 />
@@ -88,13 +116,13 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
                                         }}
                                         className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700"
                                     >
-                                        Confirm Reject
+                                        {txt.confirmReject}
                                     </button>
                                     <button 
                                         onClick={() => setRejectId(null)}
                                         className="bg-white text-stone-500 px-4 py-2 text-xs font-bold uppercase border border-stone-200 hover:bg-stone-50"
                                     >
-                                        Cancel
+                                        {txt.cancel}
                                     </button>
                                 </div>
                             </div>
@@ -104,13 +132,13 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess }) => {
                                     onClick={() => onProcess(product.id, 'approve')}
                                     className="flex items-center bg-green-600 text-white px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors shadow-sm"
                                 >
-                                    <CheckCircle size={14} className="mr-2" /> Approve & Publish
+                                    <CheckCircle size={14} className="mr-2" /> {txt.approve}
                                 </button>
                                 <button 
                                     onClick={() => setRejectId(product.id)}
                                     className="flex items-center bg-white text-red-600 border border-red-200 px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-50 transition-colors"
                                 >
-                                    <XCircle size={14} className="mr-2" /> Reject
+                                    <XCircle size={14} className="mr-2" /> {txt.reject}
                                 </button>
                             </div>
                         )}

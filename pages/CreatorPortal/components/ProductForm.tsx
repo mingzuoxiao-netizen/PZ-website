@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ProductVariant, Category } from '../../../types';
-import { useLanguage } from '../../../contexts/LanguageContext';
-import { Save, X, Shuffle, Tag, Ruler, Box, Lock, Send, Clock, CheckCircle, AlertCircle, Ban } from 'lucide-react';
+import { Save, X, Shuffle, Tag, Ruler, Box, Lock, Send, Clock, CheckCircle, Ban } from 'lucide-react';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
 
@@ -13,10 +12,55 @@ interface ProductFormProps {
   onCancel: () => void;
   fixedCategoryId?: string;
   userRole: 'ADMIN' | 'FACTORY';
+  lang: 'en' | 'zh'; // New Prop
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel, fixedCategoryId, userRole }) => {
-  const { t } = useLanguage();
+// Simple Labels Map
+const LABELS = {
+  en: {
+    status: "Current Status",
+    edit: "Edit Product",
+    add: "Add New Product",
+    mainCat: "Main Category",
+    selectCat: "Select Category...",
+    nameEn: "Product Name (EN)",
+    descEn: "Description (EN)",
+    specs: "Specifications",
+    material: "Material",
+    dims: "Dimensions",
+    code: "Product Code",
+    timeline: "Audit Timeline",
+    cancel: "Cancel",
+    processing: "Processing...",
+    publish: "Publish Changes",
+    submit: "Submit for Review",
+    setDraft: "Set Draft",
+    forcePub: "Force Publish"
+  },
+  zh: {
+    status: "当前状态",
+    edit: "编辑产品",
+    add: "添加新产品",
+    mainCat: "主分类",
+    selectCat: "选择分类...",
+    nameEn: "产品名称 (英文)",
+    descEn: "产品描述 (英文)",
+    specs: "规格参数",
+    material: "材质",
+    dims: "尺寸 (mm)",
+    code: "产品编码",
+    timeline: "审计时间轴",
+    cancel: "取消",
+    processing: "处理中...",
+    publish: "发布更改",
+    submit: "提交审核",
+    setDraft: "设为草稿",
+    forcePub: "强制发布"
+  }
+};
+
+const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSave, onCancel, fixedCategoryId, userRole, lang }) => {
+  const txt = LABELS[lang];
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const editingId = initialData.id;
@@ -55,8 +99,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
 
     // Role-based Status Logic
     let finalStatus = formData.status || 'draft';
-    
-    // Factory cannot force 'published' if it wasn't already
     if (userRole === 'FACTORY' && finalStatus === 'published' && initialData.status !== 'published') {
         finalStatus = 'pending';
     }
@@ -74,13 +116,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
 
   const fixedCategoryTitle = categories.find(c => c.id === fixedCategoryId)?.title;
 
-  // Mock Audit Log for UI
-  const auditLog = [
-    { event: 'Created', user: 'Factory User', date: 'Oct 20, 2024' },
-    { event: 'Submitted for Review', user: 'Factory User', date: 'Oct 21, 2024' },
-    { event: 'Rejected (Missing Dims)', user: 'Admin', date: 'Oct 22, 2024' },
-  ];
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
        {/* LEFT COLUMN: FORM */}
@@ -89,7 +124,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
           {/* Status Header */}
           <div className="flex items-center justify-between bg-white border border-stone-200 p-6 mb-6 shadow-sm">
              <div>
-                <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">Current Status</span>
+                <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">{txt.status}</span>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
                     ${formData.status === 'published' ? 'bg-green-100 text-green-700' : 
                       formData.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
@@ -104,15 +139,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
              </div>
              {userRole === 'ADMIN' && (
                  <div className="flex space-x-2">
-                     <button type="button" onClick={() => handleChange('status', 'draft')} className="px-4 py-2 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 uppercase">Set Draft</button>
-                     <button type="button" onClick={() => handleChange('status', 'published')} className="px-4 py-2 text-xs font-bold bg-green-600 text-white hover:bg-green-700 uppercase">Force Publish</button>
+                     <button type="button" onClick={() => handleChange('status', 'draft')} className="px-4 py-2 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 uppercase">{txt.setDraft}</button>
+                     <button type="button" onClick={() => handleChange('status', 'published')} className="px-4 py-2 text-xs font-bold bg-green-600 text-white hover:bg-green-700 uppercase">{txt.forcePub}</button>
                  </div>
              )}
           </div>
 
           <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
              <h2 className="font-serif text-lg font-bold uppercase tracking-[0.1em] text-stone-900 mb-8 border-b border-stone-100 pb-4">
-                {editingId ? t.creator.form.edit : t.creator.form.add}
+                {editingId ? txt.edit : txt.add}
              </h2>
              
              <form onSubmit={handleSubmit} className="space-y-8">
@@ -120,11 +155,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 {/* CATEGORIES GROUP */}
                 <div className="bg-stone-50/50 p-6 border border-stone-100 rounded-sm space-y-6">
                     <div className="grid grid-cols-1 gap-6">
-                        {/* Main Category */}
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-                                    {t.creator.form.mainCat}
+                                    {txt.mainCat}
                                     {fixedCategoryId && <Lock size={12} className="ml-2 text-amber-600"/>}
                                 </label>
                             </div>
@@ -140,7 +174,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                                     onChange={e => handleChange('category', e.target.value)}
                                     className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm appearance-none"
                                 >
-                                    <option value="">Select Category...</option>
+                                    <option value="">{txt.selectCat}</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                 </select>
                             )}
@@ -148,11 +182,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                     </div>
                 </div>
 
-                {/* PRODUCT NAMES */}
+                {/* DETAILS */}
                 <div className="grid grid-cols-1 gap-6">
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {t.creator.form.nameEn} <span className="text-red-500">*</span>
+                            {txt.nameEn} <span className="text-red-500">*</span>
                         </label>
                         <input 
                             type="text" 
@@ -161,13 +195,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                             className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm"
                         />
                     </div>
-                </div>
-
-                {/* DESCRIPTIONS */}
-                <div className="grid grid-cols-1 gap-6">
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {t.creator.form.descEn}
+                            {txt.descEn}
                         </label>
                         <textarea 
                             rows={4}
@@ -181,12 +211,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 {/* SPECIFICATIONS */}
                 <div className="bg-stone-50 p-6 border border-stone-200 rounded-sm">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 border-b border-stone-200 pb-2">
-                        {t.creator.form.specs}
+                        {txt.specs}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Box size={12} className="mr-1"/> {t.creator.form.material}
+                                <Box size={12} className="mr-1"/> {txt.material}
                             </label>
                             <input 
                                 type="text" 
@@ -197,7 +227,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         </div>
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Ruler size={12} className="mr-1"/> {t.creator.form.dims}
+                                <Ruler size={12} className="mr-1"/> {txt.dims}
                             </label>
                             <input 
                                 type="text" 
@@ -208,7 +238,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         </div>
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Tag size={12} className="mr-1"/> {t.creator.form.code}
+                                <Tag size={12} className="mr-1"/> {txt.code}
                             </label>
                             <div className="flex shadow-sm">
                                 <input 
@@ -232,7 +262,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                 {/* IMAGES */}
                 <div>
                    <PZImageManager 
-                     label={t.creator.form.gallery}
+                     label="Gallery / 图片库"
                      images={formData.images || []}
                      onUpdate={(imgs) => {
                        setFormData(prev => ({ 
@@ -245,20 +275,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                    />
                 </div>
 
-                {/* AUDIT TIMELINE (New) */}
-                <div className="border-t border-stone-200 pt-8 mt-8">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6">Audit Timeline</h3>
-                    <div className="space-y-6 relative border-l border-stone-200 ml-2 pl-6">
-                        {auditLog.map((log, i) => (
-                            <div key={i} className="relative">
-                                <div className="absolute -left-[29px] top-1 w-2.5 h-2.5 rounded-full bg-stone-300 border-2 border-white"></div>
-                                <div className="text-sm font-bold text-stone-700">{log.event}</div>
-                                <div className="text-xs text-stone-500">{log.user} • {log.date}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
                 {/* ACTIONS */}
                 <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur-md p-4 -mx-4 -mb-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                     <button 
@@ -266,10 +282,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         onClick={onCancel}
                         className="px-8 py-4 border border-stone-200 text-stone-500 hover:text-stone-900 hover:border-stone-400 uppercase font-bold text-xs tracking-widest transition-all"
                     >
-                        {t.creator.form.cancel}
+                        {txt.cancel}
                     </button>
                     
-                    {/* Primary Action changes based on Role */}
                     <button
                         type="submit"
                         disabled={submitting}
@@ -278,19 +293,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ initialData, categories, onSa
                         `}
                         onClick={() => {
                             if (userRole === 'FACTORY') {
-                                // Force status for factory
                                 handleChange('status', 'pending');
                             }
                         }}
                     >
                         {submitting ? (
-                          t.creator.form.processing
+                          txt.processing
                         ) : (
                           <>
                              {userRole === 'ADMIN' ? (
-                                <><Save size={16} className="mr-2" /> Publish Changes</>
+                                <><Save size={16} className="mr-2" /> {txt.publish}</>
                              ) : (
-                                <><Send size={16} className="mr-2" /> Submit for Review</>
+                                <><Send size={16} className="mr-2" /> {txt.submit}</>
                              )}
                           </>
                         )}
