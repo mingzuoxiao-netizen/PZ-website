@@ -11,7 +11,6 @@ interface ProductFormProps {
   categories: Category[];
   onSave: (data: ProductVariant) => void;
   onCancel: () => void;
-  // Upload function passed from parent (AdminWorkspace or FactoryWorkspace)
   onUpload: (file: File) => Promise<string>;
   fixedCategoryId?: string;
   userRole: 'ADMIN' | 'FACTORY';
@@ -24,6 +23,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
 }) => {
   const { t } = useLanguage();
   const txt = t.creator.form;
+  const statusLabels = t.creator.statusLabels;
 
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +50,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setSubmitting(true);
     
     if (!formData.name) {
-        alert("Name is required");
+        alert("Product Name (EN) is required");
         setSubmitting(false);
         return;
     }
@@ -79,9 +79,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const fixedCategoryTitle = categories.find(c => c.id === fixedCategoryId)?.title;
 
+  const getStatusLabel = (status: string | undefined) => {
+      const s = status?.toLowerCase() || 'draft';
+      if (s === 'published') return statusLabels.published;
+      if (s === 'pending') return statusLabels.pending;
+      if (s === 'rejected') return statusLabels.rejected;
+      return statusLabels.draft;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 animate-fade-in">
        <div className="lg:col-span-2">
+          {/* Status Bar */}
           <div className="flex items-center justify-between bg-white border border-stone-200 p-6 mb-6 shadow-sm">
              <div>
                 <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">{txt.status}</span>
@@ -94,7 +103,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     {formData.status === 'published' && <CheckCircle size={14} className="mr-2"/>}
                     {formData.status === 'pending' && <Clock size={14} className="mr-2"/>}
                     {formData.status === 'rejected' && <Ban size={14} className="mr-2"/>}
-                    {formData.status || 'Draft'}
+                    {getStatusLabel(formData.status)}
                 </span>
              </div>
              {userRole === 'ADMIN' && (
@@ -111,6 +120,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
              </h2>
              
              <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Category Selection */}
                 <div className="bg-stone-50/50 p-6 border border-stone-100 rounded-sm space-y-6">
                     <div className="grid grid-cols-1 gap-6">
                         <div>
@@ -140,7 +150,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </div>
 
+                {/* Primary Info (Name & Description) */}
                 <div className="grid grid-cols-1 gap-6">
+                    {/* EN Name */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
                             {txt.nameEn} <span className="text-red-500">*</span>
@@ -150,21 +162,52 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             value={formData.name || ''} 
                             onChange={e => handleChange('name', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-4 text-lg font-serif text-stone-900 focus:border-amber-700 outline-none shadow-sm"
+                            placeholder="e.g. Modern Dining Table"
                         />
                     </div>
+                    {/* CN Name */}
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {txt.nameZh}
+                        </label>
+                        <input 
+                            type="text" 
+                            value={formData.name_cn || ''} 
+                            onChange={e => handleChange('name_cn', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-4 text-lg font-sans text-stone-900 focus:border-amber-700 outline-none shadow-sm"
+                            placeholder="例如：现代餐桌"
+                        />
+                    </div>
+
+                    {/* EN Desc */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
                             {txt.descEn}
                         </label>
                         <textarea 
-                            rows={4}
+                            rows={3}
                             value={formData.description || ''} 
                             onChange={e => handleChange('description', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
+                            placeholder="Product details in English..."
+                        />
+                    </div>
+                    {/* CN Desc */}
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                            {txt.descZh}
+                        </label>
+                        <textarea 
+                            rows={3}
+                            value={formData.description_cn || ''} 
+                            onChange={e => handleChange('description_cn', e.target.value)}
+                            className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
+                            placeholder="中文产品描述..."
                         />
                     </div>
                 </div>
 
+                {/* Technical Specs */}
                 <div className="bg-stone-50 p-6 border border-stone-200 rounded-sm">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 border-b border-stone-200 pb-2">
                         {txt.specs}
@@ -179,6 +222,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                 value={formData.material || ''} 
                                 onChange={e => handleChange('material', e.target.value)}
                                 className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                                placeholder="e.g. Solid Oak"
                             />
                         </div>
                         <div>
@@ -190,6 +234,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                 value={formData.size || ''} 
                                 onChange={e => handleChange('size', e.target.value)}
                                 className="w-full bg-white border border-stone-200 p-3 text-sm focus:border-amber-700 outline-none"
+                                placeholder="e.g. 2000x1000x750mm"
                             />
                         </div>
                         <div>
@@ -202,11 +247,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     value={formData.code || ''} 
                                     onChange={e => handleChange('code', e.target.value)}
                                     className="w-full bg-white border border-stone-200 border-r-0 p-3 text-sm focus:border-amber-700 outline-none font-mono uppercase"
+                                    placeholder="SKU-001"
                                 />
                                 <button 
                                     type="button"
                                     onClick={generateCode}
-                                    className="bg-stone-100 px-3 hover:bg-stone-200 text-stone-600 border border-stone-200 border-l-0"
+                                    className="bg-stone-100 px-3 hover:bg-stone-200 text-stone-600 border border-stone-200 border-l-0 transition-colors"
+                                    title="Auto Generate SKU"
                                 >
                                     <Shuffle size={14} />
                                 </button>
@@ -215,6 +262,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </div>
 
+                {/* Images */}
                 <div>
                    <PZImageManager 
                      label={txt.gallery}
@@ -231,6 +279,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                    />
                 </div>
 
+                {/* Footer Actions */}
                 <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur-md p-4 -mx-4 -mb-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                     <button 
                         type="button" 

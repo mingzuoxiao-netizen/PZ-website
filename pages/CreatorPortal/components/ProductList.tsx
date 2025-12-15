@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Edit, Trash2, Plus, Search, ArrowLeft, Bird, PackageX, X } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
 import { getAssetUrl } from '../../../utils/getAssetUrl';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface ProductListProps {
   items: ProductVariant[];
@@ -12,18 +13,16 @@ interface ProductListProps {
   onDelete?: (id: string) => void;
   onCreate: () => void;
   onBack: () => void;
-  lang: 'en' | 'zh'; // Added lang
+  lang: 'en' | 'zh'; // kept for prop compatibility but prefer useLanguage context
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, categoryTitle, onEdit, onDelete, onCreate, onBack, lang 
+    items, categories, categoryTitle, onEdit, onDelete, onCreate, onBack 
 }) => {
   const [search, setSearch] = useState('');
-
-  const txt = {
-      en: { back: "Back to Categories", search: "Search Products...", clear: "Clear", create: "Create Product", empty: "No Matches", emptyDesc: "No products found." },
-      zh: { back: "返回分类", search: "搜索产品...", clear: "清除", create: "创建产品", empty: "无匹配", emptyDesc: "未找到相关产品。" }
-  }[lang];
+  const { t } = useLanguage();
+  const txt = t.creator.inventory;
+  const statusLabels = t.creator.statusLabels;
 
   // Defensive: Ensure items is an array
   const safeItems = Array.isArray(items) ? items.filter(i => 
@@ -32,6 +31,14 @@ const ProductList: React.FC<ProductListProps> = ({
   ) : [];
 
   const isSearching = search.trim().length > 0;
+
+  const getStatusLabel = (status: string | undefined) => {
+      const s = status?.toLowerCase() || 'draft';
+      if (s === 'published') return statusLabels.published;
+      if (s === 'pending') return statusLabels.pending;
+      if (s === 'rejected') return statusLabels.rejected;
+      return statusLabels.draft;
+  };
 
   return (
     <div className="animate-fade-in">
@@ -42,7 +49,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 onClick={onBack}
                 className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest flex items-center mb-2 transition-colors group"
               >
-                <ArrowLeft size={14} className="mr-1 group-hover:-translate-x-1 transition-transform"/> {txt.back}
+                <ArrowLeft size={14} className="mr-1 group-hover:-translate-x-1 transition-transform"/> {txt.backCategories}
               </button>
               <h2 className="font-serif text-3xl text-stone-900 flex items-center gap-3">
                 {categoryTitle || "Products"} 
@@ -81,7 +88,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 onClick={onCreate}
                 className="bg-stone-900 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-amber-700 transition-all flex items-center justify-center whitespace-nowrap shadow-md hover:shadow-lg active:transform active:scale-95"
             >
-                <Plus size={16} className="mr-2" /> {txt.create}
+                <Plus size={16} className="mr-2" /> {txt.createProduct}
             </button>
           </div>
        </div>
@@ -98,8 +105,8 @@ const ProductList: React.FC<ProductListProps> = ({
                             <PackageX strokeWidth={1} size={48} className="text-stone-300" />
                         </div>
                     </div>
-                    <h3 className="font-serif text-3xl text-stone-900 mb-4 tracking-tight">{txt.empty}</h3>
-                    <p className="text-stone-500 max-w-md text-center text-sm leading-relaxed mb-10 font-light">{txt.emptyDesc}</p>
+                    <h3 className="font-serif text-3xl text-stone-900 mb-4 tracking-tight">{txt.noMatchTitle}</h3>
+                    <p className="text-stone-500 max-w-md text-center text-sm leading-relaxed mb-10 font-light">{txt.noMatchDesc}</p>
                   </div>
               ) : (
                 safeItems.map((item) => {
@@ -128,7 +135,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                     item.status === 'rejected' ? 'bg-red-100 text-red-700' :
                                     'bg-stone-200 text-stone-500' 
                                 }`}>
-                                    {item.status === 'published' ? 'Live' : item.status || 'Draft'}
+                                    {getStatusLabel(item.status)}
                                 </span>
                             </div>
                         </div>
