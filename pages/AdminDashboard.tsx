@@ -64,8 +64,8 @@ const AdminDashboard: React.FC = () => {
 
       try {
         // 1. Use adminFetch to get data (Automatically adds Auth Headers)
-        // Updated endpoint to /products as requested
-        const json = await adminFetch<{ data: any[] }>('/products', { 
+        // Updated endpoint to /admin/products to match strict spec
+        const json = await adminFetch<{ data: any[] }>('/admin/products', { 
             params: { limit: '200' } 
         });
 
@@ -150,18 +150,16 @@ const AdminDashboard: React.FC = () => {
     setLoggingOut(true);
     
     try {
-        // 1. Call backend logout
-        await adminFetch("/admin/logout", {
-            method: "POST",
-        });
+        // Attempt server-side logout first
+        await adminFetch('/admin/logout', { method: 'POST' });
     } catch (e) {
-        console.warn("Backend logout failed, forcing local logout", e);
-    } finally {
-        // 2. Clear local token
-        sessionStorage.removeItem(ADMIN_SESSION_KEY);
-        // 3. Reload page to trigger AdminGuard to switch back to AdminLogin
-        window.location.reload();
+        console.warn("Server logout failed, proceeding with local cleanup", e);
     }
+
+    // Stateless JWT: Just clear local storage
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    // Reload page to trigger AdminGuard to switch back to AdminLogin
+    window.location.reload();
   };
 
   const downloadCSV = () => {

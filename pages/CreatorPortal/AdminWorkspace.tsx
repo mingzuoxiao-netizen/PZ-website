@@ -60,9 +60,9 @@ const AdminWorkspace: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Reverted to /products (auth header handled by adminFetch)
-      const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/products?limit=500');
-      // Reverted to /site-config (auth header handled by adminFetch)
+      // Endpoint: GET /admin/products
+      const inventoryPromise = adminFetch<{ products?: any[], data?: any[] }>('/admin/products?limit=500');
+      // Endpoint: GET /site-config (Public/Shared)
       const configPromise = adminFetch<{ config: SiteConfig, version: string, published_at: string }>('/site-config');
 
       const results = await Promise.allSettled([inventoryPromise, configPromise]);
@@ -73,7 +73,6 @@ const AdminWorkspace: React.FC = () => {
 
       const configRes = results[1].status === 'fulfilled' ? results[1].value : null;
       
-      // ✅ Fallback logic: Use Remote Config if exists, otherwise load Local Default
       if (configRes && configRes.config) {
         setSiteConfig(configRes.config);
         if (configRes.config.categories?.length > 0) {
@@ -87,7 +86,6 @@ const AdminWorkspace: React.FC = () => {
       }
     } catch (e) {
       console.error("Failed to load Admin data", e);
-      // Ensure UI doesn't break on total failure
       setSiteConfig(DEFAULT_CONFIG);
     } finally {
       setLoading(false);
@@ -102,9 +100,11 @@ const AdminWorkspace: React.FC = () => {
   const handleSaveProduct = async (product: ProductVariant) => {
     try {
       if (product.id) {
-        await adminFetch(`/products/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
+        // Endpoint: PUT /admin/products/:id
+        await adminFetch(`/admin/products/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
       } else {
-        await adminFetch('/products', { method: 'POST', body: JSON.stringify(product) });
+        // Endpoint: POST /admin/products
+        await adminFetch('/admin/products', { method: 'POST', body: JSON.stringify(product) });
       }
       setEditingItem(null);
       setIsCreating(false);
@@ -116,21 +116,27 @@ const AdminWorkspace: React.FC = () => {
 
   const handleDeleteProduct = async (id: string) => {
     if (!confirm("Are you sure?")) return;
-    try { await adminFetch(`/products/${id}`, { method: 'DELETE' }); loadData(); } catch (e: any) { alert(e.message); }
+    try { 
+        // Endpoint: DELETE /admin/products/:id
+        await adminFetch(`/admin/products/${id}`, { method: 'DELETE' }); 
+        loadData(); 
+    } catch (e: any) { 
+        alert(e.message); 
+    }
   };
 
   const handleSaveConfig = async () => {
     if (!siteConfig) return;
     setSavingConfig(true);
     try {
-      // Reverted to /site-config
+      // Endpoint: POST /site-config (Restored from previous rollback request)
       await adminFetch('/site-config', { method: 'POST', body: JSON.stringify({ config: siteConfig }) });
       refresh(); loadData(); alert("Config Saved");
     } catch (e: any) { alert(e.message); } finally { setSavingConfig(false); }
   };
 
   const handleAssetUpdate = async (key: string, url: string) => {
-    // Reverted to /assets
+    // Endpoint: POST /assets (Restored)
     try { await adminFetch('/assets', { method: 'POST', body: JSON.stringify({ key, url }) }); alert("Asset Saved"); } 
     catch (e: any) { alert(e.message); }
   };
@@ -138,7 +144,7 @@ const AdminWorkspace: React.FC = () => {
   const handleAdminUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    // Reverted to /upload-image
+    // Endpoint: POST /upload-image
     const data = await adminFetch<{ url: string }>('/upload-image', {
         method: 'POST',
         body: formData,
@@ -153,9 +159,10 @@ const AdminWorkspace: React.FC = () => {
     if (!key) return;
 
     try {
-        await adminFetch('/admin/delete-images', {
+        // Endpoint: POST /admin/delete-image
+        await adminFetch('/admin/delete-image', {
             method: "POST",
-            body: JSON.stringify({ keys: [key] })
+            body: JSON.stringify({ key: key })
         });
         console.log("Deleted:", key);
     } catch (e) {
@@ -262,7 +269,7 @@ const AdminWorkspace: React.FC = () => {
                             if (siteConfig) {
                                 const newConfig = { ...siteConfig, categories: newCats };
                                 setSiteConfig(newConfig);
-                                // Reverted to /site-config
+                                // Endpoint: POST /site-config
                                 adminFetch('/site-config', { method: 'POST', body: JSON.stringify({ config: newConfig }) }).then(refresh);
                             }
                             setActiveTab('inventory');

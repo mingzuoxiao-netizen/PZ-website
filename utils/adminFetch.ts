@@ -1,9 +1,9 @@
+// utils/adminFetch.ts
 
-import { API_BASE } from './siteConfig';
-
-// ✅ STRICT HOST ENFORCEMENT
-// We explicitly use the worker URL. Relative paths are forbidden for API calls.
+// ✅ Single source of truth for API host
 export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+
+// ✅ Single source of truth for token key
 export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
@@ -23,7 +23,7 @@ export async function adminFetch<T = any>(
     ...(customConfig.headers || {}),
   };
 
-  if (!isFormData) {
+  if (!isFormData && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -31,10 +31,8 @@ export async function adminFetch<T = any>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // ✅ Force Absolute URL Construction
-  // This prevents fetches to http://localhost:5173/site-config which causes 404s
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
-  
+  // ✅ Force absolute URL (never relative)
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
   let url = endpoint.startsWith("http")
     ? endpoint
     : `${ADMIN_API_BASE}/${cleanEndpoint}`;
@@ -44,9 +42,9 @@ export async function adminFetch<T = any>(
     url += `${url.includes("?") ? "&" : "?"}${search}`;
   }
 
-  // Debug log for development to catch relative path slips
-  if (process.env.NODE_ENV === 'development') {
-      // console.debug(`[adminFetch] ${customConfig.method || 'GET'} ${url}`);
+  // Vite-friendly debug flag
+  if (import.meta.env?.DEV) {
+    // console.debug(`[adminFetch] ${customConfig.method || "GET"} ${url}`);
   }
 
   const response = await fetch(url, {
@@ -55,27 +53,19 @@ export async function adminFetch<T = any>(
     headers,
   });
 
-  if (response.status === 401 || response.status === 403) {
-    console.warn(`[adminFetch] Unauthorized (${response.status}) on ${url}`);
-  }
-
   if (!response.ok) {
     const text = await response.text();
-    // Provide a cleaner error message for 404s
     if (response.status === 404) {
-        throw new Error(`API Endpoint Not Found: ${url}`);
+      throw new Error(`API Endpoint Not Found: ${url}`);
     }
     throw new Error(text || `HTTP ${response.status}`);
   }
 
-  if (response.status === 204) {
-    return {} as T;
-  }
+  if (response.status === 204) return {} as T;
 
-  const contentType = response.headers.get("content-type");
-  if (contentType?.includes("application/json")) {
-    return await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as T;
   }
-
   return (await response.text()) as unknown as T;
 }

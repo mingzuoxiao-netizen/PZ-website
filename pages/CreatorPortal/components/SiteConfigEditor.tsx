@@ -65,7 +65,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
-      // Reverted to /site-config/history
+      // Endpoint: GET /site-config/history (Restored)
       const res = await adminFetch<HistoryItem[]>('/site-config/history');
       if (Array.isArray(res)) {
         setHistory(res);
@@ -90,7 +90,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
 
     setRollingBack(true);
     try {
-      // Reverted to /site-config
+      // Endpoint: GET /site-config?version=X
       const historicData = await adminFetch<any>(`/site-config`, {
           params: { version: version }
       });
@@ -109,7 +109,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           throw new Error("Could not retrieve valid configuration data for this version.");
       }
 
-      // Reverted to /site-config
+      // Endpoint: POST /site-config (Restored)
       await adminFetch('/site-config', {
         method: 'POST',
         body: JSON.stringify({ config: configToRestore })
