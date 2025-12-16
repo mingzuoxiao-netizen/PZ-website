@@ -110,12 +110,12 @@ const AccountsManager: React.FC = () => {
           const newStatus = isActive ? 'Disabled' : 'Active';
           setAccounts(prev => prev.map(a => a.id === id ? {...a, status: newStatus} : a));
 
-          // Updated to correct set-active endpoint
+          // Updated to correct set-active endpoint with strict payload { user_id, is_active: 0|1 }
           await adminFetch('/admin/accounts/set-active', { 
               method: 'POST', 
               body: JSON.stringify({ 
-                  account_id: id, 
-                  active: !isActive 
+                  user_id: id, 
+                  is_active: !isActive ? 1 : 0 
               }) 
           });
       } catch (e: any) {
