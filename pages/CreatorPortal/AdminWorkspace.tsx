@@ -10,6 +10,7 @@ import { categories as staticCategories } from '../../data/inventory';
 import { DEFAULT_ASSETS } from '../../utils/assets';
 import { useLanguage } from '../../contexts/LanguageContext';
 import PortalLayout from './PortalLayout';
+import { extractKeyFromUrl } from '../../utils/getAssetUrl';
 
 // Sub-components
 import ProductList from './components/ProductList';
@@ -146,6 +147,23 @@ const AdminWorkspace: React.FC = () => {
     return data.url;
   };
 
+  const handleAdminDelete = async (url: string) => {
+    if (!url) return;
+    const key = extractKeyFromUrl(url);
+    if (!key) return;
+
+    try {
+        await adminFetch('/admin/delete-images', {
+            method: "POST",
+            body: JSON.stringify({ keys: [key] })
+        });
+        console.log("Deleted:", key);
+    } catch (e) {
+        console.error("Delete failed:", e);
+        alert("Failed to delete image from server.");
+    }
+  };
+
   const filteredItems = selectedCategoryId 
     ? localItems.filter(p => p.category?.toLowerCase() === selectedCategoryId.toLowerCase())
     : localItems;
@@ -264,6 +282,7 @@ const AdminWorkspace: React.FC = () => {
                         isSaving={savingConfig}
                         onRefresh={loadData}
                         onUpload={handleAdminUpload}
+                        onDelete={handleAdminDelete}
                     />
                 )}
 
@@ -281,6 +300,7 @@ const AdminWorkspace: React.FC = () => {
                         viewingHistoryKey={viewingHistoryKey}
                         setViewingHistoryKey={setViewingHistoryKey}
                         onUpload={handleAdminUpload}
+                        onDelete={handleAdminDelete}
                     />
                 )}
             </>

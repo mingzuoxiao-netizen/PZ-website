@@ -9,10 +9,11 @@ interface FieldInputProps {
   value: any;
   onChange: (val: any) => void;
   onUpload: (file: File) => Promise<string>;
+  onDelete?: (url: string) => Promise<void>;
   help?: string;
 }
 
-const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, onUpload, help }) => {
+const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, onUpload, onDelete, help }) => {
   
   if (type === 'image' || type === 'file') {
     const imageValue = value as ImageValue; 
@@ -26,6 +27,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, o
           onUpdate={(imgs) => onChange(imgs[0] || "")}
           onError={(msg) => alert(msg)}
           onUpload={onUpload}
+          onDelete={onDelete}
           maxImages={1}
           className="w-full"
           accept={accept}

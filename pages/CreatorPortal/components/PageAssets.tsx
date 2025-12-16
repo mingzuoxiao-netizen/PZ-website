@@ -14,11 +14,12 @@ interface PageAssetsProps {
   viewingHistoryKey: string | null;
   setViewingHistoryKey: (key: string | null) => void;
   onUpload: (file: File) => Promise<string>;
+  onDelete?: (url: string) => Promise<void>;
 }
 
 const PageAssets: React.FC<PageAssetsProps> = ({ 
   customAssets, assetHistory, onAssetUpdate, onAssetReset, onAssetRollback, 
-  viewingHistoryKey, setViewingHistoryKey, onUpload
+  viewingHistoryKey, setViewingHistoryKey, onUpload, onDelete
 }) => {
   const { t } = useLanguage();
   const [pendingUpdates, setPendingUpdates] = useState<Record<string, string>>({});
@@ -94,6 +95,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                     images={currentUrl ? [currentUrl] : []}
                     onUpdate={(imgs) => setPendingUpdates(prev => ({ ...prev, [asset.key]: imgs[0] }))}
                     onUpload={onUpload}
+                    onDelete={onDelete}
                     maxImages={1}
                     onError={(msg) => alert(msg)}
                     className="aspect-video w-full"

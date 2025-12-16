@@ -23,7 +23,7 @@ interface SiteConfigContextValue {
 
 const SiteConfigContext = createContext<SiteConfigContextValue | null>(null);
 
-export function SiteConfigProvider({ children }: { children: ReactNode }) {
+export function SiteConfigProvider({ children }: { children?: ReactNode }) {
   const [config, setConfig] = useState<SiteConfig | null>(null);
   
   // Initialize meta with a safe default object to prevent null access

@@ -26,13 +26,16 @@ const AccountsManager: React.FC = () => {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
-      const res = await adminFetch<{ users: Account[] }>('/admin/users');
-      if (res.users) {
-          setAccounts(res.users);
+      // Updated to correct endpoint for listing factory accounts
+      const res = await adminFetch<{ accounts: Account[] }>('/admin/accounts?role=FACTORY');
+      if (res.accounts) {
+          setAccounts(res.accounts);
+      } else {
+          setAccounts([]);
       }
     } catch (e) {
       console.error("Failed to load accounts", e);
-      // Keep empty if failed
+      setAccounts([]);
     } finally {
       setLoading(false);
     }
@@ -48,13 +51,14 @@ const AccountsManager: React.FC = () => {
 
       setIsSubmitting(true);
       try {
-          await adminFetch('/admin/users', {
+          // Updated to correct creation endpoint
+          await adminFetch('/admin/accounts/create', {
               method: 'POST',
               body: JSON.stringify({
                   username: newUser.username,
                   password: newUser.password,
-                  role: 'FACTORY',
-                  status: 'Active'
+                  role: 'FACTORY'
+                  // org_id omitted as it is handled by backend context/token if required
               })
           });
           
@@ -82,26 +86,41 @@ const AccountsManager: React.FC = () => {
       if(!confirm("Reset password for this user? This will generate a temporary password.")) return;
       
       try {
-          // Assuming an endpoint exists, or mock success for now as per minimal spec
-          // In real implementation: await adminFetch(`/admin/users/${id}/reset-password`, { method: 'POST' });
-          alert("Temporary Password: PZ-TEMP-2025\nPlease share this securely.");
+          // Updated to correct reset password endpoint
+          const res = await adminFetch<{ temp_password?: string }>('/admin/accounts/reset-password', {
+              method: 'POST',
+              body: JSON.stringify({ account_id: id })
+          });
+          
+          const tempPass = res.temp_password || "PZ-TEMP-2025";
+          alert(`Password Reset Successful.\nTemporary Password: ${tempPass}\nPlease share this securely.`);
       } catch (e: any) {
-          alert(e.message);
+          alert(`Reset failed: ${e.message}`);
       }
   };
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
-      const newStatus = currentStatus === 'Active' ? 'Disabled' : 'Active';
-      if(!confirm(`Are you sure you want to ${newStatus === 'Disabled' ? 'DISABLE' : 'ACTIVATE'} this account?`)) return;
+      const isActive = currentStatus === 'Active';
+      const actionLabel = isActive ? 'DISABLE' : 'ACTIVATE';
+      
+      if(!confirm(`Are you sure you want to ${actionLabel} this account?`)) return;
 
       try {
           // Optimistic update
-          setAccounts(prev => prev.map(a => a.id === id ? {...a, status: newStatus as any} : a));
-          // Real backend call would go here:
-          // await adminFetch(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+          const newStatus = isActive ? 'Disabled' : 'Active';
+          setAccounts(prev => prev.map(a => a.id === id ? {...a, status: newStatus} : a));
+
+          // Updated to correct set-active endpoint
+          await adminFetch('/admin/accounts/set-active', { 
+              method: 'POST', 
+              body: JSON.stringify({ 
+                  account_id: id, 
+                  active: !isActive 
+              }) 
+          });
       } catch (e: any) {
           fetchAccounts(); // Revert on error
-          alert(e.message);
+          alert(`Action failed: ${e.message}`);
       }
   };
 

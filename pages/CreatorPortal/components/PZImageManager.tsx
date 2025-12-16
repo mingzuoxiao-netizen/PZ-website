@@ -1,7 +1,6 @@
 
 // ============================================================
 //  PZImageManager — Enterprise Image & File Upload Manager
-//  SAFE MODE: Cloud Deletion Disabled
 // ============================================================
 
 import React, { useRef, useState } from 'react';
@@ -14,7 +13,9 @@ interface PZImageManagerProps {
   onUpdate: (images: string[]) => void;
   onError: (msg: string) => void;
   // New Prop: Decoupled Upload Function
-  onUpload: (file: File) => Promise<string>; 
+  onUpload: (file: File) => Promise<string>;
+  // Optional Delete Handler (for cleanup)
+  onDelete?: (url: string) => Promise<void>; 
   label?: string;
   maxImages?: number;
   className?: string;
@@ -35,6 +36,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   onUpdate,
   onError,
   onUpload,
+  onDelete,
   label,
   maxImages = Infinity,
   className,
@@ -108,6 +110,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     if (successfulUrls.length > 0) {
       let updatedList: string[];
       if (isSingleMode) {
+        // Just replace the list, do NOT auto-delete the old one.
         updatedList = [successfulUrls[0]];
       } else {
         updatedList = [...images, ...successfulUrls];
@@ -119,9 +122,22 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     setTimeout(() => { setUploadQueue([]); }, 4000);
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const urlToRemove = images[index];
+    
+    // UI Update First
     const updatedList = images.filter((_, i) => i !== index);
     onUpdate(updatedList);
+
+    // Backend Cleanup (if handler provided)
+    if (onDelete && urlToRemove) {
+        try {
+            await onDelete(urlToRemove);
+        } catch (e) {
+            console.warn("Server delete failed for", urlToRemove, e);
+            // Optionally revert UI here if strict consistency is needed
+        }
+    }
   };
 
   const moveImage = (index: number, dir: 'left' | 'right') => {

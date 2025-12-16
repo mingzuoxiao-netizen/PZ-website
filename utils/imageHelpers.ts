@@ -1,36 +1,4 @@
 
-import { adminFetch } from "./adminFetch";
-import { extractKeyFromUrl } from "./getAssetUrl";
-
-/**
- * Deletes an image from Cloudflare R2 bucket via the Worker API.
- * Uses extractKeyFromUrl to safely parse the storage key.
- * Uses adminFetch to ensure the request is authenticated.
- */
-export async function deleteImageFromR2(url: string) {
-    if (!url) return;
-
-    try {
-        const key = extractKeyFromUrl(url);
-        
-        // If we can't extract a valid key, abort (it might be an external URL)
-        if (!key) {
-            console.warn("[R2] Skipping delete for non-managed asset:", url);
-            return;
-        }
-
-        // Reverted to /delete-images
-        await adminFetch('/delete-images', {
-            method: "POST",
-            body: JSON.stringify({ keys: [key] })
-        });
-
-        console.log("[R2] Deleted:", key);
-    } catch (err) {
-        console.warn("[R2] Delete failed:", url, err);
-    }
-}
-
 /**
  * Client-side image processor
  * Resizes and center-crops image to target aspect ratio.

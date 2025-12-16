@@ -16,6 +16,7 @@ interface SiteConfigEditorProps {
   isSaving: boolean;
   onRefresh: () => void;
   onUpload: (file: File) => Promise<string>;
+  onDelete?: (url: string) => Promise<void>;
 }
 
 interface HistoryItem {
@@ -31,7 +32,8 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   onSave,
   isSaving,
   onRefresh,
-  onUpload
+  onUpload,
+  onDelete
 }) => {
   const { t } = useLanguage();
 
@@ -204,6 +206,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
                     onChange(setByPath(config, field.path, val))
                   }
                   onUpload={onUpload}
+                  onDelete={onDelete}
                 />
               ))}
             </div>
