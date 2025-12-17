@@ -496,9 +496,7 @@ const translations = {
         publish: "Publish Changes",
         publishing: "Publishing...",
         unsaved: "Unsaved Changes",
-        history: "Version History",
-        active: "Active",
-        rollback: "Rollback"
+        active: "Active"
       },
       assets: {
         title: "Site Asset Management",

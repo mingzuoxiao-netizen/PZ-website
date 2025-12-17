@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { SITE_SCHEMA } from '../../../utils/siteSchema';
 import { getByPath, setByPath } from '../../../utils/objectPath';
@@ -131,4 +132,3 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
 };
 
 export default SiteConfigEditor;
-
