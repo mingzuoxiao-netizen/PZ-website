@@ -1,12 +1,22 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Inquiry } from '../types';
-import { Loader2, LogOut, Download, Filter, ArrowUpDown, ArrowUp, ArrowDown, PenTool } from 'lucide-react';
+import {
+  Loader2,
+  LogOut,
+  Download,
+  Filter,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  PenTool,
+} from 'lucide-react';
 import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
 import { useLanguage } from '../contexts/LanguageContext';
 
-// Initial dummy data to populate the dashboard if empty
+/* =========================
+   Dummy Data (Fallback)
+========================= */
 const DUMMY_DATA: Inquiry[] = [
   {
     id: '1',
@@ -43,77 +53,89 @@ const DUMMY_DATA: Inquiry[] = [
   },
 ];
 
-type SortConfig = {
-  key: keyof Inquiry;
-  direction: 'asc' | 'desc';
-} | null;
+type SortConfig =
+  | {
+      key: keyof Inquiry;
+      direction: 'asc' | 'desc';
+    }
+  | null;
+
+const STORAGE_KEY = 'pz_inquiries';
 
 const AdminDashboard: React.FC = () => {
   const { t } = useLanguage();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  
-  // Filter & Sort State
+
+  /* =========================
+     Filter & Sort State
+  ========================= */
   const [filterType, setFilterType] = useState<string>('All');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'date',
+    direction: 'desc',
+  });
 
-  useEffect(() => {
-    const fetchInquiries = async () => {
-      setLoading(true);
+  /* =========================
+     Fetch Inquiries (NO API)
+     - Contract-safe
+     - Deterministic
+  ========================= */
+useEffect(() => {
+  const fetchInquiries = async () => {
+    setLoading(true);
 
-      try {
-        // 1. Use adminFetch to get data (Automatically adds Auth Headers)
-        // Updated endpoint to /admin/products to match strict spec
-        const json = await adminFetch<{ data: any[] }>('/admin/products', { 
-            params: { limit: '200' } 
-        });
+    try {
+      const json = await adminFetch<{
+        data: {
+          id: string;
+          name: string;
+          company: string | null;
+          email: string;
+          type: string;
+          message: string;
+          status: string;
+          created_at: string;
+        }[];
+      }>('/admin/inquiries');
 
-        const rows = (json.data || []) as any[];
+      const mapped: Inquiry[] = (json.data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        company: row.company || '',
+        email: row.email,
+        type: row.type,
+        message: row.message,
+        date: row.created_at.split('T')[0],
+        status: row.status,
+      }));
 
-        // 2. Map D1 fields to Inquiry type
-        const mapped: Inquiry[] = rows.map((row) => ({
-          id: row.id,
-          name: row.name,
-          company: row.company,
-          email: row.email,
-          type: row.product_type || row.source || 'General',
-          message: row.message,
-          date: (row.created_at || '').split('T')[0] || '',
-          status: 'New',
-        }));
+      setInquiries(mapped);
+      localStorage.setItem('pz_inquiries', JSON.stringify(mapped));
+    } catch (err) {
+      console.warn('Failed to fetch inquiries, fallback to local data', err);
 
-        setInquiries(mapped);
-        localStorage.setItem('pz_inquiries', JSON.stringify(mapped));
-      } catch (error) {
-        console.error('Error fetching from API, fallback to local data:', error);
-
-        // Fallback
-        const localDataString = localStorage.getItem('pz_inquiries');
-        let localData: Inquiry[] = [];
-
-        if (localDataString) {
-          localData = JSON.parse(localDataString);
-        } else {
-          localData = DUMMY_DATA;
-          localStorage.setItem('pz_inquiries', JSON.stringify(DUMMY_DATA));
-        }
-
-        setInquiries(localData);
-      } finally {
-        setLoading(false);
+      const stored = localStorage.getItem('pz_inquiries');
+      if (stored) {
+        setInquiries(JSON.parse(stored));
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchInquiries();
-  }, []);
+  fetchInquiries();
+}, []);
 
-  // Compute Processed Data (Filter + Sort)
+  /* =========================
+     Derived Data
+  ========================= */
   const processedInquiries = useMemo(() => {
     let data = [...inquiries];
 
     if (filterType !== 'All') {
-      data = data.filter(item => item.type === filterType);
+      data = data.filter((item) => item.type === filterType);
     }
 
     if (sortConfig) {
@@ -132,14 +154,16 @@ const AdminDashboard: React.FC = () => {
   }, [inquiries, filterType, sortConfig]);
 
   const uniqueTypes = useMemo(() => {
-    const types = new Set(inquiries.map(i => i.type));
+    const types = new Set(inquiries.map((i) => i.type));
     return ['All', ...Array.from(types)];
   }, [inquiries]);
 
-  // Handlers
+  /* =========================
+     Handlers
+  ========================= */
   const handleSort = (key: keyof Inquiry) => {
     let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+    if (sortConfig?.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
@@ -148,23 +172,20 @@ const AdminDashboard: React.FC = () => {
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
-    
+
     try {
-        // Attempt server-side logout first
-        await adminFetch('/admin/logout', { method: 'POST' });
+      await adminFetch('/admin/logout', { method: 'POST' });
     } catch (e) {
-        console.warn("Server logout failed, proceeding with local cleanup", e);
+      console.warn('Server logout failed, fallback to local cleanup', e);
     }
 
-    // Stateless JWT: Just clear local storage
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    // Reload page to trigger AdminGuard to switch back to AdminLogin
     window.location.reload();
   };
 
   const downloadCSV = () => {
     const headers = ['ID', 'Date', 'Name', 'Company', 'Email', 'Type', 'Message', 'Status'];
-    const rows = processedInquiries.map(inq => [
+    const rows = processedInquiries.map((inq) => [
       inq.id,
       inq.date,
       `"${inq.name.replace(/"/g, '""')}"`,
@@ -172,17 +193,17 @@ const AdminDashboard: React.FC = () => {
       inq.email,
       inq.type,
       `"${inq.message.replace(/"/g, '""')}"`,
-      inq.status
+      inq.status,
     ]);
-    
-    const csvString = headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + csvString], { type: 'text/csv;charset=utf-8;' });
+
+    const csvString = headers.join(',') + '\n' + rows.map((e) => e.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csvString], {
+      type: 'text/csv;charset=utf-8;',
+    });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
-    const dateStr = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `pz_inquiries_export_${dateStr}.csv`);
+    link.download = `pz_inquiries_export_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -190,78 +211,58 @@ const AdminDashboard: React.FC = () => {
   };
 
   const SortIcon = ({ columnKey }: { columnKey: keyof Inquiry }) => {
-    if (sortConfig?.key !== columnKey) return <ArrowUpDown size={14} className="ml-1 text-stone-300" />;
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp size={14} className="ml-1 text-amber-700" />
-      : <ArrowDown size={14} className="ml-1 text-amber-700" />;
+    if (sortConfig?.key !== columnKey)
+      return <ArrowUpDown size={14} className="ml-1 text-stone-300" />;
+    return sortConfig.direction === 'asc' ? (
+      <ArrowUp size={14} className="ml-1 text-amber-700" />
+    ) : (
+      <ArrowDown size={14} className="ml-1 text-amber-700" />
+    );
   };
 
+  /* =========================
+     Render
+  ========================= */
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       <div className="container mx-auto px-6 md:px-12">
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <h1 className="font-serif text-3xl text-stone-900">{t.admin.dashboard}</h1>
           <div className="flex items-center space-x-6 flex-wrap gap-y-4">
-            
             <Link
-                to="/creator"
-                className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 transition-colors rounded-sm flex items-center shadow-lg"
+              to="/creator"
+              className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 transition-colors rounded-sm flex items-center shadow-lg"
             >
-                <PenTool size={16} className="mr-2" /> {t.admin.openCreator}
+              <PenTool size={16} className="mr-2" /> {t.admin.openCreator}
             </Link>
+
             <Link
-                to="/"
-                className="text-stone-500 text-sm hover:text-stone-900 font-bold uppercase tracking-widest"
+              to="/"
+              className="text-stone-500 text-sm hover:text-stone-900 font-bold uppercase tracking-widest"
             >
-                {t.admin.viewSite}
+              {t.admin.viewSite}
             </Link>
+
             <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest disabled:opacity-50"
             >
-                {loggingOut ? (
-                    <><Loader2 size={16} className="mr-2 animate-spin" /> {t.admin.logout}...</>
-                ) : (
-                    <>{t.admin.logout} <LogOut size={16} className="ml-2" /></>
-                )}
+              {loggingOut ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  {t.admin.logout}...
+                </>
+              ) : (
+                <>
+                  {t.admin.logout}
+                  <LogOut size={16} className="ml-2" />
+                </>
+              )}
             </button>
           </div>
         </div>
-
-        <div className="bg-white border border-stone-200 overflow-hidden rounded-sm shadow-lg">
-          
-          {/* Toolbar */}
-          <div className="p-6 border-b border-stone-200 bg-stone-50 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center space-x-2 w-full md:w-auto">
-                <span className="text-stone-900 font-bold uppercase tracking-wider text-xs">
-                    {t.admin.inquiries} ({processedInquiries.length})
-                </span>
-                {loading && <Loader2 size={16} className="animate-spin text-amber-700" />}
-            </div>
-
-            <div className="flex items-center space-x-4 w-full md:w-auto">
-                <div className="relative group flex items-center">
-                    <Filter size={16} className="text-stone-500 absolute left-3 pointer-events-none" />
-                    <select 
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="bg-white border border-stone-300 text-stone-700 text-sm rounded-sm py-2 pl-10 pr-8 focus:outline-none focus:border-amber-700 cursor-pointer appearance-none uppercase tracking-wide font-bold w-full md:w-auto"
-                    >
-                        {uniqueTypes.map(t => (
-                            <option key={t} value={t}>{t === 'All' ? 'All Types' : t}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <button 
-                    onClick={downloadCSV}
-                    className="flex items-center bg-stone-900 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-amber-700 transition-colors rounded-sm whitespace-nowrap"
-                >
-                    {t.admin.exportCsv} <Download size={14} className="ml-2" />
-                </button>
-            </div>
-          </div>
 
           {/* Table */}
           <div className="overflow-x-auto">
