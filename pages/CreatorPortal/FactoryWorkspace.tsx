@@ -51,34 +51,11 @@ const FactoryWorkspace: React.FC = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleSaveProduct = async (product: ProductVariant) => {
-    try {
-      /**
-       * ✅ IMPORTANT:
-       * Use /admin/products for create/update because backend owns workflow:
-       * - FACTORY submits -> status pending (or whatever backend decides)
-       * - ADMIN publishes
-       */
-      if (product.id) {
-        await factoryFetch(`/admin/products/${product.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(product),
-        });
-      } else {
-        await factoryFetch('/admin/products', {
-          method: 'POST',
-          body: JSON.stringify(product),
-        });
-      }
-
-      setEditingItem(null);
-      setIsCreating(false);
-      await loadData();
-      alert("Product Submitted.");
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
-    }
-  };
+const handleSaveProduct = async (_product: ProductVariant) => {
+  alert("Images uploaded successfully. Admin will review and publish.");
+  setEditingItem(null);
+  setIsCreating(false);
+};
 
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
