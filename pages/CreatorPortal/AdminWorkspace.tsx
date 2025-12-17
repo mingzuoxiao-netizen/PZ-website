@@ -1,322 +1,193 @@
-
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { adminFetch } from '../../utils/adminFetch';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { normalizeProducts } from '../../utils/normalizeProduct';
+import { extractKeyFromUrl } from '../../utils/getAssetUrl';
 
-import PortalLayout from './PortalLayout';
+import PortalLayout from '../FactoryPortal/PortalLayout';
 
-// Tabs (Corrected Paths: pointing to ./components/)
-import ReviewQueue from './components/ReviewQueue';
-import CollectionManager from './components/CollectionManager';
-import SiteConfigEditor from './components/SiteConfigEditor';
-import PageAssets from './components/PageAssets';
-import AccountsManager from './components/AccountsManager';
-
-// Components for Inventory Logic
+// Admin sub-pages
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import CategoryGrid from './components/CategoryGrid';
+import SiteConfigEditor from './components/SiteConfigEditor';
+import AccountsManager from './components/AccountsManager';
+import InquiriesPanel from './components/InquiriesPanel';
 
-// Types
-import { ProductVariant, Category } from '../../types';
-import { categories as staticCategories } from '../../data/inventory';
-import { normalizeProducts } from '../../utils/normalizeProduct';
+type Tab = 'products' | 'site-config' | 'accounts' | 'inquiries';
 
-/**
- * Admin Workspace
- * Orchestrates all CMS features.
- */
 const AdminWorkspace: React.FC = () => {
-  const navigate = useNavigate();
-  const { t, language } = useLanguage();
+  const [activeTab, setActiveTab] = useState<Tab>('products');
 
-  /* ------------------------
-     Role guard (UX only)
-  ------------------------ */
-  const userRole = sessionStorage.getItem('pz_user_role');
-  const userName = sessionStorage.getItem('pz_user_name') || 'Admin';
-
-  useEffect(() => {
-    if (!userRole) return;
-    if (userRole !== 'ADMIN') {
-      navigate('/creator/factory', { replace: true });
-    }
-  }, [userRole, navigate]);
-
-  if (!userRole) {
-    return (
-      <div className="py-20 text-center text-stone-400">
-        Checking permission…
-      </div>
-    );
-  }
-
-  /* ------------------------
-     State
-  ------------------------ */
-  const [activeTab, setActiveTab] = useState<
-    'review' | 'inventory' | 'collections' | 'config' | 'assets' | 'accounts'
-  >('review');
-
-  // Inventory State
-  const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [siteConfig, setSiteConfig] = useState<any>(null);
-  const [categories, setCategories] = useState<Category[]>(staticCategories);
-  
-  // Inventory UI State
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
+  // Products
+  const [products, setProducts] = useState<any[]>([]);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const [loading, setLoading] = useState(true);
+  // Site Config
+  const [siteConfig, setSiteConfig] = useState<any | null>(null);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-  /* ------------------------
-     Load data
-  ------------------------ */
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const productsPromise = adminFetch('/admin/products?limit=500')
-        .then(res => res.products || [])
-        .catch(err => {
-          console.warn('[Admin] products unavailable:', err);
-          return [];
-        });
+  /* =========================
+     Loaders
+  ========================= */
 
-      const configRes = await adminFetch('/site-config');
-
-      const rawProducts = await productsPromise;
-      setProducts(normalizeProducts(rawProducts));
-      
-      setSiteConfig(configRes.config || null);
-
-      if (configRes.config?.categories?.length > 0) {
-        setCategories(configRes.config.categories);
-      } else {
-        setCategories(staticCategories);
-      }
-    } catch (err) {
-      console.error('[Admin] Failed to load site config', err);
-      // alert('Failed to load site configuration.');
-    } finally {
-      setLoading(false);
-    }
+  const loadProducts = async () => {
+    const res = await adminFetch<{ products: any[] }>('/admin/products');
+    setProducts(normalizeProducts(res.products || []));
   };
 
+  const loadSiteConfig = async () => {
+    const res = await adminFetch<any>('/site-config');
+    // contract: GET /site-config returns { config, meta }
+    setSiteConfig(res.config ?? res);
+  };
+
+  /* =========================
+     Initial Load
+  ========================= */
+
   useEffect(() => {
-    loadData();
+    loadProducts();
+    loadSiteConfig();
   }, []);
 
-  /* ------------------------
-     Handlers
-  ------------------------ */
-  const handleSaveProduct = async (product: ProductVariant) => {
-    try {
-      if (product.id) {
-        await adminFetch(`/admin/products/${product.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(product),
-        });
-      } else {
-        await adminFetch('/admin/products', {
-          method: 'POST',
-          body: JSON.stringify(product),
-        });
-      }
-      setEditingItem(null);
-      setIsCreating(false);
-      await loadData();
-    } catch (e: any) {
-      alert(`Error saving product: ${e.message}`);
+  /* =========================
+     Product Handlers
+  ========================= */
+
+  const handleSaveProduct = async (product: any) => {
+    if (product.id) {
+      await adminFetch(`/admin/products/${product.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(product),
+      });
+    } else {
+      await adminFetch('/admin/products', {
+        method: 'POST',
+        body: JSON.stringify(product),
+      });
     }
+
+    setEditingProduct(null);
+    setIsCreating(false);
+    await loadProducts();
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-    try {
-        await adminFetch(`/admin/products/${id}`, { method: 'DELETE' });
-        await loadData();
-    } catch (e: any) {
-        alert(`Error deleting: ${e.message}`);
-    }
+    if (!confirm('Delete this product permanently?')) return;
+
+    await adminFetch(`/admin/products/${id}`, { method: 'DELETE' });
+    await loadProducts();
   };
 
-  const handleReviewAction = async (
-    id: string,
-    action: 'approve' | 'reject',
-    note?: string
-  ) => {
-    const status = action === 'approve' ? 'published' : 'rejected';
-    try {
-        await adminFetch(`/admin/products/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ status, note }),
-        });
-        await loadData();
-    } catch (e: any) {
-        alert(`Action failed: ${e.message}`);
-    }
-  };
+  /* =========================
+     Image Handlers
+  ========================= */
 
-  const handleSaveConfig = async (config: any) => {
-    await adminFetch('/site-config', {
-      method: 'POST',
-      body: JSON.stringify({ config }),
-    });
-    setSiteConfig(config);
-    alert('Site configuration saved.');
-  };
-
-  const handleAdminUpload = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
+  const handleUploadImage = async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
 
     const res = await adminFetch<{ url: string }>('/upload-image', {
       method: 'POST',
-      body: formData,
+      body: form,
     });
 
     if (!res.url) throw new Error('Upload failed');
     return res.url;
   };
 
-  const handleAdminDelete = async (url: string) => {
+  const handleDeleteImage = async (url: string) => {
+    const key = extractKeyFromUrl(url);
+    if (!key) return;
+
     await adminFetch('/admin/delete-image', {
       method: 'POST',
-      body: JSON.stringify({ url }), // Matches backend expectation often used
+      body: JSON.stringify({ key }),
     });
-    // Note: Backend might expect { key } or { url }. 
-    // AdminFetch wrapper handles 204/200.
   };
 
-  const filteredItems = selectedCategoryId 
-    ? products.filter(p => p.category?.toLowerCase() === selectedCategoryId.toLowerCase())
-    : products;
+  /* =========================
+     Site Config Handlers
+  ========================= */
 
-  /* ------------------------
+  const handleSaveSiteConfig = async () => {
+    if (!siteConfig) return;
+
+    setIsSavingConfig(true);
+    try {
+      await adminFetch('/site-config', {
+        method: 'PUT',
+        body: JSON.stringify({ config: siteConfig }),
+      });
+      alert('Site configuration published.');
+      await loadSiteConfig();
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  /* =========================
      Render
-  ------------------------ */
+  ========================= */
+
   return (
-    <PortalLayout 
-        role="ADMIN" 
-        userName={userName}
-        navActions={
-            <>
-                <button onClick={() => setActiveTab('review')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'review' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Review</button>
-                <button onClick={() => { setActiveTab('inventory'); setSelectedCategoryId(null); }} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'inventory' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Inventory</button>
-                <button onClick={() => setActiveTab('collections')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'collections' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Collections</button>
-                <button onClick={() => setActiveTab('config')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'config' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Site Config</button>
-                <button onClick={() => setActiveTab('assets')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'assets' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Assets</button>
-                <button onClick={() => setActiveTab('accounts')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'accounts' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Accounts</button>
-            </>
-        }
+    <PortalLayout
+      role="ADMIN"
+      userName="Admin"
+      navItems={[
+        { key: 'products', label: 'Products' },
+        { key: 'site-config', label: 'Site Config' },
+        { key: 'accounts', label: 'Accounts' },
+        { key: 'inquiries', label: 'Inquiries' },
+      ]}
+      activeKey={activeTab}
+      onNavChange={(key) => setActiveTab(key as Tab)}
     >
-      {loading ? (
-        <div className="py-20 text-center text-stone-400">Loading admin workspace…</div>
-      ) : (
+      {activeTab === 'products' && (
         <>
-          {activeTab === 'review' && (
-            <ReviewQueue
-              lang={language}
-              products={products.filter(p => p.status === 'pending')}
-              onProcess={handleReviewAction}
-            />
-          )}
-
-          {activeTab === 'inventory' && (
-            <>
-                {(isCreating || editingItem) ? (
-                    <ProductForm 
-                        lang={language}
-                        initialData={editingItem || {}} 
-                        categories={categories}
-                        fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
-                        onSave={handleSaveProduct} 
-                        onCancel={() => { setEditingItem(null); setIsCreating(false); }}
-                        onUpload={handleAdminUpload}
-                        userRole="ADMIN"
-                    />
-                ) : (
-                    <>
-                        {!selectedCategoryId ? (
-                            <CategoryGrid 
-                                categories={categories}
-                                products={products}
-                                onSelectCategory={setSelectedCategoryId}
-                                onSelectAll={() => setSelectedCategoryId('ALL_MASTER')}
-                                onCreateCategory={() => setActiveTab('collections')}
-                            />
-                        ) : (
-                            <ProductList 
-                                lang={language}
-                                items={filteredItems} 
-                                categories={categories}
-                                categoryTitle={selectedCategoryId === 'ALL_MASTER' ? 'Full Inventory' : categories.find(c=>c.id===selectedCategoryId)?.title}
-                                onBack={() => setSelectedCategoryId(null)}
-                                onEdit={setEditingItem} 
-                                onDelete={handleDeleteProduct}
-                                onCreate={() => setIsCreating(true)}
-                            />
-                        )}
-                    </>
-                )}
-            </>
-          )}
-
-          {activeTab === 'collections' && siteConfig && (
-            <CollectionManager
-              categories={categories}
-              onUpload={handleAdminUpload}
-              onDelete={handleDeleteProduct}
-              onUpdate={(cat) => {
-                if (!siteConfig) return;
-                const newCats = categories.map(c => c.id === cat.id ? cat : c);
-                // If it's a new category (not found), append it
-                if (!categories.find(c => c.id === cat.id)) newCats.push(cat);
-                
-                const newConfig = { ...siteConfig, categories: newCats };
-                handleSaveConfig(newConfig);
-                setCategories(newCats);
+          {editingProduct || isCreating ? (
+            <ProductForm
+              initialData={editingProduct || {}}
+              onSave={handleSaveProduct}
+              onCancel={() => {
+                setEditingProduct(null);
+                setIsCreating(false);
               }}
+              onUpload={handleUploadImage}
+              onDeleteImage={handleDeleteImage}
+              userRole="ADMIN"
             />
-          )}
-
-          {activeTab === 'config' && siteConfig && (
-            <SiteConfigEditor
-              config={siteConfig}
-              meta={{ version: 'latest', published_at: new Date().toISOString() }} 
-              onSave={() => handleSaveConfig(siteConfig)}
-              onChange={setSiteConfig}
-              isSaving={false}
-              onRefresh={loadData}
-              onUpload={handleAdminUpload}
-              onDelete={async (url) => handleAdminDelete(url)}
+          ) : (
+            <ProductList
+              items={products}
+              onEdit={setEditingProduct}
+              onDelete={handleDeleteProduct}
+              onCreate={() => setIsCreating(true)}
             />
-          )}
-
-          {activeTab === 'assets' && (
-            <PageAssets
-              customAssets={{}} 
-              assetHistory={{}}
-              onAssetUpdate={(key, url) => console.log(key, url)}
-              onAssetReset={() => {}}
-              onAssetRollback={() => {}}
-              viewingHistoryKey={null}
-              setViewingHistoryKey={() => {}}
-              onUpload={handleAdminUpload}
-              onDelete={async (url) => handleAdminDelete(url)}
-            />
-          )}
-
-          {activeTab === 'accounts' && (
-            <AccountsManager />
           )}
         </>
       )}
+
+      {activeTab === 'site-config' && siteConfig && (
+        <SiteConfigEditor
+          config={siteConfig}
+          meta={null} // 🔒 no history / no versioning
+          onChange={setSiteConfig}
+          onSave={handleSaveSiteConfig}
+          isSaving={isSavingConfig}
+          onRefresh={loadSiteConfig}
+          onUpload={handleUploadImage}
+          onDelete={handleDeleteImage}
+        />
+      )}
+
+      {activeTab === 'accounts' && <AccountsManager />}
+
+      {activeTab === 'inquiries' && <InquiriesPanel />}
     </PortalLayout>
   );
 };
 
 export default AdminWorkspace;
+
     
