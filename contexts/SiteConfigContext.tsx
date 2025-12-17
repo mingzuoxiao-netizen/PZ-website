@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -10,6 +9,7 @@ import {
   fetchSiteConfig,
   SiteConfig,
   SiteMeta,
+  SiteConfigEnvelope,
   DEFAULT_CONFIG,
 } from "../utils/siteConfig";
 
@@ -52,10 +52,11 @@ export function SiteConfigProvider({ children }: { children?: ReactNode }) {
 
       // Check if result matches Envelope structure
       if ("version" in result && "config" in result) {
-        setConfig(result.config);
+        const envelope = result as SiteConfigEnvelope;
+        setConfig(envelope.config);
         setMeta({
-          version: result.version || 'legacy',
-          published_at: result.published_at ?? null,
+          version: envelope.version || 'legacy',
+          published_at: envelope.published_at ?? null,
         });
       } else {
         // Legacy format fallback

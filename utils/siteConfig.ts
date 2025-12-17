@@ -1,25 +1,22 @@
-
-import { useEffect, useState } from "react";
-import { DEFAULT_ASSETS, ASSET_KEYS } from './assets';
-import { Category } from '../types';
-import { categories as staticCategories } from '../data/inventory';
+import { useState } from "react";
+import { DEFAULT_ASSETS, ASSET_KEYS } from "./assets";
+import { Category } from "../types";
+import { categories as staticCategories } from "../data/inventory";
 
 /* =========================
    API
 ========================= */
 
-// ✅ CONFIRMED: Worker URL
 export const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
-
-/* =========================
-   Constants
-========================= */
-
-export const SITE_CONFIG_STORAGE_KEY = "SITE_CONFIG_KV";
 
 /* =========================
    Types
 ========================= */
+
+export interface SiteMeta {
+  version: string;
+  published_at: string | null;
+}
 
 export interface SiteConfig {
   home: {
@@ -27,18 +24,10 @@ export interface SiteConfig {
       title: string;
       image: string;
     };
-    factory: {
-      image: string;
-    };
-    cta: {
-      image: string;
-    };
-    hub_cn: {
-      image: string;
-    };
-    hub_kh: {
-      image: string;
-    };
+    factory: { image: string };
+    cta: { image: string };
+    hub_cn: { image: string };
+    hub_kh: { image: string };
   };
   about: {
     banner: string;
@@ -50,13 +39,8 @@ export interface SiteConfig {
       automation: string;
     };
   };
-  catalog: {
-    url: string;
-  };
-  studio: {
-    hero: string;
-    design: string;
-  };
+  catalog: { url: string };
+
   manufacturing: {
     hero_machinery: string;
     hero_qc: string;
@@ -92,23 +76,17 @@ export interface SiteConfig {
     feat_capabilities: string;
     feat_default: string;
   };
-  // ✅ NEW: Categories / Collections Management
   categories: Category[];
 }
 
-export interface SiteMeta {
-  version: string;
-  published_at: string | null;
-}
-
 export interface SiteConfigEnvelope {
-  version: string;
-  published_at: string | null;
   config: SiteConfig;
+  version: string;
+  published_at: string;
 }
 
 /* =========================
-   Defaults (SSR / Fallback)
+   Defaults
 ========================= */
 
 export const DEFAULT_CONFIG: SiteConfig = {
@@ -132,13 +110,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
       automation: DEFAULT_ASSETS[ASSET_KEYS.ABOUT_GALLERY_5],
     },
   },
-  catalog: {
-    url: "",
-  },
-  studio: {
-    hero: "https://images.unsplash.com/photo-1620706857370-e1b9770e8bb1?q=80&w=2564&auto=format&fit=crop",
-    design: "https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?q=80&w=1000&auto=format&fit=crop",
-  },
+  catalog: { url: "" },
   manufacturing: {
     hero_machinery: DEFAULT_ASSETS[ASSET_KEYS.MFG_MACHINERY_HERO],
     hero_qc: DEFAULT_ASSETS[ASSET_KEYS.MFG_QC_HERO],
@@ -174,49 +146,42 @@ export const DEFAULT_CONFIG: SiteConfig = {
     feat_capabilities: DEFAULT_ASSETS[ASSET_KEYS.MENU_CAPABILITIES],
     feat_default: DEFAULT_ASSETS[ASSET_KEYS.MENU_DEFAULT],
   },
-  // Default to static categories if no config exists
   categories: staticCategories,
 };
 
 /* =========================
-   Fetchers
+   Fetcher (v1.0)
 ========================= */
 
-// Returns either the raw config (legacy) or the Envelope (new)
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
-    // FIX: Ensure correct spelling of /site-config endpoint
     const res = await fetch(`${API_BASE}/site-config`, {
       cache: "no-store",
     });
-
     if (!res.ok) return null;
-    return res.json();
+    return (await res.json()) as (SiteConfig | SiteConfigEnvelope);
   } catch {
     return null;
   }
 }
 
-// ⚠️ LEGACY APIs DEPRECATED - Returning null to prevent 404s until new Product API is ready
-export async function fetchInventory(): Promise<any[] | null> {
-  return null; 
-}
-
-export async function fetchStructure(): Promise<any[] | null> {
-  return null;
-}
-
 export async function fetchCloudAssets(): Promise<Record<string, string> | null> {
-  return null;
+  try {
+    const res = await fetch(`${API_BASE}/assets`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, string>;
+  } catch {
+    return null;
+  }
 }
 
 /* =========================
-   React Hooks (CMS)
+   Hooks
 ========================= */
 
 export function useCloudAssets() {
-  // Currently returns default assets as the Cloud Asset API is deprecated
-  // We encourage using usePublishedSiteConfig() instead for full editability
   const [assets] = useState<Record<string, string>>(DEFAULT_ASSETS);
   return assets;
 }

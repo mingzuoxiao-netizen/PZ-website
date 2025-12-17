@@ -86,13 +86,7 @@ export const SITE_SCHEMA: SectionSchema[] = [
       },
     ],
   },
-  {
-    section: "The Studio Page",
-    fields: [
-      { label: "Studio Hero Image", type: "image", path: "studio.hero" },
-      { label: "Design Section Image", type: "image", path: "studio.design" },
-    ]
-  },
+
   {
     section: "About Page",
     fields: [

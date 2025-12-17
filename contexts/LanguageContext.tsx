@@ -422,21 +422,6 @@ const translations = {
       warehouse: "US Warehouse (LA)",
       warehouseDesc: "129,000 sq.ft facility in California allowing for domestic replenishment and drop-ship programs."
     },
-    studio: {
-       title: "The Studio",
-       subtitle: "Where Design Meets Precision",
-       design: "Design",
-       designTitle: "Architectural Thinking",
-       designDesc1: "We approach furniture not just as objects, but as architectural elements. Every curve and joint is considered.",
-       designDesc2: "Our in-house design team collaborates with global partners to translate sketches into reality.",
-       eng: "Engineering",
-       engTitle: "Structural Integrity",
-       engDesc: "Beauty must be durable. Our engineering process ensures longevity.",
-       raw: "Raw Material",
-       rawTitle: "Premium Selection",
-       rawDesc: "We source only the finest hardwoods from sustainable forests.",
-       exploreMat: "Explore Materials"
-    },
     admin: {
       dashboard: "Admin Dashboard",
       openCreator: "Open Creator Studio",
@@ -537,7 +522,6 @@ const translations = {
         "Home Page / Hero": "Home Page / Hero",
         "Home Page / Sections": "Home Page / Sections",
         "Home Page / Global Hubs": "Home Page / Global Hubs",
-        "The Studio Page": "The Studio Page",
         "About Page": "About Page",
         "Manufacturing Page": "Manufacturing Page",
         "Global Capacity / Locations": "Global Capacity / Locations",
@@ -556,8 +540,6 @@ const translations = {
         "home.cta.image": { label: "Footer CTA Background" },
         "home.hub_cn.image": { label: "China Hub Image" },
         "home.hub_kh.image": { label: "Cambodia Hub Image" },
-        "studio.hero": { label: "Studio Hero Image" },
-        "studio.design": { label: "Design Section Image" },
         "about.banner": { label: "Main Cinematic Banner" },
         "about.gallery.raw": { label: "Gallery: Raw Lumber" },
         "about.gallery.milling": { label: "Gallery: Precision Milling" },
@@ -608,8 +590,6 @@ export const LanguageProvider = ({ children }: { children?: ReactNode }) => {
     });
   };
 
-  // ✅ SAFE FALLBACK: If language is 'zh' but no 'zh' keys exist, use 'en'.
-  // This satisfies the request to force English text content if other langs are missing.
   const t = translations[language] || translations['en'];
 
   const value = {
