@@ -105,10 +105,10 @@ useEffect(() => {
         name: row.name,
         company: row.company || '',
         email: row.email,
-        type: row.type,
+        type: row.type as Inquiry['type'],
         message: row.message,
         date: row.created_at.split('T')[0],
-        status: row.status,
+        status: row.status as Inquiry['status'],
       }));
 
       setInquiries(mapped);
@@ -325,7 +325,6 @@ useEffect(() => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
 

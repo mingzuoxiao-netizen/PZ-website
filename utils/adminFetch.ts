@@ -1,3 +1,4 @@
+
 // utils/adminFetch.ts
 
 // ✅ Single source of truth for API host
@@ -43,7 +44,7 @@ export async function adminFetch<T = any>(
   }
 
   // Vite-friendly debug flag
-  if (import.meta.env?.DEV) {
+  if ((import.meta as any).env?.DEV) {
     // console.debug(`[adminFetch] ${customConfig.method || "GET"} ${url}`);
   }
 
