@@ -18,7 +18,7 @@ const handleLogin = async (e: React.FormEvent) => {
 
   try {
     // ✅ 1. 正确路径：/admin/login
-    const data = await adminFetch('/admin/login', {
+    const data = await adminFetch('/login', {
       method: "POST",
       skipAuth: true,
       body: JSON.stringify({ username, password }),
