@@ -18,7 +18,7 @@ const AdminLogin: React.FC = () => {
 
     try {
       // 1. Atomic Fetch
-      const response = await fetch(`${ADMIN_API_BASE}/admin/login`, {
+      const response = await fetch(`${ADMIN_API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
