@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
@@ -26,7 +27,6 @@ const AdminWorkspace: React.FC = () => {
    * Site Config
    ========================= */
   const [siteConfig, setSiteConfig] = useState<any | null>(null);
-  const [siteMeta, setSiteMeta] = useState<any | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   /* =========================
@@ -34,7 +34,7 @@ const AdminWorkspace: React.FC = () => {
    ========================= */
   const loadProducts = async () => {
     try {
-        const res = await adminFetch<{ products: any[] }>('/admin/products?limit=500');
+        const res = await adminFetch<{ products: any[] }>('admin/products?limit=500');
         setProducts(normalizeProducts(res.products || []));
     } catch (e) {
         console.error("Failed to load products", e);
@@ -43,9 +43,10 @@ const AdminWorkspace: React.FC = () => {
 
   const loadSiteConfig = async () => {
     try {
-        const res = await adminFetch<any>('/site-config');
+        // GET /site-config is public/allowed
+        const res = await adminFetch<any>('site-config');
+        // Envelope check
         setSiteConfig(res.config ?? res);
-        setSiteMeta(res.meta ?? null);
     } catch (e) {
         console.error("Failed to load site config", e);
     }
@@ -65,15 +66,15 @@ const AdminWorkspace: React.FC = () => {
   const handleSaveProduct = async (product: any) => {
     try {
         if (product.id) {
-        await adminFetch(`/admin/products/${product.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(product),
-        });
+            await adminFetch(`admin/products/${product.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(product),
+            });
         } else {
-        await adminFetch('/admin/products', {
-            method: 'POST',
-            body: JSON.stringify(product),
-        });
+            await adminFetch('admin/products', {
+                method: 'POST',
+                body: JSON.stringify(product),
+            });
         }
 
         setEditingProduct(null);
@@ -91,12 +92,13 @@ const AdminWorkspace: React.FC = () => {
     if (!siteConfig) return;
     setIsSavingConfig(true);
     try {
-      await adminFetch('/site-config', {
-        method: 'POST', // Changed from PUT to POST to match SiteConfigEditor expectation if needed, or keeping usage consistent with API contract
-        body: JSON.stringify({ config: siteConfig }),
+      // ✅ FIX: Contract Section 5 requires PUT /site-config
+      await adminFetch('site-config', {
+        method: 'PUT', 
+        body: JSON.stringify(siteConfig),
       });
+      alert('Site configuration published successfully.');
       await loadSiteConfig();
-      alert('Site configuration published.');
     } catch (e: any) {
         alert(`Error saving config: ${e.message}`);
     } finally {
@@ -110,15 +112,12 @@ const AdminWorkspace: React.FC = () => {
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await adminFetch<{ url: string }>('/upload-image', {
+    // ✅ FIX: Contract Section 6 is POST /upload-image
+    const res = await adminFetch<{ url: string }>('upload-image', {
       method: 'POST',
       body: formData,
     });
     return res.url;
-  };
-
-  const handleDelete = async (url: string) => {
-      // Logic handled in component or add endpoint here
   };
 
   /* =========================
@@ -127,13 +126,13 @@ const AdminWorkspace: React.FC = () => {
   return (
     <PortalLayout 
         role="ADMIN" 
-        userName="Admin"
+        userName="Administrator"
         navActions={
             <div className="flex space-x-6">
-                <button onClick={() => setActiveTab('products')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'products' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400'}`}>Inventory</button>
-                <button onClick={() => setActiveTab('site-config')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'site-config' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400'}`}>Site Config</button>
-                <button onClick={() => setActiveTab('accounts')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'accounts' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400'}`}>Accounts</button>
-                <button onClick={() => setActiveTab('inquiries')} className={`text-xs font-bold uppercase tracking-widest ${activeTab === 'inquiries' ? 'text-amber-700 border-b border-amber-700' : 'text-stone-400'}`}>Inquiries</button>
+                <button onClick={() => setActiveTab('products')} className={`text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'products' ? 'text-amber-700 border-b-2 border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Inventory</button>
+                <button onClick={() => setActiveTab('site-config')} className={`text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'site-config' ? 'text-amber-700 border-b-2 border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Site Config</button>
+                <button onClick={() => setActiveTab('accounts')} className={`text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'accounts' ? 'text-amber-700 border-b-2 border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Accounts</button>
+                <button onClick={() => setActiveTab('inquiries')} className={`text-xs font-bold uppercase tracking-widest transition-colors ${activeTab === 'inquiries' ? 'text-amber-700 border-b-2 border-amber-700' : 'text-stone-400 hover:text-stone-600'}`}>Inquiries</button>
             </div>
         }
     >
@@ -159,7 +158,7 @@ const AdminWorkspace: React.FC = () => {
               categories={siteConfig?.categories || []}
               onEdit={setEditingProduct}
               onCreate={() => setIsCreating(true)}
-              onBack={() => {}} // No category nav in simple list mode
+              onBack={() => {}}
             />
           )}
         </>

@@ -1,5 +1,5 @@
+
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { factoryFetch } from '../../utils/factoryFetch';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
@@ -13,12 +13,10 @@ import ProductForm from './components/ProductForm';
 import CategoryGrid from './components/CategoryGrid';
 
 const FactoryWorkspace: React.FC = () => {
-  const navigate = useNavigate();
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
 
   // Data
   const [localItems, setLocalItems] = useState<ProductVariant[]>([]);
-  // Factory uses STATIC categories only - strictly decoupled from dynamic site config
   const categories: Category[] = staticCategories;
 
   // UI
@@ -28,18 +26,13 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
 
   // UI display only
-  const userName = sessionStorage.getItem('pz_user_name') || 'Factory';
+  const userName = sessionStorage.getItem('pz_user_name') || 'Factory User';
 
   const loadData = async () => {
     setLoading(true);
     try {
-      /**
-       * ✅ IMPORTANT:
-       * Backend does NOT provide /factory/products.
-       * Factory must call the authenticated endpoint that exists: /admin/products
-       * Backend is responsible for enforcing role restrictions.
-       */
-      const res = await factoryFetch<{ products?: any[] }>('/admin/products?limit=500');
+      // ✅ FIX: Contract Section 2/3 - Factory must use /factory/products
+      const res = await factoryFetch<{ products?: any[] }>('factory/products?limit=500');
       const rawItems = res.products || [];
       setLocalItems(normalizeProducts(rawItems));
     } catch (e) {
@@ -51,18 +44,36 @@ const FactoryWorkspace: React.FC = () => {
 
   useEffect(() => { loadData(); }, []);
 
-const handleSaveProduct = async (_product: ProductVariant) => {
-  alert("Images uploaded successfully. Admin will review and publish.");
-  setEditingItem(null);
-  setIsCreating(false);
-};
+  const handleSaveProduct = async (product: ProductVariant) => {
+    try {
+        // ✅ FIX: Implemented real API submission for Factory
+        if (product.id) {
+            await factoryFetch(`factory/products/${product.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(product),
+            });
+        } else {
+            await factoryFetch('factory/products', {
+                method: 'POST',
+                body: JSON.stringify(product),
+            });
+        }
+
+        alert("Product submission saved for admin review.");
+        setEditingItem(null);
+        setIsCreating(false);
+        loadData();
+    } catch (e: any) {
+        alert(`Failed to save: ${e.message}`);
+    }
+  };
 
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    // ✅ Upload endpoint exists on backend
-    const data = await factoryFetch<{ url: string }>('/upload-image', {
+    // ✅ FIX: Endpoint is POST /upload-image (Section 6)
+    const data = await factoryFetch<{ url: string }>('upload-image', {
       method: 'POST',
       body: formData,
     });
@@ -80,13 +91,16 @@ const handleSaveProduct = async (_product: ProductVariant) => {
       role="FACTORY"
       userName={userName}
       navActions={
-        <span className="text-xs font-bold text-stone-400 uppercase tracking-widest px-3 py-1 bg-stone-100 rounded">
-          Inventory Mode
+        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest px-3 py-1 bg-stone-50 border border-stone-200 rounded-sm">
+          Factory Inventory Portal
         </span>
       }
     >
       {loading ? (
-        <div className="text-center py-20 text-stone-400">Loading Factory Portal...</div>
+        <div className="flex flex-col items-center justify-center py-32 text-stone-400">
+           <div className="w-8 h-8 border-4 border-stone-200 border-t-amber-700 rounded-full animate-spin mb-4"></div>
+           <p className="text-xs font-bold uppercase tracking-widest">Synchronizing Inventory...</p>
+        </div>
       ) : (
         <>
           {(isCreating || editingItem) ? (
@@ -94,7 +108,7 @@ const handleSaveProduct = async (_product: ProductVariant) => {
               lang={language}
               initialData={editingItem || {}}
               categories={categories}
-              fixedCategoryId={isCreating && selectedCategoryId ? selectedCategoryId : undefined}
+              fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'ALL_MASTER' ? selectedCategoryId : undefined}
               onSave={handleSaveProduct}
               onCancel={() => { setEditingItem(null); setIsCreating(false); }}
               onUpload={handleUpload}
@@ -116,12 +130,11 @@ const handleSaveProduct = async (_product: ProductVariant) => {
                   categories={categories}
                   categoryTitle={
                     selectedCategoryId === 'ALL_MASTER'
-                      ? 'Inventory List'
+                      ? 'Master Inventory'
                       : categories.find(c => c.id === selectedCategoryId)?.title
                   }
                   onBack={() => setSelectedCategoryId(null)}
                   onEdit={setEditingItem}
-                  // onDelete restricted (Prop intentionally omitted)
                   onCreate={() => setIsCreating(true)}
                 />
               )}
@@ -134,4 +147,3 @@ const handleSaveProduct = async (_product: ProductVariant) => {
 };
 
 export default FactoryWorkspace;
-
