@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ADMIN_SESSION_KEY, adminFetch } from "../utils/adminFetch";
+import { ADMIN_SESSION_KEY } from "../utils/adminFetch";
 import AdminLogin from "./AdminLogin";
 import { Loader2 } from "lucide-react";
 
@@ -16,55 +16,42 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
-  const validateSession = useCallback(async () => {
-    const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-    
-    // 1. Strict Token Check (Pre-Fetch)
-    if (!token) {
-      setChecking(false);
-      setAuthorized(false);
-      return;
-    }
+  useEffect(() => {
+    const validateToken = () => {
+      const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
+      const role = sessionStorage.getItem("pz_user_role");
+      
+      // 1. Basic Token Presence Check
+      if (!token) {
+        setAuthorized(false);
+        setChecking(false);
+        return;
+      }
 
-    try {
-      // 2. Token Exists -> Verify with Backend
-      const user = await adminFetch<{ username: string; role: string }>('/admin/me', { method: 'GET' });
-      const backendRole = (user.role || '').toUpperCase();
-
-      // 3. Enforce Workspace Isolation
-      if (requiredRole && backendRole !== requiredRole) {
-          console.warn(`[Guard] Role mismatch. User: ${backendRole}, Required: ${requiredRole}`);
-          // Redirect to correct workspace
-          const target = backendRole === 'ADMIN' ? '/creator/admin' : '/creator/factory';
+      // 2. Role Restriction Enforcement
+      // Contract says Factory cannot access Admin endpoints and vice versa.
+      if (requiredRole && role !== requiredRole) {
+          console.warn(`[Guard] Role mismatch. User: ${role}, Required: ${requiredRole}`);
+          const target = role === 'ADMIN' ? '/creator/admin' : '/creator/factory';
           navigate(target, { replace: true });
           return;
       }
 
-      // 4. Cache Display Info (UI Only)
-      sessionStorage.setItem("pz_user_role", backendRole);
-      sessionStorage.setItem("pz_user_name", user.username);
-      
+      // 3. Authorization Granted (Delayed Validation)
+      // Since Section 8 forbids /admin/me, we assume the token is valid 
+      // until an actual API request fails with 401.
       setAuthorized(true);
-    } catch (e) {
-      console.warn("[Guard] Session invalid or expired:", e);
-      sessionStorage.removeItem(ADMIN_SESSION_KEY);
-      sessionStorage.removeItem("pz_user_role");
-      sessionStorage.removeItem("pz_user_name");
-      setAuthorized(false);
-    } finally {
       setChecking(false);
-    }
-  }, [navigate, requiredRole]);
+    };
 
-  useEffect(() => {
-    validateSession();
-  }, [validateSession, location.pathname]);
+    validateToken();
+  }, [navigate, requiredRole, location.pathname]);
 
   if (checking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Verifying Identity...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Checking Session...</p>
       </div>
     );
   }
@@ -73,7 +60,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     return <>{children}</>;
   }
 
-  // Fallback to Login if no token or invalid token
+  // Fallback to Login
   return <AdminLogin />;
 };
 

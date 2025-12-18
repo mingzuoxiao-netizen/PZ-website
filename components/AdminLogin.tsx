@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, ArrowRight, Lock, Loader2, Factory } from "lucide-react";
-import { ADMIN_SESSION_KEY, ADMIN_API_BASE } from "../utils/adminFetch";
+import { ADMIN_SESSION_KEY, adminFetch } from "../utils/adminFetch";
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -17,37 +17,35 @@ const AdminLogin: React.FC = () => {
     setError(false);
 
     try {
-      // 1. Atomic Fetch
-      const response = await fetch(`${ADMIN_API_BASE}/login`, {
+      // 1. Using unified fetcher with skipAuth: true for login
+      // Path 'login' will be prefixed with ADMIN_API_BASE automatically
+      const data = await adminFetch('login', {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
+        skipAuth: true
       });
-
-      if (!response.ok) throw new Error("Authentication failed");
-
-      const data = await response.json();
       
-      // 2. Validate Token
-      if (!data.access_token) {
-        throw new Error("Missing access_token in response");
+      // 2. Map fields based on API_CONTRACT.md (v1.0)
+      // Contract says { "token": "...", "user": { "role": "...", "username": "..." } }
+      if (!data.token) {
+        throw new Error("Missing token in response");
       }
 
-      // 3. Write Token (Atomic Sync)
-      sessionStorage.setItem(ADMIN_SESSION_KEY, data.access_token);
+      // 3. Write Token & User Context (Atomic Sync)
+      sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
       
-      // Clear legacy/UI cache
-      sessionStorage.removeItem("pz_user_role");
-      sessionStorage.removeItem("pz_user_name");
+      if (data.user) {
+        sessionStorage.setItem("pz_user_role", (data.user.role || '').toUpperCase());
+        sessionStorage.setItem("pz_user_name", data.user.username || username);
+      }
 
       // 4. Navigate Immediately
-      // No setState here to prevent re-rendering AdminGuard before navigation completes
       navigate("/creator", { replace: true });
 
     } catch (err) {
       console.error("Login error:", err);
       setError(true);
-      setTimeout(() => setError(false), 2000);
+      setTimeout(() => setError(false), 3000);
       setLoading(false);
     }
   };
@@ -77,6 +75,7 @@ const AdminLogin: React.FC = () => {
                     placeholder="Username"
                     className="w-full bg-stone-50 border border-stone-200 pl-4 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans"
                     disabled={loading}
+                    autoComplete="username"
                 />
             </div>
 
@@ -88,12 +87,13 @@ const AdminLogin: React.FC = () => {
                     placeholder="Password"
                     className={`w-full bg-stone-50 border ${error ? 'border-red-400' : 'border-stone-200'} pl-4 pr-4 py-4 text-stone-900 focus:outline-none focus:border-[#a16207] focus:ring-1 focus:ring-[#a16207] transition-all placeholder-stone-400 font-sans`}
                     disabled={loading}
+                    autoComplete="current-password"
                 />
             </div>
             
             {error && (
                 <div className="text-red-500 text-xs font-bold uppercase tracking-widest animate-pulse">
-                    Access Denied
+                    Access Denied. Check credentials.
                 </div>
             )}
             
