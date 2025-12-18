@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { DEFAULT_ASSETS, ASSET_KEYS } from "./assets";
 import { Category } from "../types";
 import { categories as staticCategories } from "../data/inventory";
@@ -163,25 +162,4 @@ export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope
   } catch {
     return null;
   }
-}
-
-export async function fetchCloudAssets(): Promise<Record<string, string> | null> {
-  try {
-    const res = await fetch(`${API_BASE}/assets`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as Record<string, string>;
-  } catch {
-    return null;
-  }
-}
-
-/* =========================
-   Hooks
-========================= */
-
-export function useCloudAssets() {
-  const [assets] = useState<Record<string, string>>(DEFAULT_ASSETS);
-  return assets;
 }

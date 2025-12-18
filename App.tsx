@@ -20,7 +20,6 @@ import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { AssetProvider } from './contexts/AssetContext'; 
 import { SiteConfigProvider } from './contexts/SiteConfigContext';
 
 // Scroll to top on route change
@@ -44,7 +43,6 @@ const StandardLayout = () => (
 
 const App: React.FC = () => {
 return (
-  <AssetProvider>
       <LanguageProvider>
         <HashRouter>
           <ScrollToTop />
@@ -117,7 +115,6 @@ return (
           </Routes>
         </HashRouter>
       </LanguageProvider>
-  </AssetProvider>
 );
 };
 

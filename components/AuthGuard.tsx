@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, KeyRound, Hammer, Ruler, Axe, Lock } from 'lucide-react';
-import { ASSET_KEYS } from '../utils/assets';
-import { useAssets } from '../contexts/AssetContext';
+import { ASSET_KEYS, DEFAULT_ASSETS } from '../utils/assets';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 
 // --- CLIENT-SIDE PROTECTION CONFIG ---
 const PASSWORD = "PZ2025.";
@@ -25,9 +25,10 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   // idle -> verifying -> tension -> blast -> opening -> done
   const [animStage, setAnimStage] = useState<'idle' | 'verifying' | 'tension' | 'blast' | 'opening' | 'done'>('idle');
   
-  const assets = useAssets();
+  // Use Site Config for Preloading
+  const { config } = usePublishedSiteConfig();
   // Preload Hero Image explicitly to ensure it's in browser cache
-  const heroImage = assets[ASSET_KEYS.HOME_HERO_BG];
+  const heroImage = config?.home?.hero?.image || DEFAULT_ASSETS[ASSET_KEYS.HOME_HERO_BG];
 
   useEffect(() => {
     // Check for the simple site-wide token in session storage
