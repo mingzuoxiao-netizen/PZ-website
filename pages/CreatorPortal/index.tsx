@@ -2,32 +2,29 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { adminFetch } from '../../utils/adminFetch';
 
 const CreatorPortal: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const dispatchUser = async () => {
-        try {
-            const user = await adminFetch<{ role: string }>('/admin/me');
-            const role = (user.role || '').toUpperCase();
+    const dispatchUser = () => {
+        // ✅ Frozen API v1.0: Section 8 forbids /admin/me.
+        // We use the role metadata saved in sessionStorage during the 'login' response.
+        const role = (sessionStorage.getItem("pz_user_role") || '').toUpperCase();
 
-            if (role === 'ADMIN') {
-                navigate('/creator/admin', { replace: true });
-            } else if (role === 'FACTORY') {
-                navigate('/creator/factory', { replace: true });
-            } else {
-                console.error("Unknown role:", role);
-                navigate('/', { replace: true });
-            }
-        } catch (e) {
-            console.error("Dispatch failed (likely unauth):", e);
-            // Guard wrapper handles login display if token invalid
+        if (role === 'ADMIN') {
+            navigate('/creator/admin', { replace: true });
+        } else if (role === 'FACTORY') {
+            navigate('/creator/factory', { replace: true });
+        } else {
+            console.warn("[Portal] No role found in session, redirecting to login.");
+            navigate('/admin-pzf-2025', { replace: true });
         }
     };
 
-    dispatchUser();
+    // Small timeout to ensure Guard has completed (optional UX)
+    const timer = setTimeout(dispatchUser, 300);
+    return () => clearTimeout(timer);
   }, [navigate]);
 
   return (
