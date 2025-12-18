@@ -17,39 +17,45 @@ const handleLogin = async (e: React.FormEvent) => {
   setError(false);
 
   try {
-    // ✅ 1. 正确路径：/admin/login
-    const data = await adminFetch('/login', {
+    // ✅ Frozen API v1.0：统一登录入口
+    const data = await adminFetch<{
+      token: string;
+      user: {
+        id: string;
+        username: string;
+        role: "ADMIN" | "FACTORY";
+        org_id: string | null;
+      };
+    }>("/login", {
       method: "POST",
       skipAuth: true,
       body: JSON.stringify({ username, password }),
     });
 
-    // ✅ 2. 正确字段：access_token
-    if (!data.access_token) {
-      throw new Error("Missing access_token in response");
+    // ✅ v1.0：token + user 必须同时存在
+    if (!data.token || !data.user) {
+      throw new Error("Invalid login response");
     }
 
-    // ✅ 3. 写入 token
-    sessionStorage.setItem(ADMIN_SESSION_KEY, data.access_token);
+    // ✅ 写入 token
+    sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
 
-    // ✅ 4. 写入用户信息（与 Worker 对齐）
-    if (data.role) {
-      sessionStorage.setItem("pz_user_role", data.role);
-    }
-    if (data.username) {
-      sessionStorage.setItem("pz_user_name", data.username);
-    }
+    // ✅ 写入用户信息（必须从 user 读）
+    sessionStorage.setItem("pz_user_role", data.user.role);
+    sessionStorage.setItem("pz_user_name", data.user.username);
 
-    // ✅ 5. 跳转
+    // ✅ 跳转
     navigate("/creator", { replace: true });
 
   } catch (err) {
     console.error("Login error:", err);
     setError(true);
     setTimeout(() => setError(false), 3000);
+  } finally {
     setLoading(false);
   }
 };
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] bg-stone-50 px-6">
