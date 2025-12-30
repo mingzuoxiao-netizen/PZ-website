@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
+import { DEFAULT_CONFIG } from '../../utils/siteConfig';
 import PortalLayout from './PortalLayout';
 
 // Admin sub-pages
@@ -43,12 +44,22 @@ const AdminWorkspace: React.FC = () => {
 
   const loadSiteConfig = async () => {
     try {
-        // GET /site-config is public/allowed
+        // GET /site-config
         const res = await adminFetch<any>('site-config');
-        // Envelope check
-        setSiteConfig(res.config ?? res);
+        const remoteConfig = res.config ?? res;
+        
+        // ✅ Robustness: Merge with defaults to ensure 'categories' and other vital keys exist
+        setSiteConfig({
+            ...DEFAULT_CONFIG,
+            ...remoteConfig,
+            // Ensure categories specifically are preserved or defaulted
+            categories: (remoteConfig.categories && remoteConfig.categories.length > 0) 
+                ? remoteConfig.categories 
+                : DEFAULT_CONFIG.categories
+        });
     } catch (e) {
         console.error("Failed to load site config", e);
+        setSiteConfig(DEFAULT_CONFIG);
     }
   };
 
@@ -92,7 +103,6 @@ const AdminWorkspace: React.FC = () => {
     if (!siteConfig) return;
     setIsSavingConfig(true);
     try {
-      // ✅ FIX: Contract Section 5 requires PUT /site-config
       await adminFetch('site-config', {
         method: 'PUT', 
         body: JSON.stringify(siteConfig),
@@ -106,13 +116,9 @@ const AdminWorkspace: React.FC = () => {
     }
   };
 
-  /* =========================
-   * Admin Upload
-   ========================= */
   const handleUpload = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    // ✅ FIX: Contract Section 6 is POST /upload-image
     const res = await adminFetch<{ url: string }>('upload-image', {
       method: 'POST',
       body: formData,
@@ -120,9 +126,6 @@ const AdminWorkspace: React.FC = () => {
     return res.url;
   };
 
-  /* =========================
-   * Render
-   ========================= */
   return (
     <PortalLayout 
         role="ADMIN" 
@@ -141,7 +144,7 @@ const AdminWorkspace: React.FC = () => {
           {editingProduct || isCreating ? (
             <ProductForm
               initialData={editingProduct || {}}
-              categories={siteConfig?.categories || []}
+              categories={siteConfig?.categories || DEFAULT_CONFIG.categories}
               onSave={handleSaveProduct}
               onCancel={() => {
                 setEditingProduct(null);
@@ -155,7 +158,7 @@ const AdminWorkspace: React.FC = () => {
             <ProductList
               lang="en"
               items={products}
-              categories={siteConfig?.categories || []}
+              categories={siteConfig?.categories || DEFAULT_CONFIG.categories}
               onEdit={setEditingProduct}
               onCreate={() => setIsCreating(true)}
               onBack={() => {}}
