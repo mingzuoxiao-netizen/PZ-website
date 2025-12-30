@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Trash2, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Trash2, AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 import { extractKeyFromUrl } from '../../../utils/getAssetUrl';
 
@@ -32,18 +33,31 @@ const MediaTools: React.FC = () => {
       return;
     }
 
-    try {
-      // ✅ CORRECT endpoint & payload
-      await adminFetch('/delete-images', {
-        method: 'POST',
-        body: JSON.stringify({ keys }),
-      });
+    let successCount = 0;
+    let failCount = 0;
 
-      setResult({ success: keys.length, failed: 0 });
+    try {
+      // ✅ Compliance with Frozen API v1.0 (Section 6):
+      // Endpoint: admin/delete-image (no leading slash)
+      // Payload: { key: "string" }
+      for (const key of keys) {
+        try {
+          await adminFetch('admin/delete-image', {
+            method: 'POST',
+            body: JSON.stringify({ key }),
+          });
+          successCount++;
+        } catch (e) {
+          console.error(`Failed to delete key: ${key}`, e);
+          failCount++;
+        }
+      }
+
+      setResult({ success: successCount, failed: failCount });
       setUrls('');
     } catch (e) {
-      console.error('Bulk delete failed:', e);
-      setResult({ success: 0, failed: keys.length });
+      console.error('Batch processing error:', e);
+      setResult({ success: successCount, failed: keys.length - successCount });
     } finally {
       setProcessing(false);
     }
@@ -57,8 +71,8 @@ const MediaTools: React.FC = () => {
           Media Cleanup Tool
         </h3>
         <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
-          Manually delete unused images from the cloud storage. Use this to clean up
-          files that are no longer linked to any product or page.
+          Manually delete unused images from the cloud storage. This tool performs 
+          individual deletion requests to ensure compliance with the v1.0 API contract.
         </p>
       </div>
 
@@ -86,7 +100,7 @@ const MediaTools: React.FC = () => {
                   : <AlertTriangle size={16} className="mr-2" />
                 }
                 <span>
-                  Deleted {result.success} images.
+                  Successfully deleted {result.success} images.
                   {result.failed > 0 && ` Failed: ${result.failed}`}
                 </span>
               </div>
@@ -96,9 +110,13 @@ const MediaTools: React.FC = () => {
               onClick={handleDelete}
               disabled={processing || !urls.trim()}
               className="w-full bg-red-600 text-white font-bold uppercase tracking-widest py-4
-                         hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                         hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              {processing ? 'Processing...' : 'Permanently Delete Images'}
+              {processing ? (
+                <>
+                  Processing <Loader2 size={16} className="ml-3 animate-spin" />
+                </>
+              ) : 'Permanently Delete Images'}
             </button>
           </div>
         </div>
@@ -106,12 +124,12 @@ const MediaTools: React.FC = () => {
         <div className="md:col-span-1">
           <div className="bg-amber-50 border border-amber-200 p-6 text-amber-900 text-sm leading-relaxed">
             <h4 className="font-bold uppercase tracking-widest mb-4 flex items-center">
-              <Info size={16} className="mr-2" /> Important Note
+              <Info size={16} className="mr-2" /> Operational Safety
             </h4>
             <ul className="list-disc pl-4 space-y-2">
-              <li>Deleting files will immediately break images if still referenced.</li>
-              <li>Only URLs under our CDN domain will be processed.</li>
-              <li>This action cannot be undone.</li>
+              <li>Deletion is permanent and cannot be reversed.</li>
+              <li>Only managed CDN URLs will be accepted.</li>
+              <li>Processing many files may take a few moments.</li>
             </ul>
           </div>
         </div>
@@ -121,4 +139,3 @@ const MediaTools: React.FC = () => {
 };
 
 export default MediaTools;
-

@@ -9,7 +9,7 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 interface ProductFormProps {
   initialData: Partial<ProductVariant>;
   categories: Category[];
-  onSave: (data: ProductVariant) => void;
+  onSave: (data: any) => void;
   onCancel: () => void;
   onUpload: (file: File) => Promise<string>;
   fixedCategoryId?: string;
@@ -66,9 +66,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
         finalStatus = 'pending';
     }
 
-    const payload: ProductVariant = {
+    // ✅ Normalizing payload for Backend Compatibility
+    const payload = {
         ...(formData as ProductVariant),
         status: finalStatus,
+        is_published: finalStatus === 'published' ? 1 : 0, // Common legacy database field
         category: (formData.category || '').toLowerCase().trim(),
         images: Array.isArray(formData.images) ? formData.images : [],
         image: Array.isArray(formData.images) && formData.images.length > 0 ? formData.images[0] : (formData.image || '')
@@ -93,7 +95,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           {/* Status Bar */}
           <div className="flex items-center justify-between bg-white border border-stone-200 p-6 mb-6 shadow-sm">
              <div>
-                <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">{txt.status}</span>
+                <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-1">Current Status</span>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
                     ${formData.status === 'published' ? 'bg-green-100 text-green-700' : 
                       formData.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
@@ -108,25 +110,24 @@ const ProductForm: React.FC<ProductFormProps> = ({
              </div>
              {userRole === 'ADMIN' && (
                  <div className="flex space-x-2">
-                     <button type="button" onClick={() => handleChange('status', 'draft')} className="px-4 py-2 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 uppercase">{txt.setDraft}</button>
-                     <button type="button" onClick={() => handleChange('status', 'published')} className="px-4 py-2 text-xs font-bold bg-green-600 text-white hover:bg-green-700 uppercase">{txt.forcePub}</button>
+                     <button type="button" onClick={() => handleChange('status', 'draft')} className="px-4 py-2 text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200 uppercase">Draft</button>
+                     <button type="button" onClick={() => handleChange('status', 'published')} className="px-4 py-2 text-xs font-bold bg-green-600 text-white hover:bg-green-700 uppercase">Publish Now</button>
                  </div>
              )}
           </div>
 
           <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
              <h2 className="font-serif text-lg font-bold uppercase tracking-[0.1em] text-stone-900 mb-8 border-b border-stone-100 pb-4">
-                {editingId ? txt.edit : txt.add}
+                {editingId ? "Edit Product" : "Add New Product"}
              </h2>
              
              <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Category Selection */}
                 <div className="bg-stone-50/50 p-6 border border-stone-100 rounded-sm space-y-6">
                     <div className="grid grid-cols-1 gap-6">
                         <div>
                             <div className="flex justify-between items-center mb-2">
                                 <label className="text-xs uppercase tracking-wider text-stone-500 font-bold flex items-center">
-                                    {txt.mainCat}
+                                    Main Category
                                     {fixedCategoryId && <Lock size={12} className="ml-2 text-amber-600"/>}
                                 </label>
                             </div>
@@ -142,7 +143,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     onChange={e => handleChange('category', e.target.value)}
                                     className="w-full bg-white border border-stone-200 p-4 text-sm font-medium text-stone-900 focus:border-amber-700 outline-none shadow-sm appearance-none"
                                 >
-                                    <option value="">{t.creator.inventory.selectCat}</option>
+                                    <option value="">Select Category...</option>
                                     {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                 </select>
                             )}
@@ -150,12 +151,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </div>
 
-                {/* Primary Info (Name & Description) */}
                 <div className="grid grid-cols-1 gap-6">
-                    {/* EN Name */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {txt.nameEn} <span className="text-red-500">*</span>
+                            Product Name (EN) <span className="text-red-500">*</span>
                         </label>
                         <input 
                             type="text" 
@@ -165,57 +164,53 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             placeholder="e.g. Modern Dining Table"
                         />
                     </div>
-                    {/* CN Name */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {txt.nameZh}
+                            Product Name (CN)
                         </label>
                         <input 
                             type="text" 
                             value={formData.name_cn || ''} 
                             onChange={e => handleChange('name_cn', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-4 text-lg font-sans text-stone-900 focus:border-amber-700 outline-none shadow-sm"
-                            placeholder="例如：现代餐桌"
+                            placeholder="Chinese name (optional)..."
                         />
                     </div>
 
-                    {/* EN Desc */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {txt.descEn}
+                            Description (EN)
                         </label>
                         <textarea 
                             rows={3}
                             value={formData.description || ''} 
                             onChange={e => handleChange('description', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
-                            placeholder="Product details in English..."
+                            placeholder="Detailed product description in English..."
                         />
                     </div>
-                    {/* CN Desc */}
                     <div>
                         <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
-                            {txt.descZh}
+                            Description (CN)
                         </label>
                         <textarea 
                             rows={3}
                             value={formData.description_cn || ''} 
                             onChange={e => handleChange('description_cn', e.target.value)}
                             className="w-full bg-white border border-stone-200 p-3 text-sm text-stone-900 focus:border-amber-700 outline-none shadow-sm resize-none"
-                            placeholder="中文产品描述..."
+                            placeholder="Chinese description (optional)..."
                         />
                     </div>
                 </div>
 
-                {/* Technical Specs */}
                 <div className="bg-stone-50 p-6 border border-stone-200 rounded-sm">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-6 border-b border-stone-200 pb-2">
-                        {txt.specs}
+                        Specifications
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Box size={12} className="mr-1"/> {txt.material}
+                                <Box size={12} className="mr-1"/> Material
                             </label>
                             <input 
                                 type="text" 
@@ -227,7 +222,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         </div>
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Ruler size={12} className="mr-1"/> {txt.dims}
+                                <Ruler size={12} className="mr-1"/> Dimensions
                             </label>
                             <input 
                                 type="text" 
@@ -239,7 +234,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         </div>
                         <div>
                             <label className="flex items-center text-[10px] uppercase tracking-wider text-stone-500 font-bold mb-2">
-                                <Tag size={12} className="mr-1"/> {txt.code}
+                                <Tag size={12} className="mr-1"/> SKU Code
                             </label>
                             <div className="flex shadow-sm">
                                 <input 
@@ -253,7 +248,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     type="button"
                                     onClick={generateCode}
                                     className="bg-stone-100 px-3 hover:bg-stone-200 text-stone-600 border border-stone-200 border-l-0 transition-colors"
-                                    title="Auto Generate SKU"
                                 >
                                     <Shuffle size={14} />
                                 </button>
@@ -262,10 +256,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </div>
 
-                {/* Images */}
                 <div>
                    <PZImageManager 
-                     label={txt.gallery}
+                     label="Image Gallery"
                      images={formData.images || []}
                      onUpdate={(imgs) => {
                        setFormData(prev => ({ 
@@ -279,14 +272,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
                    />
                 </div>
 
-                {/* Footer Actions */}
                 <div className="flex gap-4 pt-6 border-t border-stone-100 sticky bottom-0 bg-white/95 backdrop-blur-md p-4 -mx-4 -mb-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                     <button 
                         type="button" 
                         onClick={onCancel}
                         className="px-8 py-4 border border-stone-200 text-stone-500 hover:text-stone-900 hover:border-stone-400 uppercase font-bold text-xs tracking-widest transition-all"
                     >
-                        {txt.cancel}
+                        Cancel
                     </button>
                     
                     <button
@@ -295,20 +287,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         className={`flex-1 text-white font-bold uppercase tracking-widest py-4 transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg
                         ${userRole === 'ADMIN' ? 'bg-[#281815] hover:bg-[#a16207]' : 'bg-blue-700 hover:bg-blue-800'}
                         `}
-                        onClick={() => {
-                            if (userRole === 'FACTORY') {
-                                handleChange('status', 'pending');
-                            }
-                        }}
                     >
                         {submitting ? (
-                          txt.processing
+                          "Processing..."
                         ) : (
                           <>
                              {userRole === 'ADMIN' ? (
-                                <><Save size={16} className="mr-2" /> {txt.publish}</>
+                                <><Save size={16} className="mr-2" /> Publish Changes</>
                              ) : (
-                                <><Send size={16} className="mr-2" /> {txt.submit}</>
+                                <><Send size={16} className="mr-2" /> Submit for Review</>
                              )}
                           </>
                         )}

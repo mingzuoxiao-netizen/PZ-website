@@ -1,10 +1,7 @@
 
 // utils/adminFetch.ts
 
-// ✅ Single source of truth for API host
 export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
-
-// ✅ Single source of truth for token key
 export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
@@ -17,7 +14,6 @@ export async function adminFetch<T = any>(
   { params, skipAuth = false, ...customConfig }: FetchOptions = {}
 ): Promise<T> {
   const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-
   const isFormData = customConfig.body instanceof FormData;
 
   const headers: HeadersInit = {
@@ -32,7 +28,6 @@ export async function adminFetch<T = any>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // ✅ Force absolute URL (never relative)
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
   let url = endpoint.startsWith("http")
     ? endpoint
@@ -43,30 +38,40 @@ export async function adminFetch<T = any>(
     url += `${url.includes("?") ? "&" : "?"}${search}`;
   }
 
-  // Vite-friendly debug flag
-  if ((import.meta as any).env?.DEV) {
-    // console.debug(`[adminFetch] ${customConfig.method || "GET"} ${url}`);
-  }
+  try {
+    const response = await fetch(url, {
+      method: customConfig.method || "GET",
+      ...customConfig,
+      headers,
+    });
 
-  const response = await fetch(url, {
-    method: customConfig.method || "GET",
-    ...customConfig,
-    headers,
-  });
+    if (!response.ok) {
+      let errorDetail = "";
+      try {
+          errorDetail = await response.text();
+      } catch (e) {}
 
-  if (!response.ok) {
-    const text = await response.text();
-    if (response.status === 404) {
-      throw new Error(`API Endpoint Not Found: ${url}`);
+      if (response.status === 404) {
+        throw new Error(`Endpoint not found: ${url}`);
+      }
+      if (response.status === 500) {
+        throw new Error(`Server Error (500). The backend crashed while processing your request. Details: ${errorDetail}`);
+      }
+      throw new Error(errorDetail || `HTTP ${response.status}`);
     }
-    throw new Error(text || `HTTP ${response.status}`);
-  }
 
-  if (response.status === 204) return {} as T;
+    if (response.status === 204) return {} as T;
 
-  const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return (await response.json()) as T;
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return (await response.json()) as T;
+    }
+    return (await response.text()) as unknown as T;
+  } catch (e: any) {
+      // Catch "Failed to fetch" (CORS or Network error)
+      if (e.message === 'Failed to fetch') {
+          throw new Error("Network Error: Could not connect to the API. This is usually caused by a server crash or CORS misconfiguration.");
+      }
+      throw e;
   }
-  return (await response.text()) as unknown as T;
 }

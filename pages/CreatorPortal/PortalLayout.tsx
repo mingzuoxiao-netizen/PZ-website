@@ -16,10 +16,12 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
 }) => {
   const { language, toggleLanguage } = useLanguage();
   
+  // ✅ Force English labels for workspace UI
   const txt = {
-    en: { exit: "Exit System", labelAdmin: "Admin Workspace", labelFactory: "Factory Workspace" },
-    zh: { exit: "退出系统", labelAdmin: "管理员工作区", labelFactory: "工厂工作区" }
-  }[language];
+    exit: "Exit System", 
+    labelAdmin: "Admin Workspace", 
+    labelFactory: "Factory Workspace"
+  };
 
   return (
     <div className="min-h-screen bg-stone-100 pb-20">
