@@ -34,31 +34,32 @@ export function normalizeProduct(input: any): ProductVariant {
   // 2. Normalize Status
   // Backend statuses: draft, pending, published, rejected, archived
   let status = 'draft';
-  if (input.status) {
-      const s = input.status.toLowerCase();
-      // Map legacy/frontend-only terms to backend terms if necessary
+  
+  // Rule: If explicitly published via flag, set status
+  if (input.is_published === 1 || input.is_published === true) {
+      status = 'published';
+  } else if (input.status) {
+      const s = input.status.toLowerCase().trim();
       if (s === 'pending_review') {
           status = 'pending';
-      } else if (s === 'pub') {
+      } else if (s === 'pub' || s === 'published') {
           status = 'published';
-      } else if (['published', 'draft', 'archived', 'pending', 'rejected'].includes(s)) {
+      } else if (['draft', 'archived', 'pending', 'rejected'].includes(s)) {
           status = s;
       }
   }
 
   return {
     ...input,
-    id: input.id || '',
+    id: input.id?.toString() || '',
     name: input.name || 'Untitled Product',
     
     // IMAGE NORMALIZATION
-    // Source of Truth for UI:
     images: images, 
-    // Legacy Backup (Write-only for backend):
-    image: images[0] || '',
+    image: images[0] || '', // Legacy backup
 
-    // FIELD NORMALIZATION (Handle schema evolution)
-    category: (input.category || input.categoryId || '').toLowerCase(), // Normalize ID
+    // FIELD NORMALIZATION
+    category: (input.category || input.categoryId || '').toString().toLowerCase().trim(),
     sub_category: input.sub_category || input.subCategoryName || '',
     
     name_cn: input.name_cn || input.name_zh || '',

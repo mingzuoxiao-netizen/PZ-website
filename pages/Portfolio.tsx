@@ -20,6 +20,7 @@ const Portfolio: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 1. Fetch Products from Public Endpoint
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
@@ -30,12 +31,14 @@ const Portfolio: React.FC = () => {
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         
         const json = await response.json();
+        // Backend usually returns { products: [...] } or { data: [...] }
         let rawData = json.products || json.data || json.results || (Array.isArray(json) ? json : []);
-        let loadedProducts = normalizeProducts(rawData).filter(p => 
-            p.status && (p.status.toLowerCase() === 'published' || p.status.toLowerCase() === 'pub')
-        );
+        
+        // Normalize and trust the backend filtering for public routes
+        let loadedProducts = normalizeProducts(rawData);
         setProducts(loadedProducts);
       } catch (e: any) {
+        console.error("Portfolio load error:", e);
         setError(`Unable to load products. (${e.message})`);
       } finally {
         setIsLoading(false);
@@ -44,29 +47,40 @@ const Portfolio: React.FC = () => {
     fetchPortfolio();
   }, []);
 
+  // 2. Identify available categories based on loaded products
   const availableCategories = useMemo(() => {
-    const validIds = new Set(products.map(p => p.category?.toLowerCase().trim()));
+    const productCategoryIds = new Set(products.map(p => (p.category || '').toLowerCase().trim()));
+    
+    // Priority: Categories defined in Public Snapshot -> Static Fallback
     const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
-    return sourceCategories.filter(cat => validIds.has(cat.id.toLowerCase()) || validIds.has(cat.title.toLowerCase()));
+    
+    return sourceCategories.filter(cat => {
+        const catId = cat.id.toLowerCase().trim();
+        const catTitle = cat.title.toLowerCase().trim();
+        return productCategoryIds.has(catId) || productCategoryIds.has(catTitle);
+    });
   }, [products, config]);
 
+  // 3. Handle Filtering and Deep Linking
   useEffect(() => {
     const cat = searchParams.get('category');
     if (cat) setActiveCategory(cat);
+    
     const prodId = searchParams.get('product');
     if (prodId && products.length > 0) {
-      const found = products.find(p => p.id === prodId || p.name === prodId);
+      const found = products.find(p => p.id === prodId || p.name === prodId || p.code === prodId);
       if (found) setSelectedProduct(found);
     }
   }, [searchParams, products]);
 
   const getProductsByCategory = (catId: string) => {
+      const targetId = catId.toLowerCase().trim();
+      const catDef = availableCategories.find(c => c.id.toLowerCase() === targetId);
+      const targetTitle = catDef ? catDef.title.toLowerCase().trim() : '';
+
       return products.filter(p => {
           const pCat = (p.category || '').toLowerCase().trim();
-          const tCat = catId.toLowerCase().trim();
-          const activeCategoryDef = availableCategories.find(c => c.id.toLowerCase() === tCat);
-          const activeTitle = activeCategoryDef ? activeCategoryDef.title.toLowerCase() : '';
-          return pCat === tCat || pCat === activeTitle;
+          return pCat === targetId || (targetTitle !== '' && pCat === targetTitle);
       });
   };
 
@@ -176,6 +190,12 @@ const Portfolio: React.FC = () => {
                                 </div>
                             );
                         })}
+                        {availableCategories.length === 0 && (
+                            <div className="col-span-full py-20 text-center bg-stone-100 border border-stone-200 text-stone-400 rounded-sm">
+                                <p className="font-serif text-xl mb-2">Portfolio Empty</p>
+                                <p className="text-xs uppercase tracking-widest">No published categories or products found.</p>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="animate-fade-in">
