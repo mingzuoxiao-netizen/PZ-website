@@ -6,7 +6,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
-import { resolveImage } from '../utils/imageResolver';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 
@@ -112,7 +111,7 @@ const Portfolio: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in" onClick={closeProduct}>
            <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
               <div className="w-full md:w-1/2 bg-stone-100 relative min-h-[300px]">
-                 <img src={resolveImage(selectedProduct.images[0])} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
+                 <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
                  <button onClick={closeProduct} className="absolute top-4 left-4 md:hidden bg-white/50 p-2 rounded-full"><X size={20} /></button>
               </div>
               <div className="w-full md:w-1/2 p-8 md:p-12 relative">
@@ -142,7 +141,7 @@ const Portfolio: React.FC = () => {
                     <h2 className="font-serif text-3xl md:text-5xl text-stone-900 leading-tight">{activeCategory === 'all' ? "Collections Overview" : activeCategoryDef?.title}</h2>
                 </div>
                 {config?.catalog?.url && (
-                    <a href={resolveImage(config.catalog.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all">
+                    <a href={config.catalog.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all">
                         <FileText size={18} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
                         <span className="text-xs font-bold uppercase tracking-widest text-stone-600 group-hover:text-stone-900">{t.collections.requestPdf}</span>
                         <Download size={14} className="text-stone-400" />
@@ -164,7 +163,7 @@ const Portfolio: React.FC = () => {
                             return (
                                 <div key={cat.id} className="group cursor-pointer block h-full flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
                                     <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
-                                        <img src={resolveImage(coverImage)} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                        <img src={coverImage} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                                         <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                         <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
                                             <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center shadow-lg">{t.collections.viewProducts} <ArrowRight size={14} className="ml-2"/></span>
@@ -187,7 +186,7 @@ const Portfolio: React.FC = () => {
                                 {getProductsByCategory(activeCategory).map((product, idx) => (
                                     <div key={product.id || idx} className="group cursor-pointer flex flex-col h-full" onClick={() => openProduct(product)}>
                                         <div className="aspect-[4/5] w-full bg-stone-100 relative overflow-hidden mb-4 shadow-sm border border-stone-100 transition-all duration-500 group-hover:shadow-md">
-                                            <img src={resolveImage(product.images[0])} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                                             <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                         </div>
                                         <div className="mt-auto">

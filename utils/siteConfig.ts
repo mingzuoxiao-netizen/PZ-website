@@ -1,6 +1,8 @@
+
 import { DEFAULT_ASSETS, ASSET_KEYS } from "./assets";
 import { Category } from "../types";
 import { categories as staticCategories } from "../data/inventory";
+import { adminFetch } from "./adminFetch";
 
 /* =========================
    API
@@ -149,12 +151,16 @@ export const DEFAULT_CONFIG: SiteConfig = {
 };
 
 /* =========================
-   Fetcher (v1.0)
+   Fetchers (v2.0)
 ========================= */
 
+/**
+ * Public Config Fetcher
+ * Strictly uses the /public/site-config endpoint.
+ */
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
-    const res = await fetch(`${API_BASE}/site-config`, {
+    const res = await fetch(`${API_BASE}/public/site-config`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -162,4 +168,18 @@ export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope
   } catch {
     return null;
   }
+}
+
+/**
+ * Preview Config Fetcher (Authorized)
+ * Strictly uses /admin/preview/site-config for read-only validation.
+ */
+export async function fetchPreviewConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
+    try {
+        const res = await adminFetch('admin/preview/site-config');
+        return res as (SiteConfig | SiteConfigEnvelope);
+    } catch (e) {
+        console.error("[Config] Preview fetch failed", e);
+        return null;
+    }
 }

@@ -11,6 +11,7 @@ import {
   ArrowUp,
   ArrowDown,
   PenTool,
+  Eye,
 } from 'lucide-react';
 import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -37,7 +38,6 @@ const AdminDashboard: React.FC = () => {
     const fetchInquiries = async () => {
       setLoading(true);
       try {
-        // ✅ Endpoint normalized: "admin/inquiries" (no leading slash)
         const json = await adminFetch<{
           data: any[];
         }>('admin/inquiries');
@@ -83,8 +83,6 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // ✅ Frozen API v1.0: Section 8 forbids /admin/logout.
-    // Pure client-side cleanup.
     setLoggingOut(true);
     sessionStorage.clear();
     window.location.href = '#/';
@@ -101,11 +99,14 @@ const AdminDashboard: React.FC = () => {
       <div className="container mx-auto px-6 md:px-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <h1 className="font-serif text-3xl text-stone-900">{t.admin.dashboard}</h1>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4">
+            <Link to="/admin-pzf-2025/preview" className="bg-white border border-stone-200 text-stone-900 text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-stone-50 rounded-sm flex items-center shadow-sm">
+                <Eye size={16} className="mr-2" /> Preview Site
+            </Link>
             <Link to="/creator" className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 rounded-sm flex items-center shadow-lg">
               <PenTool size={16} className="mr-2" /> {t.admin.openCreator}
             </Link>
-            <button onClick={handleLogout} className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest">
+            <button onClick={handleLogout} className="flex items-center text-red-700 hover:text-red-900 text-sm font-bold uppercase tracking-widest ml-4">
               {loggingOut ? <Loader2 size={16} className="mr-2 animate-spin" /> : <LogOut size={16} className="mr-2" />}
               {t.admin.logout}
             </button>
@@ -130,7 +131,7 @@ const AdminDashboard: React.FC = () => {
               <tbody className="divide-y divide-stone-100">
                 {loading ? (
                   <tr><td colSpan={5} className="p-12 text-center text-stone-400">Loading...</td></tr>
-                ) : processedInquiries.length === 0 ? (
+                ) : inquiries.length === 0 ? (
                   <tr><td colSpan={5} className="p-8 text-center text-stone-500">No data found.</td></tr>
                 ) : (
                   processedInquiries.map((inq) => (

@@ -19,6 +19,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
+import PreviewFrame from './pages/CreatorPortal/components/PreviewFrame';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SiteConfigProvider } from './contexts/SiteConfigContext';
 
@@ -33,11 +34,17 @@ const ScrollToTop = () => {
   return null;
 };
 
-// ✅ Standard Layout: Wraps Public Pages & Admin Workspace
-// Provides SiteConfig context strictly to these routes.
+// Standard Layout for Public
 const StandardLayout = () => (
-  <SiteConfigProvider>
+  <SiteConfigProvider mode="public">
     <Outlet />
+  </SiteConfigProvider>
+);
+
+// Isolated Layout for Admin Preview
+const PreviewLayout = () => (
+  <SiteConfigProvider mode="preview">
+    <PreviewFrame />
   </SiteConfigProvider>
 );
 
@@ -49,12 +56,8 @@ return (
 
           <Routes>
             
-            {/* ============================================================== */}
-            {/* GROUP 1: ROUTES WITH SITE CONFIG (Public + Admin Workspace)    */}
-            {/* ============================================================== */}
+            {/* PUBLIC & ADMIN WORKSPACE (Uses Public Config) */}
             <Route element={<StandardLayout />}>
-              
-              {/* Public Website */}
               <Route path="/" element={<AuthGuard><Layout><Home /></Layout></AuthGuard>} />
               <Route path="/about" element={<AuthGuard><Layout><About /></Layout></AuthGuard>} />
               <Route path="/manufacturing" element={<AuthGuard><Layout><Manufacturing /></Layout></AuthGuard>} />
@@ -67,50 +70,18 @@ return (
               <Route path="/terms" element={<AuthGuard><Layout><TermsOfService /></Layout></AuthGuard>} />
               <Route path="/search" element={<AuthGuard><Layout><SearchResults /></Layout></AuthGuard>} />
 
-              {/* Admin Dashboard (Uses Config for links/preview) */}
-              <Route
-                path="/admin-pzf-2025"
-                element={
-                  <AdminGuard>
-                    <AdminDashboard />
-                  </AdminGuard>
-                }
-              />
-
-              {/* Admin Workspace (The Editor) */}
-              <Route
-                path="/creator/admin"
-                element={
-                  <AdminGuard requiredRole="ADMIN">
-                    <AdminWorkspace />
-                  </AdminGuard>
-                }
-              />
+              <Route path="/admin-pzf-2025" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+              <Route path="/creator/admin" element={<AdminGuard requiredRole="ADMIN"><AdminWorkspace /></AdminGuard>} />
             </Route>
 
-            {/* ============================================================== */}
-            {/* GROUP 2: ISOLATED FACTORY WORKSPACE (NO SITE CONFIG)           */}
-            {/* Strictly prevents Config Provider loading states in factory    */}
-            {/* ============================================================== */}
+            {/* PREVIEW SCOPE (Strictly Isolated) */}
+            <Route path="/admin-pzf-2025/preview" element={<AdminGuard requiredRole="ADMIN"><PreviewLayout /></AdminGuard>} />
 
-            <Route
-              path="/creator/factory"
-              element={
-                <AdminGuard requiredRole="FACTORY">
-                  <FactoryWorkspace />
-                </AdminGuard>
-              }
-            />
+            {/* FACTORY WORKSPACE */}
+            <Route path="/creator/factory" element={<AdminGuard requiredRole="FACTORY"><FactoryWorkspace /></AdminGuard>} />
 
-            {/* Dispatcher (No Config needed) */}
-            <Route
-              path="/creator"
-              element={
-                <AdminGuard>
-                  <CreatorPortal />
-                </AdminGuard>
-              }
-            />
+            {/* Dispatcher */}
+            <Route path="/creator" element={<AdminGuard><CreatorPortal /></AdminGuard>} />
 
           </Routes>
         </HashRouter>

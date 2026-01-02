@@ -1,39 +1,23 @@
-const CDN_BASE = 'https://cdn.peng-zhan.com';
 
-function safeEncodePath(path: string) {
-  return path
-    .split('/')
-    .map(seg => encodeURIComponent(seg))
-    .join('/');
-}
-
+/**
+ * Unified image resolver for Peng-Zhan Platform.
+ * 
+ * NOTE: As of v2.0, the Backend returns full absolute URLs.
+ * This utility now acts as a safety pass-through.
+ */
 export function resolveImage(input?: string | null): string {
   if (!input) return '';
-
-  // 1️⃣ Browser-native URLs
-  if (
-    input.startsWith('http://') ||
-    input.startsWith('https://') ||
-    input.startsWith('data:') ||
-    input.startsWith('blob:')
-  ) {
-    return input;
-  }
-
-  // 2️⃣ Normalize legacy / dirty paths
-  const clean = input
-    .replace(/^\/+/, '')
-    .replace(/^uploads\//, '');
-
-  // 3️⃣ Always resolve to CDN uploads
-  return `${CDN_BASE}/uploads/${safeEncodePath(clean)}`;
+  
+  // Return the URL directly as provided by the API Snapshot
+  return input;
 }
 
 /**
- * Extract storage key from full URL (used for delete)
+ * Extract storage key from a full CDN URL (used for delete logic in Admin tools)
  */
 export function extractKeyFromUrl(url?: string | null): string | null {
   if (!url) return null;
+  const CDN_BASE = 'https://cdn.peng-zhan.com';
 
   if (url.startsWith(CDN_BASE)) {
     return url
@@ -46,5 +30,5 @@ export function extractKeyFromUrl(url?: string | null): string | null {
     return url.replace(/^https?:\/\/[^/]+\//, '').replace(/^uploads\//, '');
   }
 
-  return null;
+  return url.replace(/^\/+/, '').replace(/^uploads\//, '');
 }

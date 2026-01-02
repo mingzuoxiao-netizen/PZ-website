@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -7,6 +8,7 @@ import React, {
 } from "react";
 import {
   fetchSiteConfig,
+  fetchPreviewConfig,
   SiteConfig,
   SiteMeta,
   SiteConfigEnvelope,
@@ -15,18 +17,23 @@ import {
 
 interface SiteConfigContextValue {
   config: SiteConfig | null;
-  meta: SiteMeta; // Never null
+  meta: SiteMeta;
   loading: boolean;
   error: boolean;
+  mode: 'public' | 'preview';
   refresh: () => void;
 }
 
 const SiteConfigContext = createContext<SiteConfigContextValue | null>(null);
 
-export function SiteConfigProvider({ children }: { children?: ReactNode }) {
+export function SiteConfigProvider({ 
+  children, 
+  mode = 'public' 
+}: { 
+  children?: ReactNode; 
+  mode?: 'public' | 'preview' 
+}) {
   const [config, setConfig] = useState<SiteConfig | null>(null);
-  
-  // Initialize meta with a safe default object to prevent null access
   const [meta, setMeta] = useState<SiteMeta>({
     version: 'legacy',
     published_at: null
@@ -40,17 +47,27 @@ export function SiteConfigProvider({ children }: { children?: ReactNode }) {
     setError(false);
 
     try {
-      const result = await fetchSiteConfig();
+      // 1. Determine Source
+      const result = mode === 'preview' 
+        ? await fetchPreviewConfig() 
+        : await fetchSiteConfig();
 
+      // 2. Handle failure based on mode
       if (!result) {
-        // Fallback to default if API fails or returns nothing (e.g. first run)
-        console.warn("[SiteConfigProvider] No remote config found, using default.");
+        if (mode === 'preview') {
+            // PREVIEW RULES: No fallback to public. Show error state.
+            console.error("[Preview] Fetch failed. No fallback allowed.");
+            setError(true);
+            setConfig(null);
+            return;
+        }
+        // Public fallback
         setConfig(DEFAULT_CONFIG);
         setMeta({ version: "default", published_at: null });
         return;
       }
 
-      // Check if result matches Envelope structure
+      // 3. Process Result
       if ("version" in result && "config" in result) {
         const envelope = result as SiteConfigEnvelope;
         setConfig(envelope.config);
@@ -59,17 +76,17 @@ export function SiteConfigProvider({ children }: { children?: ReactNode }) {
           published_at: envelope.published_at ?? null,
         });
       } else {
-        // Legacy format fallback
         setConfig(result as SiteConfig);
         setMeta({ version: "legacy", published_at: null });
       }
     } catch (e) {
       console.error("[SiteConfigProvider] load failed", e);
-      // Fallback to default on error so the app doesn't break
-      setConfig(DEFAULT_CONFIG);
-      // Ensure meta remains a valid object even on error
-      setMeta({ version: "error-fallback", published_at: null });
-      setError(true);
+      if (mode === 'preview') {
+          setError(true);
+      } else {
+          setConfig(DEFAULT_CONFIG);
+          setMeta({ version: "error-fallback", published_at: null });
+      }
     } finally {
       setLoading(false);
     }
@@ -77,7 +94,7 @@ export function SiteConfigProvider({ children }: { children?: ReactNode }) {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [mode]);
 
   return (
     <SiteConfigContext.Provider
@@ -86,6 +103,7 @@ export function SiteConfigProvider({ children }: { children?: ReactNode }) {
         meta,
         loading,
         error,
+        mode,
         refresh: load,
       }}
     >
