@@ -5,7 +5,6 @@ import {
   Anchor,
   Truck,
   Loader2,
-  AlertTriangle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -18,18 +17,20 @@ import { ProductVariant } from '../types';
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const [activeHub, setActiveHub] = useState<'cn' | 'kh'>('cn');
-  const { config: site, loading: siteLoading, isFallback } = usePublishedSiteConfig();
+  const { config: site, loading: siteLoading } = usePublishedSiteConfig();
   const [categoryProducts, setCategoryProducts] = useState<ProductVariant[]>([]);
 
   // Fetch some products to identify active categories
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        // Use standard /public/ prefix and minimal signature for CORS compatibility
-        const response = await fetch(`${API_BASE}/public/products?limit=50`);
+        // Restored /public/ prefix for the website's product feed
+        const response = await fetch(`${API_BASE}/public/products?limit=50&_t=${Date.now()}`, {
+          method: 'GET'
+        });
         
         if (!response.ok) {
-            console.warn(`[Home] Public products fetch failed: ${response.status}`);
+            console.warn(`[Home] Public products fetch returned ${response.status}`);
             return;
         }
         
@@ -95,15 +96,7 @@ const Home: React.FC = () => {
 
   return (
     <>
-      {/* DEGRADED STATE INDICATOR (Public fallback) */}
-      {isFallback && (
-          <div className="bg-amber-600 text-white text-[10px] font-bold uppercase tracking-widest py-2 text-center fixed top-0 left-0 w-full z-[60] flex items-center justify-center gap-2">
-              <AlertTriangle size={12} />
-              Connection lost. Displaying static fallback content.
-          </div>
-      )}
-
-      <section className={`relative h-[100dvh] w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700 ${isFallback ? 'pt-6' : ''}`}>
+      <section className="relative h-[100dvh] w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: heroBg ? `url("${heroBg}")` : undefined }}
@@ -136,7 +129,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* FEATURED COLLECTIONS SECTION */}
+      {/* NEW: FEATURED COLLECTIONS SECTION */}
       {activeCategories.length > 0 && (
           <section className="bg-stone-50 py-24">
               <div className="container mx-auto px-6 md:px-12">

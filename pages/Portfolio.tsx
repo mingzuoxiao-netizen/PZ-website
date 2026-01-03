@@ -26,9 +26,11 @@ const Portfolio: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Use standard /public/ prefix for the website's product feed
-        const url = `${API_BASE}/public/products?limit=1000`;
-        const response = await fetch(url);
+        // Restored /public/ prefix for the website's product feed
+        const url = `${API_BASE}/public/products?limit=1000&_t=${Date.now()}`;
+        const response = await fetch(url, {
+            method: 'GET'
+        });
         
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         

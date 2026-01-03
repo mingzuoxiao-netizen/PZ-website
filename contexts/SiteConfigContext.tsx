@@ -20,7 +20,6 @@ interface SiteConfigContextValue {
   meta: SiteMeta;
   loading: boolean;
   error: boolean;
-  isFallback: boolean; // Added to track degraded state
   mode: 'public' | 'preview';
   refresh: () => void;
 }
@@ -42,12 +41,10 @@ export function SiteConfigProvider({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [isFallback, setIsFallback] = useState(false);
 
   const load = async () => {
     setLoading(true);
     setError(false);
-    setIsFallback(false);
 
     try {
       const result = mode === 'preview' 
@@ -60,9 +57,7 @@ export function SiteConfigProvider({
             setConfig(null);
             return;
         }
-        // Public fallback - mark as degraded state
-        console.warn("[SiteConfig] API returned no result. Using static fallback data.");
-        setIsFallback(true);
+        // Public fallback only if API fails completely
         setConfig(DEFAULT_CONFIG);
         setMeta({ version: "default", published_at: null });
         return;
@@ -86,8 +81,6 @@ export function SiteConfigProvider({
       if (mode === 'preview') {
           setError(true);
       } else {
-          // Public fallback - mark as degraded state
-          setIsFallback(true);
           setConfig(DEFAULT_CONFIG);
           setMeta({ version: "error-fallback", published_at: null });
       }
@@ -107,7 +100,6 @@ export function SiteConfigProvider({
         meta,
         loading,
         error,
-        isFallback,
         mode,
         refresh: load,
       }}
