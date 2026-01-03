@@ -20,6 +20,7 @@ interface SiteConfigContextValue {
   meta: SiteMeta;
   loading: boolean;
   error: boolean;
+  isFallback: boolean; // Added to track degraded state
   mode: 'public' | 'preview';
   refresh: () => void;
 }
@@ -41,34 +42,34 @@ export function SiteConfigProvider({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
 
   const load = async () => {
     setLoading(true);
     setError(false);
+    setIsFallback(false);
 
     try {
-      // 1. Determine Source
       const result = mode === 'preview' 
         ? await fetchPreviewConfig() 
         : await fetchSiteConfig();
 
-      // 2. Handle failure based on mode
       if (!result) {
         if (mode === 'preview') {
-            // PREVIEW RULES: No fallback to public. Show error state.
-            console.error("[Preview] Fetch failed. No fallback allowed.");
             setError(true);
             setConfig(null);
             return;
         }
-        // Public fallback
+        // Public fallback - mark as degraded state
+        console.warn("[SiteConfig] API returned no result. Using static fallback data.");
+        setIsFallback(true);
         setConfig(DEFAULT_CONFIG);
         setMeta({ version: "default", published_at: null });
         return;
       }
 
-      // 3. Process Result
-      if ("version" in result && "config" in result) {
+      // Handle Envelope Structure { config: SiteConfig, version: string }
+      if (result && typeof result === 'object' && 'config' in result) {
         const envelope = result as SiteConfigEnvelope;
         setConfig(envelope.config);
         setMeta({
@@ -76,14 +77,17 @@ export function SiteConfigProvider({
           published_at: envelope.published_at ?? null,
         });
       } else {
+        // Handle direct SiteConfig structure
         setConfig(result as SiteConfig);
         setMeta({ version: "legacy", published_at: null });
       }
     } catch (e) {
-      console.error("[SiteConfigProvider] load failed", e);
+      console.error("[SiteConfig] Load failed", e);
       if (mode === 'preview') {
           setError(true);
       } else {
+          // Public fallback - mark as degraded state
+          setIsFallback(true);
           setConfig(DEFAULT_CONFIG);
           setMeta({ version: "error-fallback", published_at: null });
       }
@@ -103,6 +107,7 @@ export function SiteConfigProvider({
         meta,
         loading,
         error,
+        isFallback,
         mode,
         refresh: load,
       }}
@@ -115,9 +120,7 @@ export function SiteConfigProvider({
 export function usePublishedSiteConfig() {
   const ctx = useContext(SiteConfigContext);
   if (!ctx) {
-    throw new Error(
-      "usePublishedSiteConfig must be used within SiteConfigProvider"
-    );
+    throw new Error("usePublishedSiteConfig must be used within SiteConfigProvider");
   }
   return ctx;
 }

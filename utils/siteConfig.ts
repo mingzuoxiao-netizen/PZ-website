@@ -156,16 +156,20 @@ export const DEFAULT_CONFIG: SiteConfig = {
 
 /**
  * Public Config Fetcher
- * Strictly uses the /public/site-config endpoint.
+ * Strictly uses /public/site-config prefix as required.
+ * Simplified signature avoids preflight OPTIONS requests.
  */
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
-    const res = await fetch(`${API_BASE}/public/site-config`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
+    // Minimal fetch to ensure 'simple request' status and best CORS compatibility
+    const res = await fetch(`${API_BASE}/public/site-config`);
+    if (!res.ok) {
+        console.warn(`[SiteConfig] Public fetch failed with status: ${res.status}`);
+        return null;
+    }
     return (await res.json()) as (SiteConfig | SiteConfigEnvelope);
-  } catch {
+  } catch (err) {
+    console.error("[SiteConfig] Network error or CORS failure during fetch", err);
     return null;
   }
 }

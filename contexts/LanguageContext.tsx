@@ -41,7 +41,7 @@ const translations = {
         capabilities: "Capabilities",
         manufacturing: "Manufacturing",
         materials: "Materials",
-        portfolio: "Portfolio",
+        collections: "Collections",
         capacity: "Global Capacity",
         about: "About",
         inquire: "Inquire"
@@ -122,7 +122,8 @@ const translations = {
       chinaLoc: "HQ & Main Facility",
       cambodiaLoc: "Low-Tariff Factory",
       readyToScale: "Ready to Scale?",
-      exploreMfg: "Explore Manufacturing"
+      exploreMfg: "Explore Manufacturing",
+      featuredCollections: "Featured Collections"
     },
     about: {
       since: "Since 2014",

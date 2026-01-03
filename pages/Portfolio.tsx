@@ -26,15 +26,15 @@ const Portfolio: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const url = `${API_BASE}/products?limit=1000&_t=${Date.now()}`;
+        // Use standard /public/ prefix for the website's product feed
+        const url = `${API_BASE}/public/products?limit=1000`;
         const response = await fetch(url);
+        
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         
         const json = await response.json();
-        // Backend usually returns { products: [...] } or { data: [...] }
         let rawData = json.products || json.data || json.results || (Array.isArray(json) ? json : []);
         
-        // Normalize and trust the backend filtering for public routes
         let loadedProducts = normalizeProducts(rawData);
         setProducts(loadedProducts);
       } catch (e: any) {
@@ -85,6 +85,7 @@ const Portfolio: React.FC = () => {
   };
 
   const getCategoryCover = (catId: string, defaultCover: string) => {
+      // Consumption: Picks the absolute URL string
       if (defaultCover && !defaultCover.includes('unsplash')) return defaultCover;
       const catProducts = getProductsByCategory(catId);
       if (catProducts.length > 0 && catProducts[0].images.length > 0) return catProducts[0].images[0];

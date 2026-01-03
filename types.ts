@@ -63,12 +63,11 @@ export interface Inquiry {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Home', path: '/', key: 'home' },
+  { label: 'Collections', path: '/collections', key: 'collections' },
   { label: 'Capabilities', path: '/capabilities', key: 'capabilities' },
   { label: 'Manufacturing', path: '/manufacturing', key: 'manufacturing' },
   { label: 'Materials', path: '/materials', key: 'materials' },
-  { label: 'Portfolio', path: '/portfolio', key: 'portfolio' },
   { label: 'Global Capacity', path: '/capacity', key: 'capacity' },
   { label: 'About', path: '/about', key: 'about' },
   { label: 'Inquire', path: '/inquire', key: 'inquire' },
 ];
-    

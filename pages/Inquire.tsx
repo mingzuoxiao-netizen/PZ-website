@@ -3,8 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send, CheckCircle, AlertCircle, Loader2, BookOpen } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { API_BASE } from '../utils/siteConfig';
 
-const INQUIRY_API = 'https://pz-inquiry-api.mingzuoxiao29.workers.dev';
+// Updated to use the standard public prefix
+const INQUIRY_API = `${API_BASE}/public/inquiries`;
 const TURNSTILE_SITE_KEY = '0x4AAAAAACCcwDofTxqfYxSe';
 
 declare global {
@@ -191,8 +193,6 @@ const Inquire: React.FC = () => {
             <p className="text-stone-600 text-lg leading-relaxed mb-12">{t.inquire.desc}</p>
 
             <div className="space-y-8 border-t border-stone-200 pt-8">
-              {/* REMOVED TRADE PROGRAM SECTION AS REQUESTED */}
-              
               <div>
                 <h3 className="text-stone-900 font-bold mb-2">{t.inquire.oem}</h3>
                 <p className="text-stone-500 text-sm">{t.inquire.oemDesc}</p>

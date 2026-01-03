@@ -1,10 +1,12 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { NAV_ITEMS } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
+import { categories as staticCategories } from '../../data/inventory';
+import { API_BASE } from '../../utils/siteConfig';
 
 interface DesktopNavProps {
   activeMenu: string | null;
@@ -22,10 +24,37 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   const location = useLocation();
   const { config } = usePublishedSiteConfig();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeCategoryIds, setActiveCategoryIds] = useState<Set<string>>(new Set());
+
+  // Fetch product category IDs once to ensure menu only shows active ones
+  useEffect(() => {
+    fetch(`${API_BASE}/products?limit=100&_t=${Date.now()}`)
+        .then(res => res.json())
+        .then(json => {
+            const products = json.products || json.data || (Array.isArray(json) ? json : []);
+            // Fix: Explicitly type the Set as string to match the state type and avoid 'unknown' inference.
+            const ids = new Set<string>(products.map((p: any) => String(p.category || '').toLowerCase().trim()));
+            setActiveCategoryIds(ids);
+        })
+        .catch(() => {});
+  }, []);
+
+  const dynamicCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
+  const filteredCategories = dynamicCategories.filter(cat => 
+    activeCategoryIds.has(cat.id.toLowerCase()) || activeCategoryIds.has(cat.title.toLowerCase())
+  );
 
   // --- MEGA MENU DATA ---
-  // Portfolio (/collections) removed from dropdown as requested
   const megaMenuData = {
+    "/collections": [
+        {
+            title: "Our Collections",
+            items: filteredCategories.map(cat => ({
+                label: cat.title,
+                href: `/collections?category=${cat.id}`
+            }))
+        }
+    ],
     "/manufacturing": [
       {
         title: t.nav.mega.process,
@@ -93,6 +122,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   const getMenuImage = (path: string | null) => {
       switch(path) {
+          case '/collections': return config?.menu?.feat_collections;
           case '/manufacturing': return config?.menu?.feat_mfg;
           case '/capabilities': return config?.menu?.feat_capabilities;
           default: return config?.menu?.feat_default;
@@ -101,6 +131,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   const getFocusText = (path: string | null) => {
       switch(path) {
+          case '/collections': return "Scalable Woodwork";
           case '/manufacturing': return t.nav.mega.focusPrecision;
           case '/capabilities': return t.nav.mega.focusEng;
           default: return t.nav.mega.focusLogistics;
@@ -108,10 +139,9 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   }
 
   const getGridCols = (count: number) => {
+    if (count === 1) return 'grid-cols-1';
     if (count === 2) return 'grid-cols-2';
     if (count === 3) return 'grid-cols-3';
-    if (count === 4) return 'grid-cols-4';
-    if (count >= 5) return 'grid-cols-5';
     return 'grid-cols-4';
   };
 

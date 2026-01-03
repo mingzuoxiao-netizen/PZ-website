@@ -62,7 +62,8 @@ return (
               <Route path="/about" element={<AuthGuard><Layout><About /></Layout></AuthGuard>} />
               <Route path="/manufacturing" element={<AuthGuard><Layout><Manufacturing /></Layout></AuthGuard>} />
               <Route path="/capabilities" element={<AuthGuard><Layout><Capabilities /></Layout></AuthGuard>} />
-              <Route path="/portfolio" element={<AuthGuard><Layout><Portfolio /></Layout></AuthGuard>} />
+              <Route path="/collections" element={<AuthGuard><Layout><Portfolio /></Layout></AuthGuard>} />
+              <Route path="/portfolio" element={<AuthGuard><Layout><Portfolio /></Layout></AuthGuard>} /> {/* Compatibility Redirect alias */}
               <Route path="/materials" element={<AuthGuard><Layout><Materials /></Layout></AuthGuard>} />
               <Route path="/capacity" element={<AuthGuard><Layout><GlobalCapacity /></Layout></AuthGuard>} />
               <Route path="/inquire" element={<AuthGuard><Layout><Inquire /></Layout></AuthGuard>} />
