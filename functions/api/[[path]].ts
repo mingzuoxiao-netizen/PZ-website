@@ -8,7 +8,7 @@ export async function onRequest(context: any) {
   
   // Real backend worker URL
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
-  const targetUrl = `${BACKEND_WORKER}${path}${url.search}`;
+  const targetUrl = `${BACKEND_WORKER}/public${path}${url.search}`;
 
   // Clone headers for the outgoing request
   const headers = new Headers(request.headers);
