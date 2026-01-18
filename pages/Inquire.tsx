@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Send, CheckCircle, AlertCircle, Loader2, BookOpen } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { API_BASE } from '../utils/siteConfig';
 
-const INQUIRY_API = 'https://pz-inquiry-api.mingzuoxiao29.workers.dev';
+const INQUIRY_API = `${API_BASE}/inquiries`;
 const TURNSTILE_SITE_KEY = '0x4AAAAAACCcwDofTxqfYxSe';
 
 declare global {
@@ -111,7 +111,6 @@ const Inquire: React.FC = () => {
 
     if (!turnstileToken) {
       setError('Security verification in progress, please try again in a moment.');
-      if(window.turnstile) { try { window.turnstile.reset(); } catch(e) {} }
       setLoading(false);
       return;
     }
@@ -133,22 +132,6 @@ const Inquire: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-
-      const newInquiry = {
-        id: Math.random().toString(36).substring(2, 9),
-        ...formData,
-        product_type: formData.type,
-        source: 'website',
-        date: new Date().toISOString().split('T')[0],
-        status: 'New',
-        createdAt: new Date().toISOString(),
-      };
-
-      try {
-        const existingInquiries = JSON.parse(localStorage.getItem('pz_inquiries') || '[]');
-        localStorage.setItem('pz_inquiries', JSON.stringify([newInquiry, ...existingInquiries]));
-      } catch (e) {}
-
       setSubmitted(true);
     } catch (err) {
       console.error('Error submitting inquiry:', err);
@@ -164,7 +147,7 @@ const Inquire: React.FC = () => {
     return (
       <div className="bg-stone-50 min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center px-6">
-          <CheckCircle className="mx-auto text-amber-700 mb-6" size={64} />
+          <CheckCircle className="mx-auto text-safety-700 mb-6" size={64} />
           <h2 className="text-3xl font-serif text-stone-900 mb-4">{t.inquire.form.success}</h2>
           <p className="text-stone-600 mb-8">{t.inquire.form.successDesc}</p>
           <button
@@ -191,8 +174,6 @@ const Inquire: React.FC = () => {
             <p className="text-stone-600 text-lg leading-relaxed mb-12">{t.inquire.desc}</p>
 
             <div className="space-y-8 border-t border-stone-200 pt-8">
-              {/* REMOVED TRADE PROGRAM SECTION AS REQUESTED */}
-              
               <div>
                 <h3 className="text-stone-900 font-bold mb-2">{t.inquire.oem}</h3>
                 <p className="text-stone-500 text-sm">{t.inquire.oemDesc}</p>
@@ -207,22 +188,22 @@ const Inquire: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">{t.inquire.form.name}</label>
+                  <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.name}</label>
                   <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3" />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">{t.inquire.form.company}</label>
+                  <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.company}</label>
                   <input required type="text" name="company" value={formData.company} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">{t.inquire.form.email}</label>
+                <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.email}</label>
                 <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3" />
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">{t.inquire.form.type}</label>
+                <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.type}</label>
                 <select name="type" value={formData.type} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3">
                   <option value="General">{t.inquire.types.general}</option>
                   <option value="Catalog Request">{t.inquire.types.catalog}</option>
@@ -232,7 +213,7 @@ const Inquire: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-stone-500 mb-2">{t.inquire.form.message}</label>
+                <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.message}</label>
                 <textarea required rows={5} name="message" value={formData.message} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3 resize-none"></textarea>
               </div>
 
@@ -240,7 +221,7 @@ const Inquire: React.FC = () => {
                 <div ref={turnstileContainerRef}></div>
               </div>
 
-              <button type="submit" disabled={loading} className="w-full bg-stone-900 text-white font-bold uppercase tracking-widest py-4 hover:bg-amber-700 disabled:bg-stone-400 disabled:cursor-not-allowed transition-colors flex justify-center items-center shadow-md">
+              <button type="submit" disabled={loading} className="w-full bg-stone-900 text-white font-bold uppercase tracking-widest py-4 hover:bg-safety-700 disabled:bg-stone-400 disabled:cursor-not-allowed transition-colors flex justify-center items-center shadow-md">
                 {loading ? <><span className="mr-2">{t.inquire.form.sending}</span><Loader2 size={16} className="animate-spin" /></> : <><span className="mr-2">{t.inquire.form.send}</span><Send size={16} /></>}
               </button>
             </form>

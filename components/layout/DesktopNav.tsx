@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
@@ -26,13 +25,11 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeCategoryIds, setActiveCategoryIds] = useState<Set<string>>(new Set());
 
-  // Fetch product category IDs once to ensure menu only shows active ones
   useEffect(() => {
-    fetch(`${API_BASE}/products?limit=100&_t=${Date.now()}`)
+    fetch(`${API_BASE}/products`)
         .then(res => res.json())
         .then(json => {
             const products = json.products || json.data || (Array.isArray(json) ? json : []);
-            // Fix: Explicitly type the Set as string to match the state type and avoid 'unknown' inference.
             const ids = new Set<string>(products.map((p: any) => String(p.category || '').toLowerCase().trim()));
             setActiveCategoryIds(ids);
         })
@@ -44,7 +41,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     activeCategoryIds.has(cat.id.toLowerCase()) || activeCategoryIds.has(cat.title.toLowerCase())
   );
 
-  // --- MEGA MENU DATA ---
   const megaMenuData = {
     "/collections": [
         {
@@ -151,7 +147,6 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     };
   }, []);
 
-  // Optimized font size for English to prevent crowding
   const navLinkClasses = language === 'en' 
     ? 'text-[11px] lg:text-[12px] xl:text-[13px] font-bold tracking-[0.1em]' 
     : 'text-[14px] lg:text-[15px] font-bold tracking-[0.05em]';
@@ -209,17 +204,10 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
         {activeMenu && (megaMenuData as any)[activeMenu] && (
           <div className="container mx-auto px-6 md:px-12">
              <div className="flex flex-col lg:flex-row h-[420px]">
-               
                <div className={`flex-grow py-16 grid gap-x-4 gap-y-8 bg-white pr-6 overflow-y-auto ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
                   {(megaMenuData as any)[activeMenu].map((group: any, idx: number) => (
-                    <div 
-                      key={idx} 
-                      className="space-y-4 animate-fade-in"
-                      style={{ animationDelay: `${idx * 30}ms` }}
-                    >
-                       <h3 className="font-serif text-lg text-stone-900 leading-tight">
-                         {group.title}
-                       </h3>
+                    <div key={idx} className="space-y-4 animate-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
+                       <h3 className="font-serif text-lg text-stone-900 leading-tight">{group.title}</h3>
                        <div className="w-6 h-[1px] bg-stone-200"></div>
                        <ul className="space-y-2.5">
                          {group.items.map((link: any, lIdx: number) => (
@@ -239,23 +227,13 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                </div>
 
                <div className="w-[300px] xl:w-[360px] bg-stone-50 h-full relative group overflow-hidden hidden lg:block border-l border-stone-100 flex-shrink-0">
-                  <img
-                    src={getMenuImage(activeMenu)}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-100"
-                    alt="Featured"
-                  />
+                  <img src={getMenuImage(activeMenu)} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-100" alt="Featured" />
                   <div className="absolute inset-0 bg-stone-900/10 group-hover:bg-transparent transition-colors"></div>
-                  
                   <div className="absolute bottom-0 left-0 p-10 w-full bg-gradient-to-t from-stone-900/90 to-transparent">
-                     <span className="block text-safety-700 text-xs uppercase tracking-[0.3em] font-bold mb-2">
-                        FOCUS
-                     </span>
-                     <p className="text-white font-serif text-2xl italic">
-                        {getFocusText(activeMenu)}
-                     </p>
+                     <span className="block text-safety-700 text-xs uppercase tracking-[0.3em] font-bold mb-2">FOCUS</span>
+                     <p className="text-white font-serif text-2xl italic">{getFocusText(activeMenu)}</p>
                   </div>
                </div>
-
              </div>
           </div>
         )}

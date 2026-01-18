@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -20,6 +19,7 @@ interface SiteConfigContextValue {
   meta: SiteMeta;
   loading: boolean;
   error: boolean;
+  isFallback: boolean;
   mode: 'public' | 'preview';
   refresh: () => void;
 }
@@ -41,10 +41,13 @@ export function SiteConfigProvider({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Add isFallback state to track when using static default config
+  const [isFallback, setIsFallback] = useState(false);
 
   const load = async () => {
     setLoading(true);
     setError(false);
+    setIsFallback(false);
 
     try {
       const result = mode === 'preview' 
@@ -60,6 +63,7 @@ export function SiteConfigProvider({
         // Public fallback only if API fails completely
         setConfig(DEFAULT_CONFIG);
         setMeta({ version: "default", published_at: null });
+        setIsFallback(true);
         return;
       }
 
@@ -83,6 +87,7 @@ export function SiteConfigProvider({
       } else {
           setConfig(DEFAULT_CONFIG);
           setMeta({ version: "error-fallback", published_at: null });
+          setIsFallback(true);
       }
     } finally {
       setLoading(false);
@@ -100,6 +105,7 @@ export function SiteConfigProvider({
         meta,
         loading,
         error,
+        isFallback,
         mode,
         refresh: load,
       }}

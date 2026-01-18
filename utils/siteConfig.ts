@@ -1,4 +1,3 @@
-
 import { DEFAULT_ASSETS, ASSET_KEYS } from "./assets";
 import { Category } from "../types";
 import { categories as staticCategories } from "../data/inventory";
@@ -8,7 +7,8 @@ import { adminFetch } from "./adminFetch";
    API
 ========================= */
 
-export const API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+// Updated to relative path for Cloudflare Pages Functions proxy to fix CORS
+export const API_BASE = "/api";
 
 /* =========================
    Types
@@ -151,35 +151,31 @@ export const DEFAULT_CONFIG: SiteConfig = {
 };
 
 /* =========================
-   Fetchers (v2.0)
+   Fetchers
 ========================= */
 
 /**
  * Public Config Fetcher
- * Restored the /public/ prefix which enforces read-only semantics.
+ * Strictly uses /site-config per Contract Section 5.
+ * Uses a simplified fetch to minimize CORS preflight triggers.
  */
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
-    const res = await fetch(`${API_BASE}/public/site-config`, {
-      method: 'GET',
-      cache: "no-store",
-    });
-    
+    const res = await fetch(`${API_BASE}/site-config`);
     if (!res.ok) {
-        console.warn(`[SiteConfig] Public fetch returned ${res.status}`);
-        return null;
+      console.warn(`[SiteConfig] Request failed with status: ${res.status}`);
+      return null;
     }
-    
     return (await res.json()) as (SiteConfig | SiteConfigEnvelope);
   } catch (err) {
-    console.error("[SiteConfig] Fetch failed. This usually indicates a CORS issue or incorrect public path.", err);
+    // Graceful silent fail to allow fallback mechanism
     return null;
   }
 }
 
 /**
  * Preview Config Fetcher (Authorized)
- * Strictly uses /admin/preview/site-config for read-only validation.
+ * Uses the dedicated admin preview path.
  */
 export async function fetchPreviewConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
     try {

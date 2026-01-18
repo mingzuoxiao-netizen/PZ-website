@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { X, Loader2, AlertCircle, Download, FileText, ArrowRight, ChevronLeft, Layers } from 'lucide-react';
@@ -8,6 +7,7 @@ import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
+import { resolveImage } from '../utils/imageResolver';
 
 const Portfolio: React.FC = () => {
   const { t } = useLanguage();
@@ -20,24 +20,22 @@ const Portfolio: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Fetch Products from Public Endpoint
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Restored /public/ prefix for the website's product feed
-        const url = `${API_BASE}/public/products?limit=1000&_t=${Date.now()}`;
-        const response = await fetch(url, {
-            method: 'GET'
-        });
+        const url = `${API_BASE}/products`;
+        const response = await fetch(url);
         
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         
         const json = await response.json();
         let rawData = json.products || json.data || json.results || (Array.isArray(json) ? json : []);
         
-        let loadedProducts = normalizeProducts(rawData);
+        let loadedProducts = normalizeProducts(rawData).filter(p => 
+            p.status?.toLowerCase() === 'published'
+        );
         setProducts(loadedProducts);
       } catch (e: any) {
         console.error("Portfolio load error:", e);
@@ -49,11 +47,8 @@ const Portfolio: React.FC = () => {
     fetchPortfolio();
   }, []);
 
-  // 2. Identify available categories based on loaded products
   const availableCategories = useMemo(() => {
     const productCategoryIds = new Set(products.map(p => (p.category || '').toLowerCase().trim()));
-    
-    // Priority: Categories defined in Public Snapshot -> Static Fallback
     const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
     
     return sourceCategories.filter(cat => {
@@ -63,7 +58,6 @@ const Portfolio: React.FC = () => {
     });
   }, [products, config]);
 
-  // 3. Handle Filtering and Deep Linking
   useEffect(() => {
     const cat = searchParams.get('category');
     if (cat) setActiveCategory(cat);
@@ -87,11 +81,11 @@ const Portfolio: React.FC = () => {
   };
 
   const getCategoryCover = (catId: string, defaultCover: string) => {
-      // Consumption: Picks the absolute URL string
-      if (defaultCover && !defaultCover.includes('unsplash')) return defaultCover;
       const catProducts = getProductsByCategory(catId);
-      if (catProducts.length > 0 && catProducts[0].images.length > 0) return catProducts[0].images[0];
-      return defaultCover;
+      if (catProducts.length > 0 && catProducts[0].images.length > 0) {
+          return resolveImage(catProducts[0].images[0]);
+      }
+      return resolveImage(defaultCover);
   };
 
   const handleCategorySelect = (catId: string) => {
@@ -128,7 +122,7 @@ const Portfolio: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in" onClick={closeProduct}>
            <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
               <div className="w-full md:w-1/2 bg-stone-100 relative min-h-[300px]">
-                 <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
+                 <img src={resolveImage(selectedProduct.images[0])} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
                  <button onClick={closeProduct} className="absolute top-4 left-4 md:hidden bg-white/50 p-2 rounded-full"><X size={20} /></button>
               </div>
               <div className="w-full md:w-1/2 p-8 md:p-12 relative">
@@ -158,7 +152,7 @@ const Portfolio: React.FC = () => {
                     <h2 className="font-serif text-3xl md:text-5xl text-stone-900 leading-tight">{activeCategory === 'all' ? "Collections Overview" : activeCategoryDef?.title}</h2>
                 </div>
                 {config?.catalog?.url && (
-                    <a href={config.catalog.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all">
+                    <a href={resolveImage(config.catalog.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all">
                         <FileText size={18} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
                         <span className="text-xs font-bold uppercase tracking-widest text-stone-600 group-hover:text-stone-900">{t.collections.requestPdf}</span>
                         <Download size={14} className="text-stone-400" />
@@ -193,12 +187,6 @@ const Portfolio: React.FC = () => {
                                 </div>
                             );
                         })}
-                        {availableCategories.length === 0 && (
-                            <div className="col-span-full py-20 text-center bg-stone-100 border border-stone-200 text-stone-400 rounded-sm">
-                                <p className="font-serif text-xl mb-2">Portfolio Empty</p>
-                                <p className="text-xs uppercase tracking-widest">No published categories or products found.</p>
-                            </div>
-                        )}
                     </div>
                 ) : (
                     <div className="animate-fade-in">
@@ -209,7 +197,7 @@ const Portfolio: React.FC = () => {
                                 {getProductsByCategory(activeCategory).map((product, idx) => (
                                     <div key={product.id || idx} className="group cursor-pointer flex flex-col h-full" onClick={() => openProduct(product)}>
                                         <div className="aspect-[4/5] w-full bg-stone-100 relative overflow-hidden mb-4 shadow-sm border border-stone-100 transition-all duration-500 group-hover:shadow-md">
-                                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                            <img src={resolveImage(product.images[0])} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                                             <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                         </div>
                                         <div className="mt-auto">

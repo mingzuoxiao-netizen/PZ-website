@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { X, Loader2, AlertCircle, Download, FileText } from 'lucide-react';
@@ -20,12 +19,13 @@ const Collections: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Updated to Action 2 spec
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const url = `${API_BASE}/products?limit=1000&_t=${Date.now()}`;
+        const url = `${API_BASE}/public/products`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const json = await response.json();

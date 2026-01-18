@@ -1,57 +1,50 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowRight,
   Anchor,
   Truck,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
+import { resolveImage } from '../utils/imageResolver';
 import { categories as staticCategories } from '../data/inventory';
 import { ProductVariant } from '../types';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const [activeHub, setActiveHub] = useState<'cn' | 'kh'>('cn');
-  const { config: site, loading: siteLoading } = usePublishedSiteConfig();
+  const { config: site, loading: siteLoading, isFallback } = usePublishedSiteConfig();
   const [categoryProducts, setCategoryProducts] = useState<ProductVariant[]>([]);
 
-  // Fetch some products to identify active categories
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        // Restored /public/ prefix for the website's product feed
-        const response = await fetch(`${API_BASE}/public/products?limit=50&_t=${Date.now()}`, {
-          method: 'GET'
-        });
-        
-        if (!response.ok) {
-            console.warn(`[Home] Public products fetch returned ${response.status}`);
-            return;
-        }
+        // Strictly follow /products per contract
+        const response = await fetch(`${API_BASE}/products`);
+        if (!response.ok) return;
         
         const json = await response.json();
         const rawData = json.products || json.data || (Array.isArray(json) ? json : []);
         setCategoryProducts(normalizeProducts(rawData));
       } catch (e) {
-        console.error("Home Collections fetch failed:", e);
+        // Silent fail for products fetch on home page
       }
     };
-    
     fetchHomeData();
   }, []);
 
-  // Public Front-end: strictly "consumes" image strings as absolute URLs from the API snapshot
-  const heroBg = site?.home?.hero?.image;
+  // Use resolveImage to ensure all uploaded paths are correctly formatted
+  const heroBg = resolveImage(site?.home?.hero?.image);
   const heroTitle = site?.home?.hero?.title || t.home.heroTitle;
-  const factoryImg = site?.home?.factory?.image;
-  const ctaBg = site?.home?.cta?.image;
-  const hubCnImg = site?.home?.hub_cn?.image;
-  const hubKhImg = site?.home?.hub_kh?.image;
+  const factoryImg = resolveImage(site?.home?.factory?.image);
+  const ctaBg = resolveImage(site?.home?.cta?.image);
+  const hubCnImg = resolveImage(site?.home?.hub_cn?.image);
+  const hubKhImg = resolveImage(site?.home?.hub_kh?.image);
 
   const hubs = useMemo(
     () => [
@@ -80,7 +73,7 @@ const Home: React.FC = () => {
           const catId = cat.id.toLowerCase().trim();
           const catTitle = cat.title.toLowerCase().trim();
           return productCategoryIds.has(catId) || productCategoryIds.has(catTitle);
-      }).slice(0, 3); // Show top 3 on home page
+      }).slice(0, 3);
   }, [categoryProducts, site]);
 
   const currentHub = hubs.find((h) => h.id === activeHub) || hubs[0];
@@ -96,7 +89,14 @@ const Home: React.FC = () => {
 
   return (
     <>
-      <section className="relative h-[100dvh] w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700">
+      {isFallback && (
+          <div className="bg-amber-600 text-white text-[10px] font-bold uppercase tracking-widest py-2 text-center fixed top-0 left-0 w-full z-[60] flex items-center justify-center gap-2">
+              <AlertTriangle size={12} />
+              Connection offline. Displaying static fallback content.
+          </div>
+      )}
+
+      <section className={`relative h-[100dvh] w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700 ${isFallback ? 'pt-6' : ''}`}>
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: heroBg ? `url("${heroBg}")` : undefined }}
@@ -129,7 +129,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* NEW: FEATURED COLLECTIONS SECTION */}
+      {/* FEATURED COLLECTIONS SECTION */}
       {activeCategories.length > 0 && (
           <section className="bg-stone-50 py-24">
               <div className="container mx-auto px-6 md:px-12">
@@ -147,7 +147,7 @@ const Home: React.FC = () => {
                       {activeCategories.map((cat) => (
                           <Link key={cat.id} to={`/collections?category=${cat.id}`} className="group block">
                               <div className="aspect-[4/5] bg-stone-200 overflow-hidden mb-6 shadow-md transition-all duration-700 group-hover:shadow-xl">
-                                  <img src={cat.image} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                  <img src={resolveImage(cat.image)} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
                               </div>
                               <h3 className="font-serif text-2xl text-stone-900 mb-1 group-hover:text-safety-700 transition-colors">{cat.title}</h3>
                               <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{cat.subtitle}</p>
