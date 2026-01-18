@@ -1,6 +1,5 @@
-
 import React, { useRef, useState } from 'react';
-import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, Crop, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { processImage } from '../../../utils/imageHelpers';
 import { resolveImage } from '../../../utils/imageResolver';
 
@@ -15,7 +14,6 @@ interface PZImageManagerProps {
   className?: string;
   aspectRatio?: number; 
   accept?: string; 
-  allowPhysicalDeletion?: boolean;
 }
 
 interface FileStatus {
@@ -31,7 +29,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<FileStatus[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const isSingleMode = maxImages === 1;
   const isPdf = (url: string) => url.toLowerCase().endsWith('.pdf');
 
@@ -48,9 +45,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         if (aspectRatio && file.type.startsWith('image/')) {
             try { file = await processImage(file, aspectRatio); } catch (e) { console.warn("Auto-crop failed", e); }
         }
-        if (file.size > 20 * 1024 * 1024) { setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: 'File too large (>20MB)' } : item)); return null; }
-        try { const url = await onUpload(file); setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item)); return url; } catch (err: any) {
-            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: err.message || 'Server error' } : item)); return null;
+        try { 
+            const url = await onUpload(file); 
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item)); 
+            return url; 
+        } catch (err: any) {
+            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: err.message || 'Server error' } : item)); 
+            return null;
         }
     }));
     const successfulUrls = results.filter((url): url is string => typeof url === 'string' && url.length > 0);
@@ -61,8 +62,15 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
 
   const removeImage = async (index: number) => {
     const urlToRemove = images[index];
+    if (onDelete && urlToRemove) {
+        if (!confirm("This will permanently delete the image from the cloud. Proceed?")) return;
+        try {
+            await onDelete(urlToRemove);
+        } catch (e) {
+            console.warn("Server delete failed, removing from local state anyway.", e);
+        }
+    }
     onUpdate(images.filter((_, i) => i !== index));
-    if (onDelete && urlToRemove) { try { await onDelete(urlToRemove); } catch (e) { console.warn("Server delete failed", e); } }
   };
 
   const moveImage = (index: number, dir: 'left' | 'right') => {
@@ -84,40 +92,34 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     <div className={className}>
       {label && ( <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2 flex justify-between"><span>{label} {!isSingleMode && <span className="text-stone-400">({images.length})</span>}</span></label> )}
       <input type="file" accept={accept} multiple={!isSingleMode} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} className="hidden" />
-      {uploadQueue.length > 0 && (
-          <div className="mb-4 bg-stone-50 border border-stone-200 rounded-sm p-3 max-h-40 overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase text-stone-400 mb-2">Upload Queue</p>
-              <div className="space-y-2">
-                  {uploadQueue.map(item => (
-                      <div key={item.id} className="relative overflow-hidden bg-white p-2 rounded shadow-sm border border-stone-100">
-                          <div className="flex items-center justify-between text-xs relative z-10"><span className="truncate max-w-[200px] text-stone-600 font-mono">{item.name}</span><div className="flex items-center">{item.status === 'uploading' && <span className="flex items-center text-amber-600 font-bold text-[10px] uppercase"><Loader2 size={12} className="animate-spin mr-1"/> Uploading</span>}{item.status === 'success' && <span className="flex items-center text-green-600 font-bold text-[10px] uppercase"><CheckCircle size={12} className="mr-1"/> Done</span>}{item.status === 'error' && <span className="flex items-center text-red-600 font-bold text-[10px] uppercase"><AlertTriangle size={12} className="mr-1"/> {item.errorMsg || 'Failed'}</span>}</div></div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
+      
       {isSingleMode && images.length > 0 ? (
-        <div className="relative group border border-stone-200 rounded-sm overflow-hidden min-h-[100px] h-full bg-stone-50">
-          {isPdf(images[0]) ? ( <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-stone-100 text-stone-500"><FileText size={48} className="mb-2 text-amber-700"/><span className="text-xs font-mono break-all px-4 text-center">PDF Document</span></div>
+        <div className="relative group border border-stone-200 rounded-sm overflow-hidden h-full bg-stone-50">
+          {isPdf(images[0]) ? ( <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-stone-100 text-stone-500"><FileText size={48} className="mb-2 text-amber-700"/><span className="text-xs font-mono break-all px-4 text-center">PDF</span></div>
           ) : ( <img src={resolveImage(images[0])} className="w-full h-full object-cover" alt="" /> )}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-4"><button onClick={() => fileInputRef.current?.click()} className="bg-white px-4 py-2 text-xs font-bold uppercase hover:bg-amber-200"><RefreshCw size={14} className="inline-block mr-2" /> Replace</button><button onClick={() => removeImage(0)} className="bg-red-600 text-white px-4 py-2 text-xs font-bold uppercase hover:bg-red-700"><X size={14} className="inline-block mr-2" /> Remove</button></div>
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-4">
+              <button onClick={() => fileInputRef.current?.click()} className="bg-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-amber-200">Replace</button>
+              <button onClick={() => removeImage(0)} className="bg-red-600 text-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-red-700">Delete</button>
+          </div>
         </div>
       ) : (
         <>
-          <div className={`border-2 border-dashed rounded-sm p-6 text-center cursor-pointer transition ${isDragging ? 'border-amber-600 bg-amber-50' : 'border-stone-300 bg-stone-50 hover:border-amber-600'}`} onClick={() => !isUploading && fileInputRef.current?.click()} onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}>
-            {isUploading ? ( <><Loader2 size={28} className="animate-spin mx-auto text-amber-600" /><p className="text-xs mt-2 text-stone-500 font-bold">Processing Files...</p></>
-            ) : ( <><Upload size={28} className="mx-auto text-stone-400" /><p className="text-xs text-stone-500 font-bold mt-2">Click or Drag to Upload</p></> )}
+          <div className="border-2 border-dashed border-stone-300 rounded-sm p-6 text-center cursor-pointer hover:border-amber-600 transition" onClick={() => !isUploading && fileInputRef.current?.click()}>
+            {isUploading ? <Loader2 size={24} className="animate-spin mx-auto text-amber-600" /> : <Upload size={24} className="mx-auto text-stone-400" />}
+            <p className="text-[10px] text-stone-500 font-bold mt-2 uppercase tracking-widest">Select Files</p>
           </div>
           {images.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               {images.map((url, idx) => (
-                <div key={url + idx} className={`relative aspect-square border-2 rounded-sm overflow-hidden group ${idx === 0 ? 'border-amber-600 ring-2 ring-amber-600/30' : 'border-stone-200'}`}>
-                  {isPdf(url) ? ( <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 text-stone-500 p-2"><FileText size={32} className="mb-2"/><span className="text-[9px] font-mono break-all text-center leading-tight">PDF</span></div>
-                  ) : ( <img src={resolveImage(url)} className="w-full h-full object-cover" alt="" /> )}
-                  {idx === 0 && <div className="absolute top-0 left-0 bg-amber-600 text-white text-[10px] px-2 py-1 uppercase">Main</div>}
+                <div key={url + idx} className={`relative aspect-square border-2 rounded-sm overflow-hidden group ${idx === 0 ? 'border-amber-600 shadow-md' : 'border-stone-200'}`}>
+                  {isPdf(url) ? <FileText size={32} className="mx-auto mt-8 text-stone-300" /> : <img src={resolveImage(url)} className="w-full h-full object-cover" alt="" />}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-between">
                     <button onClick={() => removeImage(idx)} className="self-end p-1.5 bg-red-500 text-white rounded hover:bg-red-600"><X size={12} /></button>
-                    <div className="flex justify-between items-center">{idx > 0 && <button onClick={() => moveImage(idx, 'left')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowLeft size={12} /></button>}{idx < images.length - 1 && <button onClick={() => moveImage(idx, 'right')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowRight size={12} /></button>}{idx !== 0 && <button onClick={() => setAsMain(idx)} className="p-1.5 bg-stone-200 rounded hover:bg-amber-600 hover:text-white"><Star size={12} /></button>}</div>
+                    <div className="flex justify-between items-center">
+                        {idx > 0 && <button onClick={() => moveImage(idx, 'left')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowLeft size={12} /></button>}
+                        {idx < images.length - 1 && <button onClick={() => moveImage(idx, 'right')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowRight size={12} /></button>}
+                        {idx !== 0 && <button onClick={() => setAsMain(idx)} className="p-1.5 bg-stone-200 rounded hover:bg-amber-600 hover:text-white"><Star size={12} /></button>}
+                    </div>
                   </div>
                 </div>
               ))}

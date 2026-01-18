@@ -44,6 +44,7 @@ const PageAssets: React.FC<PageAssetsProps> = ({
 
               return (
                 <div key={asset.key} className={`bg-white border transition-all ${hasChanges ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200 hover:border-stone-400'}`}>
+                  {/* Fixed: Removed allowPhysicalDeletion which is not a valid prop on PZImageManager */}
                   <PZImageManager 
                     images={currentUrl ? [currentUrl] : []}
                     onUpdate={(imgs) => setPendingUpdates(prev => ({ ...prev, [asset.key]: imgs[0] }))}
@@ -53,7 +54,6 @@ const PageAssets: React.FC<PageAssetsProps> = ({
                     onError={(msg) => alert(msg)}
                     className="aspect-video w-full"
                     accept={isPdf ? "application/pdf" : "image/*"}
-                    allowPhysicalDeletion={false}
                   />
 
                   <div className="p-4 flex justify-between items-center bg-white border-t border-stone-100">

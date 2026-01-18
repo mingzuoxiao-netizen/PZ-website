@@ -4,9 +4,9 @@ import { normalizeProducts } from '../../utils/normalizeProduct';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
 import PortalLayout from './PortalLayout';
 import { 
-  UploadCloud, RefreshCw, CheckCircle, Package, 
-  LayoutGrid, Image as ImageIcon, Settings, Users, Activity, 
-  Plus, ArrowUpCircle, Globe
+  RefreshCw, Package, 
+  LayoutGrid, Settings, Users, Activity, 
+  Plus, ArrowUpCircle, Globe, Trash2
 } from 'lucide-react';
 
 // Components
@@ -15,10 +15,10 @@ import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import AccountsManager from './components/AccountsManager';
 import ReviewQueue from './components/ReviewQueue';
-import MediaTools from './components/MediaTools';
 import AuditTimeline from './components/AuditTimeline';
+import { extractKeyFromUrl } from '../../utils/imageResolver';
 
-type AdminTab = 'review' | 'inventory' | 'media' | 'config' | 'accounts' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'config' | 'accounts' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
@@ -41,10 +41,7 @@ const AdminWorkspace: React.FC = () => {
     try {
         const res = await adminFetch<any>('site-config');
         const remoteConfig = res.config ?? res;
-        setSiteConfig({
-            ...DEFAULT_CONFIG,
-            ...remoteConfig,
-        });
+        setSiteConfig({ ...DEFAULT_CONFIG, ...remoteConfig });
     } catch (e) { setSiteConfig(DEFAULT_CONFIG); }
   };
 
@@ -64,8 +61,47 @@ const AdminWorkspace: React.FC = () => {
     } catch (e: any) { alert(e.message); }
   };
 
+  const handleDeleteImage = async (url: string) => {
+      const key = extractKeyFromUrl(url);
+      if (!key) return;
+      try {
+          await adminFetch('admin/delete-image', { method: 'POST', body: JSON.stringify({ key }) });
+      } catch (e) { console.warn("Cloud cleanup failed", e); }
+  };
+
+  const handleBulkStatusChange = async (ids: string[], newStatus: string) => {
+      setIsSyncing(true);
+      try {
+          await Promise.all(ids.map(id => 
+              adminFetch(`admin/products/${id}`, { 
+                  method: 'PUT', 
+                  body: JSON.stringify({ status: newStatus, is_published: newStatus === 'published' ? 1 : 0 }) 
+              })
+          ));
+          setHasPendingDeploy(true);
+          loadProducts();
+      } catch (e: any) { alert(`Update Error: ${e.message}`); }
+      finally { setIsSyncing(false); }
+  };
+
+  const handleBulkDelete = async (ids: string[]) => {
+      if (!confirm(`Permanently remove ${ids.length} entries and their associated cloud assets?`)) return;
+      setIsSyncing(true);
+      try {
+          for (const id of ids) {
+              const product = products.find(p => p.id === id);
+              if (product?.images) {
+                  await Promise.all(product.images.map((img: string) => handleDeleteImage(img)));
+              }
+              await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
+          }
+          loadProducts();
+      } catch (e: any) { alert(`Delete Error: ${e.message}`); }
+      finally { setIsSyncing(false); }
+  };
+
   const handleDeployEverything = async () => {
-      if (!confirm("Initiate Global Production Deployment? All pending products and site changes will go live.")) return;
+      if (!confirm("Initiate Global Production Deployment? This updates the public catalog.")) return;
       setIsSyncing(true);
       try {
           await adminFetch('admin/publish/products', { method: 'POST' });
@@ -79,7 +115,6 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: 'Review Queue', icon: <Activity size={18} /> },
     { id: 'inventory', label: 'Master Registry', icon: <Package size={18} /> },
-    { id: 'media', label: 'Media Library', icon: <ImageIcon size={18} /> },
     { id: 'config', label: 'Site Logic', icon: <Settings size={18} /> },
     { id: 'accounts', label: 'People', icon: <Users size={18} /> },
     { id: 'audit', label: 'System Logs', icon: <LayoutGrid size={18} /> }
@@ -93,24 +128,21 @@ const AdminWorkspace: React.FC = () => {
       activeTab={activeTab}
       onTabChange={(id) => { setActiveTab(id); setEditingProduct(null); setIsCreating(false); }}
     >
-      {/* FLOATING ACTION BUTTON FOR CREATION */}
       {!editingProduct && !isCreating && activeTab === 'inventory' && (
         <button 
           onClick={() => setIsCreating(true)}
-          className="fixed bottom-10 right-10 bg-safety-700 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-50 group"
-          title="New Registry Entry"
+          className="fixed bottom-10 right-10 bg-safety-700 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
         >
            <Plus size={32} className="group-hover:rotate-90 transition-transform" />
         </button>
       )}
 
-      {/* FLOATING DEPLOY COMMANDER */}
       {hasPendingDeploy && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
-              <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 flex items-center gap-8 backdrop-blur-md">
+              <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
                   <div className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] whitespace-nowrap">Uncommitted Changes Detected</span>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] whitespace-nowrap">Uncommitted Changes</span>
                   </div>
                   <button 
                     onClick={handleDeployEverything}
@@ -145,10 +177,27 @@ const AdminWorkspace: React.FC = () => {
                   }}
                   userRole="ADMIN" lang="en"
                 />
-            ) : <ProductList items={products} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} lang="en" />
+            ) : (
+                <ProductList 
+                    items={products} 
+                    categories={siteConfig?.categories || DEFAULT_CONFIG.categories} 
+                    onEdit={setEditingProduct} 
+                    onCreate={() => setIsCreating(true)} 
+                    onBack={() => {}} 
+                    onBulkStatusChange={handleBulkStatusChange}
+                    onBulkDelete={handleBulkDelete}
+                    onDelete={async (id) => {
+                        if(confirm("Delete this SKU and its media?")) {
+                            const p = products.find(x => x.id === id);
+                            if (p?.images) await Promise.all(p.images.map((i: string) => handleDeleteImage(i)));
+                            await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
+                            loadProducts();
+                        }
+                    }}
+                    lang="en" 
+                />
+            )
           )}
-
-          {activeTab === 'media' && <MediaTools />}
 
           {activeTab === 'config' && (
             <SiteConfigEditor

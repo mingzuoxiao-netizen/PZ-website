@@ -4,19 +4,14 @@ import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
-// Import required icons for navigation
-import { Package, Image as ImageIcon } from 'lucide-react';
+import { Package } from 'lucide-react';
 
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import CategoryGrid from './components/CategoryGrid';
-import MediaTools from './components/MediaTools';
-
-type FactoryTab = 'inventory' | 'media';
 
 const FactoryWorkspace: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<FactoryTab>('inventory');
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -24,25 +19,21 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const userName = sessionStorage.getItem('pz_user_name') || 'Factory User';
+  const userName = sessionStorage.getItem('pz_user_name') || 'Factory Operator';
 
   const loadData = async () => {
     setLoading(true);
     try {
       const res = await factoryFetch<{ products?: any[] }>('factory/products?limit=500');
       setProducts(normalizeProducts(res.products || []));
-
       const configRes = await fetch('/api/site-config');
       if (configRes.ok) {
           const json = await configRes.json();
           const remoteConfig = json.config ?? json;
           if (remoteConfig.categories?.length > 0) setCategories(remoteConfig.categories);
       }
-    } catch (e) {
-      console.error("Factory sync error", e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -58,44 +49,33 @@ const FactoryWorkspace: React.FC = () => {
     } catch (e: any) { alert(e.message); }
   };
 
-  const handleUpload = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await factoryFetch<{ url: string }>('upload-image', { method: 'POST', body: formData });
-    return res.url;
-  };
-
-  const filteredItems = selectedCategoryId === 'all' 
-    ? products 
-    : products.filter(item => (item.category || '').toLowerCase().trim() === (selectedCategoryId || '').toLowerCase().trim());
-
-  // Define navItems to match PortalLayoutProps requirements
   const navItems = [
-    { id: 'inventory', label: 'Production Inventory', icon: <Package size={18} /> },
-    { id: 'media', label: 'Asset Library', icon: <ImageIcon size={18} /> }
+    { id: 'inventory', label: 'Production Registry', icon: <Package size={18} /> }
   ];
 
   return (
-    // Fixed: Pass navItems, activeTab and onTabChange instead of navActions
     <PortalLayout 
       role="FACTORY" 
       userName={userName} 
       navItems={navItems}
-      activeTab={activeTab}
-      onTabChange={(id) => { setActiveTab(id as FactoryTab); setEditingItem(null); setIsCreating(false); }}
+      activeTab="inventory"
+      onTabChange={() => {}}
     >
       {loading && products.length === 0 ? (
         <div className="py-20 text-center text-stone-400 font-mono text-xs animate-pulse uppercase tracking-[0.2em]">
            Synchronizing Production Data...
         </div>
-      ) : activeTab === 'inventory' ? (
-          editingItem || isCreating ? (
+      ) : editingItem || isCreating ? (
             <ProductForm
               initialData={editingItem || {}}
               categories={categories}
               onSave={handleSave}
               onCancel={() => { setEditingItem(null); setIsCreating(false); }}
-              onUpload={handleUpload}
+              onUpload={async (f) => {
+                const fd = new FormData(); fd.append('file', f);
+                const r = await factoryFetch('upload-image', { method: 'POST', body: fd });
+                return r.url;
+              }}
               fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all' ? selectedCategoryId : undefined}
               userRole="FACTORY"
               lang="en"
@@ -103,9 +83,8 @@ const FactoryWorkspace: React.FC = () => {
           ) : selectedCategoryId ? (
             <ProductList
               lang="en"
-              items={filteredItems}
+              items={selectedCategoryId === 'all' ? products : products.filter(i => i.category === selectedCategoryId)}
               categories={categories}
-              categoryTitle={selectedCategoryId === 'all' ? "Entire Registry" : categories.find(c => c.id === selectedCategoryId)?.title}
               onEdit={setEditingItem}
               onCreate={() => setIsCreating(true)}
               onBack={() => setSelectedCategoryId(null)}
@@ -117,10 +96,7 @@ const FactoryWorkspace: React.FC = () => {
               onSelectCategory={setSelectedCategoryId}
               onSelectAll={() => setSelectedCategoryId('all')}
             />
-          )
-      ) : (
-          <MediaTools />
-      )}
+          )}
     </PortalLayout>
   );
 };
