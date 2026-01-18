@@ -1,15 +1,15 @@
-
 import React, { useEffect, useState } from 'react';
 import { SITE_SCHEMA } from '../../../utils/siteSchema';
 import { getByPath, setByPath } from '../../../utils/objectPath';
 import FieldInput from './FieldInput';
-import { Save, RefreshCw, AlertCircle } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, Globe } from 'lucide-react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface SiteConfigEditorProps {
   config: any;
   onChange: (nextConfig: any) => void;
   onSave: () => void;
+  onPublish: () => void; // New prop for production push
   isSaving: boolean;
   onRefresh: () => void;
   onUpload: (file: File) => Promise<string>;
@@ -20,6 +20,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   config,
   onChange,
   onSave,
+  onPublish,
   isSaving,
   onRefresh,
   onUpload,
@@ -50,7 +51,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
     <div className="animate-fade-in pb-20 relative">
 
       {/* Sticky Header */}
-      <div className="sticky top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
+      <div className="sticky top-[70px] md:top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
             {t.creator.config.title}
@@ -66,23 +67,24 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
           {hasUnsavedChanges && (
             <button
               onClick={onRefresh}
-              className="text-xs font-bold uppercase text-stone-500 hover:text-red-600"
+              className="text-xs font-bold uppercase text-stone-500 hover:text-red-600 mr-4"
             >
               {t.creator.config.discard}
             </button>
           )}
 
+          {/* Action 1: Save Draft */}
           <button
             onClick={onSave}
             disabled={isSaving || !hasUnsavedChanges}
-            className={`flex items-center px-6 py-3 text-xs font-bold uppercase tracking-widest rounded-sm transition
+            className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
               ${
                 hasUnsavedChanges
-                  ? 'bg-amber-700 text-white hover:bg-amber-800'
+                  ? 'bg-stone-900 text-white hover:bg-stone-800 shadow-md'
                   : 'bg-stone-100 text-stone-400 cursor-not-allowed'
               }`}
           >
@@ -91,7 +93,29 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Save size={14} className="mr-2" />
             )}
-            {isSaving ? t.creator.config.publishing : t.creator.config.publish}
+            Apply Changes
+          </button>
+
+          <div className="w-px h-6 bg-stone-200 mx-2"></div>
+
+          {/* Action 2: Go Live */}
+          <button
+            onClick={onPublish}
+            disabled={isSaving || hasUnsavedChanges}
+            title={hasUnsavedChanges ? "Save changes first" : "Push current draft to production"}
+            className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
+              ${
+                !hasUnsavedChanges
+                  ? 'bg-amber-700 text-white hover:bg-amber-800 shadow-lg'
+                  : 'bg-stone-100 text-stone-400 cursor-not-allowed opacity-50'
+              }`}
+          >
+            {isSaving ? (
+              <RefreshCw size={14} className="animate-spin mr-2" />
+            ) : (
+              <Globe size={14} className="mr-2" />
+            )}
+            Push to Production
           </button>
         </div>
       </div>
@@ -99,8 +123,8 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
       {/* Config Sections */}
       <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
         {SITE_SCHEMA.map(section => (
-          <div key={section.section} className="bg-white border p-8">
-            <h2 className="text-lg font-serif mb-6 border-b pb-4">
+          <div key={section.section} className="bg-white border p-8 shadow-sm">
+            <h2 className="text-lg font-serif mb-6 border-b pb-4 text-stone-900">
               {t.siteConfig?.sections?.[section.section] ?? section.section}
             </h2>
 

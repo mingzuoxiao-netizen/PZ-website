@@ -4,6 +4,8 @@ import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
+// Import required icons for navigation
+import { Package, Image as ImageIcon } from 'lucide-react';
 
 // Components
 import ProductList from './components/ProductList';
@@ -67,27 +69,21 @@ const FactoryWorkspace: React.FC = () => {
     ? products 
     : products.filter(item => (item.category || '').toLowerCase().trim() === (selectedCategoryId || '').toLowerCase().trim());
 
-  const navActions = (
-    <>
-      {[
-        { id: 'inventory', label: 'Production Inventory' },
-        { id: 'media', label: 'Asset Library' }
-      ].map(tab => (
-        <button
-          key={tab.id}
-          onClick={() => { setActiveTab(tab.id as FactoryTab); setEditingItem(null); setIsCreating(false); }}
-          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-sm font-mono
-            ${activeTab === tab.id ? 'bg-zinc-800 text-white' : 'text-stone-400 hover:text-stone-200'}
-          `}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </>
-  );
+  // Define navItems to match PortalLayoutProps requirements
+  const navItems = [
+    { id: 'inventory', label: 'Production Inventory', icon: <Package size={18} /> },
+    { id: 'media', label: 'Asset Library', icon: <ImageIcon size={18} /> }
+  ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navActions={navActions}>
+    // Fixed: Pass navItems, activeTab and onTabChange instead of navActions
+    <PortalLayout 
+      role="FACTORY" 
+      userName={userName} 
+      navItems={navItems}
+      activeTab={activeTab}
+      onTabChange={(id) => { setActiveTab(id as FactoryTab); setEditingItem(null); setIsCreating(false); }}
+    >
       {loading && products.length === 0 ? (
         <div className="py-20 text-center text-stone-400 font-mono text-xs animate-pulse uppercase tracking-[0.2em]">
            Synchronizing Production Data...
