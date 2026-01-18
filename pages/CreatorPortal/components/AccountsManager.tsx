@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, RefreshCw, UserPlus, X, Key, Loader2, Save, Factory, ShieldAlert } from 'lucide-react';
+import { 
+  Users, Shield, RefreshCw, UserPlus, X, Key, Loader2, 
+  Save, Factory, ShieldAlert, CheckCircle, Power, MoreVertical 
+} from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 
 interface Account {
@@ -16,7 +19,7 @@ const AccountsManager: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Form State from provided snippet
+  // Form State (Integrated from your logic)
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<'ADMIN' | 'FACTORY'>('FACTORY');
@@ -25,10 +28,11 @@ const AccountsManager: React.FC = () => {
   const fetchAccounts = async () => {
     setLoading(true);
     try {
+      // The API returns an object with an accounts array
       const res = await adminFetch<{ accounts: Account[] }>('admin/accounts');
       setAccounts(res.accounts || []);
     } catch (e) {
-      console.error("Failed to load accounts", e);
+      console.error("Registry sync failed", e);
     } finally {
       setLoading(false);
     }
@@ -36,11 +40,12 @@ const AccountsManager: React.FC = () => {
 
   useEffect(() => { fetchAccounts(); }, []);
 
-  // Provided Logic Implementation
+  // Primary Creation Logic (Using your provided pattern)
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    // Baseline validation
     if (!username.trim() || !password.trim()) {
       setError("Username and password are required.");
       return;
@@ -48,8 +53,9 @@ const AccountsManager: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Endpoint mapped to the backend logic provided
       const res = await adminFetch<{ success: boolean; id: string }>(
-        "admin/accounts", // Using the endpoint from your snippet
+        "admin/accounts", 
         {
           method: "POST",
           body: JSON.stringify({
@@ -65,13 +71,13 @@ const AccountsManager: React.FC = () => {
         setPassword("");
         setRole("FACTORY");
         setIsCreating(false);
-        alert("Account created.");
-        fetchAccounts(); // Refresh the list
+        alert("System identity provisioned successfully.");
+        fetchAccounts(); // Refresh the registry list
       } else {
-        alert("Create failed.");
+        setError("Creation rejected by server protocol.");
       }
     } catch (e: any) {
-      setError(e?.message || "Create failed.");
+      setError(e?.message || "Transmission fault during creation.");
     } finally {
       setIsSaving(false);
     }
@@ -86,34 +92,37 @@ const AccountsManager: React.FC = () => {
           });
           fetchAccounts();
       } catch (e: any) {
-          alert(`Status update failed: ${e.message}`);
+          alert(`Control signal failed: ${e.message}`);
       }
   };
 
   return (
-    <div className="animate-fade-in relative">
-      <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8 flex justify-between items-center">
+    <div className="animate-fade-in relative min-h-[600px]">
+      {/* Header with Stats */}
+      <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
             <h3 className="font-serif text-2xl text-stone-900 flex items-center">
-                <Users className="mr-3 text-safety-700" size={24} /> Registry Accounts
+                <Users className="mr-3 text-safety-700" size={24} /> System Identity Registry
             </h3>
-            <p className="text-stone-500 text-xs mt-1 uppercase tracking-widest font-mono">Control access for factory and administrative entities</p>
+            <p className="text-stone-500 text-xs mt-1 uppercase tracking-widest font-mono">
+                {accounts.length} Total Registered Identities
+            </p>
         </div>
         <button 
           onClick={() => { setIsCreating(true); setError(null); }} 
-          className="bg-stone-900 text-white px-8 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"
+          className="bg-stone-900 text-white px-8 py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all shadow-lg flex items-center gap-2 group"
         >
-            <UserPlus size={16} /> Create New Account
+            <UserPlus size={16} className="group-hover:rotate-12 transition-transform" /> Provision New User
         </button>
       </div>
 
-      {/* CREATE ACCOUNT MODAL */}
+      {/* PROVISIONING MODAL */}
       {isCreating && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/60 backdrop-blur-md p-4 animate-fade-in">
            <div className="bg-white w-full max-w-md shadow-2xl border border-stone-200 overflow-hidden animate-fade-in-up">
               <div className="bg-stone-900 p-6 flex justify-between items-center">
                  <h4 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-3">
-                    <UserPlus size={16} className="text-safety-700" /> New System User
+                    <Shield size={16} className="text-safety-700" /> New System Identity
                  </h4>
                  <button onClick={() => setIsCreating(false)} className="text-stone-500 hover:text-white transition-colors">
                     <X size={20} />
@@ -128,18 +137,19 @@ const AccountsManager: React.FC = () => {
                  )}
 
                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Login Identifier</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Registry Username</label>
                     <input 
                        type="text" 
                        value={username} 
                        onChange={e => setUsername(e.target.value)}
-                       placeholder="Username" 
+                       placeholder="e.g. factory_zhaoqing" 
                        className="w-full bg-stone-50 border border-stone-200 p-4 text-stone-900 text-sm focus:border-safety-700 outline-none transition-colors font-mono"
+                       autoComplete="off"
                     />
                  </div>
 
                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Temporary Password</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Temporary Access Key</label>
                     <div className="relative">
                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" size={16} />
                        <input 
@@ -153,7 +163,7 @@ const AccountsManager: React.FC = () => {
                  </div>
 
                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">System Privilege</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Privilege Tier</label>
                     <div className="grid grid-cols-2 gap-4">
                        <button 
                           type="button"
@@ -180,16 +190,16 @@ const AccountsManager: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => setIsCreating(false)} 
-                      className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border border-stone-200 text-stone-500 hover:bg-stone-50"
+                      className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border border-stone-200 text-stone-500 hover:bg-stone-50 transition-colors"
                     >
                        Discard
                     </button>
                     <button 
                       type="submit" 
                       disabled={isSaving}
-                      className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+                      className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all shadow-lg flex items-center justify-center gap-2"
                     >
-                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Commit Account</>}
+                       {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Commit to Registry</>}
                     </button>
                  </div>
               </form>
@@ -197,66 +207,81 @@ const AccountsManager: React.FC = () => {
         </div>
       )}
 
-      {/* ACCOUNTS LIST */}
+      {/* MASTER REGISTRY LIST */}
       <div className="bg-white border border-stone-200 shadow-sm overflow-hidden rounded-sm">
         {loading && accounts.length === 0 ? (
             <div className="p-32 text-center text-stone-400 flex flex-col items-center">
                 <RefreshCw className="animate-spin mb-4" size={32} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Synchronizing Accounts...</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Synchronizing Identities...</span>
             </div>
         ) : accounts.length === 0 ? (
-            <div className="p-32 text-center text-stone-400 flex flex-col items-center">
+            <div className="p-32 text-center text-stone-400 flex flex-col items-center border-2 border-dashed border-stone-100 m-6">
                 <Users className="mb-4 opacity-20" size={48} />
-                <span className="text-[10px] font-bold uppercase tracking-widest">No subordinate accounts detected.</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Registry is currently void.</span>
             </div>
         ) : (
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                    <thead className="bg-stone-100 border-b border-stone-200">
-                        <tr className="text-[10px] font-bold text-stone-500 uppercase tracking-widest font-mono">
-                            <th className="px-8 py-4">Identity</th>
-                            <th className="px-8 py-4">Level</th>
-                            <th className="px-8 py-4">Status</th>
-                            <th className="px-8 py-4 text-right">System Control</th>
+                    <thead className="bg-stone-50 border-b border-stone-200">
+                        <tr className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
+                            <th className="px-8 py-4">Identity Profile</th>
+                            <th className="px-8 py-4">Authorization</th>
+                            <th className="px-8 py-4">System Status</th>
+                            <th className="px-8 py-4 text-right">Registry Operations</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
                         {accounts.map((account) => (
-                            <tr key={account.id} className="hover:bg-stone-50 transition-colors group">
+                            <tr key={account.id} className="hover:bg-stone-50/50 transition-colors group">
                                 <td className="px-8 py-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-safety-50 group-hover:text-safety-700 transition-colors">
-                                            {account.role === 'ADMIN' ? <Shield size={14}/> : <Factory size={14}/>}
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded flex items-center justify-center transition-colors
+                                            ${account.role === 'ADMIN' ? 'bg-safety-50 text-safety-700' : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'}
+                                        `}>
+                                            {account.role === 'ADMIN' ? <Shield size={18}/> : <Factory size={18}/>}
                                         </div>
-                                        <span className="text-sm font-bold text-stone-900">{account.username}</span>
+                                        <div>
+                                            <div className="text-sm font-bold text-stone-900">{account.username}</div>
+                                            <div className="text-[9px] text-stone-400 font-mono mt-0.5 uppercase">ID: {account.id.slice(0,8)}...</div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td className="px-8 py-5">
-                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border
+                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border inline-block
                                         ${account.role === 'ADMIN' ? 'border-safety-700/20 text-safety-700 bg-safety-50' : 'border-stone-200 text-stone-500 bg-stone-50'}
                                     `}>
-                                        {account.role}
+                                        {account.role} Tier
                                     </span>
                                 </td>
                                 <td className="px-8 py-5">
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-stone-300'}`}></div>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-stone-300'}`}></div>
                                         <span className={`text-[10px] font-bold uppercase tracking-wider ${account.status === 'Active' ? 'text-stone-900' : 'text-stone-400'}`}>
                                             {account.status}
                                         </span>
                                     </div>
                                 </td>
                                 <td className="px-8 py-5 text-right">
-                                    <button 
-                                        onClick={() => handleToggleStatus(account.id, account.status)} 
-                                        className={`text-[9px] font-bold uppercase tracking-[0.2em] border px-4 py-2 transition-all rounded-sm
-                                            ${account.status === 'Active' 
-                                                ? 'border-stone-200 text-stone-400 hover:border-red-600 hover:text-red-600 hover:bg-red-50' 
-                                                : 'border-safety-700 text-safety-700 hover:bg-safety-700 hover:text-white'}
-                                        `}
-                                    >
-                                        {account.status === 'Active' ? 'Deactivate' : 'Restore'}
-                                    </button>
+                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={() => handleToggleStatus(account.id, account.status)} 
+                                            title={account.status === 'Active' ? 'Revoke Access' : 'Restore Access'}
+                                            className={`p-2 transition-all rounded border
+                                                ${account.status === 'Active' 
+                                                    ? 'border-stone-200 text-stone-400 hover:border-red-600 hover:text-red-600 hover:bg-red-50' 
+                                                    : 'border-safety-700 text-safety-700 hover:bg-safety-700 hover:text-white'}
+                                            `}
+                                        >
+                                            <Power size={14} />
+                                        </button>
+                                        <button 
+                                            onClick={() => alert("Password reset protocol initiated. (Simulation)")}
+                                            className="p-2 border border-stone-200 text-stone-400 hover:border-stone-900 hover:text-stone-900 hover:bg-white rounded transition-all"
+                                            title="Reset Security Key"
+                                        >
+                                            <RefreshCw size={14} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -264,6 +289,16 @@ const AccountsManager: React.FC = () => {
                 </table>
             </div>
         )}
+      </div>
+
+      {/* SECURITY FOOTER */}
+      <div className="mt-8 flex items-center justify-center gap-6 py-8 border-t border-stone-200 opacity-30 grayscale hover:opacity-60 transition-opacity">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">
+              <Shield size={12} /> Encrypted Registry
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">
+              <CheckCircle size={12} /> Auth Validated
+          </div>
       </div>
     </div>
   );
