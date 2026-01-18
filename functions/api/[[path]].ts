@@ -9,7 +9,7 @@ export async function onRequest(context: any) {
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
   // ✅ 只有这三个是 public，而且在 worker 里是 /public/*
-  const PUBLIC_ROOTS = ["/site-config", "/products", "/inquiries"];
+  const PUBLIC_ROOTS = ["/site-config", "/products", "/inquiries","upload-image"];
   const isPublic = PUBLIC_ROOTS.some(p => path === p || path.startsWith(p + "/"));
 
   // ✅ 其余都走 root（包括 admin/factory/login/upload-image）
