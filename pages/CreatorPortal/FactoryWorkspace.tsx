@@ -4,13 +4,14 @@ import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
-import { Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, Clock, Plus, X, Upload, Save, Send, Loader2 } from 'lucide-react';
+import { Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, Clock, Plus, X, Upload, Save, Send, Loader2, Layers } from 'lucide-react';
 
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import CategoryGrid from './components/CategoryGrid';
 import PZImageManager from './components/PZImageManager';
+import BatchCreator from './components/BatchCreator';
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
@@ -18,6 +19,7 @@ const FactoryWorkspace: React.FC = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isBatchCreating, setIsBatchCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Category Request State
@@ -63,9 +65,20 @@ const FactoryWorkspace: React.FC = () => {
     } catch (e: any) { alert(e.message); }
   };
 
+  const handleBatchSave = async (newProducts: any[]) => {
+      try {
+          await Promise.all(newProducts.map(p => 
+            factoryFetch('factory/products', { method: 'POST', body: JSON.stringify(p) })
+          ));
+          setIsBatchCreating(false);
+          loadData();
+      } catch (e: any) { alert("Batch Creation Error: " + e.message); }
+  };
+
   const handleBack = () => {
-      if (isCreating || editingItem) {
+      if (isCreating || editingItem || isBatchCreating) {
           setIsCreating(false);
+          setIsBatchCreating(false);
           setEditingItem(null);
       } else if (selectedCategoryId) {
           setSelectedCategoryId(null);
@@ -82,7 +95,6 @@ const FactoryWorkspace: React.FC = () => {
 
       setIsSavingCategory(true);
       try {
-          // 1. Create Draft
           const draftRes = await factoryFetch('factory/category-requests', {
               method: 'POST',
               body: JSON.stringify(catRequest)
@@ -90,7 +102,6 @@ const FactoryWorkspace: React.FC = () => {
           
           if (!draftRes.id) throw new Error("Failed to generate Request ID.");
 
-          // 2. Submit for Review
           await factoryFetch(`factory/category-requests/${draftRes.id}/submit`, {
               method: 'POST'
           });
@@ -209,7 +220,7 @@ const FactoryWorkspace: React.FC = () => {
       <div className="mb-8 animate-fade-in">
           <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                  {(selectedCategoryId || isCreating || editingItem) && (
+                  {(selectedCategoryId || isCreating || editingItem || isBatchCreating) && (
                       <button 
                         onClick={handleBack}
                         className="p-2 bg-white border border-stone-200 rounded-full hover:border-stone-900 transition-colors shadow-sm group"
@@ -220,17 +231,19 @@ const FactoryWorkspace: React.FC = () => {
                   )}
                   <div>
                       <h1 className="text-2xl font-serif text-stone-900">
-                          {isCreating ? 'Provision SKU' : editingItem ? `Modifying: ${editingItem.name}` : selectedCategoryId ? 'Category Details' : 'Production Board'}
+                          {isBatchCreating ? 'Batch SKU Induction' : isCreating ? 'Provision SKU' : editingItem ? `Modifying: ${editingItem.name}` : selectedCategoryId ? 'Category Details' : 'Production Board'}
                       </h1>
                       <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1">
                           <span>Factory Terminal</span>
                           <span>/</span>
-                          <span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : 'Registry Overview'}</span>
+                          <span className="text-stone-900">
+                            {isBatchCreating ? 'Induction' : selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : 'Registry Overview'}
+                          </span>
                       </div>
                   </div>
               </div>
 
-              {!isCreating && !editingItem && (
+              {!isCreating && !editingItem && !isBatchCreating && (
                   <div className="hidden md:flex gap-6">
                       <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3">
                           <Clock size={16} className="text-amber-500" />
@@ -257,6 +270,17 @@ const FactoryWorkspace: React.FC = () => {
            <Package className="animate-bounce mb-4 opacity-20" size={48} />
            <span className="text-[10px] font-bold tracking-widest uppercase">Synchronizing Production Data...</span>
         </div>
+      ) : isBatchCreating ? (
+          <BatchCreator 
+            categories={categories}
+            onCancel={handleBack}
+            onSave={handleBatchSave}
+            onUpload={async (f) => {
+                const fd = new FormData(); fd.append('file', f);
+                const r = await factoryFetch('upload-image', { method: 'POST', body: fd });
+                return r.url;
+            }}
+          />
       ) : editingItem || isCreating ? (
             <ProductForm
               initialData={editingItem || {}}
@@ -274,12 +298,18 @@ const FactoryWorkspace: React.FC = () => {
             />
           ) : selectedCategoryId ? (
             <div className="space-y-6">
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                    <button 
+                        onClick={() => setIsBatchCreating(true)}
+                        className="bg-white border border-stone-200 text-stone-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:border-stone-900 hover:text-stone-900 transition-colors shadow-sm flex items-center gap-2"
+                    >
+                        <Layers size={16} /> Batch Induction
+                    </button>
                     <button 
                         onClick={() => setIsCreating(true)}
                         className="bg-stone-900 text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"
                     >
-                        <ClipboardList size={16} /> Registry Entry
+                        <ClipboardList size={16} /> Single Entry
                     </button>
                 </div>
                 <ProductList

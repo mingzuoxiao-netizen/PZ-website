@@ -190,17 +190,28 @@ const AdminWorkspace: React.FC = () => {
                 products={products.filter(p => p.status === 'pending')} 
                 categoryRequests={categoryRequests}
                 onProcessProduct={async (id, action) => {
-                    await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'published' : 'rejected' }) });
-                    setHasPendingDeploy(true);
-                    loadProducts();
+                    try {
+                        await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'published' : 'rejected' }) });
+                        setHasPendingDeploy(true);
+                        await loadProducts();
+                    } catch (e: any) { alert(e.message); }
                 }}
                 onProcessCategory={async (id, action) => {
-                    // Optimized endpoint call per user request
-                    const endpoint = action === 'approve' ? 'approve' : 'reject';
-                    await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { 
-                        method: 'POST' 
-                    });
-                    await loadCategoryQueue();
+                    try {
+                        // Use approve-publish endpoint as requested
+                        const endpoint = action === 'approve' ? 'approve-publish' : 'reject';
+                        await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { 
+                            method: 'POST' 
+                        });
+                        if (action === 'approve') {
+                            alert("Approved & published. Factory will see it after refresh.");
+                        } else {
+                            alert("Request rejected.");
+                        }
+                        await loadCategoryQueue();
+                    } catch (e: any) {
+                        alert(e.message || `${action === 'approve' ? 'Approve' : 'Reject'} failed`);
+                    }
                 }}
             />
           )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2 } from 'lucide-react';
+import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { factoryFetch } from '../../../utils/factoryFetch';
@@ -25,6 +25,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const userRole = sessionStorage.getItem("pz_user_role") || "FACTORY";
   const isFactory = userRole === "FACTORY";
@@ -61,12 +62,28 @@ const ProductList: React.FC<ProductListProps> = ({
       setSubmittingIds(prev => [...prev, id]);
       try {
           await factoryFetch(`factory/products/${id}/submit`, { method: 'POST' });
-          alert("Submitted successfully.");
           if (onRefresh) onRefresh();
       } catch (e: any) {
           alert(`Submission error: ${e.message}`);
       } finally {
           setSubmittingIds(prev => prev.filter(i => i !== id));
+      }
+  };
+
+  const handleBulkSubmit = async () => {
+      if (selectedIds.length === 0) return;
+      if (!confirm(`Submit all ${selectedIds.length} selected items for review?`)) return;
+
+      setIsBulkProcessing(true);
+      try {
+          await Promise.all(selectedIds.map(id => factoryFetch(`factory/products/${id}/submit`, { method: 'POST' })));
+          setSelectedIds([]);
+          if (onRefresh) onRefresh();
+          alert("Batch submission complete.");
+      } catch (e: any) {
+          alert("Bulk submission error: " + e.message);
+      } finally {
+          setIsBulkProcessing(false);
       }
   };
 
@@ -180,8 +197,8 @@ const ProductList: React.FC<ProductListProps> = ({
             </div>
        </div>
 
-       {/* Bulk Actions */}
-       {!isFactory && selectedIds.length > 0 && (
+       {/* Bulk Actions Bar */}
+       {selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
@@ -189,27 +206,40 @@ const ProductList: React.FC<ProductListProps> = ({
                        <span className="text-xs font-bold uppercase tracking-widest">Selected</span>
                    </div>
                    
-                   <div className="flex items-center gap-6">
-                       <button 
-                            onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }}
-                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors"
-                       >
-                           <CheckCircle size={14} /> Publish
-                       </button>
-                       <button 
-                            onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }}
-                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors"
-                       >
-                           <Ban size={14} /> Revert
-                       </button>
-                       <div className="w-px h-4 bg-white/10"></div>
-                       <button 
-                            onClick={() => { if(confirm("Permanently delete selected items?")) onBulkDelete?.(selectedIds); setSelectedIds([]); }}
-                            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
-                       >
-                           <Trash2 size={14} /> Delete
-                       </button>
-                   </div>
+                   {isFactory ? (
+                       <div className="flex items-center gap-6">
+                           <button 
+                                onClick={handleBulkSubmit}
+                                disabled={isBulkProcessing}
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors"
+                           >
+                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} 
+                               Submit for Review
+                           </button>
+                       </div>
+                   ) : (
+                       <div className="flex items-center gap-6">
+                           <button 
+                                onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }}
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors"
+                           >
+                               <CheckCircle size={14} /> Publish
+                           </button>
+                           <button 
+                                onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }}
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors"
+                           >
+                               <Ban size={14} /> Revert
+                           </button>
+                           <div className="w-px h-4 bg-white/10"></div>
+                           <button 
+                                onClick={() => { if(confirm("Permanently delete selected items?")) onBulkDelete?.(selectedIds); setSelectedIds([]); }}
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
+                           >
+                               <Trash2 size={14} /> Delete
+                           </button>
+                       </div>
+                   )}
                    
                    <button onClick={() => setSelectedIds([])} className="text-white/40 hover:text-white ml-4">
                        <X size={16} />
