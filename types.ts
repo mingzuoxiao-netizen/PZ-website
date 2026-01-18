@@ -25,6 +25,17 @@ export interface ProductVariant {
   date?: string;
 }
 
+export interface CategoryRequest {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  image: string;
+  status: 'awaiting_review' | 'approved' | 'rejected';
+  created_at: string;
+  user_id: string;
+}
+
 export interface SubCategory {
   name: string;
   name_zh?: string;

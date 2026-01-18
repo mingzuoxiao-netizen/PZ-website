@@ -23,6 +23,7 @@ type AdminTab = 'review' | 'inventory' | 'config' | 'accounts' | 'audit';
 const AdminWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
   const [products, setProducts] = useState<any[]>([]);
+  const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [siteConfig, setSiteConfig] = useState<any | null>(null);
@@ -37,6 +38,13 @@ const AdminWorkspace: React.FC = () => {
     } catch (e) { console.error(e); }
   };
 
+  const loadCategoryQueue = async () => {
+      try {
+          const res = await adminFetch<{ items: any[] }>("admin/category-requests?status=awaiting_review");
+          setCategoryRequests(res.items ?? []);
+      } catch (e) { console.error("Failed to load category queue", e); }
+  };
+
   const loadSiteConfig = async () => {
     try {
         const res = await adminFetch<any>('site-config');
@@ -45,7 +53,11 @@ const AdminWorkspace: React.FC = () => {
     } catch (e) { setSiteConfig(DEFAULT_CONFIG); }
   };
 
-  useEffect(() => { loadProducts(); loadSiteConfig(); }, []);
+  useEffect(() => { 
+      loadProducts(); 
+      loadSiteConfig(); 
+      loadCategoryQueue();
+  }, []);
 
   const handleSaveProduct = async (product: any) => {
     try {
@@ -112,8 +124,24 @@ const AdminWorkspace: React.FC = () => {
       finally { setIsSyncing(false); }
   };
 
+  const pendingProductCount = products.filter(p => p.status === 'pending').length;
+  const reviewTotalCount = pendingProductCount + categoryRequests.length;
+
   const navItems = [
-    { id: 'review', label: 'Review Queue', icon: <Activity size={18} /> },
+    { 
+        id: 'review', 
+        label: 'Review Queue', 
+        icon: (
+            <div className="relative">
+                <Activity size={18} />
+                {reviewTotalCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">
+                        {reviewTotalCount}
+                    </span>
+                )}
+            </div>
+        ) 
+    },
     { id: 'inventory', label: 'Master Inventory', icon: <Package size={18} /> },
     { id: 'config', label: 'Site Protocol', icon: <Settings size={18} /> },
     { id: 'accounts', label: 'Identities', icon: <Users size={18} /> },
@@ -157,11 +185,23 @@ const AdminWorkspace: React.FC = () => {
       )}
 
       <div className="pb-32">
-          {activeTab === 'review' && <ReviewQueue products={products.filter(p => p.status === 'pending')} onProcess={async (id, action) => {
-              await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'published' : 'rejected' }) });
-              setHasPendingDeploy(true);
-              loadProducts();
-          }} />}
+          {activeTab === 'review' && (
+            <ReviewQueue 
+                products={products.filter(p => p.status === 'pending')} 
+                categoryRequests={categoryRequests}
+                onProcessProduct={async (id, action) => {
+                    await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'published' : 'rejected' }) });
+                    setHasPendingDeploy(true);
+                    loadProducts();
+                }}
+                onProcessCategory={async (id, action) => {
+                    // Approved category needs to be merged into site-config via admin UI flow or automated writing
+                    await adminFetch(`admin/category-requests/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'rejected' }) });
+                    loadCategoryQueue();
+                    alert("Category request processed. If approved, remember to update Site Protocol.");
+                }}
+            />
+          )}
 
           {activeTab === 'inventory' && (
             editingProduct || isCreating ? (

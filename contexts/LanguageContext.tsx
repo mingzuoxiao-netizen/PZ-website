@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 
 interface LanguageContextType {
   language: 'en';
@@ -220,9 +220,9 @@ const translations = {
       reOrder: "Repeat Production",
       leadTimeNote: "Note: Schedules depend on material procurement and SKU complexity.",
       logisticsTitle: "Export Gateways",
+      shippingDesc: "Full container consolidation and DDP/FOB logistics support.",
       chinaOrigin: "Zhaoqing Terminal",
       khOrigin: "Kandal Terminal",
-      shippingDesc: "Full container consolidation and DDP/FOB logistics support.",
       clientDist: "Client Registry",
       clientDesc: "Supporting Tier-1 retailers and luxury hospitality projects globally.",
       stats: {
