@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -9,10 +8,8 @@ const About: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { t } = useLanguage();
   
-  // ✅ Hook automatically fetches structured config via Context
   const { config: site, loading } = usePublishedSiteConfig();
 
-  // Check for loading or null config before rendering dependent data
   if (loading || !site) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-500">
@@ -21,7 +18,6 @@ const About: React.FC = () => {
     );
   }
 
-  // Map the structured gallery from SiteConfig
   const galleryImages = [
     {
       url: site.about?.gallery?.raw,

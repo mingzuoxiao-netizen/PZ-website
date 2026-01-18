@@ -1,4 +1,3 @@
-
 export interface NavItem {
   label: string;
   path: string;
@@ -18,9 +17,7 @@ export interface ProductVariant {
   code?: string;
   status?: string;
   sub_category?: string;
-  // Category ID reference for flat structure
   category?: string;
-  // New field for color variants (kept for frontend state, even if not in minimal schema)
   colors?: {
     name: string;
     image: string;
@@ -63,11 +60,11 @@ export interface Inquiry {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Home', path: '/', key: 'home' },
-  { label: 'Collections', path: '/collections', key: 'collections' },
+  { label: 'Portfolio', path: '/collections', key: 'collections' },
   { label: 'Capabilities', path: '/capabilities', key: 'capabilities' },
   { label: 'Manufacturing', path: '/manufacturing', key: 'manufacturing' },
-  { label: 'Materials', path: '/materials', key: 'materials' },
-  { label: 'Global Capacity', path: '/capacity', key: 'capacity' },
+  { label: 'Resources', path: '/materials', key: 'materials' },
+  { label: 'Process', path: '/capacity', key: 'capacity' },
   { label: 'About', path: '/about', key: 'about' },
-  { label: 'Inquire', path: '/inquire', key: 'inquire' },
+  { label: 'Contact', path: '/inquire', key: 'inquire' },
 ];

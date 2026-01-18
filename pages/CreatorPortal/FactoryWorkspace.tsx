@@ -4,12 +4,13 @@ import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
-import { Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, Clock } from 'lucide-react';
+import { Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, Clock, Plus, X, Upload, Save, Send, Loader2 } from 'lucide-react';
 
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import CategoryGrid from './components/CategoryGrid';
+import PZImageManager from './components/PZImageManager';
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
@@ -19,7 +20,12 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const userName = sessionStorage.getItem('pz_user_name') || '工厂操作员';
+  // Category Request State
+  const [isRequestingCategory, setIsRequestingCategory] = useState(false);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [catRequest, setCatRequest] = useState({ title: '', subtitle: '', description: '', image: '' });
+
+  const userName = sessionStorage.getItem('pz_user_name') || 'Factory Operator';
 
   const loadData = async () => {
     setLoading(true);
@@ -39,7 +45,6 @@ const FactoryWorkspace: React.FC = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  // 统计数据
   const stats = useMemo(() => ({
       pending: products.filter(p => p.status === 'pending').length,
       rejected: products.filter(p => p.status === 'rejected').length,
@@ -51,16 +56,13 @@ const FactoryWorkspace: React.FC = () => {
       const method = product.id ? 'PUT' : 'POST';
       const url = product.id ? `factory/products/${product.id}` : 'factory/products';
       await factoryFetch(url, { method, body: JSON.stringify(product) });
-      
-      // 保存成功后返回列表页
       setEditingItem(null);
       setIsCreating(false);
       loadData();
-      alert("记录已提交审核。");
+      alert("Record submitted for review.");
     } catch (e: any) { alert(e.message); }
   };
 
-  // 统一的返回处理函数
   const handleBack = () => {
       if (isCreating || editingItem) {
           setIsCreating(false);
@@ -70,8 +72,41 @@ const FactoryWorkspace: React.FC = () => {
       }
   };
 
+  // CATEGORY REQUEST LOGIC
+  const handleRequestCategory = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!catRequest.title || !catRequest.image) {
+          alert("Title and cover image are required.");
+          return;
+      }
+
+      setIsSavingCategory(true);
+      try {
+          // 1. Create Draft
+          const draftRes = await factoryFetch('factory/category-requests', {
+              method: 'POST',
+              body: JSON.stringify(catRequest)
+          });
+          
+          if (!draftRes.id) throw new Error("Failed to generate Request ID.");
+
+          // 2. Submit for Review
+          await factoryFetch(`factory/category-requests/${draftRes.id}/submit`, {
+              method: 'POST'
+          });
+
+          alert("Category proposal submitted successfully. Admin will review your request.");
+          setIsRequestingCategory(false);
+          setCatRequest({ title: '', subtitle: '', description: '', image: '' });
+      } catch (e: any) {
+          alert(`Submission failed: ${e.message}`);
+      } finally {
+          setIsSavingCategory(false);
+      }
+  };
+
   const navItems = [
-    { id: 'inventory', label: '生产注册表', icon: <Package size={18} /> }
+    { id: 'inventory', label: 'Production Registry', icon: <Package size={18} /> }
   ];
 
   return (
@@ -82,59 +117,145 @@ const FactoryWorkspace: React.FC = () => {
       activeTab="inventory"
       onTabChange={() => {}}
     >
+      {/* Category Request Modal */}
+      {isRequestingCategory && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/70 backdrop-blur-md p-4 animate-fade-in">
+              <div className="bg-white w-full max-w-xl shadow-2xl rounded-sm overflow-hidden animate-fade-in-up">
+                  <div className="bg-stone-900 p-6 flex justify-between items-center text-white">
+                      <div className="flex items-center gap-3">
+                          <LayoutGrid size={18} className="text-safety-700" />
+                          <h4 className="text-[10px] font-bold uppercase tracking-[0.2em]">New Category Proposal</h4>
+                      </div>
+                      <button onClick={() => setIsRequestingCategory(false)} className="opacity-60 hover:opacity-100 transition-opacity">
+                          <X size={20} />
+                      </button>
+                  </div>
+
+                  <form onSubmit={handleRequestCategory} className="p-8 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Internal Category Name</label>
+                                  <input 
+                                      type="text" 
+                                      required
+                                      value={catRequest.title}
+                                      onChange={e => setCatRequest({...catRequest, title: e.target.value})}
+                                      placeholder="e.g. Zen Office Series" 
+                                      className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none transition-colors font-serif"
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Short Subtitle</label>
+                                  <input 
+                                      type="text" 
+                                      value={catRequest.subtitle}
+                                      onChange={e => setCatRequest({...catRequest, subtitle: e.target.value})}
+                                      placeholder="e.g. Minimalist Workspaces" 
+                                      className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none transition-colors"
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Description</label>
+                                  <textarea 
+                                      rows={3}
+                                      value={catRequest.description}
+                                      onChange={e => setCatRequest({...catRequest, description: e.target.value})}
+                                      placeholder="Specify technical scope..." 
+                                      className="w-full border border-stone-200 p-3 text-xs focus:border-stone-900 outline-none transition-colors resize-none"
+                                  />
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Proposed Cover Image</label>
+                              <PZImageManager 
+                                  images={catRequest.image ? [catRequest.image] : []}
+                                  onUpdate={(imgs) => setCatRequest({...catRequest, image: imgs[0] || ''})}
+                                  onUpload={async (f) => {
+                                      const fd = new FormData(); fd.append('file', f);
+                                      const r = await factoryFetch('upload-image', { method: 'POST', body: fd });
+                                      return r.url;
+                                  }}
+                                  maxImages={1}
+                                  aspectRatio={4/3}
+                                  onError={alert}
+                                  className="h-full min-h-[200px]"
+                              />
+                          </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-stone-100 flex gap-4">
+                          <button 
+                              type="button" 
+                              onClick={() => setIsRequestingCategory(false)}
+                              className="flex-1 py-4 border border-stone-200 text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50"
+                          >
+                              Discard
+                          </button>
+                          <button 
+                              type="submit" 
+                              disabled={isSavingCategory}
+                              className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all flex items-center justify-center gap-3 shadow-lg"
+                          >
+                              {isSavingCategory ? <Loader2 size={16} className="animate-spin" /> : <><Send size={14} /> Submit Proposal</>}
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
       <div className="mb-8 animate-fade-in">
-          {/* 导航面包屑与返回键 */}
           <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                   {(selectedCategoryId || isCreating || editingItem) && (
                       <button 
                         onClick={handleBack}
                         className="p-2 bg-white border border-stone-200 rounded-full hover:border-stone-900 transition-colors shadow-sm group"
-                        title="返回上级"
+                        title="Back to Upper Level"
                       >
                           <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
                       </button>
                   )}
                   <div>
                       <h1 className="text-2xl font-serif text-stone-900">
-                          {isCreating ? '创建新 SKU' : editingItem ? `编辑: ${editingItem.name}` : selectedCategoryId ? '系列明细' : '生产看板'}
+                          {isCreating ? 'Provision SKU' : editingItem ? `Modifying: ${editingItem.name}` : selectedCategoryId ? 'Category Details' : 'Production Board'}
                       </h1>
                       <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1">
-                          <span>生产终端</span>
+                          <span>Factory Terminal</span>
                           <span>/</span>
-                          <span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : '全量概览'}</span>
+                          <span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : 'Registry Overview'}</span>
                       </div>
                   </div>
               </div>
 
-              {/* 顶部简易看板 (仅在非编辑状态显示) */}
               {!isCreating && !editingItem && (
                   <div className="hidden md:flex gap-6">
                       <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3">
                           <Clock size={16} className="text-amber-500" />
                           <div>
-                              <div className="text-[10px] text-stone-400 font-bold uppercase">待审核</div>
+                              <div className="text-[10px] text-stone-400 font-bold uppercase">Pending</div>
                               <div className="text-sm font-bold text-stone-900">{stats.pending}</div>
                           </div>
                       </div>
                       <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3">
                           <AlertCircle size={16} className="text-red-500" />
                           <div>
-                              <div className="text-[10px] text-stone-400 font-bold uppercase">需修改</div>
+                              <div className="text-[10px] text-stone-400 font-bold uppercase">Revision</div>
                               <div className="text-sm font-bold text-stone-900">{stats.rejected}</div>
                           </div>
                       </div>
                   </div>
               )}
           </div>
-
           <div className="h-px bg-stone-200 w-full mb-8"></div>
       </div>
 
       {loading && products.length === 0 ? (
-        <div className="py-40 flex flex-col items-center justify-center text-stone-400">
+        <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono">
            <Package className="animate-bounce mb-4 opacity-20" size={48} />
-           <span className="text-xs font-bold font-mono tracking-widest uppercase">同步工厂实时数据中...</span>
+           <span className="text-[10px] font-bold tracking-widest uppercase">Synchronizing Production Data...</span>
         </div>
       ) : editingItem || isCreating ? (
             <ProductForm
@@ -149,20 +270,20 @@ const FactoryWorkspace: React.FC = () => {
               }}
               fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all' ? selectedCategoryId : undefined}
               userRole="FACTORY"
-              lang="zh"
+              lang="en"
             />
           ) : selectedCategoryId ? (
             <div className="space-y-6">
                 <div className="flex justify-end">
                     <button 
                         onClick={() => setIsCreating(true)}
-                        className="bg-stone-900 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"
+                        className="bg-stone-900 text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"
                     >
-                        <ClipboardList size={16} /> 录入新产品
+                        <ClipboardList size={16} /> Registry Entry
                     </button>
                 </div>
                 <ProductList
-                  lang="zh"
+                  lang="en"
                   items={selectedCategoryId === 'all' ? products : products.filter(i => i.category === selectedCategoryId)}
                   categories={categories}
                   onEdit={setEditingItem}
@@ -173,15 +294,14 @@ const FactoryWorkspace: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-8">
-                {/* 欢迎语 */}
-                <div className="bg-stone-900 rounded-sm p-10 text-white relative overflow-hidden mb-8">
+                <div className="bg-stone-900 rounded-sm p-12 text-white relative overflow-hidden mb-8 shadow-2xl">
                     <div className="relative z-10">
-                        <h2 className="text-3xl font-serif mb-2">您好，{userName}</h2>
-                        <p className="text-stone-400 text-sm max-w-lg leading-relaxed">
-                            请通过下方分类进入产品注册表，录入新的生产记录或查看审核状态。所有提交的内容将进入管理员审核流程。
+                        <h2 className="text-3xl font-serif mb-4">Welcome back, {userName}</h2>
+                        <p className="text-stone-400 text-sm max-w-lg leading-relaxed font-light">
+                            Access the production registry via the categories below. Submit new production records or verify the status of pending items.
                         </p>
                     </div>
-                    <LayoutGrid className="absolute right-[-20px] bottom-[-20px] text-white opacity-5 w-64 h-64 rotate-12" />
+                    <LayoutGrid className="absolute right-[-20px] bottom-[-20px] text-white opacity-5 w-72 h-72 rotate-12" />
                 </div>
 
                 <CategoryGrid
@@ -189,7 +309,7 @@ const FactoryWorkspace: React.FC = () => {
                   products={products}
                   onSelectCategory={setSelectedCategoryId}
                   onSelectAll={() => setSelectedCategoryId('all')}
-                  onCreateCategory={() => alert("工厂账号暂无权限创建新系列，请联系管理员。")}
+                  onCreateCategory={() => setIsRequestingCategory(true)}
                 />
             </div>
           )}

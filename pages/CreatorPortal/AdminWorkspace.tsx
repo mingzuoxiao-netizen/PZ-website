@@ -80,12 +80,12 @@ const AdminWorkspace: React.FC = () => {
           ));
           setHasPendingDeploy(true);
           loadProducts();
-      } catch (e: any) { alert(`更新错误: ${e.message}`); }
+      } catch (e: any) { alert(`Registry Error: ${e.message}`); }
       finally { setIsSyncing(false); }
   };
 
   const handleBulkDelete = async (ids: string[]) => {
-      if (!confirm(`确定要永久删除这 ${ids.length} 个项目及其关联的云端资源吗？`)) return;
+      if (!confirm(`Are you sure you want to permanently delete these ${ids.length} items and their cloud assets?`)) return;
       setIsSyncing(true);
       try {
           for (const id of ids) {
@@ -96,34 +96,34 @@ const AdminWorkspace: React.FC = () => {
               await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
           }
           loadProducts();
-      } catch (e: any) { alert(`删除错误: ${e.message}`); }
+      } catch (e: any) { alert(`Deletion Error: ${e.message}`); }
       finally { setIsSyncing(false); }
   };
 
   const handleDeployEverything = async () => {
-      if (!confirm("确定要启动全局生产部署吗？这将更新公开目录。")) return;
+      if (!confirm("Start global production deployment? This will update the public directory.")) return;
       setIsSyncing(true);
       try {
           await adminFetch('admin/publish/products', { method: 'POST' });
           await adminFetch('admin/publish', { method: 'POST' });
           setHasPendingDeploy(false);
-          alert("部署成功 // 公开站点已更新");
-      } catch (e: any) { alert(`部署错误: ${e.message}`); }
+          alert("Deployment Successful // Public Catalog Updated");
+      } catch (e: any) { alert(`Deployment Error: ${e.message}`); }
       finally { setIsSyncing(false); }
   };
 
   const navItems = [
-    { id: 'review', label: '审核队列', icon: <Activity size={18} /> },
-    { id: 'inventory', label: '全量产品库', icon: <Package size={18} /> },
-    { id: 'config', label: '站点配置', icon: <Settings size={18} /> },
-    { id: 'accounts', label: '账号管理', icon: <Users size={18} /> },
-    { id: 'audit', label: '系统日志', icon: <LayoutGrid size={18} /> }
+    { id: 'review', label: 'Review Queue', icon: <Activity size={18} /> },
+    { id: 'inventory', label: 'Master Inventory', icon: <Package size={18} /> },
+    { id: 'config', label: 'Site Protocol', icon: <Settings size={18} /> },
+    { id: 'accounts', label: 'Identities', icon: <Users size={18} /> },
+    { id: 'audit', label: 'System Logs', icon: <LayoutGrid size={18} /> }
   ];
 
   return (
     <PortalLayout 
       role="ADMIN" 
-      userName="系统管理员" 
+      userName="System Admin" 
       navItems={navItems}
       activeTab={activeTab}
       onTabChange={(id) => { setActiveTab(id); setEditingProduct(null); setIsCreating(false); }}
@@ -142,7 +142,7 @@ const AdminWorkspace: React.FC = () => {
               <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
                   <div className="flex items-center gap-3">
                       <div className="w-2 h-2 bg-amber-500 rounded-full animate-ping"></div>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] whitespace-nowrap">有未发布的更改</span>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] whitespace-nowrap">Uncommitted Changes</span>
                   </div>
                   <button 
                     onClick={handleDeployEverything}
@@ -150,7 +150,7 @@ const AdminWorkspace: React.FC = () => {
                     className="bg-white text-stone-900 px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 hover:text-white transition-all flex items-center gap-2"
                   >
                     {isSyncing ? <RefreshCw className="animate-spin" size={14}/> : <ArrowUpCircle size={14}/>}
-                    推送至生产环境
+                    Push to Production
                   </button>
               </div>
           </div>
@@ -188,7 +188,7 @@ const AdminWorkspace: React.FC = () => {
                     onBulkDelete={handleBulkDelete}
                     onRefresh={loadProducts}
                     onDelete={async (id) => {
-                        if(confirm("确定要删除此 SKU 及其关联资源吗？")) {
+                        if(confirm("Confirm deletion of this SKU and associated cloud assets?")) {
                             const p = products.find(x => x.id === id);
                             if (p?.images) await Promise.all(p.images.map((i: string) => handleDeleteImage(i)));
                             await adminFetch(`admin/products/${id}`, { method: 'DELETE' });

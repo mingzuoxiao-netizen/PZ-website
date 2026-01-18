@@ -15,17 +15,17 @@ const translations = {
       learnMore: "Learn More",
       contactUs: "Contact Us",
       search: "Search",
-      searchPlaceholder: "Search registry...",
+      searchPlaceholder: "Search archive...",
       searchRefine: "Refine your search parameters...",
       backHome: "Return Home",
       loading: "Synchronizing...",
       close: "Dismiss",
-      explore: "Inventory",
+      explore: "Explore",
       connect: "Project Portal",
       privacy: "Privacy Policy",
       terms: "Terms of Service",
       rights: "All technical rights reserved.",
-      startProject: "Inquire Production",
+      startProject: "Contact for Quote",
       tradeProgram: "Industry Program",
       adminAccess: "System Access",
       location_cn: "Zhaoqing, China (HQ)",
@@ -34,14 +34,14 @@ const translations = {
     },
     nav: {
       header: {
-        home: "Index",
-        capabilities: "Expertise",
-        manufacturing: "Production",
-        materials: "Library",
+        home: "Home",
+        capabilities: "Capabilities",
+        manufacturing: "Manufacturing",
+        materials: "Resources",
         collections: "Portfolio",
-        capacity: "Logistics",
-        about: "Entity",
-        inquire: "Inquiry"
+        capacity: "Process",
+        about: "About",
+        inquire: "Contact"
       },
       mega: {
         process: "Industrial Flow",
@@ -69,7 +69,7 @@ const translations = {
       subtitle: "Solid Wood Manufacturing",
       heroTitle: "Engineered for Scalable Production",
       heroQuote: "Industrial precision meets natural material artistry.",
-      heroBtnSecondary: "Process Registry",
+      heroBtnSecondary: "View Process",
       featuredCollections: "Featured Collections",
       factoryStrength: "Operational Infrastructure",
       strengthTitle: "Optimized for Commercial High-End.",
@@ -78,24 +78,24 @@ const translations = {
       globalHubs: "Global Infrastructure Hubs",
       chinaLoc: "HQ & Engineering Center",
       cambodiaLoc: "Tariff-Optimized Facility",
-      readyToScale: "Prepare for Production?"
+      readyToScale: "Ready to Start a Project?"
     },
     about: {
       since: "OPERATIONAL SINCE 2014",
-      title: "The PZ Entity",
+      title: "About PZ",
       intro: "Driven by structural integrity and geometric precision, PZ has evolved from a specialist workshop into an industrial leader in high-end wood manufacturing.",
       bannerText: "Craftsmanship. Validated.",
       storyTitle: "Origins",
       storyP1: "Headquartered in Zhaoqing.",
       storyP2: "PZ was founded to solve the gap between artisanal design and mass production viability.",
       storyP3: "Over the last decade, we have expanded our footprint across Asia to serve the most exacting furniture retailers.",
-      storyP4: "Engineering is the foundation of every successful SKU.",
+      storyP4: "Engineering is the foundation of every successful project.",
       galleryItems: {
         raw: { title: "Raw Inventory", desc: "Fine FSC-certified lumber stock." },
         milling: { title: "CNC Milling", desc: "Digital accuracy for every component." },
         automation: { title: "Systems", desc: "Optimizing repetitive production cycles." },
         finishing: { title: "Surface Application", desc: "Premium stains and aerospace lacquers." },
-        qc: { title: "Registry Audit", desc: "Strict verification at every station." }
+        qc: { title: "Audit", desc: "Strict verification at every station." }
       },
       pillars: {
         elite: "Master Joinery",
@@ -107,7 +107,7 @@ const translations = {
       },
       process: {
         label: "Operational Flow",
-        title: "The Production Lifecycle"
+        title: "The Project Lifecycle"
       },
       journey: "A Decade of Engineering",
       milestones: {
@@ -212,7 +212,7 @@ const translations = {
     },
     capacity: {
       footprint: "Operational Reach",
-      title: "Logistics Matrix",
+      title: "Process Matrix",
       desc: "Synchronizing two high-capacity hubs to provide tariff-free and high-precision wood solutions.",
       leadTime: "Cycle Projections",
       sampleDev: "Prototype Cycle",
@@ -255,7 +255,7 @@ const translations = {
       }
     },
     materials: {
-      title: "Registry Library",
+      title: "Resources Library",
       construction: "Joinery Methods",
       fingerJoint: "Finger-Jointing",
       fingerJointDesc: "High-stability structural bonding for industrial parts.",
@@ -289,7 +289,7 @@ const translations = {
       orderKit: "Request Sample Kit"
     },
     inquire: {
-      title: "Project Portal",
+      title: "Contact Us",
       desc: "Connect with our engineering team for technical quotes or material inquiries.",
       oem: "Technical Inquiries",
       oemDesc: "Please provide CAD data or dimensioned sketches for accurate quoting.",
@@ -322,7 +322,7 @@ const translations = {
       title: "Studio Mode",
       inventory: {
         header: "SKU Management",
-        selectCat: "Select a registry category to manage or add new products.",
+        selectCat: "Select a category to manage or add new products.",
         viewMaster: "Registry Overview",
         backCategories: "Back to Sets",
         search: "Search SKU...",
@@ -364,14 +364,14 @@ const translations = {
         "Home Page / Hero": "Front-End Hero",
         "Home Page / Sections": "Body Content",
         "Home Page / Global Hubs": "Logistics Mapping",
-        "About Page": "Entity Profile",
-        "Manufacturing Page": "Production Logic",
-        "Global Capacity / Locations": "Fulfillment Points",
-        "Materials / Construction": "Joinery Library",
-        "Materials / Wood Library": "Lumber Species",
+        "About Page": "About Profile",
+        "Manufacturing Page": "Manufacturing Logic",
+        "Global Capacity / Locations": "Process Flow",
+        "Materials / Construction": "Construction Methods",
+        "Materials / Wood Library": "Resources",
       },
       fields: {
-        "catalog.url": { label: "Registry Catalog (PDF)", help: "Primary product catalog for public download." },
+        "catalog.url": { label: "Catalog (PDF)", help: "Primary product catalog for public download." },
         "home.hero.title": { label: "Primary Header" },
         "home.hero.image": { label: "Hero Background" },
         "home.factory.image": { label: "Facility Visual" },
@@ -382,7 +382,7 @@ const translations = {
       }
     },
     collections: {
-      collection: "Registry Set",
+      collection: "Project Set",
       viewProducts: "Access SKUs",
       intro: "Organized by industrial category and joinery logic.",
       requestPdf: "Access PDF",
@@ -400,7 +400,6 @@ const translations = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children?: ReactNode }) => {
-  // Hardcoded to 'en'
   const language = 'en' as const;
   const t = translations.en;
 

@@ -43,7 +43,7 @@ const Portfolio: React.FC = () => {
         }
         setProducts(loadedProducts);
       } catch (e: any) {
-        setError(`Unable to synchronize with product registry. (${e.message})`);
+        setError(`Unable to synchronize with product archive. (${e.message})`);
       } finally {
         setIsLoading(false);
       }
@@ -127,7 +127,7 @@ const Portfolio: React.FC = () => {
               <div className="w-full lg:w-2/5 p-8 lg:p-16 flex flex-col justify-center">
                 <button onClick={() => setSelectedProduct(null)} className="hidden lg:block absolute top-8 right-8 text-stone-400 hover:text-stone-900 transition-colors"><X size={32} /></button>
                 <div className="mb-8">
-                    <span className="text-[10px] font-mono font-bold text-safety-700 uppercase tracking-[0.3em] mb-4 block">Registry Ref. {selectedProduct.code || 'UNKNOWN'}</span>
+                    <span className="text-[10px] font-mono font-bold text-safety-700 uppercase tracking-[0.3em] mb-4 block">Archive Ref. {selectedProduct.code || 'UNKNOWN'}</span>
                     <h2 className="font-serif text-4xl text-stone-900 mb-6 leading-tight">{selectedProduct.name}</h2>
                     <div className="w-16 h-1 bg-safety-700 mb-10"></div>
                 </div>
@@ -148,7 +148,7 @@ const Portfolio: React.FC = () => {
                 </div>
 
                 <Link to="/inquire" className="bg-stone-900 text-white px-10 py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all text-center shadow-lg group flex items-center justify-center">
-                    Initiate Production Request <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                    Initiate Project Request <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </div>
            </div>
@@ -162,7 +162,7 @@ const Portfolio: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="animate-fade-in-up">
                         <button onClick={handleBackToOverview} className="group flex items-center text-stone-400 hover:text-stone-900 text-[10px] font-bold uppercase tracking-[0.3em] mb-6 transition-colors font-mono">
-                            <ChevronLeft size={14} className="mr-2 group-hover:-translate-x-1 transition-transform"/> Return to Registry
+                            <ChevronLeft size={14} className="mr-2 group-hover:-translate-x-1 transition-transform"/> Return to Portfolio
                         </button>
                         <h1 className="font-serif text-5xl md:text-7xl text-stone-900 leading-tight mb-4 tracking-tighter">
                             {activeCategoryDef?.title}
@@ -180,7 +180,7 @@ const Portfolio: React.FC = () => {
                 </div>
             ) : (
                 <div className="max-w-4xl">
-                    <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Production Registry</h3>
+                    <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Archive Registry</h3>
                     <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter">Portfolio</h1>
                     <p className="text-stone-500 text-xl md:text-2xl font-light leading-relaxed max-w-2xl">
                         A comprehensive archive of precision woodwork solutions engineered for global hospitality and commercial luxury.
@@ -192,7 +192,7 @@ const Portfolio: React.FC = () => {
         {isLoading ? (
             <div className="flex flex-col items-center justify-center py-40 text-stone-300">
                 <Loader2 className="animate-spin mb-4" size={48} />
-                <span className="font-mono text-[10px] uppercase tracking-widest">Synchronizing Registry Assets...</span>
+                <span className="font-mono text-[10px] uppercase tracking-widest">Synchronizing Archive Assets...</span>
             </div>
         ) : error ? (
             <div className="flex flex-col items-center justify-center py-40 text-stone-400 border border-dashed border-stone-100">
@@ -215,7 +215,7 @@ const Portfolio: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="absolute top-6 left-6">
-                                            <span className="bg-stone-900 text-white px-3 py-1 font-mono text-[10px] uppercase tracking-widest">{count} SKUs</span>
+                                            <span className="bg-stone-900 text-white px-3 py-1 font-mono text-[10px] uppercase tracking-widest">{count} Items</span>
                                         </div>
                                     </div>
                                     <div className="flex flex-col">
@@ -232,7 +232,7 @@ const Portfolio: React.FC = () => {
                         <aside className="lg:w-64 flex-shrink-0">
                             <div className="sticky top-32">
                                 <h3 className="text-stone-900 font-mono font-bold text-[10px] uppercase tracking-[0.3em] mb-10 pb-4 border-b border-stone-100 flex items-center">
-                                    <Layers size={14} className="mr-2 text-safety-700" /> Filter Registry
+                                    <Layers size={14} className="mr-2 text-safety-700" /> Filter Archive
                                 </h3>
                                 <div className="space-y-4">
                                     <button 
