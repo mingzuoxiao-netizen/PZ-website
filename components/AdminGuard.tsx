@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ADMIN_SESSION_KEY } from "../utils/adminFetch";
@@ -19,7 +18,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
   useEffect(() => {
     const validateToken = () => {
       const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-      const role = sessionStorage.getItem("pz_user_role");
+      const role = sessionStorage.getItem("pz_user_role") as 'ADMIN' | 'FACTORY' | null;
       
       // 1. Basic Token Presence Check
       if (!token) {
@@ -28,18 +27,23 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
         return;
       }
 
-      // 2. Role Restriction Enforcement
-      // Contract says Factory cannot access Admin endpoints and vice versa.
+      // 2. Strict Role Diversion
+      // If we are at the base /creator route, let the dispatcher handle it
+      if (location.pathname === '/creator') {
+          setAuthorized(true);
+          setChecking(false);
+          return;
+      }
+
+      // Block cross-access regardless of manual URL entry
       if (requiredRole && role !== requiredRole) {
-          console.warn(`[Guard] Role mismatch. User: ${role}, Required: ${requiredRole}`);
+          console.warn(`[Guard] Role mismatch. User: ${role}, Required: ${requiredRole}. Redirecting to correct workspace.`);
           const target = role === 'ADMIN' ? '/creator/admin' : '/creator/factory';
           navigate(target, { replace: true });
           return;
       }
 
-      // 3. Authorization Granted (Delayed Validation)
-      // Since Section 8 forbids /admin/me, we assume the token is valid 
-      // until an actual API request fails with 401.
+      // 3. Authorization Granted
       setAuthorized(true);
       setChecking(false);
     };
@@ -51,7 +55,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Checking Session...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">验证会话中...</p>
       </div>
     );
   }

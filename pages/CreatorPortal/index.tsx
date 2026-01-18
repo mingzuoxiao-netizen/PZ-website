@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -8,8 +7,6 @@ const CreatorPortal: React.FC = () => {
 
   useEffect(() => {
     const dispatchUser = () => {
-        // ✅ Frozen API v1.0: Section 8 forbids /admin/me.
-        // We use the role metadata saved in sessionStorage during the 'login' response.
         const role = (sessionStorage.getItem("pz_user_role") || '').toUpperCase();
 
         if (role === 'ADMIN') {
@@ -22,15 +19,14 @@ const CreatorPortal: React.FC = () => {
         }
     };
 
-    // Small timeout to ensure Guard has completed (optional UX)
-    const timer = setTimeout(dispatchUser, 300);
-    return () => clearTimeout(timer);
+    // Immediate dispatch
+    dispatchUser();
   }, [navigate]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">Routing Workspace...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">正在进入工作区...</p>
     </div>
   );
 };

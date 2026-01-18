@@ -7,7 +7,7 @@ import { adminFetch } from "./adminFetch";
    API
 ========================= */
 
-// Updated to relative path for Cloudflare Pages Functions proxy to fix CORS
+// Updated to relative path for Cloudflare Pages Functions proxy
 export const API_BASE = "/api";
 
 /* =========================
@@ -156,8 +156,6 @@ export const DEFAULT_CONFIG: SiteConfig = {
 
 /**
  * Public Config Fetcher
- * Strictly uses /site-config per Contract Section 5.
- * Uses a simplified fetch to minimize CORS preflight triggers.
  */
 export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
   try {
@@ -168,14 +166,12 @@ export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope
     }
     return (await res.json()) as (SiteConfig | SiteConfigEnvelope);
   } catch (err) {
-    // Graceful silent fail to allow fallback mechanism
     return null;
   }
 }
 
 /**
  * Preview Config Fetcher (Authorized)
- * Uses the dedicated admin preview path.
  */
 export async function fetchPreviewConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
     try {

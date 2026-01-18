@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { ProductVariant } from '../../../types';
-import { getAssetUrl } from '../../../utils/getAssetUrl';
+import { resolveImage } from '../../../utils/imageResolver';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface ReviewQueueProps {
@@ -28,16 +27,16 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) 
           reject: "Reject"
       },
       zh: {
-          empty: "全部已处理",
-          emptyDesc: "目前没有待审核的产品。",
-          title: `待审核: ${products.length} 项`,
-          sub: "工厂账号提交的产品需要批准后才能上线。",
-          submitted: "今日提交",
-          rejectReason: "拒绝原因",
-          confirmReject: "确认拒绝",
+          empty: "暂无待审事项",
+          emptyDesc: "目前没有需要审核的产品，所有工厂提交均已处理。",
+          title: `待审核队列: ${products.length} 项产品`,
+          sub: "工厂账号提交的产品需要管理员批准后才能在官网上线。",
+          submitted: "刚刚提交",
+          rejectReason: "驳回原因 (必填)",
+          confirmReject: "确认驳回",
           cancel: "取消",
           approve: "批准并发布",
-          reject: "拒绝"
+          reject: "驳回修改"
       }
   }[lang];
 
@@ -73,9 +72,9 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) 
                     {/* Image Preview */}
                     <div className="w-full md:w-48 h-48 bg-stone-100 flex-shrink-0 relative">
                         {product.images?.[0] ? (
-                            <img src={getAssetUrl(product.images[0])} className="w-full h-full object-cover" alt="" />
+                            <img src={resolveImage(product.images[0])} className="w-full h-full object-cover" alt="" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs text-stone-400">No Image</div>
+                            <div className="w-full h-full flex items-center justify-center text-xs text-stone-400">无图片</div>
                         )}
                     </div>
 
@@ -90,7 +89,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) 
                                 </div>
                             </div>
                             <div className="text-right">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">Pending Review</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待审核</span>
                                 <div className="text-[10px] text-stone-400 mt-1">{txt.submitted}</div>
                             </div>
                         </div>
@@ -103,14 +102,15 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) 
                                 <label className="block text-xs font-bold text-red-700 uppercase mb-2">{txt.rejectReason}</label>
                                 <textarea 
                                     className="w-full border border-red-200 p-2 text-sm text-stone-900 mb-2 focus:outline-none"
-                                    placeholder="..."
+                                    placeholder="请说明驳回原因，以便工厂修改..."
                                     value={rejectNote}
                                     onChange={e => setRejectNote(e.target.value)}
                                 />
                                 <div className="flex gap-2">
                                     <button 
                                         onClick={() => {
-                                            onProcess(product.id, 'reject', rejectNote);
+                                            if (!rejectNote.trim()) { alert("请输入驳回原因"); return; }
+                                            onProcess(product.id || '', 'reject', rejectNote);
                                             setRejectId(null);
                                             setRejectNote("");
                                         }}
@@ -129,13 +129,13 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, onProcess, lang }) 
                         ) : (
                             <div className="flex gap-4 pt-4 border-t border-stone-100">
                                 <button 
-                                    onClick={() => onProcess(product.id, 'approve')}
+                                    onClick={() => onProcess(product.id || '', 'approve')}
                                     className="flex items-center bg-green-600 text-white px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors shadow-sm"
                                 >
                                     <CheckCircle size={14} className="mr-2" /> {txt.approve}
                                 </button>
                                 <button 
-                                    onClick={() => setRejectId(product.id)}
+                                    onClick={() => setRejectId(product.id || null)}
                                     className="flex items-center bg-white text-red-600 border border-red-200 px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-red-50 transition-colors"
                                 >
                                     <XCircle size={14} className="mr-2" /> {txt.reject}

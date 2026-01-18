@@ -19,13 +19,13 @@ const Collections: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Updated to Action 2 spec
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const url = `${API_BASE}/public/products`;
+        // Unified path: /api handles routing to /public or root based on logic in proxy
+        const url = `${API_BASE}/products`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const json = await response.json();

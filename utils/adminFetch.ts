@@ -1,7 +1,6 @@
-
 // utils/adminFetch.ts
 
-export const ADMIN_API_BASE = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+export const ADMIN_API_BASE = "/api";
 export const ADMIN_SESSION_KEY = "pz_auth_token";
 
 interface FetchOptions extends RequestInit {
@@ -55,7 +54,7 @@ export async function adminFetch<T = any>(
         throw new Error(`Endpoint not found: ${url}`);
       }
       if (response.status === 500) {
-        throw new Error(`Server Error (500). The backend crashed while processing your request. Details: ${errorDetail}`);
+        throw new Error(`Server Error (500). Details: ${errorDetail}`);
       }
       throw new Error(errorDetail || `HTTP ${response.status}`);
     }
@@ -68,9 +67,8 @@ export async function adminFetch<T = any>(
     }
     return (await response.text()) as unknown as T;
   } catch (e: any) {
-      // Catch "Failed to fetch" (CORS or Network error)
       if (e.message === 'Failed to fetch') {
-          throw new Error("Network Error: Could not connect to the API. This is usually caused by a server crash or CORS misconfiguration.");
+          throw new Error("Network Error: Could not connect to the API. Verify your proxy configuration.");
       }
       throw e;
   }

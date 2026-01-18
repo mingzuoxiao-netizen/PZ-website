@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search, Globe } from 'lucide-react';
+import { Menu, X, ArrowRight, Search } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { NAV_ITEMS } from '../types';
@@ -24,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { t, language, toggleLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { meta } = usePublishedSiteConfig();
 
   // Scroll Detection
@@ -118,15 +117,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* RIGHT ACTIONS */}
           <div className="flex items-center space-x-6 z-50">
-            {/* Language Switcher */}
-            <button
-              onClick={toggleLanguage}
-              className={`flex items-center text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors duration-300 ${isMobileMenuOpen ? 'text-stone-900' : navTextColor} hover:text-safety-700`}
-            >
-               <Globe size={14} className="mr-1.5" />
-               {language === 'en' ? 'EN / 中文' : '中文 / EN'}
-            </button>
-
             {/* Search Toggle */}
             <button
               onClick={() => {
