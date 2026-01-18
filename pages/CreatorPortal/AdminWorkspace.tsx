@@ -186,6 +186,7 @@ const AdminWorkspace: React.FC = () => {
                     onBack={() => {}} 
                     onBulkStatusChange={handleBulkStatusChange}
                     onBulkDelete={handleBulkDelete}
+                    onRefresh={loadProducts}
                     onDelete={async (id) => {
                         if(confirm("Delete this SKU and its media?")) {
                             const p = products.find(x => x.id === id);

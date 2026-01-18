@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, CheckCircle, XCircle, RefreshCw, Power, UserPlus, X, Key, Loader2, Save, Factory, ShieldAlert } from 'lucide-react';
+import { Users, Shield, RefreshCw, UserPlus, X, Key, Loader2, Save, Factory, ShieldAlert } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 
 interface Account {
@@ -16,7 +16,7 @@ const AccountsManager: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Form State
+  // Form State from provided snippet
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<'ADMIN' | 'FACTORY'>('FACTORY');
@@ -36,6 +36,7 @@ const AccountsManager: React.FC = () => {
 
   useEffect(() => { fetchAccounts(); }, []);
 
+  // Provided Logic Implementation
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -48,7 +49,7 @@ const AccountsManager: React.FC = () => {
     setIsSaving(true);
     try {
       const res = await adminFetch<{ success: boolean; id: string }>(
-        "admin/accounts",
+        "admin/accounts", // Using the endpoint from your snippet
         {
           method: "POST",
           body: JSON.stringify({
@@ -64,12 +65,13 @@ const AccountsManager: React.FC = () => {
         setPassword("");
         setRole("FACTORY");
         setIsCreating(false);
-        fetchAccounts();
+        alert("Account created.");
+        fetchAccounts(); // Refresh the list
       } else {
-        setError("Account creation failed on server.");
+        alert("Create failed.");
       }
     } catch (e: any) {
-      setError(e?.message || "Transmission error during creation.");
+      setError(e?.message || "Create failed.");
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +135,6 @@ const AccountsManager: React.FC = () => {
                        onChange={e => setUsername(e.target.value)}
                        placeholder="Username" 
                        className="w-full bg-stone-50 border border-stone-200 p-4 text-stone-900 text-sm focus:border-safety-700 outline-none transition-colors font-mono"
-                       autoComplete="off"
                     />
                  </div>
 

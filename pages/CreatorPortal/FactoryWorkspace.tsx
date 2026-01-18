@@ -87,6 +87,7 @@ const FactoryWorkspace: React.FC = () => {
               categories={categories}
               onEdit={setEditingItem}
               onCreate={() => setIsCreating(true)}
+              onRefresh={loadData}
               onBack={() => setSelectedCategoryId(null)}
             />
           ) : (

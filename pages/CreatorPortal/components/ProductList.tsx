@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, ArrowUpCircle } from 'lucide-react';
+import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, ArrowUpCircle, Send, Loader2 } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
+import { factoryFetch } from '../../../utils/factoryFetch';
 
 interface ProductListProps {
   items: ProductVariant[];
@@ -11,17 +12,22 @@ interface ProductListProps {
   onDelete?: (id: string) => void;
   onBulkStatusChange?: (ids: string[], newStatus: string) => void;
   onBulkDelete?: (ids: string[]) => void;
+  onRefresh?: () => void;
   onCreate: () => void;
   onBack: () => void;
   lang: 'en' | 'zh';
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete 
+    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh
 }) => {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [submittingIds, setSubmittingIds] = useState<string[]>([]);
+
+  const userRole = sessionStorage.getItem("pz_user_role") || "FACTORY";
+  const isFactory = userRole === "FACTORY";
 
   const filteredItems = Array.isArray(items) ? items.filter(i => {
     const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -40,6 +46,19 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleSubmitForReview = async (id: string) => {
+      setSubmittingIds(prev => [...prev, id]);
+      try {
+          await factoryFetch(`factory/products/${id}/submit`, { method: 'POST' });
+          alert("Submitted for review successfully.");
+          if (onRefresh) onRefresh();
+      } catch (e: any) {
+          alert(`Submission failed: ${e.message}`);
+      } finally {
+          setSubmittingIds(prev => prev.filter(i => i !== id));
+      }
   };
 
   return (
@@ -67,7 +86,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 <option value="all">All Status</option>
                 <option value="published">Published</option>
                 <option value="draft">Drafts</option>
-                <option value="pending">Pending</option>
+                <option value="pending">Awaiting Audit</option>
              </select>
           </div>
           
@@ -95,6 +114,7 @@ const ProductList: React.FC<ProductListProps> = ({
               ) : (
                 filteredItems.map((item) => {
                     const isSelected = selectedIds.includes(item.id!);
+                    const isSubmitting = submittingIds.includes(item.id!);
                     const imageUrl = resolveImage(item.images[0]);
                     const category = categories.find(c => c.id === item.category);
                     
@@ -118,9 +138,10 @@ const ProductList: React.FC<ProductListProps> = ({
                                 <h4 className="font-bold text-stone-900 text-sm truncate">{item.name}</h4>
                                 <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded
                                     ${item.status === 'published' ? 'bg-green-100 text-green-700' : 
-                                      item.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500'}
+                                      item.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                                      item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-stone-100 text-stone-500'}
                                 `}>
-                                    {item.status}
+                                    {item.status === 'pending' ? 'awaiting audit' : item.status}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4 font-mono text-[10px]">
@@ -130,9 +151,21 @@ const ProductList: React.FC<ProductListProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"><Edit size={16} /></button>
-                            {onDelete && <button onClick={() => item.id && onDelete(item.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"><Trash2 size={16} /></button>}
+                        <div className="flex items-center space-x-2">
+                            {isFactory && (item.status === 'draft' || item.status === 'rejected') && (
+                                <button 
+                                    onClick={() => item.id && handleSubmitForReview(item.id)}
+                                    disabled={isSubmitting}
+                                    className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors rounded-sm"
+                                >
+                                    {isSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                    Submit Review
+                                </button>
+                            )}
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"><Edit size={16} /></button>
+                                {!isFactory && onDelete && <button onClick={() => item.id && onDelete(item.id)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"><Trash2 size={16} /></button>}
+                            </div>
                         </div>
                     </div>
                     );
@@ -141,8 +174,8 @@ const ProductList: React.FC<ProductListProps> = ({
             </div>
        </div>
 
-       {/* BATCH ACTION BAR */}
-       {selectedIds.length > 0 && (
+       {/* BATCH ACTION BAR (ADMIN ONLY) */}
+       {!isFactory && selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
@@ -155,7 +188,7 @@ const ProductList: React.FC<ProductListProps> = ({
                             onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }}
                             className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors"
                        >
-                           <CheckCircle size={14} /> Mark Published
+                           <CheckCircle size={14} /> Batch Publish
                        </button>
                        <button 
                             onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }}
@@ -168,7 +201,7 @@ const ProductList: React.FC<ProductListProps> = ({
                             onClick={() => { if(confirm("Permanently delete selected items?")) onBulkDelete?.(selectedIds); setSelectedIds([]); }}
                             className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
                        >
-                           <Trash2 size={14} /> Delete
+                           <Trash2 size={14} /> Batch Delete
                        </button>
                    </div>
                    
