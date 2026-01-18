@@ -195,10 +195,12 @@ const AdminWorkspace: React.FC = () => {
                     loadProducts();
                 }}
                 onProcessCategory={async (id, action) => {
-                    // Approved category needs to be merged into site-config via admin UI flow or automated writing
-                    await adminFetch(`admin/category-requests/${id}`, { method: 'PUT', body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'rejected' }) });
-                    loadCategoryQueue();
-                    alert("Category request processed. If approved, remember to update Site Protocol.");
+                    // Optimized endpoint call per user request
+                    const endpoint = action === 'approve' ? 'approve' : 'reject';
+                    await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { 
+                        method: 'POST' 
+                    });
+                    await loadCategoryQueue();
                 }}
             />
           )}
