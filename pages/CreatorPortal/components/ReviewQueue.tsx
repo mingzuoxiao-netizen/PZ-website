@@ -1,16 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { ProductVariant, CategoryRequest } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
-import { CheckCircle, XCircle, Package, LayoutGrid, CheckSquare, Square, RefreshCw, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Package, LayoutGrid, CheckSquare, Square, RefreshCw } from 'lucide-react';
 
 interface ReviewQueueProps {
   products: ProductVariant[];
   categoryRequests: CategoryRequest[];
   onProcessProduct: (id: string, action: 'approve' | 'reject', note?: string) => Promise<void>;
   onProcessCategory: (id: string, action: 'approve' | 'reject', note?: string) => Promise<void>;
+  reloadQueue: () => Promise<void>;
 }
 
-const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, onProcessProduct, onProcessCategory }) => {
+const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, onProcessProduct, onProcessCategory, reloadQueue }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -30,16 +31,21 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Approve all ${selectedIds.length} selected items? This will publish them immediately.`)) return;
+    const label = view === 'products' ? 'products' : 'category proposals';
+    if (!confirm(`Approve all ${selectedIds.length} selected ${label}? This operation is final.`)) return;
 
     setIsProcessing(true);
     try {
         const processor = view === 'products' ? onProcessProduct : onProcessCategory;
+        // Run processes in parallel for speed, then refresh once
         await Promise.all(selectedIds.map(id => processor(id, 'approve')));
         setSelectedIds([]);
-        alert("Batch approval completed successfully.");
+        await reloadQueue();
+        alert(`Successfully approved ${selectedIds.length} items.`);
     } catch (e: any) {
-        alert("Batch error: Some items may not have processed correctly.");
+        console.error("Batch error", e);
+        alert("Batch processing complete. Some items may require manual verification.");
+        await reloadQueue();
     } finally {
         setIsProcessing(false);
     }
@@ -53,7 +59,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
       confirmReject: "Confirm Rejection",
       cancel: "Abort",
       approve: "Approve & Process",
-      approvePublish: "Approve & Publish",
+      approvePublish: "APPROVE & PUBLISH",
       reject: "Reject Submission"
   };
 
@@ -124,7 +130,6 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                 ${isSelected ? 'border-safety-700 ring-1 ring-safety-700/10 shadow-md' : 'border-stone-200 hover:border-stone-400 shadow-sm'}
                             `}
                         >
-                            {/* Selection Checkbox Overlay for Mobile/Interaction */}
                             <div className="md:w-12 bg-stone-50 border-r border-stone-100 flex items-center justify-center flex-shrink-0">
                                 <button onClick={() => toggleSelect(item.id!)} className="text-stone-300 hover:text-safety-700">
                                     {isSelected ? <CheckSquare size={20} className="text-safety-700"/> : <Square size={20}/>}
@@ -189,13 +194,13 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                     <div className="flex gap-4 pt-4 border-t border-stone-50 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
                                             onClick={() => view === 'products' ? onProcessProduct(item.id!, 'approve') : onProcessCategory(item.id!, 'approve')}
-                                            className="flex items-center bg-stone-900 text-white px-5 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all"
+                                            className="flex items-center bg-stone-900 text-white px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg"
                                         >
                                             <CheckCircle size={12} className="mr-2" /> {view === 'products' ? txt.approve : txt.approvePublish}
                                         </button>
                                         <button 
                                             onClick={() => setRejectId(item.id || null)}
-                                            className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-red-50"
+                                            className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50"
                                         >
                                             <XCircle size={12} className="mr-2" /> Reject
                                         </button>

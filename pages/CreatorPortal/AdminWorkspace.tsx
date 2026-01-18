@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
@@ -38,12 +38,12 @@ const AdminWorkspace: React.FC = () => {
     } catch (e) { console.error(e); }
   };
 
-  const loadCategoryQueue = async () => {
+  const loadCategoryQueue = useCallback(async () => {
       try {
           const res = await adminFetch<{ items: any[] }>("admin/category-requests?status=awaiting_review");
           setCategoryRequests(res.items ?? []);
       } catch (e) { console.error("Failed to load category queue", e); }
-  };
+  }, []);
 
   const loadSiteConfig = async () => {
     try {
@@ -57,7 +57,7 @@ const AdminWorkspace: React.FC = () => {
       loadProducts(); 
       loadSiteConfig(); 
       loadCategoryQueue();
-  }, []);
+  }, [loadCategoryQueue]);
 
   const handleSaveProduct = async (product: any) => {
     try {
@@ -198,7 +198,7 @@ const AdminWorkspace: React.FC = () => {
                 }}
                 onProcessCategory={async (id, action) => {
                     try {
-                        // Use approve-publish endpoint as requested
+                        // CONSTRUCTION OF EXACT ENDPOINTS AS REQUESTED
                         const endpoint = action === 'approve' ? 'approve-publish' : 'reject';
                         await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { 
                             method: 'POST' 
@@ -213,6 +213,8 @@ const AdminWorkspace: React.FC = () => {
                         alert(e.message || `${action === 'approve' ? 'Approve' : 'Reject'} failed`);
                     }
                 }}
+                // Exposed for efficiency in bulk operations
+                reloadQueue={loadCategoryQueue}
             />
           )}
 
