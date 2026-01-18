@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { X, Loader2, AlertCircle, Download, FileText, ArrowRight, ChevronLeft, Layers } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { X, Loader2, AlertCircle, FileText, ArrowRight, ChevronLeft, Layers, Hash, LayoutGrid } from 'lucide-react';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
@@ -9,13 +8,14 @@ import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
+import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 
 const Portfolio: React.FC = () => {
-  const { t } = useLanguage();
   const { config, mode } = usePublishedSiteConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<ProductVariant | null>(null);
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,29 +27,23 @@ const Portfolio: React.FC = () => {
       setError(null);
       try {
         let rawData: any[] = [];
-        
-        // If in preview mode, fetch from admin endpoint to see latest saved changes
         if (mode === 'preview') {
             const res = await adminFetch('admin/products?limit=1000');
-            rawData = res.products || res.data || [];
+            rawData = extractProductsArray(res);
         } else {
             const response = await fetch(`${API_BASE}/products`);
-            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            if (!response.ok) throw new Error(`Registry connection failed (${response.status})`);
             const json = await response.json();
-            rawData = json.products || json.data || (Array.isArray(json) ? json : []);
+            rawData = extractProductsArray(json);
         }
         
         let loadedProducts = normalizeProducts(rawData);
-        
-        // Only filter by 'published' in public mode. In preview, show everything.
         if (mode === 'public') {
-            loadedProducts = loadedProducts.filter(p => p.status === 'published');
+            loadedProducts = loadedProducts.filter(isPublishedProduct);
         }
-        
         setProducts(loadedProducts);
       } catch (e: any) {
-        console.error("Portfolio load error:", e);
-        setError(`Unable to load products. (${e.message})`);
+        setError(`Unable to synchronize with product registry. (${e.message})`);
       } finally {
         setIsLoading(false);
       }
@@ -64,168 +58,249 @@ const Portfolio: React.FC = () => {
     return sourceCategories.filter(cat => {
         const catId = cat.id.toLowerCase().trim();
         const catTitle = cat.title.toLowerCase().trim();
-        // Match either by ID slug or by friendly Title string
         return productCategoryStrs.has(catId) || productCategoryStrs.has(catTitle);
     });
   }, [products, config]);
 
+  const subCategories = useMemo(() => {
+    if (activeCategory === 'all') return [];
+    return extractSubCategories(products, activeCategory);
+  }, [activeCategory, products]);
+
   useEffect(() => {
     const cat = searchParams.get('category');
-    if (cat) setActiveCategory(cat);
+    setActiveCategory(cat || 'all');
+    
+    const sub = searchParams.get('sub');
+    setActiveSubCategory(sub || 'all');
     
     const prodId = searchParams.get('product');
     if (prodId && products.length > 0) {
-      const found = products.find(p => p.id === prodId || p.code === prodId || p.name === prodId);
+      const found = products.find(p => p.id === prodId || p.code === prodId);
       if (found) setSelectedProduct(found);
     }
   }, [searchParams, products]);
 
-  const getProductsByCategory = (catId: string) => {
-      const targetId = catId.toLowerCase().trim();
-      const catDef = availableCategories.find(c => c.id.toLowerCase() === targetId);
-      const targetTitle = catDef ? catDef.title.toLowerCase().trim() : '';
+  const filteredProducts = useMemo(() => {
+    if (activeCategory === 'all') return products;
+    const cat = activeCategory.toLowerCase().trim();
+    let items = products.filter(p => (p.category || '').toLowerCase().trim() === cat);
 
-      return products.filter(p => {
-          const pCat = (p.category || '').toLowerCase().trim();
-          return pCat === targetId || (targetTitle !== '' && pCat === targetTitle);
-      });
-  };
-
-  const getCategoryCover = (catId: string, defaultCover: string) => {
-      const catProducts = getProductsByCategory(catId);
-      if (catProducts.length > 0 && catProducts[0].images.length > 0) {
-          return resolveImage(catProducts[0].images[0]);
-      }
-      return resolveImage(defaultCover);
-  };
+    if (activeSubCategory !== 'all') {
+        const sub = activeSubCategory.toLowerCase().trim();
+        items = items.filter(p => (p.sub_category || '').toLowerCase().trim() === sub);
+    }
+    return items;
+  }, [activeCategory, activeSubCategory, products]);
 
   const handleCategorySelect = (catId: string) => {
       setActiveCategory(catId);
+      setActiveSubCategory('all');
       setSearchParams({ category: catId }, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleSubCategorySelect = (subName: string) => {
+      setActiveSubCategory(subName);
+      setSearchParams({ category: activeCategory, sub: subName }, { replace: true });
+  };
+
   const handleBackToOverview = () => {
       setActiveCategory('all');
+      setActiveSubCategory('all');
       setSearchParams({}, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const openProduct = (product: ProductVariant) => {
-    setSelectedProduct(product);
-    const params = new URLSearchParams(searchParams);
-    if (product.id) params.set('product', product.id);
-    setSearchParams(params, { replace: true });
-  };
-
-  const closeProduct = () => {
-    setSelectedProduct(null);
-    const params = new URLSearchParams(searchParams);
-    params.delete('product');
-    setSearchParams(params, { replace: true });
-  };
-
-  const activeCategoryDef = availableCategories.find(c => c.id === activeCategory);
+  const activeCategoryDef = availableCategories.find(c => c.id.toLowerCase() === activeCategory.toLowerCase());
 
   return (
-    <div className="bg-stone-50 min-h-screen pt-32 pb-20">
+    <div className="bg-white min-h-screen pt-32 pb-20 selection:bg-safety-700 selection:text-white">
+      {/* Product Modal */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fade-in" onClick={closeProduct}>
-           <div className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col md:flex-row" onClick={e => e.stopPropagation()}>
-              <div className="w-full md:w-1/2 bg-stone-100 relative min-h-[300px]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/90 backdrop-blur-md p-4 animate-fade-in" onClick={() => setSelectedProduct(null)}>
+           <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col lg:flex-row" onClick={e => e.stopPropagation()}>
+              <div className="w-full lg:w-3/5 bg-stone-100 relative min-h-[400px]">
                  <img src={resolveImage(selectedProduct.images[0])} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
-                 <button onClick={closeProduct} className="absolute top-4 left-4 md:hidden bg-white/50 p-2 rounded-full"><X size={20} /></button>
+                 <button onClick={() => setSelectedProduct(null)} className="absolute top-4 left-4 lg:hidden bg-white/80 p-2 rounded-full text-stone-900 shadow-xl"><X size={20} /></button>
               </div>
-              <div className="w-full md:w-1/2 p-8 md:p-12 relative">
-                <button onClick={closeProduct} className="absolute top-8 right-8 hidden md:block text-stone-400 hover:text-stone-900"><X size={24} /></button>
-                <h2 className="font-serif text-3xl text-stone-900 mb-6">{selectedProduct.name}</h2>
-                <div className="w-12 h-1 bg-safety-700 mb-8"></div>
-                <p className="text-stone-600 mb-8 leading-relaxed">{selectedProduct.description || t.collections.pdp.descExtra}</p>
-                <div className="grid grid-cols-2 gap-6 text-sm text-stone-600 mb-10">
-                    <div><span className="block text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">{t.collections.pdp.techDims}</span>{selectedProduct.size || t.collections.pdp.customSizes}</div>
-                    <div><span className="block text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">{t.collections.pdp.matConst}</span>{selectedProduct.material || "Solid Wood"}</div>
+              <div className="w-full lg:w-2/5 p-8 lg:p-16 flex flex-col justify-center">
+                <button onClick={() => setSelectedProduct(null)} className="hidden lg:block absolute top-8 right-8 text-stone-400 hover:text-stone-900 transition-colors"><X size={32} /></button>
+                <div className="mb-8">
+                    <span className="text-[10px] font-mono font-bold text-safety-700 uppercase tracking-[0.3em] mb-4 block">Registry Ref. {selectedProduct.code || 'UNKNOWN'}</span>
+                    <h2 className="font-serif text-4xl text-stone-900 mb-6 leading-tight">{selectedProduct.name}</h2>
+                    <div className="w-16 h-1 bg-safety-700 mb-10"></div>
                 </div>
-                <Link to="/inquire" className="inline-block bg-stone-900 text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors">{t.collections.pdp.inquireOrder}</Link>
+                
+                <p className="text-stone-600 mb-10 leading-relaxed font-light text-lg">
+                    {selectedProduct.description || "A precision-engineered piece combining structural integrity with natural material excellence for professional environments."}
+                </p>
+
+                <div className="grid grid-cols-1 gap-8 mb-12">
+                    <div className="border-l-2 border-stone-100 pl-6 font-mono">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Technical Dimensions</span>
+                        <span className="text-stone-800 text-sm">{selectedProduct.size || "Custom SKU Available"}</span>
+                    </div>
+                    <div className="border-l-2 border-stone-100 pl-6 font-mono">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Primary Materials</span>
+                        <span className="text-stone-800 text-sm">{selectedProduct.material || "Industrial Grade Raw Wood"}</span>
+                    </div>
+                </div>
+
+                <Link to="/inquire" className="bg-stone-900 text-white px-10 py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all text-center shadow-lg group flex items-center justify-center">
+                    Initiate Production Request <ArrowRight size={16} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                </Link>
               </div>
            </div>
         </div>
       )}
 
       <div className="container mx-auto px-6 md:px-12">
-        <div className="mb-12">
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-stone-200 pb-8">
-                <div>
-                    {activeCategory !== 'all' ? (
-                        <button onClick={handleBackToOverview} className="group flex items-center text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest mb-4 transition-colors">
-                            <ChevronLeft size={16} className="mr-1 group-hover:-translate-x-1 transition-transform"/> {t.collections.collection}
+        {/* Navigation Header */}
+        <div className="mb-16 border-b border-stone-100 pb-12">
+            {activeCategory !== 'all' ? (
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <div className="animate-fade-in-up">
+                        <button onClick={handleBackToOverview} className="group flex items-center text-stone-400 hover:text-stone-900 text-[10px] font-bold uppercase tracking-[0.3em] mb-6 transition-colors font-mono">
+                            <ChevronLeft size={14} className="mr-2 group-hover:-translate-x-1 transition-transform"/> Return to Registry
                         </button>
-                    ) : ( <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-4">Portfolio</h1> )}
-                    <h2 className="font-serif text-3xl md:text-5xl text-stone-900 leading-tight">{activeCategory === 'all' ? "Collections Overview" : activeCategoryDef?.title}</h2>
+                        <h1 className="font-serif text-5xl md:text-7xl text-stone-900 leading-tight mb-4 tracking-tighter">
+                            {activeCategoryDef?.title}
+                        </h1>
+                        <p className="text-stone-400 font-mono text-xs uppercase tracking-[0.2em]">
+                            {filteredProducts.length} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
+                        </p>
+                    </div>
+                    {config?.catalog?.url && (
+                        <a href={resolveImage(config.catalog.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 bg-stone-50 border border-stone-200 hover:border-safety-700 px-8 py-5 transition-all group shadow-sm">
+                            <FileText size={20} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
+                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-stone-900">Technical Catalog (PDF)</span>
+                        </a>
+                    )}
                 </div>
-                {config?.catalog?.url && (
-                    <a href={resolveImage(config.catalog.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-stone-200 hover:border-safety-700 px-5 py-3 shadow-sm group transition-all">
-                        <FileText size={18} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-stone-600 group-hover:text-stone-900">{t.collections.requestPdf}</span>
-                        <Download size={14} className="text-stone-400" />
-                    </a>
-                )}
-            </div>
-            {activeCategory === 'all' && ( <p className="text-stone-500 max-w-2xl mt-8 leading-relaxed">{t.collections.intro}</p> )}
+            ) : (
+                <div className="max-w-4xl">
+                    <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Production Registry</h3>
+                    <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter">Portfolio</h1>
+                    <p className="text-stone-500 text-xl md:text-2xl font-light leading-relaxed max-w-2xl">
+                        A comprehensive archive of precision woodwork solutions engineered for global hospitality and commercial luxury.
+                    </p>
+                </div>
+            )}
         </div>
 
-        {isLoading ? ( <div className="col-span-full flex justify-center py-20 text-stone-400"><Loader2 className="animate-spin mr-2" /> Loading Portfolio...</div>
-        ) : error ? ( <div className="col-span-full flex flex-col items-center justify-center py-20 text-stone-400"><AlertCircle className="mb-2 text-red-400" size={32} /><p>{error}</p></div>
+        {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-40 text-stone-300">
+                <Loader2 className="animate-spin mb-4" size={48} />
+                <span className="font-mono text-[10px] uppercase tracking-widest">Synchronizing Registry Assets...</span>
+            </div>
+        ) : error ? (
+            <div className="flex flex-col items-center justify-center py-40 text-stone-400 border border-dashed border-stone-100">
+                <AlertCircle className="mb-4 text-safety-700" size={48} />
+                <p className="font-mono text-sm uppercase tracking-widest">{error}</p>
+            </div>
         ) : (
             <>
                 {activeCategory === 'all' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-fade-in">
-                        {availableCategories.length === 0 ? (
-                            <div className="col-span-full py-20 text-center text-stone-400 border-2 border-dashed border-stone-200">
-                                No collections currently have published products.
-                            </div>
-                        ) : (
-                            availableCategories.map((cat) => {
-                                const count = getProductsByCategory(cat.id).length;
-                                const coverImage = getCategoryCover(cat.id, cat.image);
-                                return (
-                                    <div key={cat.id} className="group cursor-pointer block h-full flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
-                                        <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
-                                            <img src={coverImage} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                                            <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                                                <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center shadow-lg">{t.collections.viewProducts} <ArrowRight size={14} className="ml-2"/></span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12 animate-fade-in">
+                        {availableCategories.map((cat) => {
+                            const count = products.filter(p => (p.category || '').toLowerCase().trim() === cat.id.toLowerCase().trim()).length;
+                            return (
+                                <div key={cat.id} className="group cursor-pointer flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
+                                    <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
+                                        <img src={resolveImage(cat.image)} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                        <div className="absolute inset-0 bg-stone-950/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
+                                            <div className="w-16 h-16 bg-white flex items-center justify-center rounded-full scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500">
+                                                <ArrowRight size={24} className="text-stone-900" />
                                             </div>
                                         </div>
-                                        <div className="flex justify-between items-start mt-auto">
-                                            <div><h3 className="font-serif text-2xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors">{cat.title}</h3><p className="text-xs text-stone-400 font-bold uppercase tracking-widest line-clamp-1">{cat.subtitle}</p></div>
-                                            <span className="flex items-center text-[10px] font-bold uppercase tracking-widest bg-stone-100 border border-stone-200 text-stone-500 px-3 py-1 rounded-full whitespace-nowrap mt-1"><Layers size={10} className="mr-2 opacity-50"/> {count} Items</span>
+                                        <div className="absolute top-6 left-6">
+                                            <span className="bg-stone-900 text-white px-3 py-1 font-mono text-[10px] uppercase tracking-widest">{count} SKUs</span>
                                         </div>
                                     </div>
-                                );
-                            })
-                        )}
+                                    <div className="flex flex-col">
+                                        <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title}</h3>
+                                        <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em] font-mono">{cat.subtitle}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : (
-                    <div className="animate-fade-in">
-                        {getProductsByCategory(activeCategory).length === 0 ? (
-                            <div className="text-center py-20 text-stone-400 bg-stone-100 border border-stone-200"><p>No published products in this collection yet.</p></div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10">
-                                {getProductsByCategory(activeCategory).map((product, idx) => (
-                                    <div key={product.id || idx} className="group cursor-pointer flex flex-col h-full" onClick={() => openProduct(product)}>
-                                        <div className="aspect-[4/5] w-full bg-stone-100 relative overflow-hidden mb-4 shadow-sm border border-stone-100 transition-all duration-500 group-hover:shadow-md">
-                                            <img src={resolveImage(product.images[0])} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                                            <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                        </div>
-                                        <div className="mt-auto">
-                                            <h3 className="font-serif text-lg text-stone-900 group-hover:text-safety-700 transition-colors leading-tight mb-1">{product.name}</h3>
-                                            <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{product.code || "Ref. " + (idx + 1).toString().padStart(3, '0')}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                    <div className="flex flex-col lg:flex-row gap-16 animate-fade-in">
+                        {/* Sidebar */}
+                        <aside className="lg:w-64 flex-shrink-0">
+                            <div className="sticky top-32">
+                                <h3 className="text-stone-900 font-mono font-bold text-[10px] uppercase tracking-[0.3em] mb-10 pb-4 border-b border-stone-100 flex items-center">
+                                    <Layers size={14} className="mr-2 text-safety-700" /> Filter Registry
+                                </h3>
+                                <div className="space-y-4">
+                                    <button 
+                                        onClick={() => handleSubCategorySelect('all')}
+                                        className={`w-full text-left flex items-center justify-between group transition-all font-mono
+                                            ${activeSubCategory === 'all' ? 'text-safety-700 translate-x-2' : 'text-stone-400 hover:text-stone-900'}
+                                        `}
+                                    >
+                                        <span className="text-xs font-bold uppercase tracking-widest">Master Set</span>
+                                        <Hash size={12} className={activeSubCategory === 'all' ? 'opacity-100' : 'opacity-0'} />
+                                    </button>
+                                    
+                                    {subCategories.map(sub => (
+                                        <button 
+                                            key={sub}
+                                            onClick={() => handleSubCategorySelect(sub)}
+                                            className={`w-full text-left flex items-center justify-between group transition-all font-mono
+                                                ${activeSubCategory === sub ? 'text-safety-700 translate-x-2' : 'text-stone-400 hover:text-stone-900'}
+                                            `}
+                                        >
+                                            <span className="text-xs font-bold uppercase tracking-widest">{sub}</span>
+                                            <Hash size={12} className={activeSubCategory === sub ? 'opacity-100' : 'opacity-0'} />
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="mt-20 p-8 bg-stone-50 border border-stone-100 rounded-sm">
+                                    <p className="text-[10px] text-stone-400 uppercase tracking-widest leading-relaxed font-bold font-mono">
+                                        Engineering support is available for unique production requirements.
+                                    </p>
+                                    <Link to="/inquire" className="text-[10px] text-safety-700 uppercase font-black tracking-[0.2em] mt-4 block border-b border-safety-700 w-fit font-mono">
+                                        Project Portal
+                                    </Link>
+                                </div>
                             </div>
-                        )}
-                        <div className="mt-20 border-t border-stone-200 pt-8 text-center"><button onClick={handleBackToOverview} className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest transition-colors">Back to All Collections</button></div>
+                        </aside>
+
+                        {/* Results Grid */}
+                        <div className="flex-grow">
+                            {filteredProducts.length === 0 ? (
+                                <div className="py-40 text-center bg-stone-50 border border-dashed border-stone-200 flex flex-col items-center">
+                                    <LayoutGrid size={48} className="text-stone-200 mb-6" />
+                                    <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">Zero entries detected for specified criteria.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-12">
+                                    {filteredProducts.map((product, idx) => (
+                                        <div key={product.id || idx} className="group cursor-pointer" onClick={() => setSelectedProduct(product)}>
+                                            <div className="aspect-square w-full bg-stone-100 relative overflow-hidden mb-6 shadow-sm transition-all duration-500 group-hover:shadow-xl">
+                                                <img src={resolveImage(product.images[0])} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                                <div className="absolute inset-0 bg-stone-900/5 group-hover:bg-transparent transition-colors"></div>
+                                                {product.sub_category && (
+                                                    <div className="absolute bottom-4 left-4">
+                                                        <span className="bg-white/90 backdrop-blur-md text-stone-900 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.2em]">{product.sub_category}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <h3 className="font-serif text-xl text-stone-900 group-hover:text-safety-700 transition-colors leading-tight mb-2">{product.name}</h3>
+                                                <div className="flex items-center gap-4 font-mono">
+                                                    <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">ID / {product.code || (idx + 1).toString().padStart(3, '0')}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </>

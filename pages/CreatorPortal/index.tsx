@@ -14,19 +14,16 @@ const CreatorPortal: React.FC = () => {
         } else if (role === 'FACTORY') {
             navigate('/creator/factory', { replace: true });
         } else {
-            console.warn("[Portal] No role found in session, redirecting to login.");
             navigate('/admin-pzf-2025', { replace: true });
         }
     };
-
-    // Immediate dispatch
     dispatchUser();
   }, [navigate]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-stone-50">
         <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-xs font-bold uppercase tracking-widest text-stone-500">正在进入工作区...</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">Routing to Secure Workspace...</p>
     </div>
   );
 };

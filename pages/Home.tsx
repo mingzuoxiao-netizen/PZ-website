@@ -14,6 +14,7 @@ import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { categories as staticCategories } from '../data/inventory';
 import { ProductVariant } from '../types';
+import { extractProductsArray } from '../utils/extractProducts';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
@@ -24,12 +25,11 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        // Strictly follow /products per contract
         const response = await fetch(`${API_BASE}/products`);
         if (!response.ok) return;
         
         const json = await response.json();
-        const rawData = json.products || json.data || (Array.isArray(json) ? json : []);
+        const rawData = extractProductsArray(json);
         setCategoryProducts(normalizeProducts(rawData));
       } catch (e) {
         // Silent fail for products fetch on home page

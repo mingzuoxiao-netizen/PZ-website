@@ -7,6 +7,7 @@ import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
+import { extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 
 const Collections: React.FC = () => {
   const { t } = useLanguage();
@@ -24,15 +25,12 @@ const Collections: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Unified path: /api handles routing to /public or root based on logic in proxy
         const url = `${API_BASE}/products`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const json = await response.json();
-        let rawData = json.products || json.data || (Array.isArray(json) ? json : []);
-        let loadedProducts = normalizeProducts(rawData).filter(p => 
-            p.status?.toLowerCase() === 'published' || p.status?.toLowerCase() === 'pub'
-        );
+        const rawData = extractProductsArray(json);
+        const loadedProducts = normalizeProducts(rawData).filter(isPublishedProduct);
         setProducts(loadedProducts);
       } catch (e: any) {
         setError(`Unable to load products. (${e.message})`);

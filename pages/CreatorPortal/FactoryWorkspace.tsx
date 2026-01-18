@@ -22,7 +22,7 @@ const FactoryWorkspace: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const userName = sessionStorage.getItem('pz_user_name') || '工厂用户';
+  const userName = sessionStorage.getItem('pz_user_name') || 'Factory User';
 
   const loadData = async () => {
     setLoading(true);
@@ -37,7 +37,7 @@ const FactoryWorkspace: React.FC = () => {
           if (remoteConfig.categories?.length > 0) setCategories(remoteConfig.categories);
       }
     } catch (e) {
-      console.error(e);
+      console.error("Factory sync error", e);
     } finally {
       setLoading(false);
     }
@@ -65,19 +65,19 @@ const FactoryWorkspace: React.FC = () => {
 
   const filteredItems = selectedCategoryId === 'all' 
     ? products 
-    : products.filter(item => item.category?.toLowerCase() === (selectedCategoryId || '').toLowerCase());
+    : products.filter(item => (item.category || '').toLowerCase().trim() === (selectedCategoryId || '').toLowerCase().trim());
 
   const navActions = (
     <>
       {[
-        { id: 'inventory', label: '我的库存' },
-        { id: 'media', label: '媒体资源' }
+        { id: 'inventory', label: 'Production Inventory' },
+        { id: 'media', label: 'Asset Library' }
       ].map(tab => (
         <button
           key={tab.id}
           onClick={() => { setActiveTab(tab.id as FactoryTab); setEditingItem(null); setIsCreating(false); }}
-          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-sm
-            ${activeTab === tab.id ? 'bg-blue-800 text-white' : 'text-stone-400 hover:text-stone-200'}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-sm font-mono
+            ${activeTab === tab.id ? 'bg-zinc-800 text-white' : 'text-stone-400 hover:text-stone-200'}
           `}
         >
           {tab.label}
@@ -89,8 +89,8 @@ const FactoryWorkspace: React.FC = () => {
   return (
     <PortalLayout role="FACTORY" userName={userName} navActions={navActions}>
       {loading && products.length === 0 ? (
-        <div className="py-20 text-center text-stone-400 font-mono text-xs animate-pulse uppercase">
-           Syncing Factory Workspace...
+        <div className="py-20 text-center text-stone-400 font-mono text-xs animate-pulse uppercase tracking-[0.2em]">
+           Synchronizing Production Data...
         </div>
       ) : activeTab === 'inventory' ? (
           editingItem || isCreating ? (
@@ -102,14 +102,14 @@ const FactoryWorkspace: React.FC = () => {
               onUpload={handleUpload}
               fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all' ? selectedCategoryId : undefined}
               userRole="FACTORY"
-              lang="zh"
+              lang="en"
             />
           ) : selectedCategoryId ? (
             <ProductList
-              lang="zh"
+              lang="en"
               items={filteredItems}
               categories={categories}
-              categoryTitle={selectedCategoryId === 'all' ? "全部产品" : categories.find(c => c.id === selectedCategoryId)?.title}
+              categoryTitle={selectedCategoryId === 'all' ? "Entire Registry" : categories.find(c => c.id === selectedCategoryId)?.title}
               onEdit={setEditingItem}
               onCreate={() => setIsCreating(true)}
               onBack={() => setSelectedCategoryId(null)}

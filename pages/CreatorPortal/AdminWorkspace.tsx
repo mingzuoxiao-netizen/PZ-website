@@ -28,7 +28,7 @@ const AdminWorkspace: React.FC = () => {
         const res = await adminFetch<{ products: any[] }>('admin/products?limit=1000');
         setProducts(normalizeProducts(res.products || []));
     } catch (e) {
-        console.error("Failed to load products", e);
+        console.error("Registry fetch failure", e);
     }
   };
 
@@ -64,7 +64,7 @@ const AdminWorkspace: React.FC = () => {
         setIsCreating(false);
         loadProducts();
     } catch (e: any) {
-        alert(`错误: ${e.message}`);
+        alert(`Registry Error: ${e.message}`);
     }
   };
 
@@ -77,7 +77,7 @@ const AdminWorkspace: React.FC = () => {
           });
           loadProducts();
       } catch (e: any) {
-          alert(`处理失败: ${e.message}`);
+          alert(`Process Error: ${e.message}`);
       }
   };
 
@@ -91,18 +91,18 @@ const AdminWorkspace: React.FC = () => {
   const navActions = (
     <>
       {[
-        { id: 'review', label: '审核队列' },
-        { id: 'inventory', label: '全库清单' },
-        { id: 'media', label: '媒体库' },
-        { id: 'config', label: '网站配置' },
-        { id: 'accounts', label: '账号管理' },
-        { id: 'audit', label: '审计日志' }
+        { id: 'review', label: 'Review Queue' },
+        { id: 'inventory', label: 'Master List' },
+        { id: 'media', label: 'Media Library' },
+        { id: 'config', label: 'Site Logic' },
+        { id: 'accounts', label: 'Account Audit' },
+        { id: 'audit', label: 'System Logs' }
       ].map(tab => (
         <button
           key={tab.id}
           onClick={() => { setActiveTab(tab.id as AdminTab); setEditingProduct(null); setIsCreating(false); }}
-          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-sm
-            ${activeTab === tab.id ? 'bg-amber-700 text-white' : 'text-stone-400 hover:text-stone-200'}
+          className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-sm font-mono
+            ${activeTab === tab.id ? 'bg-safety-700 text-white shadow-lg' : 'text-stone-400 hover:text-stone-200'}
           `}
         >
           {tab.label}
@@ -114,9 +114,9 @@ const AdminWorkspace: React.FC = () => {
   const pendingItems = products.filter(p => p.status === 'pending');
 
   return (
-    <PortalLayout role="ADMIN" userName="系统管理员" navActions={navActions}>
+    <PortalLayout role="ADMIN" userName="System Administrator" navActions={navActions}>
       {activeTab === 'review' && (
-        <ReviewQueue products={pendingItems} onProcess={handleProcessReview} lang="zh" />
+        <ReviewQueue products={pendingItems} onProcess={handleProcessReview} lang="en" />
       )}
 
       {activeTab === 'inventory' && (
@@ -129,11 +129,11 @@ const AdminWorkspace: React.FC = () => {
               onCancel={() => { setEditingProduct(null); setIsCreating(false); }}
               onUpload={handleUpload}
               userRole="ADMIN"
-              lang="zh"
+              lang="en"
             />
           ) : (
             <ProductList
-              lang="zh"
+              lang="en"
               items={products}
               categories={siteConfig?.categories || DEFAULT_CONFIG.categories}
               onEdit={setEditingProduct}
@@ -154,7 +154,7 @@ const AdminWorkspace: React.FC = () => {
              setIsSavingConfig(true);
              try {
                 await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) });
-                alert('配置已成功发布');
+                alert('Site configuration committed successfully.');
                 loadSiteConfig();
              } catch(e: any) { alert(e.message); }
              finally { setIsSavingConfig(false); }

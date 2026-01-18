@@ -6,6 +6,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { categories as staticCategories } from '../../data/inventory';
 import { API_BASE } from '../../utils/siteConfig';
+import { extractProductsArray } from '../../utils/extractProducts';
 
 interface DesktopNavProps {
   activeMenu: string | null;
@@ -29,8 +30,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     fetch(`${API_BASE}/products`)
         .then(res => res.json())
         .then(json => {
-            const products = json.products || json.data || (Array.isArray(json) ? json : []);
-            const ids = new Set<string>(products.map((p: any) => String(p.category || '').toLowerCase().trim()));
+            const rawData = extractProductsArray(json);
+            const ids = new Set<string>(rawData.map((p: any) => String(p.category || '').toLowerCase().trim()));
             setActiveCategoryIds(ids);
         })
         .catch(() => {});

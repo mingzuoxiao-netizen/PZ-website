@@ -13,19 +13,12 @@ interface PortalLayoutProps {
 const PortalLayout: React.FC<PortalLayoutProps> = ({ 
   children, role, userName, navActions 
 }) => {
-  const { language } = useLanguage();
-
   const handleLogout = () => {
     sessionStorage.clear();
     window.location.href = '#/admin-pzf-2025';
   };
 
-  const txt = language === 'zh' ? {
-    exit: "返回官网", 
-    labelAdmin: "管理员控制台", 
-    labelFactory: "工厂控制台",
-    logout: "退出登录"
-  } : {
+  const txt = {
     exit: "Back to Site", 
     labelAdmin: "Admin Console", 
     labelFactory: "Factory Console",
@@ -41,7 +34,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                   <div className="bg-amber-700 p-1.5 rounded-sm group-hover:bg-amber-600 transition-colors">
                       <Globe size={16} />
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-[0.3em]">{txt.exit}</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.3em] font-mono">{txt.exit}</span>
               </Link>
               
               <div className="h-4 w-px bg-white/10 hidden md:block"></div>
@@ -52,7 +45,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                   </div>
                   <div>
                       <h1 className="font-serif text-sm font-bold leading-none">{userName}</h1>
-                      <p className="text-[9px] text-stone-500 uppercase tracking-widest font-bold mt-1">
+                      <p className="text-[9px] text-stone-500 uppercase tracking-widest font-bold mt-1 font-mono">
                           {role === 'ADMIN' ? txt.labelAdmin : txt.labelFactory}
                       </p>
                   </div>
@@ -83,7 +76,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
        {/* FOOTER METADATA */}
        <footer className="px-6 py-4 border-t border-stone-200 text-center">
           <p className="text-[10px] text-stone-400 font-mono uppercase tracking-widest">
-            PZ Engineering System v2.0.4 // {new Date().toLocaleDateString()} // Restricted Environment
+            PZ Engineering System v2.1.0 // {new Date().toLocaleDateString()} // Restricted Environment
           </p>
        </footer>
     </div>
