@@ -8,16 +8,9 @@ export async function onRequest(context: any) {
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
   /**
-   * Routing rules (authoritative):
-   * 1) Public GET/POST endpoints are under /public/*
-   *    - /site-config  -> /public/site-config
-   *    - /products     -> /public/products
-   *    - /inquiries    -> /public/inquiries
-   *
-   * 2) Protected/root endpoints are NOT under /public
-   *    - /upload-image         (ADMIN/FACTORY)  -> /upload-image
-   *    - /admin/delete-image   (ADMIN)          -> /admin/delete-image
-   *    - /admin/* /factory/* /login* -> root-level (as-is)
+   * Routing rules:
+   * 1) Public GET/POST endpoints are under /public/* on the worker
+   * 2) Private/Admin endpoints are at root
    */
 
   const PUBLIC_PATHS = new Set<string>([
@@ -26,7 +19,6 @@ export async function onRequest(context: any) {
     "/inquiries",
   ]);
 
-  // These must NEVER be routed under /public
   const ROOT_ONLY_PATHS = new Set<string>([
     "/upload-image",
     "/admin/delete-image",
@@ -37,25 +29,18 @@ export async function onRequest(context: any) {
     path.startsWith("/factory") ||
     path.startsWith("/login");
 
-  // Decide target URL
   let targetUrl: string;
 
   if (ROOT_ONLY_PATHS.has(path) || isAdminFactoryLogin) {
-    // Root-level on worker
     targetUrl = `${BACKEND_WORKER}${path}${url.search}`;
   } else if (PUBLIC_PATHS.has(path)) {
-    // Public endpoints live under /public
+    // PUBLIC paths hit the /public prefix on the backend
     targetUrl = `${BACKEND_WORKER}/public${path}${url.search}`;
   } else {
-    // Safe default: do NOT accidentally expose new endpoints under /public
-    // You can change this to proxy root-level if you want, but this is safer.
-    return new Response(JSON.stringify({ error: "Not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-    });
+    // Default fallback to root for any other valid requests
+    targetUrl = `${BACKEND_WORKER}${path}${url.search}`;
   }
 
-  // Forward only essential headers (avoid cookie/origin/referer/sec-*/cf-* etc.)
   const headers = new Headers();
   const allow = ["content-type", "authorization", "accept"];
   for (const h of allow) {
@@ -70,22 +55,17 @@ export async function onRequest(context: any) {
       redirect: "manual",
     };
 
-    // Preserve body for POST/PUT/PATCH/DELETE etc.
     if (request.method !== "GET" && request.method !== "HEAD") {
-      // Use arrayBuffer to support multipart/form-data uploads
       init.body = await request.arrayBuffer();
     }
 
     const backendResponse = await fetch(targetUrl, init);
 
-    // Copy response headers but remove cross-domain CORS headers (same-origin now)
     const resHeaders = new Headers(backendResponse.headers);
     resHeaders.delete("Access-Control-Allow-Origin");
     resHeaders.delete("Access-Control-Allow-Methods");
     resHeaders.delete("Access-Control-Allow-Headers");
     resHeaders.delete("Access-Control-Max-Age");
-
-    // Prevent unexpected caching during admin work
     resHeaders.set("Cache-Control", "no-store");
 
     return new Response(backendResponse.body, {

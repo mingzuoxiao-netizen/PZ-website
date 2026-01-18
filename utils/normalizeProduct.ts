@@ -1,14 +1,7 @@
-
 import { ProductVariant } from '../types';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR PRODUCT DATA NORMALIZATION.
- * 
- * Rules:
- * 1. 'images' is strictly an array of strings.
- * 2. 'image' is populated ONLY for legacy backend compatibility.
- * 3. UI must NEVER read 'image'. UI must read 'images[0]'.
- * 4. This function MUST be called immediately upon data ingress (API, LocalStorage, Static).
  */
 export function normalizeProduct(input: any): ProductVariant {
   if (!input || typeof input !== 'object') {
@@ -24,25 +17,21 @@ export function normalizeProduct(input: any): ProductVariant {
   let images: string[] = [];
 
   if (Array.isArray(input.images) && input.images.length > 0) {
-    // Primary Source: Array
     images = input.images.filter((url: any) => typeof url === 'string' && url.trim().length > 0);
   } else if (typeof input.image === 'string' && input.image.trim().length > 0) {
-    // Fallback Source: Single String (Legacy)
     images = [input.image];
   }
 
   // 2. Normalize Status
-  // Backend statuses: draft, pending, published, rejected, archived
+  // Fix: Handle string "1", number 1, and boolean true for is_published
   let status = 'draft';
+  const isPublishedVal = String(input.is_published);
   
-  // Rule: If explicitly published via flag, set status
-  if (input.is_published === 1 || input.is_published === true) {
+  if (isPublishedVal === '1' || isPublishedVal === 'true' || input.is_published === true) {
       status = 'published';
   } else if (input.status) {
       const s = input.status.toLowerCase().trim();
-      if (s === 'pending_review') {
-          status = 'pending';
-      } else if (s === 'pub' || s === 'published') {
+      if (s === 'pub' || s === 'published') {
           status = 'published';
       } else if (['draft', 'archived', 'pending', 'rejected'].includes(s)) {
           status = s;
@@ -56,7 +45,7 @@ export function normalizeProduct(input: any): ProductVariant {
     
     // IMAGE NORMALIZATION
     images: images, 
-    image: images[0] || '', // Legacy backup
+    image: images[0] || '', 
 
     // FIELD NORMALIZATION
     category: (input.category || input.categoryId || '').toString().toLowerCase().trim(),

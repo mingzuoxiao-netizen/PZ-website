@@ -8,10 +8,11 @@ import { categories as staticCategories } from '../data/inventory';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
+import { adminFetch } from '../utils/adminFetch';
 
 const Portfolio: React.FC = () => {
   const { t } = useLanguage();
-  const { config } = usePublishedSiteConfig();
+  const { config, mode } = usePublishedSiteConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -25,17 +26,26 @@ const Portfolio: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const url = `${API_BASE}/products`;
-        const response = await fetch(url);
+        let rawData: any[] = [];
         
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        // If in preview mode, fetch from admin endpoint to see latest saved changes
+        if (mode === 'preview') {
+            const res = await adminFetch('admin/products?limit=1000');
+            rawData = res.products || res.data || [];
+        } else {
+            const response = await fetch(`${API_BASE}/products`);
+            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            const json = await response.json();
+            rawData = json.products || json.data || (Array.isArray(json) ? json : []);
+        }
         
-        const json = await response.json();
-        let rawData = json.products || json.data || json.results || (Array.isArray(json) ? json : []);
+        let loadedProducts = normalizeProducts(rawData);
         
-        let loadedProducts = normalizeProducts(rawData).filter(p => 
-            p.status?.toLowerCase() === 'published'
-        );
+        // Only filter by 'published' in public mode. In preview, show everything.
+        if (mode === 'public') {
+            loadedProducts = loadedProducts.filter(p => p.status === 'published');
+        }
+        
         setProducts(loadedProducts);
       } catch (e: any) {
         console.error("Portfolio load error:", e);
@@ -45,16 +55,17 @@ const Portfolio: React.FC = () => {
       }
     };
     fetchPortfolio();
-  }, []);
+  }, [mode]);
 
   const availableCategories = useMemo(() => {
-    const productCategoryIds = new Set(products.map(p => (p.category || '').toLowerCase().trim()));
+    const productCategoryStrs = new Set(products.map(p => (p.category || '').toLowerCase().trim()));
     const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
     
     return sourceCategories.filter(cat => {
         const catId = cat.id.toLowerCase().trim();
         const catTitle = cat.title.toLowerCase().trim();
-        return productCategoryIds.has(catId) || productCategoryIds.has(catTitle);
+        // Match either by ID slug or by friendly Title string
+        return productCategoryStrs.has(catId) || productCategoryStrs.has(catTitle);
     });
   }, [products, config]);
 
@@ -64,7 +75,7 @@ const Portfolio: React.FC = () => {
     
     const prodId = searchParams.get('product');
     if (prodId && products.length > 0) {
-      const found = products.find(p => p.id === prodId || p.name === prodId || p.code === prodId);
+      const found = products.find(p => p.id === prodId || p.code === prodId || p.name === prodId);
       if (found) setSelectedProduct(found);
     }
   }, [searchParams, products]);
@@ -168,25 +179,31 @@ const Portfolio: React.FC = () => {
             <>
                 {activeCategory === 'all' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-fade-in">
-                        {availableCategories.map((cat) => {
-                            const count = getProductsByCategory(cat.id).length;
-                            const coverImage = getCategoryCover(cat.id, cat.image);
-                            return (
-                                <div key={cat.id} className="group cursor-pointer block h-full flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
-                                    <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
-                                        <img src={coverImage} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                                        <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                        <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-                                            <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center shadow-lg">{t.collections.viewProducts} <ArrowRight size={14} className="ml-2"/></span>
+                        {availableCategories.length === 0 ? (
+                            <div className="col-span-full py-20 text-center text-stone-400 border-2 border-dashed border-stone-200">
+                                No collections currently have published products.
+                            </div>
+                        ) : (
+                            availableCategories.map((cat) => {
+                                const count = getProductsByCategory(cat.id).length;
+                                const coverImage = getCategoryCover(cat.id, cat.image);
+                                return (
+                                    <div key={cat.id} className="group cursor-pointer block h-full flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
+                                        <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden mb-6 shadow-sm border border-stone-100 transition-all duration-700 group-hover:shadow-xl">
+                                            <img src={coverImage} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                                            <div className="absolute inset-0 bg-stone-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+                                                <span className="bg-white text-stone-900 px-6 py-3 text-xs font-bold uppercase tracking-widest flex items-center shadow-lg">{t.collections.viewProducts} <ArrowRight size={14} className="ml-2"/></span>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-start mt-auto">
+                                            <div><h3 className="font-serif text-2xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors">{cat.title}</h3><p className="text-xs text-stone-400 font-bold uppercase tracking-widest line-clamp-1">{cat.subtitle}</p></div>
+                                            <span className="flex items-center text-[10px] font-bold uppercase tracking-widest bg-stone-100 border border-stone-200 text-stone-500 px-3 py-1 rounded-full whitespace-nowrap mt-1"><Layers size={10} className="mr-2 opacity-50"/> {count} Items</span>
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-start mt-auto">
-                                        <div><h3 className="font-serif text-2xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors">{cat.title}</h3><p className="text-xs text-stone-400 font-bold uppercase tracking-widest line-clamp-1">{cat.subtitle}</p></div>
-                                        <span className="flex items-center text-[10px] font-bold uppercase tracking-widest bg-stone-100 border border-stone-200 text-stone-500 px-3 py-1 rounded-full whitespace-nowrap mt-1"><Layers size={10} className="mr-2 opacity-50"/> {count} Items</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 ) : (
                     <div className="animate-fade-in">
