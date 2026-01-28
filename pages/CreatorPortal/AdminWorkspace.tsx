@@ -23,13 +23,10 @@ type AdminTab = 'review' | 'inventory' | 'config' | 'accounts' | 'audit';
 const AdminWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
 
-  // ✅ 全量库存（Master Inventory / 列表页用）
   const [products, setProducts] = useState<any[]>([]);
-
-  // ✅ 更干净：Review Queue 专用（只拉 awaiting_review）
   const [reviewProducts, setReviewProducts] = useState<any[]>([]);
-
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
+
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [siteConfig, setSiteConfig] = useState<any | null>(null);
@@ -41,7 +38,6 @@ const AdminWorkspace: React.FC = () => {
   // LOADERS
   // ---------------------------
 
-  // 全量
   const loadProducts = useCallback(async () => {
     try {
       const res = await adminFetch<{ products?: any[]; items?: any[] }>('admin/products?limit=1000');
@@ -52,33 +48,24 @@ const AdminWorkspace: React.FC = () => {
     }
   }, []);
 
-  // ✅ 只拉待审核（awaiting_review）
-  const loadReviewProducts = useCallback(async () => {
+  const loadReviewQueue = useCallback(async () => {
     try {
+      // ✅ Status Truth: Filter specifically for 'awaiting_review'
       const res = await adminFetch<{ products?: any[]; items?: any[] }>(
         'admin/products?status=awaiting_review&limit=1000'
       );
       const raw = res.products ?? res.items ?? [];
       setReviewProducts(normalizeProducts(raw));
-    } catch (e) {
-      console.error('Failed to load review products', e);
-      setReviewProducts([]); // 保底
-    }
-  }, []);
 
-  const loadCategoryQueue = useCallback(async () => {
-    try {
-      const res = await adminFetch<{ items: any[] }>('admin/category-requests?status=awaiting_review');
-      setCategoryRequests(res.items ?? []);
+      const catRes = await adminFetch<{ items: any[] }>('admin/category-requests?status=awaiting_review');
+      setCategoryRequests(catRes.items ?? []);
     } catch (e) {
-      console.error('Failed to load category queue', e);
-      setCategoryRequests([]);
+      console.error('Failed to load review queue', e);
     }
   }, []);
 
   const loadSiteConfig = useCallback(async () => {
     try {
-      // 你这里用 site-config（PUT/GET）可继续沿用
       const res = await adminFetch<any>('site-config');
       const remoteConfig = res?.config ?? res;
       setSiteConfig({ ...DEFAULT_CONFIG, ...remoteConfig });
@@ -89,10 +76,9 @@ const AdminWorkspace: React.FC = () => {
 
   useEffect(() => {
     loadProducts();
-    loadReviewProducts();
-    loadCategoryQueue();
+    loadReviewQueue();
     loadSiteConfig();
-  }, [loadProducts, loadReviewProducts, loadCategoryQueue, loadSiteConfig]);
+  }, [loadProducts, loadReviewQueue, loadSiteConfig]);
 
   // ---------------------------
   // PRODUCT CRUD
@@ -100,29 +86,26 @@ const AdminWorkspace: React.FC = () => {
 
   const handleSaveProduct = async (product: any) => {
     try {
+      const nextStatus = product.status || 'draft';
       if (product.id) {
-        await adminFetch(`admin/products/${product.id}`, { method: 'PUT', body: JSON.stringify(product) });
+        await adminFetch(`admin/products/${product.id}`, { 
+          method: 'PUT', 
+          body: JSON.stringify({ ...product, is_published: nextStatus === 'published' ? 1 : 0 }) 
+        });
       } else {
-        await adminFetch('admin/products', { method: 'POST', body: JSON.stringify(product) });
+        await adminFetch('admin/products', { 
+          method: 'POST', 
+          body: JSON.stringify({ ...product, is_published: nextStatus === 'published' ? 1 : 0 }) 
+        });
       }
       setEditingProduct(null);
       setIsCreating(false);
       setHasPendingDeploy(true);
 
       await loadProducts();
-      await loadReviewProducts(); // ✅ 如果你编辑的是待审核/状态变化，ReviewQueue 也同步
+      await loadReviewQueue(); 
     } catch (e: any) {
       alert(e.message);
-    }
-  };
-
-  const handleDeleteImage = async (url: string) => {
-    const key = extractKeyFromUrl(url);
-    if (!key) return;
-    try {
-      await adminFetch('admin/delete-image', { method: 'POST', body: JSON.stringify({ key }) });
-    } catch (e) {
-      console.warn('Cloud cleanup failed', e);
     }
   };
 
@@ -130,44 +113,28 @@ const AdminWorkspace: React.FC = () => {
     setIsSyncing(true);
     try {
       await Promise.all(
-        ids.map(id =>
-          adminFetch(`admin/products/${id}`, {
+        ids.map(id => {
+          const original = products.find(p => p.id === id);
+          return adminFetch(`admin/products/${id}`, {
             method: 'PUT',
             body: JSON.stringify({
+              ...original,
               status: newStatus,
               is_published: newStatus === 'published' ? 1 : 0,
             }),
-          })
-        )
+          });
+        })
       );
-      setHasPendingDeploy(true);
-
-      await loadProducts();
-      await loadReviewProducts(); // ✅
-    } catch (e: any) {
-      alert(`Registry Error: ${e.message}`);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleBulkDelete = async (ids: string[]) => {
-    if (!confirm(`Are you sure you want to permanently delete these ${ids.length} items and their cloud assets?`)) return;
-
-    setIsSyncing(true);
-    try {
-      for (const id of ids) {
-        const product = products.find(p => p.id === id);
-        if (product?.images) {
-          await Promise.all(product.images.map((img: string) => handleDeleteImage(img)));
-        }
-        await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
+      
+      if (newStatus === 'published') {
+          await adminFetch('admin/publish/products', { method: 'POST' });
       }
 
+      setHasPendingDeploy(true);
       await loadProducts();
-      await loadReviewProducts(); // ✅
+      await loadReviewQueue();
     } catch (e: any) {
-      alert(`Deletion Error: ${e.message}`);
+      alert(`Registry Error: ${e.message}`);
     } finally {
       setIsSyncing(false);
     }
@@ -193,13 +160,7 @@ const AdminWorkspace: React.FC = () => {
     }
   };
 
-  // ---------------------------
-  // COUNTS (更靠谱)
-  // ---------------------------
-
-  // ✅ reviewProducts 就是待审数量
-  const pendingProductCount = reviewProducts.length;
-  const reviewTotalCount = pendingProductCount + categoryRequests.length;
+  const reviewTotalCount = reviewProducts.length + categoryRequests.length;
 
   const navItems = [
     {
@@ -234,15 +195,6 @@ const AdminWorkspace: React.FC = () => {
         setIsCreating(false);
       }}
     >
-      {!editingProduct && !isCreating && activeTab === 'inventory' && (
-        <button
-          onClick={() => setIsCreating(true)}
-          className="fixed bottom-10 right-10 bg-safety-700 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group"
-        >
-          <Plus size={32} className="group-hover:rotate-90 transition-transform" />
-        </button>
-      )}
-
       {hasPendingDeploy && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
           <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
@@ -266,24 +218,33 @@ const AdminWorkspace: React.FC = () => {
 
       <div className="pb-32">
         {activeTab === 'review' && (
-          <ReviewQueue
-            // ✅ 更干净：直接用 reviewProducts（已经是 awaiting_review）
+          <ReviewQueue 
             products={reviewProducts}
             categoryRequests={categoryRequests}
             onProcessProduct={async (id, action) => {
               try {
-                // 你现在审核用 PUT 改 status，这个逻辑没问题
+                // ✅ Refined Logic: Merged Update + Auto-Publish
+                const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
+                if (!original) throw new Error("Registry record not found in cache.");
+
+                const nextStatus = action === 'approve' ? 'published' : 'rejected';
+                
                 await adminFetch(`admin/products/${id}`, {
                   method: 'PUT',
-                  body: JSON.stringify({
-                    status: action === 'approve' ? 'published' : 'rejected',
+                  body: JSON.stringify({ 
+                    ...original, 
+                    status: nextStatus, 
+                    is_published: nextStatus === 'published' ? 1 : 0 
                   }),
                 });
 
-                setHasPendingDeploy(true);
+                if (action === 'approve') {
+                    // Trigger immediate refresh of public snapshot
+                    await adminFetch('admin/publish/products', { method: 'POST' });
+                }
 
-                // ✅ 两个都刷新：队列 & 主库存
-                await loadReviewProducts();
+                setHasPendingDeploy(true);
+                await loadReviewQueue();
                 await loadProducts();
               } catch (e: any) {
                 alert(e.message);
@@ -291,26 +252,17 @@ const AdminWorkspace: React.FC = () => {
             }}
             onProcessCategory={async (id, action) => {
               try {
-                // ✅ 不要用 "/admin/..."，给 adminFetch 传干净的相对路径
                 const endpoint = action === 'approve' ? 'approve-publish' : 'reject';
-                await adminFetch(`admin/category-requests/${id}/${endpoint}`, { method: 'POST' });
-
-                alert(action === 'approve'
-                  ? 'Approved & published. Factory will see it after refresh.'
-                  : 'Request rejected.'
-                );
-
-                await loadCategoryQueue();
-                // （可选）如果 approve 会改 site-config draft/published，你也可以顺手 refresh config
+                await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { method: 'POST' });
+                alert(action === 'approve' ? 'Approved & Published.' : 'Request Rejected.');
+                await loadReviewQueue();
                 await loadSiteConfig();
               } catch (e: any) {
-                alert(e?.message || `${action === 'approve' ? 'Approve' : 'Reject'} failed`);
+                alert(e?.message || 'Processing failed');
               }
             }}
-            // ✅ reloadQueue 现在是“刷新全部队列”
             reloadQueue={async () => {
-              await loadReviewProducts();
-              await loadCategoryQueue();
+              await loadReviewQueue();
             }}
           />
         )}
@@ -342,17 +294,12 @@ const AdminWorkspace: React.FC = () => {
               onCreate={() => setIsCreating(true)}
               onBack={() => {}}
               onBulkStatusChange={handleBulkStatusChange}
-              onBulkDelete={handleBulkDelete}
-              onRefresh={loadProducts}
-              onDelete={async (id) => {
-                if (confirm('Confirm deletion of this SKU and associated cloud assets?')) {
-                  const p = products.find(x => x.id === id);
-                  if (p?.images) await Promise.all(p.images.map((i: string) => handleDeleteImage(i)));
-                  await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
-                  await loadProducts();
-                  await loadReviewProducts();
-                }
+              onBulkDelete={async (ids) => {
+                  if(!confirm(`Permanently delete ${ids.length} entries?`)) return;
+                  for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); }
+                  loadProducts();
               }}
+              onRefresh={loadProducts}
               lang="en"
             />
           )

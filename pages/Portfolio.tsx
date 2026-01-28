@@ -8,7 +8,7 @@ import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
-import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
+import { extractSubCategories, extractProductsArray } from '../utils/extractProducts';
 
 const Portfolio: React.FC = () => {
   const { config, mode } = usePublishedSiteConfig();
@@ -34,12 +34,16 @@ const Portfolio: React.FC = () => {
             const response = await fetch(`${API_BASE}/products`);
             if (!response.ok) throw new Error(`Registry connection failed (${response.status})`);
             const json = await response.json();
-            rawData = extractProductsArray(json);
+            
+            // Fix: Access 'items' as first priority
+            rawData = json.items || json.products || json.data || (Array.isArray(json) ? json : []);
         }
         
         let loadedProducts = normalizeProducts(rawData);
+        
+        // Double-lock: Only show 'published' items in public mode
         if (mode === 'public') {
-            loadedProducts = loadedProducts.filter(isPublishedProduct);
+            loadedProducts = loadedProducts.filter(p => p.status === 'published');
         }
         setProducts(loadedProducts);
       } catch (e: any) {

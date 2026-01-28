@@ -2,6 +2,11 @@ import { ProductVariant } from '../types';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR PRODUCT DATA NORMALIZATION.
+ * Maps any backend status variation to the canonical frontend enum:
+ * - published
+ * - awaiting_review
+ * - draft
+ * - rejected
  */
 export function normalizeProduct(input: any): ProductVariant {
   if (!input || typeof input !== 'object') {
@@ -22,44 +27,43 @@ export function normalizeProduct(input: any): ProductVariant {
     images = [input.image];
   }
 
-  // 2. Normalize Status
-  // Fix: Handle string "1", number 1, and boolean true for is_published
+  // 2. Normalize Status (Standardize into 4 canonical states)
   let status = 'draft';
+  const rawStatus = String(input.status || '').toLowerCase().trim();
   const isPublishedVal = String(input.is_published);
   
-  if (isPublishedVal === '1' || isPublishedVal === 'true' || input.is_published === true) {
+  // Rule mapping: published | public | live | is_published=1 -> published
+  if (isPublishedVal === '1' || isPublishedVal === 'true' || input.is_published === true || ['published', 'public', 'live'].includes(rawStatus)) {
       status = 'published';
-  } else if (input.status) {
-      const s = input.status.toLowerCase().trim();
-      if (s === 'pub' || s === 'published') {
-          status = 'published';
-      } else if (['draft', 'archived', 'pending', 'rejected'].includes(s)) {
-          status = s;
-      }
+  } 
+  // Rule mapping: awaiting_review | pending | review | submitted -> awaiting_review
+  else if (['awaiting_review', 'pending', 'review', 'submitted'].includes(rawStatus)) {
+      status = 'awaiting_review';
+  } 
+  // Rule mapping: rejected | declined -> rejected
+  else if (['rejected', 'declined'].includes(rawStatus)) {
+      status = 'rejected';
+  } 
+  // Rule mapping: default -> draft
+  else {
+      status = 'draft';
   }
 
   return {
     ...input,
     id: input.id?.toString() || '',
     name: input.name || 'Untitled Product',
-    
-    // IMAGE NORMALIZATION
     images: images, 
     image: images[0] || '', 
-
-    // FIELD NORMALIZATION
     category: (input.category || input.categoryId || '').toString().toLowerCase().trim(),
     sub_category: input.sub_category || input.subCategoryName || '',
-    
     name_cn: input.name_cn || input.name_zh || '',
     description: input.description || '',
     description_cn: input.description_cn || input.description_zh || '',
-    
     size: input.size || input.dimensions || '',
     material: input.material || '',
     code: input.code || '',
-    status: status,
-    
+    status: status, // Canonical Status
     colors: Array.isArray(input.colors) ? input.colors : []
   };
 }

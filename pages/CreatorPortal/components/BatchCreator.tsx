@@ -53,7 +53,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCance
           return next;
         });
 
-        // Create product object (using filename as initial name)
+        // ✅ Batch creates as 'draft'
         uploadedProducts.push({
           name: item.file.name.replace(/\.[^/.]+$/, ""),
           category: selectedCategory,
@@ -73,7 +73,6 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCance
 
     if (uploadedProducts.length > 0) {
         await onSave(uploadedProducts);
-        alert(`Successfully inducted ${uploadedProducts.length} items as drafts.`);
     }
     setIsProcessing(false);
   };
