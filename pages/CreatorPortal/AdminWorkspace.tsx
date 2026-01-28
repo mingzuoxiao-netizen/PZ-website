@@ -53,7 +53,7 @@ const AdminWorkspace: React.FC = () => {
       setReviewProducts(normalizeProducts(raw));
       const catRes = await adminFetch<{ items: any[] }>('admin/category-requests?status=awaiting_review');
       setCategoryRequests(catRes.items ?? []);
-    } catch (e) { console.error('Failed to load review queue', e); }
+    } catch (e) { console.error('无法加载审核队列', e); }
   }, []);
 
   const loadSiteConfig = useCallback(async () => {
@@ -134,7 +134,7 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: '审核队列', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: '产品总库', icon: <Package size={18} /> },
-    { id: 'config', label: '站点协议', icon: <Settings size={18} /> },
+    { id: 'config', label: '站点配置', icon: <Settings size={18} /> },
     { id: 'accounts', label: '身份管理', icon: <Users size={18} /> },
     { id: 'audit', label: '系统日志', icon: <LayoutGrid size={18} /> },
   ];
@@ -182,7 +182,7 @@ const AdminWorkspace: React.FC = () => {
 
         {activeTab === 'inventory' && (
           editingProduct || isCreating ? (
-            <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="en" />
+            <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
             <ProductList 
               items={products} 
@@ -199,7 +199,7 @@ const AdminWorkspace: React.FC = () => {
                 loadProducts(); 
               }} 
               onRefresh={loadProducts} 
-              lang="en" 
+              lang="zh" 
               userRole="ADMIN"
             />
           )

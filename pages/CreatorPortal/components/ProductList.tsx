@@ -30,13 +30,15 @@ const ProductList: React.FC<ProductListProps> = ({
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
+  // 严格检查角色
   const isFactory = userRole === "FACTORY";
+  const isAdmin = userRole === "ADMIN";
 
-  // 状态映射表（中文）
+  // 状态映射（中文）
   const statusMap: Record<string, { label: string, color: string }> = {
     all: { label: '全部状态', color: '' },
     published: { label: '已发布', color: 'bg-green-100 text-green-700' },
-    awaiting_review: { label: '审核中', color: 'bg-amber-100 text-amber-700' },
+    awaiting_review: { label: '待审核', color: 'bg-amber-100 text-amber-700' },
     draft: { label: '草稿箱', color: 'bg-stone-100 text-stone-500' },
     rejected: { label: '需修正', color: 'bg-red-100 text-red-700' }
   };
@@ -53,7 +55,7 @@ const ProductList: React.FC<ProductListProps> = ({
   };
 
   const handleSubmitForReview = async (id: string) => {
-      if (!confirm("确定要将此产品档案提交至管理端审核吗？")) return;
+      if (!confirm("确定要将此产品提交给管理员审核吗？")) return;
       if (!onSubmit) return;
       setSubmittingIds(prev => [...prev, id]);
       try {
@@ -74,7 +76,7 @@ const ProductList: React.FC<ProductListProps> = ({
           await Promise.all(selectedIds.map(id => onSubmit(id)));
           setSelectedIds([]);
           if (onRefresh) onRefresh();
-          alert("批量提交请求已发出。");
+          alert("批量提交成功。");
       } catch (e: any) {
           alert("批量处理出错: " + e.message);
       } finally {
@@ -84,7 +86,7 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handleBulkDeleteAction = async () => {
     if (selectedIds.length === 0 || !onBulkDelete) return;
-    if (!confirm(`确定要永久删除这 ${selectedIds.length} 项已选中的档案吗？此操作无法恢复。`)) return;
+    if (!confirm(`确定要永久删除这 ${selectedIds.length} 项已选中的档案吗？此操作无法撤销。`)) return;
 
     setIsBulkProcessing(true);
     try {
@@ -107,7 +109,7 @@ const ProductList: React.FC<ProductListProps> = ({
                     <Search size={16} className="text-stone-400" />
                     <input 
                         type="text" 
-                        placeholder="搜索产品名称或编号..." 
+                        placeholder="搜索编号或名称..." 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
                         className="ml-3 w-full text-xs focus:outline-none font-sans" 
@@ -119,7 +121,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 onChange={e => setStatusFilter(e.target.value)}
                 className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
              >
-                <option value="all">全部分类状态</option>
+                <option value="all">显示全部状态</option>
                 <option value="published">已发布</option>
                 <option value="draft">草稿</option>
                 <option value="awaiting_review">待审核</option>
@@ -128,7 +130,7 @@ const ProductList: React.FC<ProductListProps> = ({
           </div>
           
           <div className="text-[10px] font-mono text-stone-400 font-bold uppercase tracking-widest">
-            {isLoading ? '正在同步数据...' : `共 ${filteredItems.length} 条索引记录`}
+            {isLoading ? '同步中...' : `共 ${filteredItems.length} 条记录`}
           </div>
        </div>
 
@@ -139,7 +141,7 @@ const ProductList: React.FC<ProductListProps> = ({
               ) : filteredItems.length === 0 ? (
                   <div className="py-32 flex flex-col items-center justify-center text-stone-400">
                       <PackageX size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                      <p className="text-[10px] font-bold uppercase tracking-widest">未搜索到匹配的注册条目</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest">未找到匹配的档案</p>
                   </div>
               ) : (
                 filteredItems.map((item) => {
@@ -168,8 +170,8 @@ const ProductList: React.FC<ProductListProps> = ({
                                 </span>
                             </div>
                             <div className="flex items-center gap-4 font-mono text-[9px]">
-                                <span className="text-stone-400 font-bold uppercase">{item.code || "未设编号"}</span>
-                                <span className="text-stone-500 uppercase tracking-tight">{item.category || '通用类目'}</span>
+                                <span className="text-stone-400 font-bold uppercase">{item.code || "无编号"}</span>
+                                <span className="text-stone-500 uppercase tracking-tight">{item.category || '通用'}</span>
                             </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -184,11 +186,12 @@ const ProductList: React.FC<ProductListProps> = ({
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"><Edit size={16} /></button>
-                                {!isFactory && onDelete && (
+                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="编辑"><Edit size={16} /></button>
+                                {isAdmin && onDelete && (
                                     <button 
                                         onClick={() => item.id && onDelete(item.id)} 
                                         className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"
+                                        title="删除"
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -208,7 +211,7 @@ const ProductList: React.FC<ProductListProps> = ({
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
                        <span className="text-xs font-mono font-bold text-safety-700 bg-safety-700/10 px-2 py-1 rounded">{selectedIds.length}</span>
-                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">项已选择</span>
+                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">项已选</span>
                    </div>
                    {isFactory ? (
                        <button onClick={handleBulkSubmit} disabled={isBulkProcessing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">

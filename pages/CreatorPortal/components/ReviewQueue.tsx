@@ -38,8 +38,8 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    const label = view === 'products' ? 'products' : 'category proposals';
-    if (!confirm(`Approve all ${selectedIds.length} selected ${label}? This operation is final.`)) return;
+    const label = view === 'products' ? '项产品' : '项分类提案';
+    if (!confirm(`确定要批量核准选中的 ${selectedIds.length} ${label}吗？此操作将立即发布。`)) return;
 
     setIsProcessing(true);
     try {
@@ -47,9 +47,9 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
         await Promise.all(selectedIds.map(id => processor(id, 'approve')));
         setSelectedIds([]);
         await reloadQueue();
-        alert(`Successfully approved ${selectedIds.length} items.`);
+        alert(`成功核准 ${selectedIds.length} 项记录。`);
     } catch (e: any) {
-        alert("Batch complete. Verify list for any failed items.");
+        alert("批量处理完成，请检查列表确认是否有失败项。");
         await reloadQueue();
     } finally {
         setIsProcessing(false);
@@ -57,15 +57,15 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   };
 
   const txt = { 
-      empty: "Queue Cleared", 
-      emptyDesc: "All pending submissions have been processed.",
-      submitted: "Awaiting Action",
-      rejectReason: "Reason for Rejection",
-      confirmReject: "Confirm Rejection",
-      cancel: "Abort",
-      approve: "Approve & Publish",
-      approvePublish: "APPROVE & PUBLISH",
-      reject: "Reject Submission"
+      empty: "队列已清空", 
+      emptyDesc: "所有待审核的提交均已处理完毕。",
+      submitted: "等待处理",
+      rejectReason: "驳回原因",
+      confirmReject: "确认驳回",
+      cancel: "取消",
+      approve: "核准并发布",
+      approvePublish: "核准并创建分类",
+      reject: "驳回申请"
   };
 
   return (
@@ -77,7 +77,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                     ${view === 'products' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
-                <Package size={16} /> Pending Products ({products.length})
+                <Package size={16} /> 待审产品档案 ({products.length})
             </button>
             <button 
                 onClick={() => { setView('categories'); setSelectedIds([]); }}
@@ -85,14 +85,14 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                     ${view === 'categories' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
-                <LayoutGrid size={16} /> Category Proposals ({categoryRequests.length})
+                <LayoutGrid size={16} /> 系列创建提案 ({categoryRequests.length})
             </button>
             
             <button 
                 onClick={handleManualRefresh}
                 disabled={isManualLoading}
                 className="bg-white border border-stone-200 text-stone-400 hover:text-stone-900 px-6 py-4 rounded-sm transition-all"
-                title="Refresh Queue"
+                title="刷新队列"
             >
                 <RefreshCw size={16} className={isManualLoading ? 'animate-spin' : ''} />
             </button>
@@ -102,7 +102,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
             <div className="bg-stone-100 border border-stone-200 border-b-0 px-6 py-4 flex items-center justify-between">
                 <button onClick={toggleSelectAll} className="text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-2">
                     {selectedIds.length > 0 && selectedIds.length === currentItems.length ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
-                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Select All ({currentItems.length})</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono">全选 ({currentItems.length})</span>
                 </button>
 
                 {selectedIds.length > 0 && (
@@ -112,7 +112,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                         className="bg-stone-900 text-white px-6 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all flex items-center gap-2 rounded-sm"
                     >
                         {isProcessing ? <RefreshCw className="animate-spin" size={14}/> : <CheckCircle size={14}/>}
-                        Approve Selected
+                        批量核准发布
                     </button>
                 )}
             </div>
@@ -127,7 +127,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                     onClick={handleManualRefresh} 
                     className="mt-8 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 underline flex items-center gap-2 mx-auto"
                 >
-                    <RefreshCw size={12} className={isManualLoading ? 'animate-spin' : ''} /> Check for new submissions
+                    <RefreshCw size={12} className={isManualLoading ? 'animate-spin' : ''} /> 检查新提交
                 </button>
             </div>
         ) : (
@@ -151,7 +151,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                 {('images' in item ? item.images?.[0] : item.image) ? (
                                     <img src={resolveImage('images' in item ? item.images[0] : item.image)} className="w-full h-full object-cover" alt="" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">NO_PREVIEW</div>
+                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">暂无预览</div>
                                 )}
                             </div>
 
@@ -160,35 +160,35 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                     <div>
                                         <h4 className="font-serif text-xl text-stone-900">{('name' in item ? item.name : item.title)}</h4>
                                         <div className="flex gap-3 mt-1">
-                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">ID: {item.code}</span>}
+                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">编号: {item.code}</span>}
                                             <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">
-                                                {'category' in item ? item.category : 'NEW_SERIES'}
+                                                {'category' in item ? item.category : '新系列提案'}
                                             </span>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">Pending Review</span>
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待核准</span>
                                 </div>
 
-                                <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || 'No technical notes provided.'}</p>
+                                <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || '未提供技术备注。'}</p>
 
                                 {rejectId === item.id ? (
                                     <div className="bg-red-50 p-4 border border-red-100 animate-fade-in rounded-sm">
                                         <textarea 
                                             className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20"
-                                            placeholder="Reason for rejection..."
+                                            placeholder="请输入驳回理由..."
                                             value={rejectNote}
                                             onChange={e => setRejectNote(e.target.value)}
                                         />
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={() => {
-                                                    if (!rejectNote.trim()) { alert("Notes required."); return; }
+                                                    if (!rejectNote.trim()) { alert("备注必填。"); return; }
                                                     view === 'products' ? onProcessProduct(item.id!, 'reject', rejectNote) : onProcessCategory(item.id!, 'reject', rejectNote);
                                                     setRejectId(null); setRejectNote("");
                                                 }}
                                                 className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest"
-                                            >Confirm Reject</button>
-                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">Abort</button>
+                                            >确认驳回</button>
+                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">取消</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -203,7 +203,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                             onClick={() => setRejectId(item.id || null)}
                                             className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest"
                                         >
-                                            <XCircle size={12} className="mr-2" /> Reject
+                                            <XCircle size={12} className="mr-2" /> 驳回申请
                                         </button>
                                     </div>
                                 )}

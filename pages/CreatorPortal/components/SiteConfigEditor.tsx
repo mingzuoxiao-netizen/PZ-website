@@ -9,7 +9,7 @@ interface SiteConfigEditorProps {
   config: any;
   onChange: (nextConfig: any) => void;
   onSave: () => void;
-  onPublish: () => void; // New prop for production push
+  onPublish: () => void;
   isSaving: boolean;
   onRefresh: () => void;
   onUpload: (file: File) => Promise<string>;
@@ -42,7 +42,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   if (!config) {
     return (
       <div className="p-8 text-center text-stone-400">
-        Loading Configuration…
+        正在加载配置...
       </div>
     );
   }
@@ -50,7 +50,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   return (
     <div className="animate-fade-in pb-20 relative">
 
-      {/* Sticky Header */}
+      {/* 吸顶头部 */}
       <div className="sticky top-[70px] md:top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
@@ -77,7 +77,6 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             </button>
           )}
 
-          {/* Action 1: Save Draft */}
           <button
             onClick={onSave}
             disabled={isSaving || !hasUnsavedChanges}
@@ -93,16 +92,15 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Save size={14} className="mr-2" />
             )}
-            Apply Changes
+            应用本地更改
           </button>
 
           <div className="w-px h-6 bg-stone-200 mx-2"></div>
 
-          {/* Action 2: Go Live */}
           <button
             onClick={onPublish}
             disabled={isSaving || hasUnsavedChanges}
-            title={hasUnsavedChanges ? "Save changes first" : "Push current draft to production"}
+            title={hasUnsavedChanges ? "请先保存更改" : "将当前草稿推送到生产环境"}
             className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
               ${
                 !hasUnsavedChanges
@@ -115,12 +113,11 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Globe size={14} className="mr-2" />
             )}
-            Push to Production
+            推送到生产环境
           </button>
         </div>
       </div>
 
-      {/* Config Sections */}
       <div className="grid grid-cols-1 gap-12 max-w-4xl mx-auto">
         {SITE_SCHEMA.map(section => (
           <div key={section.section} className="bg-white border p-8 shadow-sm">
