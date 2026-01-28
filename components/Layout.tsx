@@ -108,10 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className={`font-serif tracking-tighter leading-none transition-all duration-500 ${isMobileMenuOpen ? 'text-stone-100' : textColor}`}>
                <span className="text-3xl font-black group-hover:text-safety-700 transition-colors">PZ</span>
             </div>
-            <div className={`hidden xl:block h-6 w-px bg-current opacity-10 transition-all duration-500 ${isMobileMenuOpen ? 'text-stone-100' : textColor}`}></div>
-            <div className={`hidden xl:block font-mono text-[8px] font-bold uppercase tracking-[0.4em] transition-all duration-500 ${isMobileMenuOpen ? 'text-stone-500' : textColor} opacity-30`}>
-                Registry OS v2.5 // READY
-            </div>
+            {/* Removed vertical separator and Registry OS text as requested */}
           </Link>
 
           {/* DESKTOP NAV */}

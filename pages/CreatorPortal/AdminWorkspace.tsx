@@ -75,17 +75,40 @@ const AdminWorkspace: React.FC = () => {
 
   useEffect(() => { loadProducts(); loadSiteConfig(); }, [loadProducts, loadSiteConfig]);
 
+  // 全局发布所有内容
+  const handleDeployEverything = async () => {
+    if (!confirm('确定要全局发布吗？这将会更新线上所有展示内容。')) return;
+    setIsSyncing(true);
+    try {
+      await adminFetch('admin/publish/products', { method: 'POST' });
+      await adminFetch('admin/publish', { method: 'POST' });
+      setHasPendingDeploy(false);
+      alert('发布成功 // 全球产品目录已更新');
+    } catch (e: any) { alert(`发布失败: ${e.message}`); }
+    finally { setIsSyncing(false); }
+  };
+
   const handleSaveProduct = async (product: any) => {
     try {
       const nextStatus = product.status || 'draft';
+      const isPublished = nextStatus === 'published' ? 1 : 0;
+      
       if (product.id) {
-        await adminFetch(`admin/products/${product.id}`, { method: 'PUT', body: JSON.stringify({ ...product, is_published: nextStatus === 'published' ? 1 : 0 }) });
+        await adminFetch(`admin/products/${product.id}`, { method: 'PUT', body: JSON.stringify({ ...product, is_published: isPublished }) });
       } else {
-        await adminFetch('admin/products', { method: 'POST', body: JSON.stringify({ ...product, is_published: nextStatus === 'published' ? 1 : 0 }) });
+        await adminFetch('admin/products', { method: 'POST', body: JSON.stringify({ ...product, is_published: isPublished }) });
       }
+      
+      // 如果保存时就是发布状态，触发自动同步
+      if (isPublished) {
+          await adminFetch('admin/publish/products', { method: 'POST' });
+          setHasPendingDeploy(false);
+      } else {
+          setHasPendingDeploy(true);
+      }
+      
       setEditingProduct(null);
       setIsCreating(false);
-      setHasPendingDeploy(true);
       await loadProducts();
       await loadReviewQueue(); 
     } catch (e: any) { alert(e.message); }
@@ -105,27 +128,22 @@ const AdminWorkspace: React.FC = () => {
   const handleBulkStatusChange = async (ids: string[], newStatus: string) => {
     setIsSyncing(true);
     try {
+      const isPublished = newStatus === 'published' ? 1 : 0;
       await Promise.all(ids.map(id => {
           const original = products.find(p => p.id === id);
-          return adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: newStatus, is_published: newStatus === 'published' ? 1 : 0 }) });
+          return adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: newStatus, is_published: isPublished }) });
       }));
-      if (newStatus === 'published') await adminFetch('admin/publish/products', { method: 'POST' });
-      setHasPendingDeploy(true);
+      
+      if (isPublished) {
+          await adminFetch('admin/publish/products', { method: 'POST' });
+          setHasPendingDeploy(false);
+      } else {
+          setHasPendingDeploy(true);
+      }
+      
       await loadProducts();
       await loadReviewQueue();
     } catch (e: any) { alert(`系统错误: ${e.message}`); }
-    finally { setIsSyncing(false); }
-  };
-
-  const handleDeployEverything = async () => {
-    if (!confirm('确定要全局发布吗？这将会更新线上所有展示内容。')) return;
-    setIsSyncing(true);
-    try {
-      await adminFetch('admin/publish/products', { method: 'POST' });
-      await adminFetch('admin/publish', { method: 'POST' });
-      setHasPendingDeploy(false);
-      alert('发布成功 // 全球产品目录已更新');
-    } catch (e: any) { alert(`发布失败: ${e.message}`); }
     finally { setIsSyncing(false); }
   };
 
@@ -161,10 +179,19 @@ const AdminWorkspace: React.FC = () => {
               try {
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
                 if (!original) throw new Error("档案记录未找到");
+                
                 const nextStatus = action === 'approve' ? 'published' : 'rejected';
-                await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: nextStatus, is_published: nextStatus === 'published' ? 1 : 0 }) });
-                if (action === 'approve') await adminFetch('admin/publish/products', { method: 'POST' });
-                setHasPendingDeploy(true);
+                const isPublished = nextStatus === 'published' ? 1 : 0;
+                
+                await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: nextStatus, is_published: isPublished }) });
+                
+                // ✅ 自动闭环逻辑：审批通过即触发发布
+                if (action === 'approve') {
+                    await adminFetch('admin/publish/products', { method: 'POST' });
+                } else {
+                    setHasPendingDeploy(true);
+                }
+                
                 await loadReviewQueue(); await loadProducts();
               } catch (e: any) { alert(e.message); }
             }}

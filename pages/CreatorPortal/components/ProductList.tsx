@@ -22,7 +22,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh, onSubmit, userRole = 'FACTORY', isLoading = false
+    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh, onSubmit, userRole, isLoading = false
 }) => {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -30,7 +30,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
-  // 严格检查角色
+  // 严格检查角色，避免默认 fallback 到 FACTORY
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
 

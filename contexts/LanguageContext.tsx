@@ -1,85 +1,316 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 
 interface LanguageContextType {
-  language: 'zh';
-  t: typeof translations.zh;
-  setLanguage: (lang: 'zh') => void;
+  language: 'en';
+  t: typeof translations.en;
+  setLanguage: (lang: 'en') => void;
   toggleLanguage: () => void;
 }
 
 const translations = {
-  zh: {
+  en: {
+    // --- PUBLIC SITE (English) ---
     common: {
-      readMore: "阅读更多",
-      viewDetails: "查看详情",
-      learnMore: "了解更多",
-      contactUs: "联系我们",
-      search: "档案搜索",
-      searchPlaceholder: "输入搜索参数...",
-      searchRefine: "优化搜索条件...",
-      backHome: "返回首页",
-      loading: "正在同步...",
-      close: "关闭",
-      explore: "导航",
-      connect: "项目入口",
-      privacy: "隐私政策",
-      terms: "服务条款",
-      rights: "保留所有技术权利。",
-      startProject: "开启生产项目",
-      tradeProgram: "行业计划",
-      adminAccess: "管理面板",
-      location_cn: "肇庆基地",
-      location_kh: "干丹基地",
-      factory_01: "主设施"
+      readMore: "Read More",
+      viewDetails: "View Details",
+      learnMore: "Learn More",
+      contactUs: "Contact Us",
+      search: "Search Archive",
+      searchPlaceholder: "Enter search parameters...",
+      searchRefine: "Refine search results...",
+      backHome: "Back to Home",
+      loading: "Synchronizing...",
+      close: "Close",
+      explore: "Explore",
+      connect: "Connect",
+      privacy: "Privacy Policy",
+      terms: "Terms of Service",
+      rights: "All technical rights reserved.",
+      startProject: "Start Project Run",
+      tradeProgram: "Industry Program",
+      adminAccess: "Management Panel",
+      location_cn: "Zhaoqing Terminal",
+      location_kh: "Kandal Terminal",
+      factory_01: "Main Facility"
     },
     nav: {
       header: {
-        home: "首页",
-        capabilities: "生产能力",
-        manufacturing: "制造工艺",
-        materials: "材料库",
-        collections: "作品集",
-        capacity: "全球布局",
-        about: "关于我们",
-        inquire: "业务咨询"
+        home: "Home",
+        capabilities: "Capabilities",
+        manufacturing: "Manufacturing",
+        materials: "Resources",
+        collections: "Portfolio",
+        capacity: "Global Layout",
+        about: "About",
+        inquire: "Inquire"
       },
       mega: {
-        process: "工业流程",
-        lumberPrep: "木材养护",
-        cnc5Axis: "五轴数控",
-        autoFinishing: "涂装系统",
-        standards: "审计规程",
-        incomingQC: "材料入库检",
-        inProcessQC: "结构审计",
-        finalInspection: "档案终审",
-        services: "业务模式",
-        oemProduction: "OEM 代工",
-        odmDesign: "ODM 工程",
-        valueEngineering: "成本分析",
-        compliance: "全球标准",
-        tscaTitleVI: "TSCA 法案",
-        fscCertification: "FSC 认证木材",
-        istaPackaging: "ISTA 包装测试",
-        focusPrecision: "精密公差",
-        focusEng: "设计工程",
-        focusLogistics: "履约逻辑"
+        process: "Industrial Flow",
+        lumberPrep: "Lumber Curing",
+        cnc5Axis: "5-Axis CNC",
+        autoFinishing: "Coating Systems",
+        standards: "Audit Protocol",
+        incomingQC: "Material IQC",
+        inProcessQC: "Structural IPQC",
+        finalInspection: "Final Audit",
+        services: "Business Models",
+        oemProduction: "OEM Scale",
+        odmDesign: "ODM Engineering",
+        valueEngineering: "Cost Analysis",
+        compliance: "Global Standards",
+        tscaTitleVI: "TSCA Title VI",
+        fscCertification: "FSC Certified",
+        istaPackaging: "ISTA Testing",
+        focusPrecision: "Precision Tolerances",
+        focusEng: "Design Engineering",
+        focusLogistics: "Fulfillment Logic"
       }
     },
     home: {
-      subtitle: "实木制造专家",
-      heroTitle: "为高端品牌打造精密工程实木解决方案。",
-      heroQuote: "工业逻辑与自然材料的艺术融合。",
-      heroBtnSecondary: "查看流程",
-      featuredCollections: "大师系列",
-      factoryStrength: "基础设施",
-      strengthTitle: "专为商业高端市场优化。",
-      strengthDesc1: "PZ 是全球领先设计品牌的战略实木合作伙伴。",
-      strengthDesc2: "我们将精品手工技艺与航天级数控一致性深度整合。",
-      globalHubs: "全球物流枢纽",
-      chinaLoc: "总部与工程中心",
-      cambodiaLoc: "出口物流中心",
-      readyToScale: "准备开启生产吗？"
+      subtitle: "Solid Wood Manufacturing Experts",
+      heroTitle: "Precision Engineered Solid Wood Solutions for Global Brands.",
+      heroQuote: "Integrating industrial logic with natural material artistry.",
+      heroBtnSecondary: "View Process",
+      featuredCollections: "Master Collections",
+      factoryStrength: "Infrastructure",
+      strengthTitle: "Optimized for Commercial Luxury.",
+      strengthDesc1: "PZ is a strategic partner for design-led global furniture brands.",
+      strengthDesc2: "We integrate boutique craftsmanship with aerospace-grade CNC consistency.",
+      globalHubs: "Logistics Hubs",
+      chinaLoc: "HQ & Engineering Center",
+      cambodiaLoc: "Export Logistics Terminal",
+      readyToScale: "Ready to Initiate Production?"
     },
+    about: {
+      since: "EST. 2014",
+      title: "The Industrial Art of Wood.",
+      intro: "Engineering high-capacity furniture solutions for the world's most exacting design brands.",
+      bannerText: "A synthesis of boutique craftsmanship and aerospace-grade precision.",
+      storyTitle: "Our Narrative",
+      storyP1: "We didn't just build a factory; we engineered a production system for the natural world.",
+      storyP2: "Starting in Zhaoqing, China, PZ was founded with a singular mission: to provide design-led brands with the structural reliability they demand and the organic beauty they crave.",
+      storyP3: "Today, with facilities in both China and Cambodia, we operate as a global logistics and manufacturing terminal, ensuring duty-optimized delivery and consistent SKU quality across any volume.",
+      storyP4: "From 5-axis CNC precision to handcrafted oil finishes, our process is a closed loop of excellence.",
+      pillars: {
+        elite: "Elite Engineering",
+        eliteDesc: "Micron-level tolerances in wood construction, ensuring every piece meets global commercial standards.",
+        dual: "Dual-Terminal Supply",
+        dualDesc: "Direct control over China and Cambodia production lines for maximum tariff and logistics optimization.",
+        logistics: "Integrated Logistics",
+        logisticsDesc: "Full fulfillment visibility from the factory floor to regional distribution hubs worldwide."
+      },
+      process: { label: "Industrial Lifecycle", title: "Material Flow" },
+      galleryItems: {
+        raw: { title: "Climate Controlled Curing", desc: "Stabilizing moisture content to 8-10%." },
+        milling: { title: "5-Axis CNC Precision", desc: "Complex geometries executed with robotic consistency." },
+        automation: { title: "Automated Assembly", desc: "Ensuring structural integrity at scale." },
+        finishing: { title: "Low-VOC Coating", desc: "Premium surface treatments in dust-free environments." },
+        qc: { title: "AQL 2.5 Audit", desc: "Rigorous testing of every production batch." }
+      },
+      journey: "Timeline",
+      milestones: {
+        "2014": { title: "Zhaoqing Launch", desc: "First 200,000 sq.ft facility established." },
+        "2018": { title: "5-Axis Integration", desc: "Strategic upgrade to robotic manufacturing." },
+        "2021": { title: "Cambodia Terminal", desc: "Expansion into Kandal for duty-free export." },
+        "2024": { title: "Registry OS v2.5", desc: "Proprietary supply chain visibility platform launch." },
+        "2025": { title: "Carbon Neutral Aim", desc: "Targeting net-zero manufacturing via FSC-only sourcing." }
+      }
+    },
+    manufacturing: {
+      subtitle: "Manufacturing Protocols",
+      title: "The PZ Production Engine.",
+      intro: "We bridge the gap between bespoke design and industrial scalability through advanced CNC logic and structural engineering.",
+      tabs: { process: "The Flow", machinery: "Infrastructure", qc: "Audits" },
+      steps: [
+        { title: "Material Intake", desc: "Raw lumber is stress-tested and moisture-balanced." },
+        { title: "5-Axis Milling", desc: "Digital designs translated into precise physical forms." },
+        { title: "Manual Refinement", desc: "Artisans hand-finish critical joinery details." },
+        { title: "Surface Treatment", desc: "Robotic coating for perfectly consistent UV/PU layers." },
+        { title: "Structural Audit", desc: "Pressure tests ensure long-term commercial durability." },
+        { title: "Global Fulfillment", desc: "Optimized packing for maritime and regional transit." }
+      ],
+      machinery: {
+        title: "Aerospace-Grade Hardware.",
+        desc: "Our floor is equipped with leading European and Japanese technology to ensure that wood behaves with the precision of metal.",
+        highPrecision: "High-Frequency Pressing",
+        autoFinish: "Robotic Sanding & Dust Recovery",
+        climate: "Automated Vacuum Kiln Curing"
+      },
+      machineryList: [
+        { type: "CNC", name: "HOMAG 5-Axis", desc: "The industry standard for high-complexity wood milling." },
+        { type: "FINISHING", name: "Venjakob Line", desc: "Fully automated, high-velocity coating system." },
+        { type: "PREP", name: "SCM Planers", desc: "Precision surfacing to 0.1mm tolerances." }
+      ],
+      qc: {
+        title: "Zero-Defect Logic.",
+        desc: "Quality is not an inspection; it is a manufacturing state of mind enforced through three distinct audit gates.",
+        iqc: "IQC: Intake Audit",
+        iqcDesc: "Incoming wood density and moisture verified before induction.",
+        ipqc: "IPQC: In-Process Audit",
+        ipqcDesc: "Tolerances checked after every major machining sequence.",
+        fqc: "FQC: Final Release",
+        fqcDesc: "Complete structural and aesthetic audit before cataloguing."
+      }
+    },
+    capabilities: {
+      subtitle: "Production Channels",
+      title: "Engineered For Volume.",
+      intro: "High-capacity solid wood solutions serving the world's most exacting hospitality and residential brands.",
+      categories: "Sector Matrix",
+      productCats: [
+        { name: "Hospitality", desc: "Bespoke hotel casegoods and dining solutions." },
+        { name: "Residential", desc: "Scalable collections for global retail chains." },
+        { name: "Workplace", desc: "High-durability ergonomic desk systems." },
+        { name: "Outdoor", desc: "Resilient Teak and Acacia engineering." }
+      ],
+      limits: {
+        title: "Technical Limits",
+        request: "Request Full Spec Sheet",
+        maxDim: "Maximum Dimensions",
+        length: "Length",
+        width: "Width",
+        thickness: "Thickness",
+        precision: "Precision Standards",
+        cncTol: "CNC Tolerance",
+        moisture: "Moisture (KD)",
+        gloss: "Gloss Range",
+        materials: "Material Core",
+        solidWood: "Solid Wood",
+        veneer: "Veneer Work",
+        mixed: "Mixed Media"
+      },
+      oem: {
+        service: "Business Models",
+        title: "Strategic Manufacturing.",
+        desc: "We operate as an invisible extension of your design team, handling everything from engineering to duty-free delivery.",
+        oemTitle: "OEM Production",
+        oemDesc: "Executing your designs with high-fidelity accuracy at massive scale.",
+        odmTitle: "ODM Solutions",
+        odmDesc: "Internal PZ engineering to bring your conceptual vision to life."
+      },
+      compliance: {
+        title: "Global Compliance Protocols",
+        desc: "Every item indexed in our registry complies with the strictest international safety and environmental laws.",
+        safety: "TSCA Title VI / CARB 2",
+        safetyDesc: "Verified formaldehyde-free production environments.",
+        sustain: "FSC Certified Sourcing",
+        sustainDesc: "100% chain of custody for responsibly harvested timber.",
+        pack: "ISTA-3A Standards",
+        packDesc: "Drop-tested packaging for zero-damage transit."
+      },
+      cta: { title: "Ready to Scale?", btn: "Initiate Production Run" }
+    },
+    capacity: {
+      footprint: "Global Footprint",
+      title: "Operational Terminals.",
+      desc: "Our dual-hub manufacturing strategy ensures consistent quality with optimized tariff and logistics routes for every major global market.",
+      leadTime: "Standard Lead Times",
+      sampleDev: "Sample Development",
+      initProd: "Initial Production Run",
+      reOrder: "Repeat Orders",
+      leadTimeNote: "Lead times may vary based on material availability and SKU complexity.",
+      logisticsTitle: "Maritime Logistics",
+      chinaOrigin: "China Port",
+      khOrigin: "Cambodia Port",
+      shippingDesc: "Full-container-load (FCL) and less-than-container-load (LCL) support with direct port access from both terminals.",
+      clientDist: "Market Reach",
+      clientDesc: "Currently supporting the fulfillment requirements of design leaders across North America, Europe, and the Middle East.",
+      stats: {
+        sqft: "Facility Area",
+        brands: "Global Brands",
+        units: "Monthly Units",
+        logistics: "LA Logistics"
+      },
+      supplyChain: "Seamless Supply Chains",
+      supplyChainDesc: "We manage the friction of global trade through integrated logistics and technical oversight.",
+      flexible: "Flexible Induction",
+      flexibleDesc: "Switch production between hubs to navigate trade barriers seamlessly.",
+      warehouse: "Domestic Fulfillment",
+      warehouseDesc: "US-based warehousing for regional SKU distribution and buffer stock management.",
+      locations: {
+        usa_title: "North America Hub",
+        usa_desc: "Our primary export market with dedicated logistics support in Los Angeles for West Coast distribution.",
+        can_title: "Canada Network",
+        can_desc: "Fulfillment solutions for major Canadian hospitality and residential retailers.",
+        uk_title: "UK Operations",
+        uk_desc: "Direct shipping to UK hubs with full compliance to British safety and fire regulations.",
+        de_title: "European Gateway",
+        de_desc: "Strategic partnerships across Germany and Northern Europe with EUTR-compliant lumber sourcing.",
+        me_title: "Middle East Projects",
+        me_desc: "Custom hospitality solutions for premium developments in the GCC region.",
+        cn_title: "Main Terminal (CN)",
+        cn_desc: "The PZ headquarters and primary engineering center, managing high-complexity 5-axis CNC production.",
+        kh_title: "Fulfillment Terminal (KH)",
+        kh_desc: "A dedicated facility for high-volume SKU production with 0% tariff access to the US market."
+      }
+    },
+    materials: {
+      title: "The Material Archive.",
+      construction: "Structural Logic",
+      fingerJoint: "Finger Jointing",
+      fingerJointDesc: "High-strength interlocking joinery for maximum panel stability and yield optimization.",
+      edgeGlue: "Edge Gluing",
+      edgeGlueDesc: "Seamless grain matching for expansive, monolithic solid wood surfaces.",
+      butcherBlock: "Cross-Grain Lamination",
+      butcherBlockDesc: "Industrial-grade surfaces engineered for high-impact commercial environments.",
+      library: "Lumber Registry",
+      species: {
+        oak: { name: "White Oak", desc: "Durable, classic grain for high-end hospitality." },
+        walnut: { name: "American Walnut", desc: "Rich, deep tones for premium executive collections." },
+        rubber: { name: "Rubber Wood", desc: "Cost-efficient, sustainable hardwood for high-volume lines." },
+        ash: { name: "White Ash", desc: "Resilient and flexible with a striking architectural grain." },
+        beech: { name: "European Beech", desc: "Uniform texture, ideal for painted or light-stained finishes." },
+        maple: { name: "Hard Maple", desc: "Dense, light wood with exceptional durability." },
+        teak: { name: "Plantation Teak", desc: "High oil content, naturally resistant to moisture." },
+        acacia: { name: "Acacia", desc: "Distinctive figure with excellent outdoor performance." },
+        birch: { name: "Yellow Birch", desc: "Strong, closed-grain wood for stable structural cores." },
+        bamboo: { name: "Moso Bamboo", desc: "Engineered grass fiber with extreme hardness." }
+      },
+      moisture: "Moisture Control",
+      moistureDesc: "Kiln-dried to 8% - 10% to prevent warping in diverse climates.",
+      pu: "PU Finishing",
+      puDesc: "Polyurethane coatings for extreme heat and liquid resistance.",
+      nc: "NC Finishing",
+      ncDesc: "Nitrocellulose lacquers for a natural, tactile wood feel.",
+      uv: "UV Curable",
+      uvDesc: "Instant robotic curing for scratch-resistant surface consistency.",
+      request: "Material Sample Kit",
+      requestDesc: "Order a physical kit featuring our primary wood species and finish variants.",
+      orderKit: "Request Kit"
+    },
+    collections: {
+      requestPdf: "Download Technical Catalog",
+      pdp: {
+        descExtra: "Precision-engineered combining structural integrity with natural material excellence.",
+        inquireOrder: "Request Project Quote"
+      }
+    },
+    inquire: {
+      title: "Project Intake.",
+      desc: "Connect with our engineering team to discuss manufacturing scale and duty optimization.",
+      oem: "OEM/ODM Strategy",
+      oemDesc: "We provide full-lifecycle support from prototyping to global distribution.",
+      form: {
+        name: "Name / Contact",
+        company: "Company Name",
+        email: "Work Email",
+        type: "Project Type",
+        message: "Technical Requirements",
+        send: "Transmit Inquiry",
+        sending: "Synchronizing...",
+        success: "Protocol Received.",
+        successDesc: "Your inquiry has been successfully indexed. Our engineering team will respond within 24 hours.",
+        again: "New Transmission"
+      },
+      types: {
+        general: "General Inquiry",
+        catalog: "Catalog / Spec Request",
+        trade: "Industry Program",
+        oem: "OEM / ODM Project"
+      }
+    },
+
+    // --- PORTAL (Chinese) ---
     admin: {
       dashboard: "档案控制中心",
       openCreator: "进入工作区",
@@ -214,8 +445,8 @@ const translations = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children?: ReactNode }) => {
-  const language = 'zh' as const;
-  const t = translations.zh;
+  const language = 'en' as const;
+  const t = translations.en;
   const value = { language, t, setLanguage: () => {}, toggleLanguage: () => {} };
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 };
