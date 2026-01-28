@@ -50,7 +50,7 @@ const AdminWorkspace: React.FC = () => {
 
   const loadReviewQueue = useCallback(async () => {
     try {
-      // ✅ Status Truth: Filter specifically for 'awaiting_review'
+      // ✅ SINGLE SOURCE OF TRUTH: Filter for 'awaiting_review'
       const res = await adminFetch<{ products?: any[]; items?: any[] }>(
         'admin/products?status=awaiting_review&limit=1000'
       );
@@ -160,7 +160,8 @@ const AdminWorkspace: React.FC = () => {
     }
   };
 
-  const reviewTotalCount = reviewProducts.length + categoryRequests.length;
+  const pendingProductCount = reviewProducts.length;
+  const reviewTotalCount = pendingProductCount + categoryRequests.length;
 
   const navItems = [
     {
@@ -223,9 +224,9 @@ const AdminWorkspace: React.FC = () => {
             categoryRequests={categoryRequests}
             onProcessProduct={async (id, action) => {
               try {
-                // ✅ Refined Logic: Merged Update + Auto-Publish
+                // ✅ Refined SAFE PUT Logic: Merge with original object from memory
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
-                if (!original) throw new Error("Registry record not found in cache.");
+                if (!original) throw new Error("Product record not found in cache.");
 
                 const nextStatus = action === 'approve' ? 'published' : 'rejected';
                 
@@ -239,7 +240,7 @@ const AdminWorkspace: React.FC = () => {
                 });
 
                 if (action === 'approve') {
-                    // Trigger immediate refresh of public snapshot
+                    // Trigger immediate refresh of public product snapshot
                     await adminFetch('admin/publish/products', { method: 'POST' });
                 }
 

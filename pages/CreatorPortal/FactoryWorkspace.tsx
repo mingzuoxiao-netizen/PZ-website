@@ -52,30 +52,32 @@ const FactoryWorkspace: React.FC = () => {
       total: products.length
   }), [products]);
 
-  // ✅ New Flow: Always save as 'draft' first
+  // ✅ SAFE DRAFT SAVING: Factory always saves as 'draft' first
   const handleSaveDraft = async (product: ProductVariant) => {
     try {
       const method = product.id ? 'PUT' : 'POST';
       const url = product.id ? `factory/products/${product.id}` : 'factory/products';
       
-      // Factory saves are always drafts until submitted
-      await factoryFetch(url, { method, body: JSON.stringify({ ...product, status: 'draft' }) });
+      // Force status to 'draft' for any factory-initiated save
+      const payload = { ...product, status: 'draft' };
+      
+      await factoryFetch(url, { method, body: JSON.stringify(payload) });
       
       setEditingItem(null);
       setIsCreating(false);
       await loadData();
-      alert("Registry entry saved as draft.");
+      alert("Draft saved successfully.");
     } catch (e: any) { alert(e.message); }
   };
 
-  // ✅ New Flow: Dedicated submission
-  const handleSubmitForReview = async (id: string) => {
+  // ✅ DEDICATED SUBMISSION: Promote product to 'awaiting_review'
+  const handleSubmitForReview = async (productId: string) => {
       try {
-          await factoryFetch(`factory/products/${id}/submit`, { method: 'POST' });
+          await factoryFetch(`factory/products/${productId}/submit`, { method: 'POST' });
           await loadData();
           setEditingItem(null);
           setIsCreating(false);
-          alert("SKU promoted to 'Pending Review' state.");
+          alert("Submitted for review.");
       } catch (e: any) {
           alert(`Submission Protocol Failure: ${e.message}`);
       }
@@ -83,13 +85,13 @@ const FactoryWorkspace: React.FC = () => {
 
   const handleBatchSave = async (newProducts: any[]) => {
       try {
-          // Batch saves as drafts
+          // Batch inductions always start as drafts for safety
           await Promise.all(newProducts.map(p => 
             factoryFetch('factory/products', { method: 'POST', body: JSON.stringify({ ...p, status: 'draft' }) })
           ));
           setIsBatchCreating(false);
           loadData();
-          alert(`Batch inducted as drafts. Please review and submit items individually.`);
+          alert("Batch entries inducted as drafts. Please review and submit them manually.");
       } catch (e: any) { alert("Batch error: " + e.message); }
   };
 
