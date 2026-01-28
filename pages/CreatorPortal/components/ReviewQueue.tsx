@@ -17,8 +17,15 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   const [rejectNote, setRejectNote] = useState("");
   const [view, setView] = useState<'products' | 'categories'>('products');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isManualLoading, setIsManualLoading] = useState(false);
 
   const currentItems = view === 'products' ? products : categoryRequests;
+
+  const handleManualRefresh = async () => {
+      setIsManualLoading(true);
+      await reloadQueue();
+      setIsManualLoading(false);
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -63,7 +70,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
 
   return (
     <div className="animate-fade-in relative">
-        <div className="flex gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
             <button 
                 onClick={() => { setView('products'); setSelectedIds([]); }}
                 className={`flex-1 py-4 flex items-center justify-center gap-3 border rounded-sm transition-all font-bold text-[10px] uppercase tracking-widest
@@ -79,6 +86,15 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 `}
             >
                 <LayoutGrid size={16} /> Category Proposals ({categoryRequests.length})
+            </button>
+            
+            <button 
+                onClick={handleManualRefresh}
+                disabled={isManualLoading}
+                className="bg-white border border-stone-200 text-stone-400 hover:text-stone-900 px-6 py-4 rounded-sm transition-all"
+                title="Refresh Queue"
+            >
+                <RefreshCw size={16} className={isManualLoading ? 'animate-spin' : ''} />
             </button>
         </div>
 
@@ -107,6 +123,12 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 <CheckCircle size={40} className="mx-auto mb-6 text-green-600" />
                 <h3 className="font-serif text-2xl text-stone-900 mb-2">{txt.empty}</h3>
                 <p className="text-stone-500 font-light text-sm">{txt.emptyDesc}</p>
+                <button 
+                    onClick={handleManualRefresh} 
+                    className="mt-8 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 underline flex items-center gap-2 mx-auto"
+                >
+                    <RefreshCw size={12} className={isManualLoading ? 'animate-spin' : ''} /> Check for new submissions
+                </button>
             </div>
         ) : (
             <div className="space-y-4">

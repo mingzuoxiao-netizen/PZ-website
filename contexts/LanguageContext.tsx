@@ -1,397 +1,211 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 
 interface LanguageContextType {
-  language: 'en';
-  t: typeof translations.en;
-  setLanguage: (lang: 'en') => void;
+  language: 'zh';
+  t: typeof translations.zh;
+  setLanguage: (lang: 'zh') => void;
   toggleLanguage: () => void;
 }
 
 const translations = {
-  en: {
+  zh: {
     common: {
-      readMore: "Read More",
-      viewDetails: "View Details",
-      learnMore: "Learn More",
-      contactUs: "Contact Us",
-      search: "Search",
-      searchPlaceholder: "Search archive...",
-      searchRefine: "Refine your search parameters...",
-      backHome: "Return Home",
-      loading: "Synchronizing...",
-      close: "Dismiss",
-      explore: "Explore",
-      connect: "Project Portal",
-      privacy: "Privacy Policy",
-      terms: "Terms of Service",
-      rights: "All technical rights reserved.",
-      startProject: "Contact for Quote",
-      tradeProgram: "Industry Program",
-      adminAccess: "System Access",
-      location_cn: "Zhaoqing, China (HQ)",
-      location_kh: "Kandal, Cambodia",
-      factory_01: "Main Facility"
+      readMore: "阅读更多",
+      viewDetails: "查看详情",
+      learnMore: "了解更多",
+      contactUs: "联系我们",
+      search: "档案搜索",
+      searchPlaceholder: "输入搜索参数...",
+      searchRefine: "优化搜索条件...",
+      backHome: "返回首页",
+      loading: "正在同步...",
+      close: "关闭",
+      explore: "导航",
+      connect: "项目入口",
+      privacy: "隐私政策",
+      terms: "服务条款",
+      rights: "保留所有技术权利。",
+      startProject: "开启生产项目",
+      tradeProgram: "行业计划",
+      adminAccess: "管理面板",
+      location_cn: "肇庆基地",
+      location_kh: "干丹基地",
+      factory_01: "主设施"
     },
     nav: {
       header: {
-        home: "Home",
-        capabilities: "Capabilities",
-        manufacturing: "Manufacturing",
-        materials: "Resources",
-        collections: "Portfolio",
-        capacity: "Process",
-        about: "About",
-        inquire: "Contact"
+        home: "首页",
+        capabilities: "生产能力",
+        manufacturing: "制造工艺",
+        materials: "材料库",
+        collections: "作品集",
+        capacity: "全球布局",
+        about: "关于我们",
+        inquire: "业务咨询"
       },
       mega: {
-        process: "Industrial Flow",
-        lumberPrep: "Lumber Stabilization",
-        cnc5Axis: "5-Axis Precision",
-        autoFinishing: "Coating Systems",
-        standards: "QA Protocol",
-        incomingQC: "Material Intake",
-        inProcessQC: "Structural Audit",
-        finalInspection: "Surface Validation",
-        services: "Operational Models",
-        oemProduction: "OEM Scale",
-        odmDesign: "ODM Engineering",
-        valueEngineering: "Cost Analysis",
-        compliance: "Global Standards",
-        tscaTitleVI: "TSCA Title VI",
-        fscCertification: "FSC Wood",
-        istaPackaging: "ISTA Testing",
-        focusPrecision: "Tolerances",
-        focusEng: "Engineering",
-        focusLogistics: "Fulfillment"
+        process: "工业流程",
+        lumberPrep: "木材养护",
+        cnc5Axis: "五轴数控",
+        autoFinishing: "涂装系统",
+        standards: "审计规程",
+        incomingQC: "材料入库检",
+        inProcessQC: "结构审计",
+        finalInspection: "档案终审",
+        services: "业务模式",
+        oemProduction: "OEM 代工",
+        odmDesign: "ODM 工程",
+        valueEngineering: "成本分析",
+        compliance: "全球标准",
+        tscaTitleVI: "TSCA 法案",
+        fscCertification: "FSC 认证木材",
+        istaPackaging: "ISTA 包装测试",
+        focusPrecision: "精密公差",
+        focusEng: "设计工程",
+        focusLogistics: "履约逻辑"
       }
     },
     home: {
-      subtitle: "Solid Wood Manufacturing",
-      heroTitle: "Engineered for Scalable Production",
-      heroQuote: "Industrial precision meets natural material artistry.",
-      heroBtnSecondary: "View Process",
-      featuredCollections: "Featured Collections",
-      factoryStrength: "Operational Infrastructure",
-      strengthTitle: "Optimized for Commercial High-End.",
-      strengthDesc1: "PZ is a strategic solid wood partner serving design-led global brands.",
-      strengthDesc2: "We integrate boutique craftsmanship with aerospace-grade CNC consistency.",
-      globalHubs: "Global Infrastructure Hubs",
-      chinaLoc: "HQ & Engineering Center",
-      cambodiaLoc: "Tariff-Optimized Facility",
-      readyToScale: "Ready to Start a Project?"
-    },
-    about: {
-      since: "OPERATIONAL SINCE 2014",
-      title: "About PZ",
-      intro: "Driven by structural integrity and geometric precision, PZ has evolved from a specialist workshop into an industrial leader in high-end wood manufacturing.",
-      bannerText: "Craftsmanship. Validated.",
-      storyTitle: "Origins",
-      storyP1: "Headquartered in Zhaoqing.",
-      storyP2: "PZ was founded to solve the gap between artisanal design and mass production viability.",
-      storyP3: "Over the last decade, we have expanded our footprint across Asia to serve the most exacting furniture retailers.",
-      storyP4: "Engineering is the foundation of every successful project.",
-      galleryItems: {
-        raw: { title: "Raw Inventory", desc: "Fine FSC-certified lumber stock." },
-        milling: { title: "CNC Milling", desc: "Digital accuracy for every component." },
-        automation: { title: "Systems", desc: "Optimizing repetitive production cycles." },
-        finishing: { title: "Surface Application", desc: "Premium stains and aerospace lacquers." },
-        qc: { title: "Audit", desc: "Strict verification at every station." }
-      },
-      pillars: {
-        elite: "Master Joinery",
-        eliteDesc: "Led by engineers and master carpenters with decades of lineage.",
-        dual: "Dual-Hub Logistics",
-        dualDesc: "Optimized flow between China HQ and Cambodia export lines.",
-        logistics: "Turnkey Fulfillment",
-        logisticsDesc: "Global shipping consolidation and last-mile logistics support."
-      },
-      process: {
-        label: "Operational Flow",
-        title: "The Project Lifecycle"
-      },
-      journey: "A Decade of Engineering",
-      milestones: {
-        "2014": { title: "Inception", desc: "PZ-01 facility opens in Zhaoqing, China." },
-        "2018": { title: "Digitalization", desc: "Deployment of multi-axis CNC clusters." },
-        "2021": { title: "Cambodia Hub", desc: "PZ-02 facility activated for global export." },
-        "2024": { title: "Market Lead", desc: "Serving 30+ category-leading brands." },
-        "2025": { title: "PZ Next", desc: "Implementation of AI-driven yield optimization." }
-      }
-    },
-    manufacturing: {
-      subtitle: "The Production Cycle",
-      title: "Advanced Systems",
-      intro: "Our facilities fuse traditional joinery with aerospace-grade CNC technology to ensure zero-defect consistency.",
-      tabs: {
-        process: "Lifecycle",
-        machinery: "Infrastructure",
-        qc: "Audit Protocol"
-      },
-      steps: [
-        { title: "Kiln Curing", desc: "Moisture stabilized to 8-10% to prevent dimensional shift." },
-        { title: "Skeletion Prep", desc: "Edge-gluing and jointing for maximum structural strength." },
-        { title: "Precision CNC", desc: "High-speed multi-axis milling for complex CAD data." },
-        { title: "Assembly", desc: "Traditional joinery reinforced for high-traffic environments." },
-        { title: "Surface Coat", desc: "Multi-phase robotic application of UV/PU finishes." },
-        { title: "Final Audit", desc: "AQL 2.5 inspection before sealed packaging." }
-      ],
-      machinery: {
-        title: "Industrial Logic",
-        desc: "We utilize advanced European machinery to maintain tolerances unreachable by manual labor.",
-        highPrecision: "±0.1mm Digital Tolerance",
-        autoFinish: "Robotic Finish Channels",
-        climate: "HVAC Climate Controlled Zones"
-      },
-      machineryList: [
-        { type: "MILLING", name: "Biesse 5-Axis", desc: "Italian versatility for intricate 3D geometries." },
-        { type: "CALIBRATION", name: "Steinemann Wide Belt", desc: "Swiss accuracy for perfectly flat surfaces." },
-        { type: "COATING", name: "Cefla iGiotto", desc: "Robotic spray tech for flawless consistency." }
-      ],
-      qc: {
-        title: "Protocol Standards",
-        desc: "Quality is an engineered metric, verified at every stage of the assembly line.",
-        iqc: "Material Intake",
-        iqcDesc: "Full scan of density and moisture for all raw lumber.",
-        ipqc: "Flow Audit",
-        ipqcDesc: "Dimensional verification after every machine cycle.",
-        fqc: "Registry Final",
-        fqcDesc: "Studio-lit inspection of finishes and hardware alignment."
-      }
-    },
-    capabilities: {
-      subtitle: "Technical Matrix",
-      title: "Industrial Capacity",
-      intro: "From OEM manufacturing to full ODM development, we provide an industrial ecosystem for wood production.",
-      categories: "Market Sectors",
-      productCats: [
-        { name: "Tables & Desks", desc: "Large-scale solid wood surfaces with engineered joints." },
-        { name: "Storage Systems", desc: "Precisely detailed cabinetry and casegoods." },
-        { name: "Frame Systems", desc: "Base structures for high-performance seating." },
-        { name: "Professional Prep", desc: "Heavy-duty surfaces for culinary and work environments." }
-      ],
-      limits: {
-        title: "Technical Constraints",
-        subtitle: "Production parameters for mass manufacturing.",
-        request: "Request Data Sheet",
-        maxDim: "Envelope Dimensions",
-        length: "Max Length",
-        width: "Max Width",
-        thickness: "Max Profile",
-        precision: "Curing & Precision",
-        cncTol: "CNC Tolerance",
-        moisture: "MC Target",
-        gloss: "Gloss Range",
-        materials: "Input Support",
-        solidWood: "Solid Lumber",
-        veneer: "Veneer Logic",
-        mixed: "Hybrid Media"
-      },
-      oem: {
-        service: "Production Models",
-        title: "Your Scaled Partner",
-        desc: "We integrate with your workflow, providing the engineering depth to scale your concepts.",
-        oemTitle: "OEM Channel",
-        oemDesc: "Manufacturing based on verified blueprints and material specs." ,
-        odmTitle: "ODM Development",
-        odmDesc: "Collaborative engineering to optimize design for manufacturing (DFM)."
-      },
-      compliance: {
-        title: "Safety & Ethics",
-        desc: "Strict adherence to international safety and sustainability mandates.",
-        safety: "Global Compliance",
-        safetyDesc: "Products comply with TSCA Title VI and EU REACH standards.",
-        sustain: "Resource Ethics",
-        sustainDesc: "FSC Chain-of-Custody materials available upon request.",
-        pack: "E-Commerce Ready",
-        packDesc: "ISTA tested packaging for drop-ship reliability."
-      },
-      cta: {
-        title: "Initiate Production Cycle",
-        btn: "Contact Engineering Team"
-      }
-    },
-    capacity: {
-      footprint: "Operational Reach",
-      title: "Process Matrix",
-      desc: "Synchronizing two high-capacity hubs to provide tariff-free and high-precision wood solutions.",
-      leadTime: "Cycle Projections",
-      sampleDev: "Prototype Cycle",
-      initProd: "Initial Run",
-      reOrder: "Repeat Production",
-      leadTimeNote: "Note: Schedules depend on material procurement and SKU complexity.",
-      logisticsTitle: "Export Gateways",
-      shippingDesc: "Full container consolidation and DDP/FOB logistics support.",
-      chinaOrigin: "Zhaoqing Terminal",
-      khOrigin: "Kandal Terminal",
-      clientDist: "Client Registry",
-      clientDesc: "Supporting Tier-1 retailers and luxury hospitality projects globally.",
-      stats: {
-        sqft: "Facility Sq. Ft",
-        brands: "Global Clients",
-        units: "Monthly Output",
-        logistics: "Logistics Hub"
-      },
-      supplyChain: "Input Resilience",
-      supplyChainDesc: "Global lumber procurement ensuring stable raw material pricing.",
-      flexible: "Elastic Scale",
-      flexibleDesc: "Seamlessly scale from 100 to 10,000 units per SKU.",
-      warehouse: "Regional Support",
-      warehouseDesc: "Inventory buffering and fulfillment via our LA logistics hub.",
-      locations: {
-        usa_title: "United States",
-        usa_desc: "Key market with local logistics and fulfillment in California.",
-        can_title: "Canada",
-        can_desc: "Supplying boutique chains across North America.",
-        uk_title: "United Kingdom",
-        uk_desc: "Specialized UKFR compliant upholstery frames.",
-        de_title: "Germany",
-        de_desc: "EUTR compliant sustainable lumber supply.",
-        me_title: "Middle East",
-        me_desc: "Hospitality millwork for luxury developments.",
-        cn_title: "China (HQ)",
-        cn_desc: "Primary R&D and high-precision fabrication center.",
-        kh_title: "Cambodia",
-        kh_desc: "High-volume factory optimized for US tariff efficiency."
-      }
-    },
-    materials: {
-      title: "Resources Library",
-      construction: "Joinery Methods",
-      fingerJoint: "Finger-Jointing",
-      fingerJointDesc: "High-stability structural bonding for industrial parts.",
-      edgeGlue: "Edge-Gluing",
-      edgeGlueDesc: "Seamless solid wood boards using full-length staves.",
-      butcherBlock: "Cross-Grain",
-      butcherBlockDesc: "Industrial-grade surfaces for maximum durability.",
-      library: "Lumber Species",
-      species: {
-        oak: { name: "White Oak", desc: "Structural classic with superior density and durability." },
-        walnut: { name: "American Walnut", desc: "Exquisite tones with luxury figurative grain." },
-        rubber: { name: "Rubberwood", desc: "Eco-optimized hardwood with neutral palette." },
-        ash: { name: "White Ash", desc: "Elastic strength with prominent sweeping grain." },
-        beech: { name: "European Beech", desc: "Fine texture engineered for uniform stains." },
-        maple: { name: "Hard Maple", desc: "High density with clean architectural aesthetic." },
-        birch: { name: "Yellow Birch", desc: "Versatile character with resilient cell structure." },
-        teak: { name: "Plantation Teak", desc: "Weather-resistant silica content for premium SKUs." },
-        acacia: { name: "Acacia", desc: "Interlocking grain with high natural contrast." },
-        bamboo: { name: "Compacted Bamboo", desc: "Sustainable ultra-hard material for heavy usage." }
-      },
-      moisture: "Curing Control",
-      moistureDesc: "Kiln-dried to 8-10% to ensure stability across global climates.",
-      pu: "PU Systems",
-      puDesc: "Polyurethane coatings for heavy commercial traffic.",
-      nc: "NC Systems",
-      ncDesc: "Nitrocellulose lacquers for breathable, natural hand-feel.",
-      uv: "UV Curing",
-      uvDesc: "Instant-cure coatings for high scratch resistance on flatware.",
-      request: "Material Samples",
-      requestDesc: "We provide curated kits showcasing our material and finish matrix.",
-      orderKit: "Request Sample Kit"
-    },
-    inquire: {
-      title: "Contact Us",
-      desc: "Connect with our engineering team for technical quotes or material inquiries.",
-      oem: "Technical Inquiries",
-      oemDesc: "Please provide CAD data or dimensioned sketches for accurate quoting.",
-      form: {
-        success: "Message Received",
-        successDesc: "Your inquiry has been logged. An engineer will respond within 24 hours.",
-        again: "Start new inquiry",
-        name: "Full Name",
-        company: "Company Entity",
-        email: "Email Address",
-        type: "Engagement Type",
-        message: "Technical Note",
-        sending: "Logging Data...",
-        send: "Transmit Inquiry"
-      },
-      types: {
-        general: "General Inquiry",
-        catalog: "Catalog Request",
-        trade: "Industry Partner",
-        oem: "Production Run"
-      }
+      subtitle: "实木制造专家",
+      heroTitle: "为高端品牌打造精密工程实木解决方案。",
+      heroQuote: "工业逻辑与自然材料的艺术融合。",
+      heroBtnSecondary: "查看流程",
+      featuredCollections: "大师系列",
+      factoryStrength: "基础设施",
+      strengthTitle: "专为商业高端市场优化。",
+      strengthDesc1: "PZ 是全球领先设计品牌的战略实木合作伙伴。",
+      strengthDesc2: "我们将精品手工技艺与航天级数控一致性深度整合。",
+      globalHubs: "全球物流枢纽",
+      chinaLoc: "总部与工程中心",
+      cambodiaLoc: "出口物流中心",
+      readyToScale: "准备开启生产吗？"
     },
     admin: {
-      dashboard: "Registry Dashboard",
-      openCreator: "Open Creator Studio",
-      logout: "Exit System",
-      inquiries: "Logged Inquiries"
+      dashboard: "档案控制中心",
+      openCreator: "进入工作区",
+      logout: "安全退出",
+      inquiries: "客户咨询收件箱",
+      previewSite: "实时预览",
+      date: "日期",
+      name: "客户姓名",
+      company: "公司",
+      type: "分类",
+      status: "状态",
+      loading: "正在同步注册表...",
+      noData: "暂无记录"
     },
     creator: {
-      title: "Studio Mode",
+      title: "档案终端",
       inventory: {
-        header: "SKU Management",
-        selectCat: "Select a category to manage or add new products.",
-        viewMaster: "Registry Overview",
-        backCategories: "Back to Sets",
-        search: "Search SKU...",
-        noMatchTitle: "Entry Not Found",
-        noMatchDesc: "We could not find any records matching your parameters.",
-        createProduct: "New Registry Entry"
+        header: "产品档案管理",
+        selectCat: "选择分类以管理或索引新产品。",
+        viewMaster: "查看总库",
+        backCategories: "返回分类",
+        search: "搜索产品名或编号...",
+        noMatchTitle: "未找到匹配项",
+        noMatchDesc: "没有记录符合您的搜索参数。",
+        createProduct: "新增档案",
+        batchInduction: "批量录入",
+        singleEntry: "手动录入",
+        backToCategories: "返回分组"
       },
       form: {
-        edit: "Modify Entry",
-        add: "Create Entry",
-        cancel: "Discard"
+        edit: "修改档案",
+        add: "创建新档案",
+        cancel: "放弃更改",
+        saveDraft: "保存草稿",
+        submitReview: "提交审核",
+        discard: "放弃",
+        material: "核心材料",
+        skuRef: "工厂 SKU 编号",
+        media: "媒体资产",
+        productImg: "主要图片",
+        snapshot: "档案快照",
+        series: "生产系列"
       },
       config: {
-        title: "Site Logic",
-        desc: "Global interface configuration and asset mapping.",
-        discard: "Flush Cache",
-        publish: "Apply Changes",
-        publishing: "Committing...",
-        unsaved: "Uncommitted Changes"
+        title: "站点协议配置",
+        desc: "配置全局 UI 资产、静态海报和运营参数。",
+        discard: "清除缓存",
+        publish: "发布更改",
+        pushProd: "推送到生产环境",
+        publishing: "发布协议运行中...",
+        unsaved: "未提交的更改",
+        apply: "应用本地更改"
       },
       assets: {
-        title: "Asset Repository",
-        desc: "Manage high-resolution static assets and technical documents.",
-        save: "Commit",
-        cancel: "Abort",
-        reset: "Factory Default"
+        title: "静态资产库",
+        desc: "管理高分辨率界面资产和技术文档。",
+        save: "提交资产",
+        cancel: "放弃上传",
+        reset: "恢复默认",
+        selectFiles: "选择文件"
       },
       statusLabels: {
-        published: "Published",
-        pending: "Awaiting Audit",
-        draft: "Draft Mode",
-        rejected: "Revision Needed"
+        published: "已发布",
+        pending: "待审核",
+        draft: "草稿箱",
+        rejected: "需修正",
+        all: "全部状态"
+      },
+      accounts: {
+        title: "身份注册表",
+        detected: "已识别的身份",
+        refresh: "同步",
+        newUser: "分配账号",
+        profile: "身份概况",
+        auth: "权限等级",
+        ops: "操作",
+        active: "活跃",
+        disabled: "已撤销",
+        rotateKey: "轮换密钥",
+        revoke: "撤销权限",
+        restore: "恢复权限"
+      },
+      review: {
+        pendingProducts: "待审产品档案",
+        pendingCategories: "新系列提案",
+        selectAll: "全选",
+        approveSelected: "批量核准",
+        empty: "队列已清空",
+        emptyDesc: "所有提交的数据均已审计。",
+        approve: "核准并发布",
+        reject: "驳回申请",
+        reason: "审计反馈",
+        confirmReject: "确认驳回"
       }
     },
     siteConfig: {
       sections: {
-        "Global Settings": "Global Protocol",
-        "Navigation Menu (Featured Images)": "Interface Assets",
-        "Home Page / Hero": "Front-End Hero",
-        "Home Page / Sections": "Body Content",
-        "Home Page / Global Hubs": "Logistics Mapping",
-        "About Page": "About Profile",
-        "Manufacturing Page": "Manufacturing Logic",
-        "Global Capacity / Locations": "Process Flow",
-        "Materials / Construction": "Construction Methods",
-        "Materials / Wood Library": "Resources",
+        "Global Settings": "全局协议设置",
+        "Navigation Menu (Posters)": "导航展示面板",
+        "Home Page / Hero": "首屏序列",
+        "Home Page / Sections": "内容区块",
+        "Home Page / Global Hubs": "终端分布",
+        "About Page": "公司概况",
+        "Manufacturing Page": "制造系统",
+        "Capabilities Page": "生产能力",
+        "Portfolio Page": "档案总库",
+        "Inquire Page": "咨询门户",
+        "Global Capacity / Terminals": "全球交付网络",
+        "Materials / Technical Construction": "结构工程",
+        "Materials / Lumber Registry": "木材档案",
       },
       fields: {
-        "catalog.url": { label: "Catalog (PDF)", help: "Primary product catalog for public download." },
-        "home.hero.title": { label: "Primary Header" },
-        "home.hero.image": { label: "Hero Background" },
-        "home.factory.image": { label: "Facility Visual" },
-        "home.cta.image": { label: "Footer Background" },
-        "home.hub_cn.image": { label: "China HQ Visual" },
-        "home.hub_kh.image": { label: "Cambodia Hub Visual" },
-        "about.banner": { label: "Cinematic Banner" },
-      }
-    },
-    collections: {
-      collection: "Project Set",
-      viewProducts: "Access SKUs",
-      intro: "Organized by industrial category and joinery logic.",
-      requestPdf: "Access PDF",
-      pdp: {
-        techDims: "Technical Data",
-        matConst: "Material Stack",
-        inquireOrder: "Inquire SKU",
-        descExtra: "Engineered for structural resilience and aesthetic purity.",
-        customSizes: "Technical sizing upon request"
+        "catalog.url": { label: "技术目录 PDF", help: "供公开下载的主产品目录。" },
+        "home.hero.title": { label: "首屏标题文字" },
+        "home.hero.image": { label: "首屏背景海报" },
+        "home.factory.image": { label: "工厂概览展示图" },
+        "home.cta.image": { label: "底部行动背景" },
+        "home.hub_cn.image": { label: "中国总部视觉识别" },
+        "home.hub_kh.image": { label: "柬埔寨枢纽视觉识别" },
+        "about.banner": { label: "关于页横幅" },
+        "portfolio.hero_poster": { label: "档案库头部特写" },
+        "inquire.hero_poster": { label: "咨询页头部特写" },
+        "menu.feat_collections": { label: "导航：系列特写" },
+        "menu.feat_mfg": { label: "导航：制造特写" },
+        "menu.feat_capabilities": { label: "导航：能力特写" },
+        "menu.feat_default": { label: "导航：默认面板" },
       }
     }
   }
@@ -400,27 +214,14 @@ const translations = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children?: ReactNode }) => {
-  const language = 'en' as const;
-  const t = translations.en;
-
-  const value = {
-    language,
-    t,
-    setLanguage: () => {}, // No-op
-    toggleLanguage: () => {} // No-op
-  };
-
-  return (
-    <LanguageContext.Provider value={value}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  const language = 'zh' as const;
+  const t = translations.zh;
+  const value = { language, t, setLanguage: () => {}, toggleLanguage: () => {} };
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 };
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  if (context === undefined) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
-  }
+  if (context === undefined) throw new Error('useLanguage must be used within a LanguageProvider');
   return context;
 };

@@ -1,27 +1,19 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Inquiry } from '../types';
 import {
   Loader2,
   LogOut,
-  Download,
-  Filter,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   PenTool,
   Eye,
 } from 'lucide-react';
-import { adminFetch, ADMIN_SESSION_KEY } from '../utils/adminFetch';
+import { adminFetch } from '../utils/adminFetch';
 import { useLanguage } from '../contexts/LanguageContext';
 
-type SortConfig =
-  | {
-      key: keyof Inquiry;
-      direction: 'asc' | 'desc';
-    }
-  | null;
+type SortConfig = { key: keyof Inquiry; direction: 'asc' | 'desc'; } | null;
 
 const AdminDashboard: React.FC = () => {
   const { t } = useLanguage();
@@ -29,19 +21,13 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    key: 'date',
-    direction: 'desc',
-  });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', direction: 'desc' });
 
   useEffect(() => {
     const fetchInquiries = async () => {
       setLoading(true);
       try {
-        const json = await adminFetch<{
-          data: any[];
-        }>('admin/inquiries');
-
+        const json = await adminFetch<{ data: any[]; }>('admin/inquiries');
         const mapped: Inquiry[] = (json.data || []).map((row) => ({
           id: row.id,
           name: row.name,
@@ -52,7 +38,6 @@ const AdminDashboard: React.FC = () => {
           date: row.created_at ? row.created_at.split('T')[0] : '',
           status: row.status as Inquiry['status'],
         }));
-
         setInquiries(mapped);
       } catch (err) {
         console.warn('Failed to fetch inquiries', err);
@@ -60,7 +45,6 @@ const AdminDashboard: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchInquiries();
   }, []);
 
@@ -101,7 +85,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="font-serif text-3xl text-stone-900">{t.admin.dashboard}</h1>
           <div className="flex items-center space-x-4">
             <Link to="/admin-pzf-2025/preview" className="bg-white border border-stone-200 text-stone-900 text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-stone-50 rounded-sm flex items-center shadow-sm">
-                <Eye size={16} className="mr-2" /> Preview Site
+                <Eye size={16} className="mr-2" /> {t.admin.previewSite}
             </Link>
             <Link to="/creator" className="bg-amber-700 text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-amber-800 rounded-sm flex items-center shadow-lg">
               <PenTool size={16} className="mr-2" /> {t.admin.openCreator}
@@ -113,34 +97,34 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-stone-200 overflow-x-auto">
+        <div className="bg-white border border-stone-200 overflow-x-auto shadow-sm">
             <table className="w-full text-left text-sm text-stone-600">
               <thead className="bg-stone-100 text-stone-500 uppercase text-xs tracking-wider">
                 <tr>
                   <th className="p-4 cursor-pointer" onClick={() => handleSort('date')}>
-                    <div className="flex items-center">Date <SortIcon columnKey="date" /></div>
+                    <div className="flex items-center">{t.admin.date} <SortIcon columnKey="date" /></div>
                   </th>
                   <th className="p-4 cursor-pointer" onClick={() => handleSort('name')}>
-                    <div className="flex items-center">Name <SortIcon columnKey="name" /></div>
+                    <div className="flex items-center">{t.admin.name} <SortIcon columnKey="name" /></div>
                   </th>
-                  <th className="p-4">Company</th>
-                  <th className="p-4">Type</th>
-                  <th className="p-4">Status</th>
+                  <th className="p-4">{t.admin.company}</th>
+                  <th className="p-4">{t.admin.type}</th>
+                  <th className="p-4">{t.admin.status}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {loading ? (
-                  <tr><td colSpan={5} className="p-12 text-center text-stone-400">Loading...</td></tr>
+                  <tr><td colSpan={5} className="p-12 text-center text-stone-400">{t.admin.loading}</td></tr>
                 ) : inquiries.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-stone-500">No data found.</td></tr>
+                  <tr><td colSpan={5} className="p-8 text-center text-stone-500">{t.admin.noData}</td></tr>
                 ) : (
                   processedInquiries.map((inq) => (
                     <tr key={inq.id} className="hover:bg-stone-50">
                       <td className="p-4 font-mono text-xs">{inq.date}</td>
                       <td className="p-4 text-stone-900 font-bold">{inq.name}</td>
                       <td className="p-4">{inq.company}</td>
-                      <td className="p-4"><span className="px-2 py-1 bg-stone-100 rounded text-[10px] uppercase">{inq.type}</span></td>
-                      <td className="p-4"><span className="text-[10px] font-bold uppercase">{inq.status}</span></td>
+                      <td className="p-4"><span className="px-2 py-1 bg-stone-100 rounded text-[10px] uppercase font-bold">{inq.type}</span></td>
+                      <td className="p-4"><span className="text-[10px] font-bold uppercase text-stone-400">{inq.status}</span></td>
                     </tr>
                   ))
                 )}

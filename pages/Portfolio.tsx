@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { X, Loader2, AlertCircle, FileText, ArrowRight, ChevronLeft, Layers, Hash, LayoutGrid } from 'lucide-react';
+import { X, AlertCircle, FileText, ArrowRight, ChevronLeft, Layers, Hash, LayoutGrid } from 'lucide-react';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { ProductVariant } from '../types';
 import { categories as staticCategories } from '../data/inventory';
@@ -9,6 +9,7 @@ import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
 import { extractSubCategories, extractProductsArray } from '../utils/extractProducts';
+import { ProductCardSkeleton } from '../components/common/Skeleton';
 
 const Portfolio: React.FC = () => {
   const { config, mode } = usePublishedSiteConfig();
@@ -32,22 +33,18 @@ const Portfolio: React.FC = () => {
             rawData = extractProductsArray(res);
         } else {
             const response = await fetch(`${API_BASE}/products`);
-            if (!response.ok) throw new Error(`Registry connection failed (${response.status})`);
+            if (!response.ok) throw new Error(`档案库同步失败 (HTTP ${response.status})`);
             const json = await response.json();
-            
-            // Fix: Access 'items' as first priority
-            rawData = json.items || json.products || json.data || (Array.isArray(json) ? json : []);
+            rawData = extractProductsArray(json);
         }
         
         let loadedProducts = normalizeProducts(rawData);
-        
-        // Double-lock: Only show 'published' items in public mode
         if (mode === 'public') {
             loadedProducts = loadedProducts.filter(p => p.status === 'published');
         }
         setProducts(loadedProducts);
       } catch (e: any) {
-        setError(`Unable to synchronize with product archive. (${e.message})`);
+        setError(e.message || "无法同步产品档案。");
       } finally {
         setIsLoading(false);
       }
@@ -117,6 +114,7 @@ const Portfolio: React.FC = () => {
   };
 
   const activeCategoryDef = availableCategories.find(c => c.id.toLowerCase() === activeCategory.toLowerCase());
+  const heroPoster = resolveImage(config?.portfolio?.hero_poster);
 
   return (
     <div className="bg-white min-h-screen pt-32 pb-20 selection:bg-safety-700 selection:text-white">
@@ -125,7 +123,11 @@ const Portfolio: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/90 backdrop-blur-md p-4 animate-fade-in" onClick={() => setSelectedProduct(null)}>
            <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-sm shadow-2xl flex flex-col lg:flex-row" onClick={e => e.stopPropagation()}>
               <div className="w-full lg:w-3/5 bg-stone-100 relative min-h-[400px]">
-                 <img src={resolveImage(selectedProduct.images[0])} alt={selectedProduct.name} className="w-full h-full object-cover absolute inset-0" />
+                 <img 
+                    src={resolveImage(selectedProduct.images[0])} 
+                    alt={selectedProduct.name} 
+                    className="w-full h-full object-cover absolute inset-0" 
+                 />
                  <button onClick={() => setSelectedProduct(null)} className="absolute top-4 left-4 lg:hidden bg-white/80 p-2 rounded-full text-stone-900 shadow-xl"><X size={20} /></button>
               </div>
               <div className="w-full lg:w-2/5 p-8 lg:p-16 flex flex-col justify-center">
@@ -172,7 +174,7 @@ const Portfolio: React.FC = () => {
                             {activeCategoryDef?.title}
                         </h1>
                         <p className="text-stone-400 font-mono text-xs uppercase tracking-[0.2em]">
-                            {filteredProducts.length} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
+                            {isLoading ? '...' : filteredProducts.length} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
                         </p>
                     </div>
                     {config?.catalog?.url && (
@@ -183,22 +185,25 @@ const Portfolio: React.FC = () => {
                     )}
                 </div>
             ) : (
-                <div className="max-w-4xl">
-                    <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Archive Registry</h3>
-                    <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter">Portfolio</h1>
-                    <p className="text-stone-500 text-xl md:text-2xl font-light leading-relaxed max-w-2xl">
-                        A comprehensive archive of precision woodwork solutions engineered for global hospitality and commercial luxury.
-                    </p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                    <div className="max-w-2xl">
+                        <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Archive Registry</h3>
+                        <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter leading-none">Portfolio</h1>
+                        <p className="text-stone-500 text-xl md:text-2xl font-light leading-relaxed">
+                            A comprehensive archive of precision woodwork solutions engineered for global hospitality and commercial luxury.
+                        </p>
+                    </div>
+                    {heroPoster && (
+                        <div className="hidden lg:block relative aspect-[16/9] bg-stone-100 overflow-hidden shadow-2xl rounded-sm">
+                            <img src={heroPoster} className="w-full h-full object-cover opacity-90" alt="Portfolio Feature" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent"></div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
 
-        {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-40 text-stone-300">
-                <Loader2 className="animate-spin mb-4" size={48} />
-                <span className="font-mono text-[10px] uppercase tracking-widest">Synchronizing Archive Assets...</span>
-            </div>
-        ) : error ? (
+        {error ? (
             <div className="flex flex-col items-center justify-center py-40 text-stone-400 border border-dashed border-stone-100">
                 <AlertCircle className="mb-4 text-safety-700" size={48} />
                 <p className="font-mono text-sm uppercase tracking-widest">{error}</p>
@@ -207,32 +212,35 @@ const Portfolio: React.FC = () => {
             <>
                 {activeCategory === 'all' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12 animate-fade-in">
-                        {availableCategories.map((cat) => {
-                            const count = products.filter(p => (p.category || '').toLowerCase().trim() === cat.id.toLowerCase().trim()).length;
-                            return (
-                                <div key={cat.id} className="group cursor-pointer flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
-                                    <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
-                                        <img src={resolveImage(cat.image)} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
-                                        <div className="absolute inset-0 bg-stone-950/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
-                                            <div className="w-16 h-16 bg-white flex items-center justify-center rounded-full scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500">
-                                                <ArrowRight size={24} className="text-stone-900" />
+                        {isLoading ? (
+                            Array.from({ length: 6 }).map((_, idx) => <ProductCardSkeleton key={idx} />)
+                        ) : (
+                            availableCategories.map((cat) => {
+                                const count = products.filter(p => (p.category || '').toLowerCase().trim() === cat.id.toLowerCase().trim()).length;
+                                return (
+                                    <div key={cat.id} className="group cursor-pointer flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
+                                        <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
+                                            <img src={resolveImage(cat.image)} loading="lazy" alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                            <div className="absolute inset-0 bg-stone-950/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
+                                                <div className="w-16 h-16 bg-white flex items-center justify-center rounded-full scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500">
+                                                    <ArrowRight size={24} className="text-stone-900" />
+                                                </div>
+                                            </div>
+                                            <div className="absolute top-6 left-6">
+                                                <span className="bg-stone-900 text-white px-3 py-1 font-mono text-[10px] uppercase tracking-widest">{count} Items</span>
                                             </div>
                                         </div>
-                                        <div className="absolute top-6 left-6">
-                                            <span className="bg-stone-900 text-white px-3 py-1 font-mono text-[10px] uppercase tracking-widest">{count} Items</span>
+                                        <div className="flex flex-col">
+                                            <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title}</h3>
+                                            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em] font-mono">{cat.subtitle}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col">
-                                        <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title}</h3>
-                                        <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em] font-mono">{cat.subtitle}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 ) : (
                     <div className="flex flex-col lg:flex-row gap-16 animate-fade-in">
-                        {/* Sidebar */}
                         <aside className="lg:w-64 flex-shrink-0">
                             <div className="sticky top-32">
                                 <h3 className="text-stone-900 font-mono font-bold text-[10px] uppercase tracking-[0.3em] mb-10 pb-4 border-b border-stone-100 flex items-center">
@@ -248,7 +256,6 @@ const Portfolio: React.FC = () => {
                                         <span className="text-xs font-bold uppercase tracking-widest">Master Set</span>
                                         <Hash size={12} className={activeSubCategory === 'all' ? 'opacity-100' : 'opacity-0'} />
                                     </button>
-                                    
                                     {subCategories.map(sub => (
                                         <button 
                                             key={sub}
@@ -262,21 +269,14 @@ const Portfolio: React.FC = () => {
                                         </button>
                                     ))}
                                 </div>
-
-                                <div className="mt-20 p-8 bg-stone-50 border border-stone-100 rounded-sm">
-                                    <p className="text-[10px] text-stone-400 uppercase tracking-widest leading-relaxed font-bold font-mono">
-                                        Engineering support is available for unique production requirements.
-                                    </p>
-                                    <Link to="/inquire" className="text-[10px] text-safety-700 uppercase font-black tracking-[0.2em] mt-4 block border-b border-safety-700 w-fit font-mono">
-                                        Project Portal
-                                    </Link>
-                                </div>
                             </div>
                         </aside>
-
-                        {/* Results Grid */}
                         <div className="flex-grow">
-                            {filteredProducts.length === 0 ? (
+                            {isLoading ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-12">
+                                    {Array.from({ length: 6 }).map((_, idx) => <ProductCardSkeleton key={idx} />)}
+                                </div>
+                            ) : filteredProducts.length === 0 ? (
                                 <div className="py-40 text-center bg-stone-50 border border-dashed border-stone-200 flex flex-col items-center">
                                     <LayoutGrid size={48} className="text-stone-200 mb-6" />
                                     <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">Zero entries detected for specified criteria.</p>
@@ -286,8 +286,12 @@ const Portfolio: React.FC = () => {
                                     {filteredProducts.map((product, idx) => (
                                         <div key={product.id || idx} className="group cursor-pointer" onClick={() => setSelectedProduct(product)}>
                                             <div className="aspect-square w-full bg-stone-100 relative overflow-hidden mb-6 shadow-sm transition-all duration-500 group-hover:shadow-xl">
-                                                <img src={resolveImage(product.images[0])} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                                                <div className="absolute inset-0 bg-stone-900/5 group-hover:bg-transparent transition-colors"></div>
+                                                <img 
+                                                    src={resolveImage(product.images[0])} 
+                                                    loading="lazy"
+                                                    alt={product.name} 
+                                                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                                                />
                                                 {product.sub_category && (
                                                     <div className="absolute bottom-4 left-4">
                                                         <span className="bg-white/90 backdrop-blur-md text-stone-900 px-3 py-1 text-[9px] font-mono font-bold uppercase tracking-[0.2em]">{product.sub_category}</span>

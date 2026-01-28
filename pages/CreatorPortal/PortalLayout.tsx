@@ -2,8 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield, Factory, LogOut, Globe, 
-  Activity, ChevronRight 
 } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -17,8 +17,10 @@ interface PortalLayoutProps {
 const PortalLayout: React.FC<PortalLayoutProps> = ({ 
   children, role, userName, navItems, activeTab, onTabChange 
 }) => {
+  const { t } = useLanguage();
+  
   const handleLogout = () => {
-    if (confirm("Are you sure you want to exit the system?")) {
+    if (confirm("Terminate current session?")) {
         sessionStorage.clear();
         window.location.href = '#/admin-pzf-2025';
     }
@@ -26,11 +28,10 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-stone-50 flex overflow-hidden">
-       {/* Sidebar */}
        <aside className="w-64 bg-stone-900 text-white flex flex-col flex-shrink-0 z-50">
           <div className="p-8 border-b border-white/5 flex items-center gap-3">
               <div className="bg-safety-700 w-8 h-8 rounded flex items-center justify-center font-serif font-bold text-white shadow-lg">P</div>
-              <div className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase opacity-60">PZ System Kernel</div>
+              <div className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase opacity-60">System Kernel</div>
           </div>
 
           <nav className="flex-grow p-4 space-y-1">
@@ -59,7 +60,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                     <span className="text-xs font-bold text-white truncate">{userName}</span>
                  </div>
                  <p className="text-[10px] text-stone-600 uppercase tracking-widest font-mono">
-                    {role === 'ADMIN' ? 'System Administrator' : 'Factory Operator'}
+                    {role === 'ADMIN' ? 'Administrator' : 'Factory Operator'}
                  </p>
              </div>
              
@@ -67,21 +68,19 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                 onClick={handleLogout}
                 className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-stone-500 hover:text-red-500 transition-colors"
              >
-                Logout System <LogOut size={14} />
+                {t.admin.logout} <LogOut size={14} />
              </button>
           </div>
        </aside>
 
-       {/* Main View */}
        <div className="flex-grow flex flex-col h-screen overflow-hidden">
-          {/* Header */}
           <header className="bg-white border-b border-stone-200 px-8 h-20 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-4">
                   <h2 className="font-serif text-xl text-stone-900">
                     {navItems.find(i => i.id === activeTab)?.label}
                   </h2>
                   <div className="flex items-center gap-2 px-2 py-1 bg-stone-100 rounded text-[9px] font-mono text-stone-500 uppercase tracking-widest">
-                    PZ-OS v2.5 // READY
+                    Registry OS v2.5 // READY
                   </div>
               </div>
 

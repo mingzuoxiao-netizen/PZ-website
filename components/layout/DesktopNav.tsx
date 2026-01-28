@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+// Fixed: Added missing ArrowRight import
+import { ChevronDown, Hash, Square, Triangle, Circle, ArrowRight } from 'lucide-react';
 import { NAV_ITEMS } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
@@ -45,7 +46,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
   const megaMenuData = {
     "/collections": [
         {
-            title: "Our Collections",
+            title: "Archive Registry",
+            icon: <Square size={10} className="text-safety-700" />,
             items: filteredCategories.map(cat => ({
                 label: cat.title,
                 href: `/collections?category=${cat.id}`
@@ -54,7 +56,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     ],
     "/manufacturing": [
       {
-        title: t.nav.mega.process,
+        title: "Industrial Flow",
+        icon: <Triangle size={10} className="text-safety-700" />,
         items: [
           { label: t.nav.mega.lumberPrep, href: "/manufacturing#lumber" },
           { label: t.nav.mega.cnc5Axis, href: "/manufacturing#cnc" },
@@ -62,7 +65,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
         ],
       },
       {
-        title: t.nav.mega.standards,
+        title: "Registry Standards",
+        icon: <Circle size={10} className="text-safety-700" />,
         items: [
           { label: t.nav.mega.incomingQC, href: "/manufacturing#iqc" },
           { label: t.nav.mega.inProcessQC, href: "/manufacturing#ipqc" },
@@ -72,7 +76,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     ],
     "/capabilities": [
       {
-        title: t.nav.mega.services,
+        title: "Strategic Channels",
+        icon: <Triangle size={10} className="text-safety-700" />,
         items: [
           { label: t.nav.mega.oemProduction, href: "/capabilities#oem" },
           { label: t.nav.mega.odmDesign, href: "/capabilities#odm" },
@@ -80,7 +85,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
         ],
       },
       {
-        title: t.nav.mega.compliance,
+        title: "Safety Protocols",
+        icon: <Circle size={10} className="text-safety-700" />,
         items: [
           { label: t.nav.mega.tscaTitleVI, href: "/capabilities#tsca" },
           { label: t.nav.mega.fscCertification, href: "/capabilities#fsc" },
@@ -128,18 +134,16 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
 
   const getFocusText = (path: string | null) => {
       switch(path) {
-          case '/collections': return "Scalable Woodwork";
-          case '/manufacturing': return t.nav.mega.focusPrecision;
-          case '/capabilities': return t.nav.mega.focusEng;
-          default: return t.nav.mega.focusLogistics;
+          case '/collections': return "Scalable Craftsmanship";
+          case '/manufacturing': return "Zero-Defect Logic";
+          case '/capabilities': return "Engineering Solutions";
+          default: return "Global Supply Chain";
       }
   }
 
   const getGridCols = (count: number) => {
-    if (count === 1) return 'grid-cols-1';
-    if (count === 2) return 'grid-cols-2';
-    if (count === 3) return 'grid-cols-3';
-    return 'grid-cols-4';
+    if (count === 1) return 'grid-cols-1 max-w-sm';
+    return 'grid-cols-2';
   };
 
   useEffect(() => {
@@ -148,13 +152,11 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
     };
   }, []);
 
-  const navLinkClasses = language === 'en' 
-    ? 'text-[11px] lg:text-[12px] xl:text-[13px] font-bold tracking-[0.1em]' 
-    : 'text-[14px] lg:text-[15px] font-bold tracking-[0.05em]';
+  const navLinkClasses = 'text-[11px] font-bold tracking-[0.2em]';
 
   return (
     <>
-      <nav className={`hidden lg:flex items-center space-x-6 lg:space-x-8 xl:space-x-12 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
+      <nav className={`hidden lg:flex items-center space-x-10 ${isSearchOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-300 h-full`}>
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.path || activeMenu === item.path;
           const hasMegaMenu = !!(megaMenuData as any)[item.path];
@@ -168,34 +170,32 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
             >
               <Link
                 to={item.path}
-                className={`${navLinkClasses} uppercase transition-colors duration-300 flex items-center whitespace-nowrap ${
+                className={`${navLinkClasses} uppercase transition-all duration-300 flex items-center whitespace-nowrap ${
                   isActive
-                    ? useWhiteNav ? 'text-safety-700' : 'text-white'
+                    ? 'text-safety-700' 
                     : navTextColor
                 }`}
               >
                 {t.nav.header[item.key]}
                 {hasMegaMenu && (
                   <ChevronDown
-                    size={14}
-                    className={`ml-1 transition-transform duration-300 opacity-60 ${activeMenu === item.path ? 'rotate-180' : ''}`}
+                    size={10}
+                    className={`ml-2 transition-transform duration-500 opacity-40 group-hover:opacity-100 ${activeMenu === item.path ? 'rotate-180 text-safety-700' : ''}`}
                   />
                 )}
               </Link>
-              <span
-                className={`absolute bottom-8 left-0 h-[2px] bg-safety-700 transition-all duration-300 ease-out ${
-                  isActive && useWhiteNav ? 'w-full' : 'w-0'
-                }`}
-              ></span>
+              {/* Active Indicator Line */}
+              <div className={`absolute bottom-0 left-0 w-full h-[3px] bg-safety-700 transition-all duration-500 origin-left ${isActive ? 'scale-x-100' : 'scale-x-0'}`}></div>
             </div>
           );
         })}
       </nav>
 
+      {/* REFINED MEGA MENU OVERLAY */}
       <div
         className={`
-           fixed top-[70px] md:top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-2xl overflow-hidden transition-all duration-300 ease-in-out z-40
-           ${activeMenu ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2 pointer-events-none'}
+           fixed top-[70px] md:top-[90px] left-0 w-full bg-white border-t border-stone-100 shadow-[0_40px_80px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-500 ease-in-out z-40
+           ${activeMenu ? 'opacity-100 visible translate-y-0 h-auto' : 'opacity-0 invisible -translate-y-4 h-0 pointer-events-none'}
          `}
         onMouseEnter={() => {
           if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -204,21 +204,25 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
       >
         {activeMenu && (megaMenuData as any)[activeMenu] && (
           <div className="container mx-auto px-6 md:px-12">
-             <div className="flex flex-col lg:flex-row h-[420px]">
-               <div className={`flex-grow py-16 grid gap-x-4 gap-y-8 bg-white pr-6 overflow-y-auto ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
+             <div className="flex flex-col lg:flex-row min-h-[480px]">
+               {/* Left: Technical Nav Grid */}
+               <div className={`flex-grow py-16 grid gap-x-16 gap-y-12 bg-white pr-12 overflow-y-auto ${getGridCols((megaMenuData as any)[activeMenu].length)}`}>
                   {(megaMenuData as any)[activeMenu].map((group: any, idx: number) => (
-                    <div key={idx} className="space-y-4 animate-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
-                       <h3 className="font-serif text-lg text-stone-900 leading-tight">{group.title}</h3>
-                       <div className="w-6 h-[1px] bg-stone-200"></div>
-                       <ul className="space-y-2.5">
+                    <div key={idx} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
+                       <div className="flex items-center gap-3 mb-8">
+                          {group.icon}
+                          <h3 className="font-mono text-[9px] font-bold uppercase tracking-[0.4em] text-stone-400">{group.title}</h3>
+                       </div>
+                       <ul className="space-y-5">
                          {group.items.map((link: any, lIdx: number) => (
-                           <li key={lIdx}>
+                           <li key={lIdx} className="group/item">
                              <Link
                                to={link.href}
                                onClick={() => handleMenuClick(link.href)}
-                               className="block text-xs font-bold uppercase tracking-[0.1em] text-stone-500 hover:text-safety-700 transition-colors duration-300 truncate"
+                               className="flex items-center text-xl md:text-2xl font-serif text-stone-900 hover:text-safety-700 transition-all duration-300 transform group-hover/item:translate-x-3"
                              >
                                {link.label}
+                               <ArrowRight size={14} className="ml-4 opacity-0 group-hover/item:opacity-100 transition-all -translate-x-2 group-hover/item:translate-x-0" />
                              </Link>
                            </li>
                          ))}
@@ -227,12 +231,16 @@ const DesktopNav: React.FC<DesktopNavProps> = ({
                   ))}
                </div>
 
-               <div className="w-[300px] xl:w-[360px] bg-stone-50 h-full relative group overflow-hidden hidden lg:block border-l border-stone-100 flex-shrink-0">
-                  <img src={getMenuImage(activeMenu)} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-100" alt="Featured" />
-                  <div className="absolute inset-0 bg-stone-900/10 group-hover:bg-transparent transition-colors"></div>
-                  <div className="absolute bottom-0 left-0 p-10 w-full bg-gradient-to-t from-stone-900/90 to-transparent">
-                     <span className="block text-safety-700 text-xs uppercase tracking-[0.3em] font-bold mb-2">FOCUS</span>
-                     <p className="text-white font-serif text-2xl italic">{getFocusText(activeMenu)}</p>
+               {/* Right: Immersive Focus Panel */}
+               <div className="w-[440px] xl:w-[520px] bg-stone-900 h-auto relative group overflow-hidden hidden lg:block border-l border-stone-50 flex-shrink-0">
+                  <img src={getMenuImage(activeMenu)} className="absolute inset-0 w-full h-full object-cover transition-all duration-[4s] group-hover:scale-105 opacity-60" alt="Featured" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-stone-950 via-stone-950/20 to-transparent opacity-80 group-hover:opacity-40 transition-opacity"></div>
+                  <div className="absolute inset-0 p-16 flex flex-col justify-end">
+                     <div className="translate-y-6 group-hover:translate-y-0 transition-transform duration-1000">
+                        <span className="inline-block bg-safety-700 text-white text-[8px] uppercase tracking-[0.5em] font-black mb-6 px-3 py-1">Registry Insight</span>
+                        <p className="text-white font-serif text-5xl lg:text-6xl italic leading-tight mb-8 drop-shadow-lg">{getFocusText(activeMenu)}</p>
+                        <div className="h-[2px] w-0 group-hover:w-full bg-safety-700 transition-all duration-1000 delay-300 shadow-[0_0_15px_rgba(194,65,12,0.5)]"></div>
+                     </div>
                   </div>
                </div>
              </div>

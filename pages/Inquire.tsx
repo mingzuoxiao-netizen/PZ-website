@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { API_BASE } from '../utils/siteConfig';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { resolveImage } from '../utils/imageResolver';
 
 const INQUIRY_API = `${API_BASE}/inquiries`;
 const TURNSTILE_SITE_KEY = '0x4AAAAAACCcwDofTxqfYxSe';
@@ -16,7 +18,10 @@ declare global {
 const Inquire: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+  const { config } = usePublishedSiteConfig();
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const heroPoster = resolveImage(config?.inquire?.hero_poster);
 
   const getSafeCurrentUrl = () => {
     try {
@@ -168,16 +173,39 @@ const Inquire: React.FC = () => {
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
       <div className="container mx-auto px-6 md:px-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          <div>
-            <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-8">{t.inquire.title}</h1>
-            <p className="text-stone-600 text-lg leading-relaxed mb-12">{t.inquire.desc}</p>
+        {/* Cinematic Header */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-20 items-center">
+            <div>
+                <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Registry Portal</h3>
+                <h1 className="font-serif text-5xl md:text-7xl text-stone-900 mb-8 tracking-tighter leading-none">{t.inquire.title}</h1>
+                <p className="text-stone-600 text-xl md:text-2xl font-light leading-relaxed max-w-xl">{t.inquire.desc}</p>
+            </div>
+            {heroPoster && (
+                <div className="hidden lg:block relative aspect-[16/9] bg-stone-100 overflow-hidden shadow-2xl rounded-sm">
+                    <img src={heroPoster} className="w-full h-full object-cover" alt="Inquire Feature" />
+                    <div className="absolute inset-0 bg-stone-900/10"></div>
+                </div>
+            )}
+        </div>
 
-            <div className="space-y-8 border-t border-stone-200 pt-8">
-              <div>
-                <h3 className="text-stone-900 font-bold mb-2">{t.inquire.oem}</h3>
-                <p className="text-stone-500 text-sm">{t.inquire.oemDesc}</p>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="space-y-12">
+            <div className="border-l-4 border-stone-900 pl-8">
+                <h3 className="text-stone-900 font-bold uppercase tracking-widest text-xs mb-4">{t.inquire.oem}</h3>
+                <p className="text-stone-500 leading-relaxed">{t.inquire.oemDesc}</p>
+            </div>
+            
+            <div className="bg-white p-10 border border-stone-200 shadow-sm">
+                <div className="grid grid-cols-2 gap-8 text-[10px] font-mono uppercase tracking-[0.3em] font-bold text-stone-400">
+                    <div className="space-y-2">
+                        <span className="text-stone-900 block">Headquarters</span>
+                        Zhaoqing, China
+                    </div>
+                    <div className="space-y-2">
+                        <span className="text-stone-900 block">Export Hub</span>
+                        Kandal, Cambodia
+                    </div>
+                </div>
             </div>
           </div>
 

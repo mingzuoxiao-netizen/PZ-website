@@ -3,18 +3,15 @@ import { Category } from "../types";
 import { categories as staticCategories } from "../data/inventory";
 import { adminFetch } from "./adminFetch";
 
-/* =========================
-   API
-========================= */
-
-// Updated to relative path for Cloudflare Pages Functions proxy
 export const API_BASE = "/api";
 
-/* =========================
-   Types
-========================= */
-
 export interface SiteMeta {
+  version: string;
+  published_at: string | null;
+}
+
+export interface SiteConfigEnvelope {
+  config: SiteConfig;
   version: string;
   published_at: string | null;
 }
@@ -41,10 +38,18 @@ export interface SiteConfig {
     };
   };
   catalog: { url: string };
-
   manufacturing: {
     hero_machinery: string;
     hero_qc: string;
+  };
+  capabilities: {
+    hero_poster: string;
+  };
+  portfolio: {
+    hero_poster: string;
+  };
+  inquire: {
+    hero_poster: string;
   };
   capacity: {
     map_bg: string;
@@ -80,16 +85,6 @@ export interface SiteConfig {
   categories: Category[];
 }
 
-export interface SiteConfigEnvelope {
-  config: SiteConfig;
-  version: string;
-  published_at: string;
-}
-
-/* =========================
-   Defaults
-========================= */
-
 export const DEFAULT_CONFIG: SiteConfig = {
   home: {
     hero: {
@@ -115,6 +110,15 @@ export const DEFAULT_CONFIG: SiteConfig = {
   manufacturing: {
     hero_machinery: DEFAULT_ASSETS[ASSET_KEYS.MFG_MACHINERY_HERO],
     hero_qc: DEFAULT_ASSETS[ASSET_KEYS.MFG_QC_HERO],
+  },
+  capabilities: {
+    hero_poster: DEFAULT_ASSETS[ASSET_KEYS.MENU_CAPABILITIES],
+  },
+  portfolio: {
+    hero_poster: DEFAULT_ASSETS[ASSET_KEYS.MENU_COLLECTIONS],
+  },
+  inquire: {
+    hero_poster: DEFAULT_ASSETS[ASSET_KEYS.HOME_CTA_BG],
   },
   capacity: {
     map_bg: DEFAULT_ASSETS[ASSET_KEYS.CAPACITY_MAP_BG],
@@ -150,33 +154,20 @@ export const DEFAULT_CONFIG: SiteConfig = {
   categories: staticCategories,
 };
 
-/* =========================
-   Fetchers
-========================= */
-
-/**
- * Public Config Fetcher
- */
-export async function fetchSiteConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
+export async function fetchSiteConfig(): Promise<SiteConfig | any | null> {
   try {
     const res = await fetch(`${API_BASE}/site-config`);
-    if (!res.ok) {
-      console.warn(`[SiteConfig] Request failed with status: ${res.status}`);
-      return null;
-    }
-    return (await res.json()) as (SiteConfig | SiteConfigEnvelope);
+    if (!res.ok) return null;
+    return await res.json();
   } catch (err) {
     return null;
   }
 }
 
-/**
- * Preview Config Fetcher (Authorized)
- */
-export async function fetchPreviewConfig(): Promise<SiteConfig | SiteConfigEnvelope | null> {
+export async function fetchPreviewConfig(): Promise<SiteConfig | any | null> {
     try {
         const res = await adminFetch('admin/preview/site-config');
-        return res as (SiteConfig | SiteConfigEnvelope);
+        return res;
     } catch (e) {
         console.error("[Config] Preview fetch failed", e);
         return null;

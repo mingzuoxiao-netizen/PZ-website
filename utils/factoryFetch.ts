@@ -1,4 +1,3 @@
-
 import { API_BASE } from './siteConfig';
 import { ADMIN_SESSION_KEY } from './adminFetch';
 
@@ -42,6 +41,7 @@ export async function factoryFetch<T = any>(
       method: customConfig.method || "GET",
       ...customConfig,
       headers,
+      cache: "no-store", // ✅ Ensure factory ops always hit the origin
     });
 
     if (!response.ok) {

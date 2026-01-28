@@ -49,6 +49,7 @@ export async function adminFetch<T = any>(
       method: customConfig.method || "GET",
       ...customConfig,
       headers,
+      cache: "no-store", 
     });
 
     if (response.status === 204) return {} as T;
@@ -56,19 +57,30 @@ export async function adminFetch<T = any>(
     if (!response.ok) {
       let errorDetail = "";
       try {
-        errorDetail = await response.text();
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+           const json = await response.json();
+           errorDetail = json.message || json.error || "";
+        } else {
+           errorDetail = await response.text();
+        }
       } catch {}
 
+      // Handle HTML error pages from Workers/Proxy
+      if (errorDetail.includes("<!DOCTYPE html>")) {
+         errorDetail = "Registry Gateway Fault. Check Serverless Worker configuration.";
+      }
+
       if (response.status === 404) {
-        throw new Error(`Registry Endpoint Not Found (404): ${url}\nPlease verify API mapping.`);
+        throw new Error(`Archive endpoint not found (404): ${url}`);
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error("Registry session expired or access restricted.");
+        throw new Error("Session expired or unauthorized. Re-authentication required.");
       }
       if (response.status === 500) {
-        throw new Error(`Registry Server Error (500): ${errorDetail || "Unknown Cause"}`);
+        throw new Error(`Internal Server Fault (500): ${errorDetail || "Unknown Cause"}`);
       }
-      throw new Error(errorDetail || `Registry transmission failed: HTTP ${response.status}`);
+      throw new Error(errorDetail || `Protocol Error: HTTP ${response.status}`);
     }
 
     const contentType = response.headers.get("content-type") || "";
@@ -78,7 +90,7 @@ export async function adminFetch<T = any>(
     return (await response.text()) as unknown as T;
   } catch (e: any) {
     if (e?.message === "Failed to fetch") {
-      throw new Error("Network Fault: Unable to reach registry gateway. Check connection proxy.");
+      throw new Error("Network Path Fault: Unable to reach registry gateway.");
     }
     throw e;
   }
