@@ -36,6 +36,11 @@ export async function adminFetch<T = any>(
   const headers = new Headers(customConfig.headers || {});
   const isFormData = customConfig.body instanceof FormData;
 
+  // ✅ FormData 绝对不能手动带 Content-Type（否则 boundary 丢）
+  if (isFormData && headers.has("Content-Type")) {
+    headers.delete("Content-Type");
+  }
+
   if (!isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -49,38 +54,38 @@ export async function adminFetch<T = any>(
       method: customConfig.method || "GET",
       ...customConfig,
       headers,
-      cache: "no-store", 
+      cache: "no-store",
     });
 
-    if (response.status === 204) return {} as T;
+    if (response.status === 204 || response.status === 202) return {} as T;
 
     if (!response.ok) {
       let errorDetail = "";
       try {
         const contentType = response.headers.get("content-type") || "";
         if (contentType.includes("application/json")) {
-           const json = await response.json();
-           errorDetail = json.message || json.error || "";
+          const json = await response.json();
+          errorDetail = json.message || json.error || "";
         } else {
-           errorDetail = await response.text();
+          errorDetail = await response.text();
         }
       } catch {}
 
-      // Handle HTML error pages from Workers/Proxy
       if (errorDetail.includes("<!DOCTYPE html>")) {
-         errorDetail = "Registry Gateway Fault. Check Serverless Worker configuration.";
+        errorDetail = "Registry Gateway Fault. Check Serverless Worker configuration.";
       }
 
       if (response.status === 404) {
         throw new Error(`Archive endpoint not found (404): ${url}`);
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error("Session expired or unauthorized. Re-authentication required.");
+        throw new Error(`Session expired or unauthorized. Re-authentication required. (HTTP ${response.status}) @ ${url}`);
       }
       if (response.status === 500) {
-        throw new Error(`Internal Server Fault (500): ${errorDetail || "Unknown Cause"}`);
+        throw new Error(`Internal Server Fault (500): ${errorDetail || "Unknown Cause"} @ ${url}`);
       }
-      throw new Error(errorDetail || `Protocol Error: HTTP ${response.status}`);
+
+      throw new Error(`${errorDetail || "Protocol Error"} (HTTP ${response.status}) @ ${url}`);
     }
 
     const contentType = response.headers.get("content-type") || "";
