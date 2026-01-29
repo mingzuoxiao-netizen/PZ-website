@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { factoryFetch } from '../../utils/factoryFetch';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
@@ -28,8 +28,8 @@ const FactoryWorkspace: React.FC = () => {
 
   const userName = sessionStorage.getItem('pz_user_name') || 'Factory Operator';
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await factoryFetch<{ products?: any[] }>('factory/products?limit=500');
       setProducts(normalizeProducts(res.products || []));
@@ -40,11 +40,34 @@ const FactoryWorkspace: React.FC = () => {
           const remoteConfig = json.config ?? json;
           if (remoteConfig.categories?.length > 0) setCategories(remoteConfig.categories);
       }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
+    } catch (e) { 
+        console.error("[Registry] Sync failed:", e); 
+    } finally {
+        if (!isSilent) setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  // Initial load and background synchronization
+  useEffect(() => { 
+    loadData(); 
+
+    // Polling: Sync registry every 10 seconds to detect Admin approvals
+    const intervalId = setInterval(() => {
+        // Only poll if not currently in an edit/creation flow
+        if (!isCreating && !editingItem && !isBatchCreating) {
+            loadData(true);
+        }
+    }, 10000);
+
+    // Focus Revalidation: Sync immediately when user returns to tab
+    const handleFocus = () => loadData(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadData, isCreating, editingItem, isBatchCreating]);
 
   const stats = useMemo(() => ({
       pending: products.filter(p => p.status === 'awaiting_review').length,
@@ -52,13 +75,10 @@ const FactoryWorkspace: React.FC = () => {
       total: products.length
   }), [products]);
 
-  // ✅ SAFE DRAFT SAVING: Factory always saves as 'draft' first
   const handleSaveDraft = async (product: ProductVariant) => {
     try {
       const method = product.id ? 'PUT' : 'POST';
       const url = product.id ? `factory/products/${product.id}` : 'factory/products';
-      
-      // Force status to 'draft' for any factory-initiated save
       const payload = { ...product, status: 'draft' };
       
       await factoryFetch(url, { method, body: JSON.stringify(payload) });
@@ -70,7 +90,6 @@ const FactoryWorkspace: React.FC = () => {
     } catch (e: any) { alert(e.message); }
   };
 
-  // ✅ DEDICATED SUBMISSION: Promote product to 'awaiting_review'
   const handleSubmitForReview = async (productId: string) => {
       try {
           await factoryFetch(`factory/products/${productId}/submit`, { method: 'POST' });
@@ -85,7 +104,6 @@ const FactoryWorkspace: React.FC = () => {
 
   const handleBatchSave = async (newProducts: any[]) => {
       try {
-          // Batch inductions always start as drafts for safety
           await Promise.all(newProducts.map(p => 
             factoryFetch('factory/products', { method: 'POST', body: JSON.stringify({ ...p, status: 'draft' }) })
           ));
@@ -208,7 +226,7 @@ const FactoryWorkspace: React.FC = () => {
                     categories={categories} 
                     onEdit={setEditingItem} 
                     onCreate={() => setIsCreating(true)} 
-                    onRefresh={loadData} 
+                    onRefresh={() => loadData(true)} 
                     onBack={handleBack}
                     onSubmit={handleSubmitForReview}
                     userRole="FACTORY"

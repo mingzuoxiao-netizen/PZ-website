@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, RefreshCw, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, FileText, Image as ImageIcon, Plus } from 'lucide-react';
 import { processImage } from '../../../utils/imageHelpers';
 import { resolveImage } from '../../../utils/imageResolver';
 
@@ -16,59 +16,52 @@ interface PZImageManagerProps {
   accept?: string; 
 }
 
-interface FileStatus {
-    id: string;
-    name: string;
-    status: 'pending' | 'uploading' | 'success' | 'error';
-    errorMsg?: string;
-}
-
 const PZImageManager: React.FC<PZImageManagerProps> = ({
   images = [], onUpdate, onError, onUpload, onDelete, label, maxImages = Infinity, className, aspectRatio, accept = "image/*"
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState<FileStatus[]>([]);
   const isSingleMode = maxImages === 1;
-  const isPdf = (url: string) => url.toLowerCase().endsWith('.pdf');
 
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
-    if (!isSingleMode && images.length + fileList.length > maxImages) { onError(`Max ${maxImages} files allowed`); return; }
+    if (!isSingleMode && images.length + fileList.length > maxImages) { 
+        onError(`Registry Limit: Maximum ${maxImages} assets allowed.`); 
+        return; 
+    }
+
     setIsUploading(true);
-    const newQueue: FileStatus[] = Array.from(fileList).map(f => ({ id: Math.random().toString(36).substring(7), name: f.name, status: 'pending' }));
-    setUploadQueue(newQueue);
-    const results = await Promise.all(Array.from(fileList).map(async (originalFile, index) => {
-        const queueId = newQueue[index].id;
-        setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'uploading' } : item));
-        let file = originalFile;
-        if (aspectRatio && file.type.startsWith('image/')) {
-            try { file = await processImage(file, aspectRatio); } catch (e) { console.warn("Auto-crop failed", e); }
-        }
-        try { 
-            const url = await onUpload(file); 
-            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'success' } : item)); 
-            return url; 
-        } catch (err: any) {
-            setUploadQueue(prev => prev.map(item => item.id === queueId ? { ...item, status: 'error', errorMsg: err.message || 'Server error' } : item)); 
-            return null;
-        }
-    }));
-    const successfulUrls = results.filter((url): url is string => typeof url === 'string' && url.length > 0);
-    if (successfulUrls.length > 0) onUpdate(isSingleMode ? [successfulUrls[0]] : [...images, ...successfulUrls]);
-    setIsUploading(false);
-    setTimeout(() => { setUploadQueue([]); }, 4000);
+    try {
+        const results = await Promise.all(Array.from(fileList).map(async (originalFile) => {
+            let file = originalFile;
+            if (aspectRatio && file.type.startsWith('image/')) {
+                try { file = await processImage(file, aspectRatio); } catch (e) { console.warn("Auto-crop bypass", e); }
+            }
+            return await onUpload(file);
+        }));
+
+        const successfulUrls = results.filter(Boolean);
+        onUpdate(isSingleMode ? [successfulUrls[0]] : [...images, ...successfulUrls]);
+    } catch (err: any) {
+        onError(`Upload Protocol Error: ${err.message}`);
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const onDragLeave = () => setIsDragging(false);
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
   };
 
   const removeImage = async (index: number) => {
     const urlToRemove = images[index];
-    if (onDelete && urlToRemove) {
-        if (!confirm("This will permanently delete the image from the cloud. Proceed?")) return;
-        try {
-            await onDelete(urlToRemove);
-        } catch (e) {
-            console.warn("Server delete failed, removing from local state anyway.", e);
-        }
+    if (onDelete) {
+        try { await onDelete(urlToRemove); } catch (e) { console.warn("Reference removal only"); }
     }
     onUpdate(images.filter((_, i) => i !== index));
   };
@@ -81,51 +74,92 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     onUpdate(newArr);
   };
 
-  const setAsMain = (index: number) => {
-    if (index === 0) return;
-    const list = [...images];
-    list.unshift(list.splice(index, 1)[0]);
-    onUpdate(list);
-  };
-
   return (
-    <div className={className}>
-      {label && ( <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2 flex justify-between"><span>{label} {!isSingleMode && <span className="text-stone-400">({images.length})</span>}</span></label> )}
-      <input type="file" accept={accept} multiple={!isSingleMode} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} className="hidden" />
-      
-      {isSingleMode && images.length > 0 ? (
-        <div className="relative group border border-stone-200 rounded-sm overflow-hidden h-full bg-stone-50">
-          {isPdf(images[0]) ? ( <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-stone-100 text-stone-500"><FileText size={48} className="mb-2 text-amber-700"/><span className="text-xs font-mono break-all px-4 text-center">PDF</span></div>
-          ) : ( <img src={resolveImage(images[0])} className="w-full h-full object-cover" alt="" /> )}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-4">
-              <button onClick={() => fileInputRef.current?.click()} className="bg-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-amber-200">Replace</button>
-              <button onClick={() => removeImage(0)} className="bg-red-600 text-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-red-700">Delete</button>
-          </div>
+    <div className={`${className} font-sans`}>
+      {label && (
+        <div className="flex justify-between items-end mb-3">
+          <label className="text-[10px] uppercase font-bold text-stone-400 tracking-widest">{label}</label>
+          {!isSingleMode && <span className="text-[10px] font-mono text-stone-300">{images.length} / {maxImages === Infinity ? '∞' : maxImages} Units</span>}
         </div>
-      ) : (
-        <>
-          <div className="border-2 border-dashed border-stone-300 rounded-sm p-6 text-center cursor-pointer hover:border-amber-600 transition" onClick={() => !isUploading && fileInputRef.current?.click()}>
-            {isUploading ? <Loader2 size={24} className="animate-spin mx-auto text-amber-600" /> : <Upload size={24} className="mx-auto text-stone-400" />}
-            <p className="text-[10px] text-stone-500 font-bold mt-2 uppercase tracking-widest">Select Files</p>
+      )}
+
+      <div 
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={`
+          relative border-2 border-dashed rounded-sm transition-all duration-300 flex flex-col items-center justify-center p-8
+          ${isDragging ? 'border-safety-700 bg-safety-50/50' : 'border-stone-200 bg-stone-50 hover:border-stone-400'}
+          ${isUploading ? 'pointer-events-none' : 'cursor-pointer'}
+        `}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
+      >
+        <input type="file" accept={accept} multiple={!isSingleMode} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} className="hidden" />
+        
+        {isUploading ? (
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={32} className="animate-spin text-safety-700" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Indexing Assets...</p>
           </div>
-          {images.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {images.map((url, idx) => (
-                <div key={url + idx} className={`relative aspect-square border-2 rounded-sm overflow-hidden group ${idx === 0 ? 'border-amber-600 shadow-md' : 'border-stone-200'}`}>
-                  {isPdf(url) ? <FileText size={32} className="mx-auto mt-8 text-stone-300" /> : <img src={resolveImage(url)} className="w-full h-full object-cover" alt="" />}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition p-2 flex flex-col justify-between">
-                    <button onClick={() => removeImage(idx)} className="self-end p-1.5 bg-red-500 text-white rounded hover:bg-red-600"><X size={12} /></button>
-                    <div className="flex justify-between items-center">
-                        {idx > 0 && <button onClick={() => moveImage(idx, 'left')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowLeft size={12} /></button>}
-                        {idx < images.length - 1 && <button onClick={() => moveImage(idx, 'right')} className="p-1.5 bg-white rounded hover:bg-amber-400"><ArrowRight size={12} /></button>}
-                        {idx !== 0 && <button onClick={() => setAsMain(idx)} className="p-1.5 bg-stone-200 rounded hover:bg-amber-600 hover:text-white"><Star size={12} /></button>}
-                    </div>
-                  </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <Upload size={24} className={isDragging ? 'text-safety-700' : 'text-stone-300'} />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">
+              {isDragging ? 'Release to Upload' : 'Drag assets or click to browse'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
+          {images.map((url, idx) => (
+            <div key={url + idx} className="relative aspect-square bg-white border border-stone-200 group overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <img src={resolveImage(url)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
+              
+              {/* Status Badges */}
+              <div className="absolute top-2 left-2 flex gap-1">
+                {idx === 0 && (
+                  <span className="bg-safety-700 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
+                    <Star size={8} fill="currentColor" /> Primary
+                  </span>
+                )}
+              </div>
+
+              {/* Action Overlay */}
+              <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); removeImage(idx); }} 
+                  className="self-end p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700"
+                >
+                  <X size={12} />
+                </button>
+                
+                <div className="flex justify-center gap-2">
+                  {idx > 0 && (
+                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                      <ArrowLeft size={14} />
+                    </button>
+                  )}
+                  {idx < images.length - 1 && (
+                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'right'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                      <ArrowRight size={14} />
+                    </button>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
+          ))}
+          {!isSingleMode && images.length < maxImages && (
+             <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square border-2 border-dashed border-stone-200 rounded-sm flex flex-col items-center justify-center text-stone-300 hover:border-stone-400 hover:text-stone-500 transition-all"
+             >
+                <Plus size={24} />
+                <span className="text-[9px] font-bold uppercase mt-2">Add More</span>
+             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   );
