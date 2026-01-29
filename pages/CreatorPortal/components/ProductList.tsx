@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp } from 'lucide-react';
+import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
@@ -30,11 +30,9 @@ const ProductList: React.FC<ProductListProps> = ({
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
-  // 严格检查角色，避免默认 fallback 到 FACTORY
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
 
-  // 状态映射（中文）
   const statusMap: Record<string, { label: string, color: string }> = {
     all: { label: '全部状态', color: '' },
     published: { label: '已发布', color: 'bg-green-100 text-green-700' },
@@ -150,6 +148,9 @@ const ProductList: React.FC<ProductListProps> = ({
                     const imageUrl = resolveImage(item.images[0]);
                     const statusInfo = statusMap[item.status || 'draft'] || statusMap.draft;
                     
+                    const isPublished = item.status === 'published';
+                    const hasNoImages = !item.images || item.images.length === 0;
+
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
                         <button onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
@@ -159,7 +160,10 @@ const ProductList: React.FC<ProductListProps> = ({
                             {imageUrl ? (
                                 <img src={imageUrl} loading="lazy" alt="" className="w-full h-full object-cover mix-blend-multiply" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-stone-300 text-[8px]">无图</div>
+                                <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 text-[8px] bg-stone-50">
+                                   <AlertTriangle size={14} className="mb-1 text-amber-500 opacity-50" />
+                                   无素材
+                                </div>
                             )}
                         </div>
                         <div className="flex-grow min-w-0">
@@ -168,6 +172,11 @@ const ProductList: React.FC<ProductListProps> = ({
                                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border-none uppercase tracking-tighter ${statusInfo.color}`}>
                                     {statusInfo.label}
                                 </span>
+                                {isPublished && hasNoImages && (
+                                    <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title="由于缺少图片，此产品在前端网页上已隐藏。">
+                                        <AlertTriangle size={10} /> 前端已隐藏 (无图片)
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-4 font-mono text-[9px]">
                                 <span className="text-stone-400 font-bold uppercase">{item.code || "无编号"}</span>
