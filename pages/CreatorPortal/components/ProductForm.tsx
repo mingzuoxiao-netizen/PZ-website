@@ -3,7 +3,7 @@ import { ProductVariant, Category } from '../../../types';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
 import { useProductImageActions } from '../../../hooks/useProductImageActions';
-import { Save, ArrowLeft, Info, Send, Loader2, RefreshCw, Layers, ClipboardList, Database } from 'lucide-react';
+import { Save, ArrowLeft, Info, Send, Loader2, Database, ClipboardList } from 'lucide-react';
 
 interface ProductFormProps {
   initialData: Partial<ProductVariant>;
@@ -24,12 +24,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
 
-  const imageActions = useProductImageActions({
-      role: userRole,
-      autoPublish: userRole === 'ADMIN' ? 'products' : 'none',
-      allowCloudDelete: false
+  const { removeImage, reorderImages, setMainImage, uploadImage } = useProductImageActions({
+      productId: formData.id,
+      images: formData.images || [],
+      setImages: (imgs) => handleChange('images', imgs),
+      role: userRole
   });
 
   useEffect(() => {
@@ -40,39 +40,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const handleChange = (field: keyof ProductVariant, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleCloudDelete = async (urlToRemove: string) => {
-      if (!formData.id) {
-          const current = formData.images || [];
-          handleChange('images', current.filter(u => u !== urlToRemove));
-          return;
-      }
-      setIsSyncing(true);
-      try {
-          const updated = await imageActions.removeImageFromProduct(formData as any, urlToRemove);
-          setFormData(updated as any);
-      } catch (e: any) {
-          alert(`Sync Warning: ${e.message}`);
-      } finally {
-          setIsSyncing(false);
-      }
-  };
-
-  const handleImageUpdate = async (nextImages: string[]) => {
-      if (formData.id) {
-          setIsSyncing(true);
-          try {
-              const updated = await imageActions.reorderProductImages(formData as any, nextImages);
-              setFormData(updated as any);
-          } catch (e: any) {
-              alert(`Sort Sync Failed: ${e.message}`);
-          } finally {
-              setIsSyncing(false);
-          }
-      } else {
-          handleChange('images', nextImages);
-      }
   };
 
   const handleLocalSave = (e: React.FormEvent) => {
@@ -106,19 +73,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-fade-in pb-20">
-       
-       {/* Left: Functional Form */}
        <div className="lg:col-span-8">
           <div className="bg-white border border-stone-200 shadow-xl rounded-sm overflow-hidden relative">
-             {isSyncing && (
-                 <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-20 flex items-center justify-center">
-                     <div className="flex items-center gap-3 bg-stone-900 text-white px-6 py-3 rounded-full shadow-2xl">
-                         <RefreshCw size={16} className="animate-spin text-safety-700" />
-                         <span className="text-[10px] font-bold uppercase tracking-widest">Registry Syncing...</span>
-                     </div>
-                 </div>
-             )}
-
              <div className="bg-stone-900 px-8 py-4 flex justify-between items-center text-white">
                 <div className="flex items-center gap-3">
                    <ClipboardList size={18} className="text-safety-700" />
@@ -130,8 +86,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
              </div>
 
              <form onSubmit={handleLocalSave} className="p-8 space-y-12">
-                
-                {/* 1. Identification Section */}
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">01</div>
@@ -163,7 +117,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </section>
 
-                {/* 2. Core Information Section */}
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">02</div>
@@ -214,7 +167,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </section>
 
-                {/* 3. Assets Section */}
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">03</div>
@@ -222,20 +174,20 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                     <PZImageManager 
                         images={formData.images || []}
-                        onUpdate={handleImageUpdate}
-                        onDelete={handleCloudDelete}
-                        onUpload={imageActions.uploadImage}
+                        onUpdate={reorderImages}
+                        onDelete={removeImage}
+                        onUpload={uploadImage}
+                        onSetMain={setMainImage}
                         onError={alert}
                     />
                 </section>
 
-                {/* Form Actions */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-12 border-t border-stone-100">
                     <button type="button" onClick={onCancel} className="px-10 py-5 border border-stone-200 text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors flex items-center justify-center gap-3 group">
                         <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Discard
                     </button>
                     
-                    <button type="submit" disabled={submitting || isPromoting || isSyncing} className="flex-grow bg-white border-2 border-stone-900 text-stone-900 font-bold uppercase tracking-[0.2em] py-5 hover:bg-stone-900 hover:text-white transition-all flex items-center justify-center gap-3 shadow-lg">
+                    <button type="submit" disabled={submitting || isPromoting} className="flex-grow bg-white border-2 border-stone-900 text-stone-900 font-bold uppercase tracking-[0.2em] py-5 hover:bg-stone-900 hover:text-white transition-all flex items-center justify-center gap-3 shadow-lg">
                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                         Store Draft
                     </button>
@@ -244,7 +196,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         <button 
                             type="button" 
                             onClick={handlePromote}
-                            disabled={submitting || isPromoting || isSyncing} 
+                            disabled={submitting || isPromoting} 
                             className="flex-grow bg-safety-700 text-white font-bold uppercase tracking-[0.2em] py-5 hover:bg-safety-600 transition-all flex items-center justify-center gap-3 shadow-xl"
                         >
                             {isPromoting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -256,7 +208,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </div>
        </div>
 
-       {/* Right: Technical Blueprint Preview */}
        <div className="lg:col-span-4">
           <div className="sticky top-24">
               <div className="bg-stone-900 text-white px-5 py-3 flex items-center gap-2 rounded-t-sm">
@@ -266,7 +217,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
               <div className="border border-t-0 border-stone-200 p-1 bg-stone-50 shadow-2xl">
                  <LivePreview formData={formData} />
               </div>
-              
               <div className="mt-8 p-6 bg-amber-50 border border-amber-200 rounded-sm">
                   <div className="flex items-start gap-3">
                       <Info size={18} className="text-amber-700 flex-shrink-0 mt-0.5" />

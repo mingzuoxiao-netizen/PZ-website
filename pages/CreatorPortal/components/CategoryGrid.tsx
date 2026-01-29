@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, LayoutGrid, Plus, ArrowRight } from 'lucide-react';
+import { ChevronRight, LayoutGrid, Plus, ArrowRight, Sparkles } from 'lucide-react';
 import { Category, ProductVariant } from '../../../types';
 
 interface CategoryGridProps {
@@ -8,9 +8,10 @@ interface CategoryGridProps {
   onSelectCategory: (categoryId: string) => void;
   onSelectAll: () => void;
   onCreateCategory?: () => void;
+  newCategoryIds?: string[];
 }
 
-const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll, onCreateCategory }) => {
+const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll, onCreateCategory, newCategoryIds = [] }) => {
   const getCount = (catId: string) => {
     return products.filter(p => (p.category || '').toLowerCase() === catId.toLowerCase()).length;
   };
@@ -32,18 +33,29 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {categories.map((cat) => {
           const count = getCount(cat.id);
+          const isNew = newCategoryIds.includes(cat.id);
+
           return (
             <div 
                 key={cat.id}
                 onClick={() => onSelectCategory(cat.id)}
-                className="group bg-white border border-stone-200 hover:border-stone-900 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl flex flex-col p-10 min-h-[260px] rounded-sm"
+                className={`group bg-white border transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl flex flex-col p-10 min-h-[260px] rounded-sm relative overflow-hidden
+                    ${isNew ? 'border-safety-700 ring-4 ring-safety-700/10 animate-pulse' : 'border-stone-200 hover:border-stone-900'}
+                `}
             >
+                {isNew && (
+                    <div className="absolute top-0 right-0 bg-safety-700 text-white px-3 py-1 flex items-center gap-1.5 shadow-lg">
+                        <Sparkles size={10} fill="currentColor" />
+                        <span className="text-[8px] font-black uppercase tracking-widest">New Entry</span>
+                    </div>
+                )}
+
                 <div className="flex justify-between items-start mb-8">
-                    <div className="p-3 bg-stone-50 text-stone-400 rounded-sm group-hover:bg-stone-900 group-hover:text-white transition-colors">
+                    <div className={`p-3 rounded-sm transition-colors ${isNew ? 'bg-safety-700 text-white' : 'bg-stone-50 text-stone-400 group-hover:bg-stone-900 group-hover:text-white'}`}>
                         <LayoutGrid size={24} />
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="font-mono font-bold text-3xl text-stone-200 group-hover:text-safety-700 transition-colors">
+                        <span className={`font-mono font-bold text-3xl transition-colors ${isNew ? 'text-safety-700' : 'text-stone-200 group-hover:text-safety-700'}`}>
                             {String(count).padStart(2, '0')}
                         </span>
                         <span className="text-[8px] font-bold text-stone-300 uppercase tracking-tighter">SKU Count</span>

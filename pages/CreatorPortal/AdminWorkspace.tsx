@@ -75,7 +75,6 @@ const AdminWorkspace: React.FC = () => {
 
   useEffect(() => { loadProducts(); loadSiteConfig(); }, [loadProducts, loadSiteConfig]);
 
-  // 全局发布所有内容
   const handleDeployEverything = async () => {
     if (!confirm('确定要全局发布吗？这将会更新线上所有展示内容。')) return;
     setIsSyncing(true);
@@ -94,17 +93,15 @@ const AdminWorkspace: React.FC = () => {
       const isPublished = nextStatus === 'published' ? 1 : 0;
       
       if (product.id) {
-        await adminFetch(`admin/products/${product.id}`, { method: 'PUT', body: JSON.stringify({ ...product, is_published: isPublished }) });
+        await adminFetch(`admin/products/${product.id}`, { 
+          method: 'PUT', 
+          body: JSON.stringify({ ...product, is_published: isPublished, autoPublish: isPublished === 1 }) 
+        });
       } else {
-        await adminFetch('admin/products', { method: 'POST', body: JSON.stringify({ ...product, is_published: isPublished }) });
-      }
-      
-      // 如果保存时就是发布状态，触发自动同步
-      if (isPublished) {
-          await adminFetch('admin/publish/products', { method: 'POST' });
-          setHasPendingDeploy(false);
-      } else {
-          setHasPendingDeploy(true);
+        await adminFetch('admin/products', { 
+          method: 'POST', 
+          body: JSON.stringify({ ...product, is_published: isPublished }) 
+        });
       }
       
       setEditingProduct(null);
@@ -131,16 +128,11 @@ const AdminWorkspace: React.FC = () => {
       const isPublished = newStatus === 'published' ? 1 : 0;
       await Promise.all(ids.map(id => {
           const original = products.find(p => p.id === id);
-          return adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: newStatus, is_published: isPublished }) });
+          return adminFetch(`admin/products/${id}`, { 
+            method: 'PUT', 
+            body: JSON.stringify({ ...original, status: newStatus, is_published: isPublished, autoPublish: isPublished === 1 }) 
+          });
       }));
-      
-      if (isPublished) {
-          await adminFetch('admin/publish/products', { method: 'POST' });
-          setHasPendingDeploy(false);
-      } else {
-          setHasPendingDeploy(true);
-      }
-      
       await loadProducts();
       await loadReviewQueue();
     } catch (e: any) { alert(`系统错误: ${e.message}`); }
@@ -179,25 +171,23 @@ const AdminWorkspace: React.FC = () => {
               try {
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
                 if (!original) throw new Error("档案记录未找到");
-                
                 const nextStatus = action === 'approve' ? 'published' : 'rejected';
                 const isPublished = nextStatus === 'published' ? 1 : 0;
-                
-                await adminFetch(`admin/products/${id}`, { method: 'PUT', body: JSON.stringify({ ...original, status: nextStatus, is_published: isPublished }) });
-                
-                // ✅ 自动闭环逻辑：审批通过即触发发布
-                if (action === 'approve') {
-                    await adminFetch('admin/publish/products', { method: 'POST' });
-                } else {
-                    setHasPendingDeploy(true);
-                }
-                
+                await adminFetch(`admin/products/${id}`, { 
+                  method: 'PUT', 
+                  body: JSON.stringify({ 
+                    ...original, 
+                    status: nextStatus, 
+                    is_published: isPublished,
+                    autoPublish: action === 'approve' 
+                  }) 
+                });
                 await loadReviewQueue(); await loadProducts();
               } catch (e: any) { alert(e.message); }
             }}
             onProcessCategory={async (id, action) => {
               try {
-                const endpoint = action === 'approve' ? 'approve-publish' : 'reject';
+                const endpoint = action === 'approve' ? 'approve' : 'reject';
                 await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { method: 'POST' });
                 alert(action === 'approve' ? '提案已核准并发布。' : '申请已驳回。');
                 await loadReviewQueue(); await loadSiteConfig();
@@ -211,38 +201,12 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList 
-              items={products} 
-              isLoading={isProductsLoading} 
-              categories={siteConfig?.categories || DEFAULT_CONFIG.categories} 
-              onEdit={setEditingProduct} 
-              onDelete={handleDeleteProduct}
-              onCreate={() => setIsCreating(true)} 
-              onBack={() => {}} 
-              onBulkStatusChange={handleBulkStatusChange} 
-              onBulkDelete={async (ids) => { 
-                if(!confirm(`确认永久删除这 ${ids.length} 项记录吗？`)) return; 
-                for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); } 
-                loadProducts(); 
-              }} 
-              onRefresh={loadProducts} 
-              lang="zh" 
-              userRole="ADMIN"
-            />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onDelete={handleDeleteProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onBulkStatusChange={handleBulkStatusChange} onBulkDelete={async (ids) => { if(!confirm(`确认永久删除这 ${ids.length} 项记录吗？`)) return; for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); } loadProducts(); }} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
           )
         )}
 
         {activeTab === 'config' && (
-          <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => {
-              setIsSavingConfig(true);
-              try {
-                await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) });
-                setHasPendingDeploy(true);
-                await loadSiteConfig();
-              } catch (e: any) { alert(e.message); }
-              finally { setIsSavingConfig(false); }
-            }}
-            onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
+          <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => { setIsSavingConfig(true); try { await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) }); setHasPendingDeploy(true); await loadSiteConfig(); } catch (e: any) { alert(e.message); } finally { setIsSavingConfig(false); } }} onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
         )}
 
         {activeTab === 'accounts' && <AccountsManager />}

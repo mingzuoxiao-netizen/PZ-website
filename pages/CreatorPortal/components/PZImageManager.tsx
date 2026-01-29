@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, FileText, Image as ImageIcon, Plus } from 'lucide-react';
+import { Upload, X, Loader2, Star, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 import { processImage } from '../../../utils/imageHelpers';
 import { resolveImage } from '../../../utils/imageResolver';
 
@@ -9,6 +9,7 @@ interface PZImageManagerProps {
   onError: (msg: string) => void;
   onUpload: (file: File) => Promise<string>;
   onDelete?: (url: string) => Promise<void>; 
+  onSetMain?: (index: number) => void;
   label?: string;
   maxImages?: number;
   className?: string;
@@ -17,7 +18,7 @@ interface PZImageManagerProps {
 }
 
 const PZImageManager: React.FC<PZImageManagerProps> = ({
-  images = [], onUpdate, onError, onUpload, onDelete, label, maxImages = Infinity, className, aspectRatio, accept = "image/*"
+  images = [], onUpdate, onError, onUpload, onDelete, onSetMain, label, maxImages = Infinity, className, aspectRatio, accept = "image/*"
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -62,8 +63,9 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     const urlToRemove = images[index];
     if (onDelete) {
         try { await onDelete(urlToRemove); } catch (e) { console.warn("Reference removal only"); }
+    } else {
+        onUpdate(images.filter((_, i) => i !== index));
     }
-    onUpdate(images.filter((_, i) => i !== index));
   };
 
   const moveImage = (index: number, dir: 'left' | 'right') => {
@@ -116,8 +118,6 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           {images.map((url, idx) => (
             <div key={url + idx} className="relative aspect-square bg-white border border-stone-200 group overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <img src={resolveImage(url)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
-              
-              {/* Status Badges */}
               <div className="absolute top-2 left-2 flex gap-1">
                 {idx === 0 && (
                   <span className="bg-safety-700 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
@@ -125,16 +125,17 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                   </span>
                 )}
               </div>
-
-              {/* Action Overlay */}
               <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); removeImage(idx); }} 
-                  className="self-end p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700"
-                >
-                  <X size={12} />
-                </button>
-                
+                <div className="flex justify-between items-start">
+                   {onSetMain && idx !== 0 ? (
+                       <button onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="Set as Primary">
+                         <Star size={12} />
+                       </button>
+                   ) : <div></div>}
+                   <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="Remove Asset">
+                     <X size={12} />
+                   </button>
+                </div>
                 <div className="flex justify-center gap-2">
                   {idx > 0 && (
                     <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">

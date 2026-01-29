@@ -38,8 +38,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    const label = view === 'products' ? '项产品' : '项分类提案';
-    if (!confirm(`确定要批量核准选中的 ${selectedIds.length} ${label}吗？此操作将立即发布。`)) return;
+    if (!confirm(`Proceed with bulk approval for ${selectedIds.length} items? This triggers immediate publication.`)) return;
 
     setIsProcessing(true);
     try {
@@ -47,25 +46,12 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
         await Promise.all(selectedIds.map(id => processor(id, 'approve')));
         setSelectedIds([]);
         await reloadQueue();
-        alert(`成功核准 ${selectedIds.length} 项记录。`);
+        alert(`Successfully processed ${selectedIds.length} records.`);
     } catch (e: any) {
-        alert("批量处理完成，请检查列表确认是否有失败项。");
         await reloadQueue();
     } finally {
         setIsProcessing(false);
     }
-  };
-
-  const txt = { 
-      empty: "队列已清空", 
-      emptyDesc: "所有待审核的提交均已处理完毕。",
-      submitted: "等待处理",
-      rejectReason: "驳回原因",
-      confirmReject: "确认驳回",
-      cancel: "取消",
-      approve: "核准并发布",
-      approvePublish: "核准并创建分类",
-      reject: "驳回申请"
   };
 
   return (
@@ -77,7 +63,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                     ${view === 'products' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
-                <Package size={16} /> 待审产品档案 ({products.length})
+                <Package size={16} /> Pending Product SKUs ({products.length})
             </button>
             <button 
                 onClick={() => { setView('categories'); setSelectedIds([]); }}
@@ -85,15 +71,9 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                     ${view === 'categories' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
-                <LayoutGrid size={16} /> 系列创建提案 ({categoryRequests.length})
+                <LayoutGrid size={16} /> Series Proposals ({categoryRequests.length})
             </button>
-            
-            <button 
-                onClick={handleManualRefresh}
-                disabled={isManualLoading}
-                className="bg-white border border-stone-200 text-stone-400 hover:text-stone-900 px-6 py-4 rounded-sm transition-all"
-                title="刷新队列"
-            >
+            <button onClick={handleManualRefresh} disabled={isManualLoading} className="bg-white border border-stone-200 text-stone-400 hover:text-stone-900 px-6 py-4 rounded-sm transition-all">
                 <RefreshCw size={16} className={isManualLoading ? 'animate-spin' : ''} />
             </button>
         </div>
@@ -102,108 +82,68 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
             <div className="bg-stone-100 border border-stone-200 border-b-0 px-6 py-4 flex items-center justify-between">
                 <button onClick={toggleSelectAll} className="text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-2">
                     {selectedIds.length > 0 && selectedIds.length === currentItems.length ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
-                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono">全选 ({currentItems.length})</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Select All ({currentItems.length})</span>
                 </button>
-
                 {selectedIds.length > 0 && (
-                    <button 
-                        disabled={isProcessing}
-                        onClick={handleBulkApprove}
-                        className="bg-stone-900 text-white px-6 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all flex items-center gap-2 rounded-sm"
-                    >
+                    <button disabled={isProcessing} onClick={handleBulkApprove} className="bg-stone-900 text-white px-6 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all flex items-center gap-2 rounded-sm">
                         {isProcessing ? <RefreshCw className="animate-spin" size={14}/> : <CheckCircle size={14}/>}
-                        批量核准发布
+                        Approve & Publish
                     </button>
                 )}
             </div>
         )}
 
         {currentItems.length === 0 ? (
-            <div className="bg-white border border-stone-200 p-24 text-center rounded-sm animate-fade-in">
+            <div className="bg-white border border-stone-200 p-24 text-center rounded-sm">
                 <CheckCircle size={40} className="mx-auto mb-6 text-green-600" />
-                <h3 className="font-serif text-2xl text-stone-900 mb-2">{txt.empty}</h3>
-                <p className="text-stone-500 font-light text-sm">{txt.emptyDesc}</p>
-                <button 
-                    onClick={handleManualRefresh} 
-                    className="mt-8 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 underline flex items-center gap-2 mx-auto"
-                >
-                    <RefreshCw size={12} className={isManualLoading ? 'animate-spin' : ''} /> 检查新提交
-                </button>
+                <h3 className="font-serif text-2xl text-stone-900 mb-2">Registry Clear</h3>
+                <p className="text-stone-500 font-light text-sm">All submissions have been audited.</p>
             </div>
         ) : (
             <div className="space-y-4">
                 {currentItems.map(item => {
                     const isSelected = selectedIds.includes(item.id!);
                     return (
-                        <div 
-                            key={item.id} 
-                            className={`bg-white border transition-all flex flex-col md:flex-row overflow-hidden group
-                                ${isSelected ? 'border-safety-700 shadow-md' : 'border-stone-200 hover:border-stone-400 shadow-sm'}
-                            `}
-                        >
+                        <div key={item.id} className={`bg-white border transition-all flex flex-col md:flex-row overflow-hidden group ${isSelected ? 'border-safety-700 shadow-md' : 'border-stone-200 hover:border-stone-400 shadow-sm'}`}>
                             <div className="md:w-12 bg-stone-50 border-r border-stone-100 flex items-center justify-center flex-shrink-0">
                                 <button onClick={() => toggleSelect(item.id!)} className="text-stone-300">
                                     {isSelected ? <CheckSquare size={20} className="text-safety-700"/> : <Square size={20}/>}
                                 </button>
                             </div>
-
                             <div className="w-full md:w-48 h-48 bg-stone-100 flex-shrink-0 relative">
                                 {('images' in item ? item.images?.[0] : item.image) ? (
                                     <img src={resolveImage('images' in item ? item.images[0] : item.image)} className="w-full h-full object-cover" alt="" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">暂无预览</div>
+                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">NO ASSET</div>
                                 )}
                             </div>
-
                             <div className="p-6 flex-grow">
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <h4 className="font-serif text-xl text-stone-900">{('name' in item ? item.name : item.title)}</h4>
                                         <div className="flex gap-3 mt-1">
-                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">编号: {item.code}</span>}
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">
-                                                {'category' in item ? item.category : '新系列提案'}
-                                            </span>
+                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">REF: {item.code}</span>}
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">{'category' in item ? item.category : 'Proposal'}</span>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待核准</span>
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">Audit Required</span>
                                 </div>
-
-                                <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || '未提供技术备注。'}</p>
-
+                                <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || 'No technical remarks provided.'}</p>
                                 {rejectId === item.id ? (
-                                    <div className="bg-red-50 p-4 border border-red-100 animate-fade-in rounded-sm">
-                                        <textarea 
-                                            className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20"
-                                            placeholder="请输入驳回理由..."
-                                            value={rejectNote}
-                                            onChange={e => setRejectNote(e.target.value)}
-                                        />
+                                    <div className="bg-red-50 p-4 border border-red-100 rounded-sm">
+                                        <textarea className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20" placeholder="Feedback for factory..." value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
                                         <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => {
-                                                    if (!rejectNote.trim()) { alert("备注必填。"); return; }
-                                                    view === 'products' ? onProcessProduct(item.id!, 'reject', rejectNote) : onProcessCategory(item.id!, 'reject', rejectNote);
-                                                    setRejectId(null); setRejectNote("");
-                                                }}
-                                                className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest"
-                                            >确认驳回</button>
-                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">取消</button>
+                                            <button onClick={() => { onProcessProduct(item.id!, 'reject', rejectNote); setRejectId(null); setRejectNote(""); }} className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest">Confirm Reject</button>
+                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">Cancel</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex gap-4 pt-4 border-t border-stone-50 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => view === 'products' ? onProcessProduct(item.id!, 'approve') : onProcessCategory(item.id!, 'approve')}
-                                            className="flex items-center bg-stone-900 text-white px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all"
-                                        >
-                                            <CheckCircle size={12} className="mr-2" /> {view === 'products' ? txt.approve : txt.approvePublish}
+                                        <button onClick={() => view === 'products' ? onProcessProduct(item.id!, 'approve') : onProcessCategory(item.id!, 'approve')} className="flex items-center bg-stone-900 text-white px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all">
+                                            <CheckCircle size={12} className="mr-2" /> Approve & Publish
                                         </button>
-                                        <button 
-                                            onClick={() => setRejectId(item.id || null)}
-                                            className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest"
-                                        >
-                                            <XCircle size={12} className="mr-2" /> 驳回申请
+                                        <button onClick={() => setRejectId(item.id || null)} className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest">
+                                            <XCircle size={12} className="mr-2" /> Decline Request
                                         </button>
                                     </div>
                                 )}
