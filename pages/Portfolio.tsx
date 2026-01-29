@@ -8,7 +8,7 @@ import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
-import { extractSubCategories, extractProductsArray, filterRegistry } from '../utils/extractProducts';
+import { extractSubCategories, extractProductsArray } from '../utils/extractProducts';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
 
 const Portfolio: React.FC = () => {
@@ -33,21 +33,18 @@ const Portfolio: React.FC = () => {
             rawData = extractProductsArray(res);
         } else {
             const response = await fetch(`${API_BASE}/products`);
-            if (!response.ok) throw new Error(`Registry synchronization failed (HTTP ${response.status})`);
+            if (!response.ok) throw new Error(`档案库同步失败 (HTTP ${response.status})`);
             const json = await response.json();
             rawData = extractProductsArray(json);
         }
         
         let loadedProducts = normalizeProducts(rawData);
-        
-        // Safety Protocol: Only show items that meet 'Published' and 'Asset' criteria
         if (mode === 'public') {
-            loadedProducts = filterRegistry(loadedProducts, { onlyPublished: true });
+            loadedProducts = loadedProducts.filter(p => p.status === 'published');
         }
-        
         setProducts(loadedProducts);
       } catch (e: any) {
-        setError(e.message || "Unable to synchronize product registry.");
+        setError(e.message || "无法同步产品档案。");
       } finally {
         setIsLoading(false);
       }
@@ -86,10 +83,15 @@ const Portfolio: React.FC = () => {
   }, [searchParams, products]);
 
   const filteredProducts = useMemo(() => {
-    return filterRegistry(products, {
-        category: activeCategory,
-        sub: activeSubCategory
-    });
+    if (activeCategory === 'all') return products;
+    const cat = activeCategory.toLowerCase().trim();
+    let items = products.filter(p => (p.category || '').toLowerCase().trim() === cat);
+
+    if (activeSubCategory !== 'all') {
+        const sub = activeSubCategory.toLowerCase().trim();
+        items = items.filter(p => (p.sub_category || '').toLowerCase().trim() === sub);
+    }
+    return items;
   }, [activeCategory, activeSubCategory, products]);
 
   const handleCategorySelect = (catId: string) => {
