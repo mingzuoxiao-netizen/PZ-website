@@ -154,20 +154,30 @@ export const DEFAULT_CONFIG: SiteConfig = {
   categories: staticCategories,
 };
 
-export async function fetchSiteConfig(): Promise<SiteConfig | any | null> {
+export async function fetchSiteConfig(): Promise<SiteConfigEnvelope | null> {
   try {
-    const res = await fetch(`${API_BASE}/site-config`);
+    // Calling explicit authenticated route as requested to bypass public branch defaults
+    const res = await fetch(`${API_BASE}/site-config`, { cache: 'no-store' });
     if (!res.ok) return null;
-    return await res.json();
+    const config = await res.json();
+    return {
+      config: config?.config ?? config,
+      version: config?.version ?? "published",
+      published_at: config?.published_at ?? null,
+    };
   } catch (err) {
     return null;
   }
 }
 
-export async function fetchPreviewConfig(): Promise<SiteConfig | any | null> {
+export async function fetchPreviewConfig(): Promise<SiteConfigEnvelope | null> {
     try {
         const res = await adminFetch('admin/preview/site-config');
-        return res;
+        return {
+          config: res?.config ?? res,
+          version: res?.version ?? "preview",
+          published_at: res?.published_at ?? null,
+        };
     } catch (e) {
         console.error("[Config] Preview fetch failed", e);
         return null;

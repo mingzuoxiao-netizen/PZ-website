@@ -1,4 +1,5 @@
 import { ProductVariant } from '../types';
+import { isPublishedProduct } from './extractProducts';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR PRODUCT DATA NORMALIZATION.
@@ -32,24 +33,20 @@ export function normalizeProduct(input: any): ProductVariant {
   const rawStatus = String(input.status || '').toLowerCase().trim();
   const isPublishedVal = String(input.is_published);
   
-  // Rule mapping: published | public | live | is_published=1 -> published
   if (isPublishedVal === '1' || isPublishedVal === 'true' || input.is_published === true || ['published', 'public', 'live'].includes(rawStatus)) {
       status = 'published';
   } 
-  // Rule mapping: awaiting_review | pending | review | submitted -> awaiting_review
   else if (['awaiting_review', 'pending', 'review', 'submitted'].includes(rawStatus)) {
       status = 'awaiting_review';
   } 
-  // Rule mapping: rejected | declined -> rejected
   else if (['rejected', 'declined'].includes(rawStatus)) {
       status = 'rejected';
   } 
-  // Rule mapping: default -> draft
   else {
       status = 'draft';
   }
 
-  return {
+  const normalized = {
     ...input,
     id: input.id?.toString() || '',
     name: input.name || 'Untitled Product',
@@ -63,9 +60,14 @@ export function normalizeProduct(input: any): ProductVariant {
     size: input.size || input.dimensions || '',
     material: input.material || '',
     code: input.code || '',
-    status: status, // Canonical Status
+    status: status,
     colors: Array.isArray(input.colors) ? input.colors : []
-  };
+  } as ProductVariant & { __invalid?: boolean };
+
+  // Apply Protocol Validation Flag
+  normalized.__invalid = !isPublishedProduct(normalized);
+
+  return normalized;
 }
 
 export function normalizeProducts(list: any[] | undefined | null): ProductVariant[] {

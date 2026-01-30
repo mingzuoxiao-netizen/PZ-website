@@ -42,7 +42,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   if (!config) {
     return (
       <div className="p-8 text-center text-stone-400">
-        正在加载配置...
+        Synchronizing protocol configuration...
       </div>
     );
   }
@@ -50,7 +50,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   return (
     <div className="animate-fade-in pb-20 relative">
 
-      {/* 吸顶头部 */}
+      {/* Floating Header */}
       <div className="sticky top-[70px] md:top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
@@ -92,7 +92,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Save size={14} className="mr-2" />
             )}
-            应用本地更改
+            Apply Local Changes
           </button>
 
           <div className="w-px h-6 bg-stone-200 mx-2"></div>
@@ -100,7 +100,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           <button
             onClick={onPublish}
             disabled={isSaving || hasUnsavedChanges}
-            title={hasUnsavedChanges ? "请先保存更改" : "将当前草稿推送到生产环境"}
+            title={hasUnsavedChanges ? "Apply local changes before deployment" : "Push current draft to production environment"}
             className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
               ${
                 !hasUnsavedChanges
@@ -113,7 +113,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Globe size={14} className="mr-2" />
             )}
-            推送到生产环境
+            Push to Production
           </button>
         </div>
       </div>

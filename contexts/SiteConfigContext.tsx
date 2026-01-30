@@ -77,7 +77,9 @@ export function SiteConfigProvider({
         });
       } else {
         // Handle direct SiteConfig structure
-        setConfig(result as SiteConfig);
+        // Added unknown cast to fix TS error: result is inferred as SiteConfigEnvelope
+        // and cannot be directly cast to SiteConfig.
+        setConfig((result as unknown) as SiteConfig);
         setMeta({ version: "legacy", published_at: null });
       }
     } catch (e) {

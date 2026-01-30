@@ -8,7 +8,7 @@ export async function onRequest(context: any) {
 
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
-  // Removed /site-config from public roots
+  // Removed /site-config and /upload-image from public roots to enforce Auth branch
   const PUBLIC_ROOTS = ["/products", "/inquiries"];
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
@@ -18,11 +18,11 @@ export async function onRequest(context: any) {
     (p) => path === p || path.startsWith(p + "/")
   );
 
-  // 只允许 GET/HEAD 走 public
+  // Only allow GET/HEAD for public paths
   const isReadMethod = request.method === "GET" || request.method === "HEAD";
   const isPublicRead = isPublicPath && isReadMethod;
 
-  // ✅ 封死：public path 上的写请求一律 405（避免误转发造成 404/脏写）
+  // Enforce read-only for public paths (block POST/PUT/PATCH/DELETE)
   const isWriteMethod =
     request.method === "POST" ||
     request.method === "PUT" ||
@@ -45,12 +45,11 @@ export async function onRequest(context: any) {
     );
   }
 
-  // ✅ upload-image / admin / factory / login 都在根路径（不加 /public）
+  // Target routing: publicRead branch prepends /public, others go direct to protected backend
   const targetUrl = isPublicRead
     ? `${BACKEND_WORKER}/public${path}${url.search}`
     : `${BACKEND_WORKER}${path}${url.search}`;
 
-  // ✅ 只转发必要 header；multipart 时必须带上 content-type（含 boundary）
   const headers = new Headers();
   const auth = request.headers.get("authorization");
   if (auth) headers.set("authorization", auth);
@@ -68,7 +67,6 @@ export async function onRequest(context: any) {
       redirect: "manual",
     };
 
-    // ✅ 不是 GET/HEAD 才转发 body（FormData 上传必备）
     if (request.method !== "GET" && request.method !== "HEAD") {
       init.body = request.body;
     }
@@ -76,7 +74,6 @@ export async function onRequest(context: any) {
     const backendResponse = await fetch(targetUrl, init);
 
     const resHeaders = new Headers(backendResponse.headers);
-    // same-origin 不需要 CORS 头
     resHeaders.delete("Access-Control-Allow-Origin");
     resHeaders.delete("Access-Control-Allow-Methods");
     resHeaders.delete("Access-Control-Allow-Headers");

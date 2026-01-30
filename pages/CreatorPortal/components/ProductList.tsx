@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp } from 'lucide-react';
+import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
 import { ProductVariant, Category } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
@@ -30,17 +30,15 @@ const ProductList: React.FC<ProductListProps> = ({
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
-  // 严格检查角色，避免默认 fallback 到 FACTORY
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
 
-  // 状态映射（中文）
   const statusMap: Record<string, { label: string, color: string }> = {
-    all: { label: '全部状态', color: '' },
-    published: { label: '已发布', color: 'bg-green-100 text-green-700' },
-    awaiting_review: { label: '待审核', color: 'bg-amber-100 text-amber-700' },
-    draft: { label: '草稿箱', color: 'bg-stone-100 text-stone-500' },
-    rejected: { label: '需修正', color: 'bg-red-100 text-red-700' }
+    all: { label: 'All Statuses', color: '' },
+    published: { label: 'Published', color: 'bg-green-100 text-green-700' },
+    awaiting_review: { label: 'Awaiting Audit', color: 'bg-amber-100 text-amber-700' },
+    draft: { label: 'Draft', color: 'bg-stone-100 text-stone-500' },
+    rejected: { label: 'Correction Req', color: 'bg-red-100 text-red-700' }
   };
 
   const filteredItems = Array.isArray(items) ? items.filter(i => {
@@ -55,13 +53,13 @@ const ProductList: React.FC<ProductListProps> = ({
   };
 
   const handleSubmitForReview = async (id: string) => {
-      if (!confirm("确定要将此产品提交给管理员审核吗？")) return;
+      if (!confirm("Are you sure you want to submit this record to the master registry audit?")) return;
       if (!onSubmit) return;
       setSubmittingIds(prev => [...prev, id]);
       try {
           await onSubmit(id);
       } catch (e: any) {
-          alert(`提交失败: ${e.message}`);
+          alert(`Submission failed: ${e.message}`);
       } finally {
           setSubmittingIds(prev => prev.filter(i => i !== id));
       }
@@ -69,16 +67,16 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handleBulkSubmit = async () => {
       if (selectedIds.length === 0 || !onSubmit) return;
-      if (!confirm(`确定要提交这 ${selectedIds.length} 项档案进行审计吗？`)) return;
+      if (!confirm(`Confirm submission of ${selectedIds.length} items for technical audit?`)) return;
 
       setIsBulkProcessing(true);
       try {
           await Promise.all(selectedIds.map(id => onSubmit(id)));
           setSelectedIds([]);
           if (onRefresh) onRefresh();
-          alert("批量提交成功。");
+          alert("Bulk submission successful.");
       } catch (e: any) {
-          alert("批量处理出错: " + e.message);
+          alert("Bulk processing error: " + e.message);
       } finally {
           setIsBulkProcessing(false);
       }
@@ -86,15 +84,15 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handleBulkDeleteAction = async () => {
     if (selectedIds.length === 0 || !onBulkDelete) return;
-    if (!confirm(`确定要永久删除这 ${selectedIds.length} 项已选中的档案吗？此操作无法撤销。`)) return;
+    if (!confirm(`PERMANENTLY delete ${selectedIds.length} selected records? This action is IRREVERSIBLE.`)) return;
 
     setIsBulkProcessing(true);
     try {
         await onBulkDelete(selectedIds);
         setSelectedIds([]);
-        alert("批量删除完成。");
+        alert("Bulk deletion completed.");
     } catch (e: any) {
-        alert("删除失败: " + e.message);
+        alert("Deletion failed: " + e.message);
     } finally {
         setIsBulkProcessing(false);
     }
@@ -109,7 +107,7 @@ const ProductList: React.FC<ProductListProps> = ({
                     <Search size={16} className="text-stone-400" />
                     <input 
                         type="text" 
-                        placeholder="搜索编号或名称..." 
+                        placeholder="Search SKU or Title..." 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
                         className="ml-3 w-full text-xs focus:outline-none font-sans" 
@@ -121,16 +119,16 @@ const ProductList: React.FC<ProductListProps> = ({
                 onChange={e => setStatusFilter(e.target.value)}
                 className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
              >
-                <option value="all">显示全部状态</option>
-                <option value="published">已发布</option>
-                <option value="draft">草稿</option>
-                <option value="awaiting_review">待审核</option>
-                <option value="rejected">需修正</option>
+                <option value="all">View All Statuses</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+                <option value="awaiting_review">Awaiting Audit</option>
+                <option value="rejected">Correction Req</option>
              </select>
           </div>
           
           <div className="text-[10px] font-mono text-stone-400 font-bold uppercase tracking-widest">
-            {isLoading ? '同步中...' : `共 ${filteredItems.length} 条记录`}
+            {isLoading ? 'Syncing...' : `${filteredItems.length} records detected`}
           </div>
        </div>
 
@@ -141,7 +139,7 @@ const ProductList: React.FC<ProductListProps> = ({
               ) : filteredItems.length === 0 ? (
                   <div className="py-32 flex flex-col items-center justify-center text-stone-400">
                       <PackageX size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                      <p className="text-[10px] font-bold uppercase tracking-widest">未找到匹配的档案</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest">Zero matching records found.</p>
                   </div>
               ) : (
                 filteredItems.map((item) => {
@@ -150,6 +148,9 @@ const ProductList: React.FC<ProductListProps> = ({
                     const imageUrl = resolveImage(item.images[0]);
                     const statusInfo = statusMap[item.status || 'draft'] || statusMap.draft;
                     
+                    const isPublished = item.status === 'published';
+                    const hasNoImages = !item.images || item.images.length === 0;
+
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
                         <button onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
@@ -159,7 +160,10 @@ const ProductList: React.FC<ProductListProps> = ({
                             {imageUrl ? (
                                 <img src={imageUrl} loading="lazy" alt="" className="w-full h-full object-cover mix-blend-multiply" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-stone-300 text-[8px]">无图</div>
+                                <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 text-[8px] bg-stone-50">
+                                   <AlertTriangle size={14} className="mb-1 text-amber-500 opacity-50" />
+                                   NO ASSET
+                                </div>
                             )}
                         </div>
                         <div className="flex-grow min-w-0">
@@ -168,10 +172,15 @@ const ProductList: React.FC<ProductListProps> = ({
                                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border-none uppercase tracking-tighter ${statusInfo.color}`}>
                                     {statusInfo.label}
                                 </span>
+                                {isPublished && hasNoImages && (
+                                    <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title="Due to lack of valid assets, this product is automatically suppressed on the public site.">
+                                        <AlertTriangle size={10} /> Hidden (Missing Assets)
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-4 font-mono text-[9px]">
-                                <span className="text-stone-400 font-bold uppercase">{item.code || "无编号"}</span>
-                                <span className="text-stone-500 uppercase tracking-tight">{item.category || '通用'}</span>
+                                <span className="text-stone-400 font-bold uppercase">{item.code || "NO_SKU"}</span>
+                                <span className="text-stone-500 uppercase tracking-tight">{item.category || 'GENERAL'}</span>
                             </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -182,16 +191,16 @@ const ProductList: React.FC<ProductListProps> = ({
                                     className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-safety-700 transition-colors rounded-sm"
                                 >
                                     {isSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                    提交审核
+                                    Submit Review
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="编辑"><Edit size={16} /></button>
+                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="Edit"><Edit size={16} /></button>
                                 {isAdmin && onDelete && (
                                     <button 
                                         onClick={() => item.id && onDelete(item.id)} 
                                         className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"
-                                        title="删除"
+                                        title="Delete"
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -205,25 +214,25 @@ const ProductList: React.FC<ProductListProps> = ({
             </div>
        </div>
 
-       {/* 底部批量操作栏 */}
+       {/* Bulk Action Bar */}
        {selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
                        <span className="text-xs font-mono font-bold text-safety-700 bg-safety-700/10 px-2 py-1 rounded">{selectedIds.length}</span>
-                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">项已选</span>
+                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">Selected</span>
                    </div>
                    {isFactory ? (
                        <button onClick={handleBulkSubmit} disabled={isBulkProcessing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">
-                           {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} 提交至总库审核
+                           {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} Transmit to Audit
                        </button>
                    ) : (
                        <div className="flex items-center gap-6">
                            <button onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors">
-                               <CheckCircle size={14} /> 批量发布
+                               <CheckCircle size={14} /> Bulk Publish
                            </button>
                            <button onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors">
-                               <Ban size={14} /> 移回草稿
+                               <Ban size={14} /> Move to Draft
                            </button>
                            <div className="w-px h-4 bg-white/10 mx-2"></div>
                            <button 
@@ -231,7 +240,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                 disabled={isBulkProcessing}
                                 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
                            >
-                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14} />} 批量删除
+                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14} />} Bulk Delete
                            </button>
                        </div>
                    )}
