@@ -14,7 +14,7 @@ import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { categories as staticCategories } from '../data/inventory';
 import { ProductVariant } from '../types';
-import { extractProductsArray } from '../utils/extractProducts';
+import { extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
@@ -25,20 +25,21 @@ const Home: React.FC = () => {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
-        const response = await fetch(`${API_BASE}/products`);
+        const response = await fetch(`${API_BASE}/products`, { cache: 'no-store' });
         if (!response.ok) return;
         
         const json = await response.json();
         const rawData = extractProductsArray(json);
-        setCategoryProducts(normalizeProducts(rawData));
+        // Only consider products that meet the safety protocol for the home page calculation
+        const liveProducts = normalizeProducts(rawData).filter(isPublishedProduct);
+        setCategoryProducts(liveProducts);
       } catch (e) {
-        // Silent fail for products fetch on home page
+        // Silent fail
       }
     };
     fetchHomeData();
   }, []);
 
-  // Use resolveImage to ensure all uploaded paths are correctly formatted
   const heroBg = resolveImage(site?.home?.hero?.image);
   const heroTitle = site?.home?.hero?.title || t.home.heroTitle;
   const factoryImg = resolveImage(site?.home?.factory?.image);
@@ -69,7 +70,7 @@ const Home: React.FC = () => {
   const activeCategories = useMemo(() => {
       const productCategoryIds = new Set(categoryProducts.map(p => (p.category || '').toLowerCase().trim()));
       const sourceCategories = (site?.categories && site.categories.length > 0) ? site.categories : staticCategories;
-      // Added filter(Boolean) to prevent undefined elements in the mapped array
+      
       return sourceCategories.filter(Boolean).filter(cat => {
           const catId = cat.id?.toLowerCase().trim();
           const catTitle = cat.title?.toLowerCase().trim();

@@ -10,11 +10,6 @@ export interface GroupedProducts {
 
 /**
  * Robust extraction of product arrays from various API response shapes.
- * Handles:
- * - [ {item}, {item} ]
- * - { items: [...] }
- * - { data: [...] }
- * - { products: [...] }
  */
 export function extractProductsArray(response: any): any[] {
   if (!response) return [];
@@ -27,12 +22,22 @@ export function extractProductsArray(response: any): any[] {
 
 /**
  * Unified logic to determine if a product is considered 'published'.
- * Compatible with legacy 'pub' and standard 'published' strings.
+ * STRICT PROTOCOL: Must be marked published AND must possess at least one VALID digital asset.
  */
 export function isPublishedProduct(product: ProductVariant): boolean {
   if (!product.status) return false;
+  
   const s = product.status.toLowerCase().trim();
-  return s === 'published' || s === 'pub';
+  const isMarkedPublished = s === 'published' || s === 'pub';
+  
+  // Industrial Safety: Never display a product without imagery to the public
+  // Check that the array exists, has length, and the first element is a non-empty string
+  const hasValidAssets = Array.isArray(product.images) && 
+                         product.images.length > 0 && 
+                         typeof product.images[0] === 'string' && 
+                         product.images[0].trim().length > 0;
+  
+  return isMarkedPublished && hasValidAssets;
 }
 
 /**
@@ -50,19 +55,6 @@ export function extractSubCategories(products: ProductVariant[], categoryId: str
   });
 
   return Array.from(subs).sort();
-}
-
-/**
- * Groups products by their sub-category.
- */
-export function groupBySubCategory(products: ProductVariant[]): GroupedProducts {
-  return products.reduce((acc, product) => {
-    const sub = product.sub_category || 'General';
-    if (!acc[sub]) acc[acc[sub] ? sub : 'General'] = []; // Basic safety
-    if (!acc[sub]) acc[sub] = [];
-    acc[sub].push(product);
-    return acc;
-  }, {} as GroupedProducts);
 }
 
 /**
