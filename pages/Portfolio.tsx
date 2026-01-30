@@ -32,7 +32,7 @@ const Portfolio: React.FC = () => {
             const res = await adminFetch('admin/products?limit=1000');
             rawData = extractProductsArray(res);
         } else {
-            const response = await fetch(`${API_BASE}/products`);
+            const response = await fetch(`${API_BASE}/public/products`);
             if (!response.ok) throw new Error(`档案库同步失败 (HTTP ${response.status})`);
             const json = await response.json();
             rawData = extractProductsArray(json);
