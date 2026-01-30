@@ -8,12 +8,45 @@ export async function onRequest(context: any) {
 
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
-  // ✅ 只有这三个是 public，而且在 worker 里是 /public/*
-  const PUBLIC_ROOTS = ["/site-config", "/products", "/inquiries"];
-  const isPublic = PUBLIC_ROOTS.some(p => path === p || path.startsWith(p + "/"));
+  // Removed /site-config from public roots
+  const PUBLIC_ROOTS = ["/products", "/inquiries"];
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204 });
+  }
+
+  const isPublicPath = PUBLIC_ROOTS.some(
+    (p) => path === p || path.startsWith(p + "/")
+  );
+
+  // 只允许 GET/HEAD 走 public
+  const isReadMethod = request.method === "GET" || request.method === "HEAD";
+  const isPublicRead = isPublicPath && isReadMethod;
+
+  // ✅ 封死：public path 上的写请求一律 405（避免误转发造成 404/脏写）
+  const isWriteMethod =
+    request.method === "POST" ||
+    request.method === "PUT" ||
+    request.method === "PATCH" ||
+    request.method === "DELETE";
+
+  if (isPublicPath && isWriteMethod) {
+    return new Response(
+      JSON.stringify({
+        error: "Method Not Allowed",
+        details: `Public endpoint is read-only: ${request.method} ${path}`,
+      }),
+      {
+        status: 405,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  }
 
   // ✅ upload-image / admin / factory / login 都在根路径（不加 /public）
-  const targetUrl = isPublic
+  const targetUrl = isPublicRead
     ? `${BACKEND_WORKER}/public${path}${url.search}`
     : `${BACKEND_WORKER}${path}${url.search}`;
 

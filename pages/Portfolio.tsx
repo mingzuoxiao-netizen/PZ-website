@@ -8,7 +8,7 @@ import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
-import { extractSubCategories, extractProductsArray } from '../utils/extractProducts';
+import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
 
 const Portfolio: React.FC = () => {
@@ -39,9 +39,12 @@ const Portfolio: React.FC = () => {
         }
         
         let loadedProducts = normalizeProducts(rawData);
+        
+        // Safety Protocol: Use unified validation logic to suppress broken records
         if (mode === 'public') {
-            loadedProducts = loadedProducts.filter(p => p.status === 'published');
+            loadedProducts = loadedProducts.filter(isPublishedProduct);
         }
+        
         setProducts(loadedProducts);
       } catch (e: any) {
         setError(e.message || "无法同步产品档案。");
