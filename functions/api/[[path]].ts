@@ -6,7 +6,12 @@ export async function onRequest(context: any) {
   let path = url.pathname.replace(/^\/api/, "");
   if (!path.startsWith("/")) path = "/" + path;
 
-  const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+  // Production defaults to the existing API. Configure PZ_BACKEND_WORKER
+  // in *Preview only* to point to an isolated staging Worker + D1.
+  const configuredBackend = String(context.env?.PZ_BACKEND_WORKER || "").trim();
+  const BACKEND_WORKER = /^https:\/\/[a-z0-9.-]+\.workers\.dev\/?$/i.test(configuredBackend)
+    ? configuredBackend.replace(/\/$/, "")
+    : "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
   // Removed /site-config and /upload-image from public roots to enforce Auth branch
   const PUBLIC_ROOTS = ["/products"];
