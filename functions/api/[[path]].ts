@@ -90,7 +90,13 @@ export async function onRequest(context: any) {
     resHeaders.delete("Access-Control-Allow-Methods");
     resHeaders.delete("Access-Control-Allow-Headers");
     resHeaders.delete("Access-Control-Max-Age");
-    resHeaders.set("Cache-Control", "no-store");
+    // Catalog V2 responses may use short public CDN TTLs. All authenticated
+    // and legacy routes remain uncached. The Worker is authoritative for V2.
+    if (isPublicRead && request.method === "GET" && url.searchParams.get("v") === "2") {
+      resHeaders.set("Cache-Control", backendResponse.headers.get("Cache-Control") || "public, max-age=0, s-maxage=15");
+    } else {
+      resHeaders.set("Cache-Control", "no-store");
+    }
 
     return new Response(backendResponse.body, {
       status: backendResponse.status,
