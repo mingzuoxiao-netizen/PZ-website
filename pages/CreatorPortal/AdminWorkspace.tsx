@@ -4,7 +4,7 @@ import { normalizeProducts } from '../../utils/normalizeProduct';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
 import PortalLayout from './PortalLayout';
 import {
-  RefreshCw, Package,
+  RefreshCw, Package, Inbox,
   LayoutGrid, Settings, Users, Activity,
   ArrowUpCircle
 } from 'lucide-react';
@@ -17,8 +17,9 @@ import SiteConfigEditor from './components/SiteConfigEditor';
 import AccountsManager from './components/AccountsManager';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
+import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'config' | 'accounts' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'inquiries' | 'config' | 'accounts' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -144,6 +145,7 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: 'Review Queue', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: 'Master Registry', icon: <Package size={18} /> },
+    { id: 'inquiries', label: 'Inquiry Management', icon: <Inbox size={18} /> },
     { id: 'config', label: 'Site Protocol', icon: <Settings size={18} /> },
     { id: 'accounts', label: 'Identity Matrix', icon: <Users size={18} /> },
     { id: 'audit', label: 'System Logs', icon: <LayoutGrid size={18} /> },
@@ -209,6 +211,7 @@ const AdminWorkspace: React.FC = () => {
           <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => { setIsSavingConfig(true); try { await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) }); setHasPendingDeploy(true); await loadSiteConfig(); } catch (e: any) { alert(e.message); } finally { setIsSavingConfig(false); } }} onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
         )}
 
+        {activeTab === 'inquiries' && <InquiryManager />}
         {activeTab === 'accounts' && <AccountsManager />}
         {activeTab === 'audit' && <AuditTimeline />}
       </div>
