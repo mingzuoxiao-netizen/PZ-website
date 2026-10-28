@@ -32,7 +32,8 @@ In the actual Worker source (after making a backup):
 - In the existing `pathname === "/public/products" && request.method === "GET"` route, add *before* its existing KV reads:
 
   ```js
-  if (new URL(request.url).searchParams.get("v") === "2") {
+  if (new URL(request.url).searchParams.get("v") === "2" &&
+      env.PZ_CATALOG_V2_ENABLED === "true") {
     return await handlePublicProductsD1(request, env);
   }
   ```
@@ -73,3 +74,12 @@ Before applying `worker-patches/migrations/001_catalog_indexes.sql`, take a data
 - Frontend includes a legacy whole-snapshot fallback until Worker V2 is deployed.
 - Production remains on its existing KV snapshot behavior.
 - Any user-provided code excerpts in chat are not a substitute for a reviewed full Worker source and staging test.
+
+## Security review of uploaded bundled Worker (2026-10-28)
+
+- FACTORY PUT `/factory/products/:id` in original Worker allowed editing published products without review. The separate staging bundle restricts factory edits and submissions to draft/rejected products using status-conditional SQL writes returning 409 otherwise. Do NOT deploy D1 public reads without this fix.
+- Current users use `org-main`; products have no organization/ownership column, therefore multi-factory data isolation is NOT implemented.
+- Existing JWT role claims are not checked against active account status each request; disabling an account may not immediately revoke its JWT. Separate hardening is needed.
+- PZ_CATALOG_V2_ENABLED must default to OFF, to avoid revealing existing published test product PZ-111 before safe cleanup.
+- The full compiled Worker is NOT stored in this public GitHub repository. Store sensitive backend source in a restricted repository or secure Cloudflare staging; never commit secrets.
+- The uploaded Worker staging bundle was smoke tested in Node SQLite with 120 records, 103 eligible published, five pages, invalid image filtering, search, facets, role restrictions, unpublish and invalid cursor. Real Cloudflare staging testing is still required.
