@@ -21,7 +21,7 @@ const PUBLIC_SELECT = [
 
 // A malformed / empty JSON array never qualifies as a public product.
 // SQLite CASE avoids throwing on invalid legacy image JSON.
-const PUBLIC_WHERE = "status = 'published' AND json_array_length(CASE WHEN json_valid(images) THEN images ELSE '[]' END) > 0";
+const PUBLIC_WHERE = "status = 'published' AND length(trim(coalesce(json_extract(CASE WHEN json_valid(images) THEN images ELSE '[]' END, '$[0]'), ''))) > 0";
 
 function publicJson(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
