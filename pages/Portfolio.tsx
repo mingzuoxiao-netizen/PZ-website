@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { X, AlertCircle, FileText, ArrowRight, ChevronLeft, Layers, Hash, LayoutGrid } from 'lucide-react';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
@@ -10,6 +10,7 @@ import { resolveImage } from '../utils/imageResolver';
 import { adminFetch } from '../utils/adminFetch';
 import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
+import { fetchPublicCatalogPage, fetchPublicCatalogFacets, fetchPublicCatalogProduct, CategoryFacet } from '../utils/publicCatalog';
 
 const Portfolio: React.FC = () => {
   const { config, mode } = usePublishedSiteConfig();
@@ -21,42 +22,80 @@ const Portfolio: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [facets, setFacets] = useState<CategoryFacet[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listRequestId = useRef(0);
 
   useEffect(() => {
-    const fetchPortfolio = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        let rawData: any[] = [];
-        if (mode === 'preview') {
-            const res = await adminFetch('admin/products?limit=1000');
-            rawData = extractProductsArray(res);
-        } else {
-            const response = await fetch(`${API_BASE}/public/products`);
-            if (!response.ok) throw new Error(`档案库同步失败 (HTTP ${response.status})`);
-            const json = await response.json();
-            rawData = extractProductsArray(json);
-        }
-        
-        let loadedProducts = normalizeProducts(rawData);
-        
-        // Safety Protocol: Use unified validation logic to suppress broken records
-        if (mode === 'public') {
-            loadedProducts = loadedProducts.filter(isPublishedProduct);
-        }
-        
-        setProducts(loadedProducts);
-      } catch (e: any) {
-        setError(e.message || "无法同步产品档案。");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPortfolio();
+    if (mode !== 'public') return;
+    const controller = new AbortController();
+    fetchPublicCatalogFacets(controller.signal)
+      .then(data => { if (!controller.signal.aborted) setFacets(data); })
+      .catch(err => { if (!controller.signal.aborted) console.warn('Catalog facets failed', err); });
+    return () => controller.abort();
   }, [mode]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const requestId = ++listRequestId.current;
+    setIsLoading(true);
+    setError(null);
+    setProducts([]);
+    setNextCursor(null);
+    const load = async () => {
+      try {
+        if (mode === 'public') {
+          if (activeCategory === 'all') return;
+          const page = await fetchPublicCatalogPage({
+            category: activeCategory, sub: activeSubCategory, limit: 24,
+            signal: controller.signal
+          });
+          if (controller.signal.aborted || requestId !== listRequestId.current) return;
+          setProducts(page.items);
+          setNextCursor(page.nextCursor);
+        } else {
+          const res = await adminFetch('admin/products?limit=1000');
+          if (controller.signal.aborted || requestId !== listRequestId.current) return;
+          setProducts(normalizeProducts(extractProductsArray(res)));
+        }
+      } catch (e: any) {
+        if (!controller.signal.aborted && requestId === listRequestId.current)
+          setError(e.message || 'Product catalog unavailable.');
+      } finally {
+        if (!controller.signal.aborted && requestId === listRequestId.current) setIsLoading(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [mode, activeCategory, activeSubCategory]);
+
+  const loadMore = async () => {
+    if (mode !== 'public' || !nextCursor || loadingMore) return;
+    const requestId = listRequestId.current;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPublicCatalogPage({
+        category: activeCategory, sub: activeSubCategory,
+        limit: 24, cursor: nextCursor
+      });
+      if (requestId !== listRequestId.current) return;
+      setProducts(previous => {
+        const existing = new Set(previous.map(p => p.id));
+        return [...previous, ...page.items.filter(p => !existing.has(p.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch (e: any) {
+      if (requestId === listRequestId.current) setError(e.message || 'Additional products failed to load.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const availableCategories = useMemo(() => {
-    const productCategoryStrs = new Set(products.map(p => (p.category || '').toLowerCase().trim()));
+    const productCategoryStrs = mode === 'public'
+      ? new Set(facets.filter(f => f.count > 0).map(f => f.id))
+      : new Set(products.map(p => (p.category || '').toLowerCase().trim()));
     const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
     
     return sourceCategories.filter(cat => {
@@ -64,12 +103,16 @@ const Portfolio: React.FC = () => {
         const catTitle = cat.title.toLowerCase().trim();
         return productCategoryStrs.has(catId) || productCategoryStrs.has(catTitle);
     });
-  }, [products, config]);
+  }, [products, config, facets, mode]);
 
   const subCategories = useMemo(() => {
     if (activeCategory === 'all') return [];
+    if (mode === 'public') {
+      return (facets.find(f => f.id === activeCategory.toLowerCase())?.subCategories || [])
+        .map(s => s.name);
+    }
     return extractSubCategories(products, activeCategory);
-  }, [activeCategory, products]);
+  }, [activeCategory, products, facets, mode]);
 
   useEffect(() => {
     const cat = searchParams.get('category');
@@ -85,8 +128,19 @@ const Portfolio: React.FC = () => {
     }
   }, [searchParams, products]);
 
+  useEffect(() => {
+    if (mode !== 'public') return;
+    const id = searchParams.get('product');
+    if (!id || products.some(p => p.id === id || p.code === id)) return;
+    const controller = new AbortController();
+    fetchPublicCatalogProduct(id, controller.signal)
+      .then(p => { if (!controller.signal.aborted && p) setSelectedProduct(p); })
+      .catch(err => { if (!controller.signal.aborted) console.warn('Product detail unavailable', err); });
+    return () => controller.abort();
+  }, [mode, searchParams, products]);
+
   const filteredProducts = useMemo(() => {
-    if (activeCategory === 'all') return products;
+    if (activeCategory === 'all' || mode === 'public') return products;
     const cat = activeCategory.toLowerCase().trim();
     let items = products.filter(p => (p.category || '').toLowerCase().trim() === cat);
 
@@ -95,7 +149,7 @@ const Portfolio: React.FC = () => {
         items = items.filter(p => (p.sub_category || '').toLowerCase().trim() === sub);
     }
     return items;
-  }, [activeCategory, activeSubCategory, products]);
+  }, [activeCategory, activeSubCategory, products, mode]);
 
   const handleCategorySelect = (catId: string) => {
       setActiveCategory(catId);
@@ -117,6 +171,11 @@ const Portfolio: React.FC = () => {
   };
 
   const activeCategoryDef = availableCategories.find(c => c.id.toLowerCase() === activeCategory.toLowerCase());
+  const activeFacet = facets.find(f => f.id === activeCategory.toLowerCase());
+  const displayedCount = mode === 'public'
+    ? (activeSubCategory === 'all' ? (activeFacet?.count || 0)
+      : (activeFacet?.subCategories.find(s => s.name.toLowerCase() === activeSubCategory.toLowerCase())?.count || 0))
+    : filteredProducts.length;
   const heroPoster = resolveImage(config?.portfolio?.hero_poster);
 
   return (
@@ -177,7 +236,7 @@ const Portfolio: React.FC = () => {
                             {activeCategoryDef?.title}
                         </h1>
                         <p className="text-stone-400 font-mono text-xs uppercase tracking-[0.2em]">
-                            {isLoading ? '...' : filteredProducts.length} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
+                            {isLoading ? '...' : displayedCount} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
                         </p>
                     </div>
                     {config?.catalog?.url && (
@@ -219,7 +278,9 @@ const Portfolio: React.FC = () => {
                             Array.from({ length: 6 }).map((_, idx) => <ProductCardSkeleton key={idx} />)
                         ) : (
                             availableCategories.map((cat) => {
-                                const count = products.filter(p => (p.category || '').toLowerCase().trim() === cat.id.toLowerCase().trim()).length;
+                                const count = mode === 'public'
+                                  ? (facets.find(f => f.id === cat.id.toLowerCase())?.count || 0)
+                                  : products.filter(p => (p.category || '').toLowerCase().trim() === cat.id.toLowerCase().trim()).length;
                                 return (
                                     <div key={cat.id} className="group cursor-pointer flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
                                         <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
@@ -310,6 +371,14 @@ const Portfolio: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
+                            )}
+                            {mode === 'public' && nextCursor && !isLoading && (
+                              <div className="mt-16 text-center">
+                                <button onClick={loadMore} disabled={loadingMore}
+                                  className="bg-stone-900 text-white px-12 py-4 text-xs font-bold uppercase tracking-widest disabled:opacity-50">
+                                  {loadingMore ? 'Loading...' : 'Load More Products'}
+                                </button>
+                              </div>
                             )}
                         </div>
                     </div>
