@@ -9,9 +9,19 @@ export async function onRequest(context: any) {
   const BACKEND_WORKER = "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
   // Removed /site-config and /upload-image from public roots to enforce Auth branch
-  const PUBLIC_ROOTS = ["/products", "/inquiries"];
+  const PUBLIC_ROOTS = ["/products"];
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204 });
+  }
+
+  // Inquiries are public submissions, never a public listing.
+  // Administrative reads use /admin/inquiries and backend authorization.
+  if ((path === "/inquiries" || path.startsWith("/inquiries/")) &&
+      !(path === "/inquiries" && request.method === "POST")) {
+    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Allow": "POST" },
+    });
   }
 
   const isPublicPath = PUBLIC_ROOTS.some(
@@ -46,7 +56,9 @@ export async function onRequest(context: any) {
   }
 
   // Target routing: publicRead branch prepends /public, others go direct to protected backend
-  const targetUrl = isPublicRead
+  const targetUrl = path === "/site-config" && request.method === "GET"
+    ? `${BACKEND_WORKER}/api/site-config${url.search}`
+    : isPublicRead
     ? `${BACKEND_WORKER}/public${path}${url.search}`
     : `${BACKEND_WORKER}${path}${url.search}`;
 
