@@ -174,7 +174,7 @@ export async function fetchPreviewConfig(): Promise<SiteConfigEnvelope | null> {
     try {
         const res = await adminFetch('admin/preview/site-config');
         return {
-          config: res?.config ?? res,
+          config: res?.preview ?? res?.config ?? res,
           version: res?.version ?? "preview",
           published_at: res?.published_at ?? null,
         };

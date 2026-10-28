@@ -6,24 +6,29 @@ import { Loader2 } from 'lucide-react';
 const InquiriesPanel: React.FC = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchInquiries = async () => {
       setLoading(true);
+      setError('');
       try {
-        const json = await adminFetch<{ data: any[] }>('admin/inquiries');
-        const mapped: Inquiry[] = (json.data || []).map((row) => ({
+        const json = await adminFetch<{ inquiries?: any[]; data?: any[] }>('admin/inquiries');
+        const rows = json.inquiries ?? json.data;
+        if (!Array.isArray(rows)) throw new Error('Invalid inquiries response');
+        const mapped: Inquiry[] = rows.map((row) => ({
           id: row.id,
           name: row.name,
           company: row.company || '',
           email: row.email,
-          type: row.type as any,
+          type: (row.product_type || row.type) as any,
           message: row.message,
           date: row.created_at ? row.created_at.split('T')[0] : '',
           status: row.status as any,
         }));
         setInquiries(mapped);
       } catch (err) {
+        setError('Unable to load inquiries. Please refresh or sign in again.');
         console.error("Failed to fetch inquiries", err);
       } finally {
         setLoading(false);
@@ -60,15 +65,17 @@ const InquiriesPanel: React.FC = () => {
           <tbody className="divide-y divide-stone-100">
             {loading ? (
               <tr><td colSpan={4} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/> {labels.loading}</td></tr>
+            ) : error ? (
+              <tr><td colSpan={4} role="alert" className="p-8 text-center text-red-600">{error}</td></tr>
             ) : inquiries.length === 0 ? (
               <tr><td colSpan={4} className="p-8 text-center text-stone-400 font-mono text-xs">{labels.empty}</td></tr>
             ) : (
               inquiries.map((inq) => (
                 <tr key={inq.id} className="hover:bg-stone-50 transition-colors">
                   <td className="p-4 font-mono text-xs text-stone-400">{inq.date}</td>
-                  <td className="p-4 font-bold text-stone-900">{inq.name}</td>
+                  <td className="p-4 font-bold text-stone-900">{inq.name}<span className="block font-normal text-xs break-all">{inq.email}</span></td>
                   <td className="p-4 text-xs font-mono">{inq.company}</td>
-                  <td className="p-4 text-xs max-w-xs truncate text-stone-500">{inq.message}</td>
+                  <td className="p-4 text-xs max-w-xs whitespace-pre-wrap break-words text-stone-500">{inq.message}</td>
                 </tr>
               ))
             )}

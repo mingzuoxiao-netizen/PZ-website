@@ -20,6 +20,7 @@ const Inquire: React.FC = () => {
   const { t } = useLanguage();
   const { config } = usePublishedSiteConfig();
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const widgetIdRef = useRef<string | null>(null);
 
   const heroPoster = resolveImage(config?.inquire?.hero_poster);
 
@@ -67,11 +68,11 @@ const Inquire: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    if (submitted) return;
     const renderTurnstile = () => {
-      if (window.turnstile && turnstileContainerRef.current) {
-        turnstileContainerRef.current.innerHTML = '';
+      if (window.turnstile && turnstileContainerRef.current && widgetIdRef.current === null) {
         try {
-          window.turnstile.render(turnstileContainerRef.current, {
+          widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
             sitekey: TURNSTILE_SITE_KEY,
             theme: 'light',
             appearance: 'interaction-only', 
@@ -83,7 +84,10 @@ const Inquire: React.FC = () => {
               setTurnstileToken('');
               setError('Security check expired. Please verify again.');
             },
-            'error-callback': (err: any) => console.warn('[Turnstile] Widget error:', err)
+            'error-callback': () => {
+              setTurnstileToken('');
+              setError('Security verification failed. Please reload and try again.');
+            }
           });
         } catch (e) {
            console.warn('[Turnstile] Render failed', e);
@@ -91,18 +95,25 @@ const Inquire: React.FC = () => {
       }
     };
 
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (typeof window !== 'undefined' && window.turnstile) {
       renderTurnstile();
     } else if (typeof window !== 'undefined') {
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         if (window.turnstile) {
           clearInterval(interval);
           renderTurnstile();
         }
       }, 200);
-      return () => clearInterval(interval);
     }
-  }, []);
+    return () => {
+      clearInterval(interval);
+      if (widgetIdRef.current !== null) {
+        window.turnstile?.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      }
+    };
+  }, [submitted]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -141,7 +152,7 @@ const Inquire: React.FC = () => {
     } catch (err) {
       console.error('Error submitting inquiry:', err);
       setError('There was a problem sending your inquiry. Please try again or contact us directly.');
-      if (typeof window !== 'undefined' && window.turnstile) { try { window.turnstile.reset(); } catch {} }
+      if (window.turnstile && widgetIdRef.current !== null) { try { window.turnstile.reset(widgetIdRef.current); } catch {} }
       setTurnstileToken('');
     } finally {
       setLoading(false);
