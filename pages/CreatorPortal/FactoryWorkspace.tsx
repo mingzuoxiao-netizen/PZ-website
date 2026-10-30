@@ -168,16 +168,14 @@ const FactoryWorkspace: React.FC = () => {
       } catch (e: any) { alert(`Protocol Failure: ${e.message}`); }
   };
 
-  // Read fresh registry records before a batch. This is a client-side guard,
-  // not a substitute for a future server-side UNIQUE SKU constraint.
-  const fetchExistingBatchCodes = async (): Promise<string[]> => {
-      const res = await factoryFetch<{ products?: { code?: string }[] }>('factory/products?limit=1000');
-      const catalog = res.products;
-      if (!Array.isArray(catalog)) throw new Error('Could not verify the existing SKU registry.');
-      if (catalog.length >= 1000) {
-          throw new Error('Registry check is incomplete at 1000 records. Server-side SKU validation is required before larger batches.');
-      }
-      return catalog.map(product => product.code || '').filter(Boolean);
+  // O(batch size) indexed SKU lookup, rather than downloading the entire catalog.
+  const checkBatchSkuCodes = async (codes: string[]): Promise<string[]> => {
+      const res = await factoryFetch<{ existingCodes?: string[] }>('factory/products/check-skus', {
+          method: 'POST',
+          body: JSON.stringify({ codes }),
+      });
+      if (!Array.isArray(res?.existingCodes)) throw new Error('SKU validation response unavailable.');
+      return res.existingCodes;
   };
 
   const createBatchDraft = async (product: any): Promise<void> => {
@@ -294,7 +292,7 @@ const FactoryWorkspace: React.FC = () => {
               categories={categories}
               onCancel={handleBack}
               onCreateDraft={createBatchDraft}
-              onFetchExistingCodes={fetchExistingBatchCodes}
+              onCheckSkuCodes={checkBatchSkuCodes}
               onCompleted={async () => { await loadData(); }}
               onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }}
           />
