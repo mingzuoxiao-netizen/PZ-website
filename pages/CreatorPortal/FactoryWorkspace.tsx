@@ -189,6 +189,7 @@ const FactoryWorkspace: React.FC = () => {
   };
 
   const handleBack = () => {
+      if (isBatchCreating && !window.confirm('Leave Batch Induction? Unfinished inputs will be lost.')) return;
       if (isCreating || editingItem || isBatchCreating) {
           setIsCreating(false);
           setIsBatchCreating(false);
