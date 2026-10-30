@@ -8,7 +8,7 @@ import { Save, ArrowLeft, Info, Send, Loader2, Database, ClipboardList } from 'l
 interface ProductFormProps {
   initialData: Partial<ProductVariant>;
   categories: Category[];
-  onSave: (data: any) => void;
+  onSave: (data: any) => void | Promise<void>;
   onSubmit?: (id: string) => Promise<void>;
   onCancel: () => void;
   onUpload?: (file: File) => Promise<string>; 
@@ -54,21 +54,34 @@ const ProductForm: React.FC<ProductFormProps> = ({
     });
   };
 
-  const handleLocalSave = (e: React.FormEvent) => {
+  const handleLocalSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    if (!formData.name) { 
-        alert("Product name is required for induction."); 
-        setSubmitting(false); 
-        return; 
+    if (submitting) return;
+    const code = String(formData.code || '').trim().toUpperCase();
+    if (!String(formData.name || '').trim()) {
+      alert('Product name is required.');
+      return;
     }
-    
-    let finalStatus = formData.status || 'draft';
-    onSave({
+    if (!formData.id && !code) {
+      alert('SKU is required for new products (e.g. PZ-BIRCH-001).');
+      return;
+    }
+    if (code && !/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
+      alert('Invalid SKU. Use PZ- followed by 2–40 letters, numbers, hyphens or underscores.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const finalStatus = formData.status || 'draft';
+      await onSave({
         ...formData,
+        code,
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
-    });
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handlePromote = async () => {
