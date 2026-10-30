@@ -171,11 +171,11 @@ const FactoryWorkspace: React.FC = () => {
   // Read fresh registry records before a batch. This is a client-side guard,
   // not a substitute for a future server-side UNIQUE SKU constraint.
   const fetchExistingBatchCodes = async (): Promise<string[]> => {
-      const res = await factoryFetch<{ products?: { code?: string }[] }>('factory/products?limit=500');
+      const res = await factoryFetch<{ products?: { code?: string }[] }>('factory/products?limit=1000');
       const catalog = res.products;
       if (!Array.isArray(catalog)) throw new Error('Could not verify the existing SKU registry.');
-      if (catalog.length >= 500) {
-          throw new Error('Registry check is incomplete at 500 records. Server-side SKU validation is required before larger batches.');
+      if (catalog.length >= 1000) {
+          throw new Error('Registry check is incomplete at 1000 records. Server-side SKU validation is required before larger batches.');
       }
       return catalog.map(product => product.code || '').filter(Boolean);
   };
@@ -185,7 +185,7 @@ const FactoryWorkspace: React.FC = () => {
           method: 'POST',
           body: JSON.stringify({ ...product, status: 'draft', is_published: 0 }),
       });
-      if (response?.success === false) throw new Error('Worker did not accept the draft.');
+      if (response?.success !== true) throw new Error('Worker did not confirm draft creation. Verify the SKU in Master Registry.');
   };
 
   const handleBack = () => {
