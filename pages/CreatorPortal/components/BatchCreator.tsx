@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Loader2, Image as ImageIcon, CheckCircle, AlertCircle, Save, Layers } from 'lucide-react';
-import { Category } from '../../../types';
+import { Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 
 interface BatchCreatorProps {
@@ -12,9 +12,14 @@ interface BatchCreatorProps {
 
 const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCancel, onUpload }) => {
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSites, setSelectedSites] = useState<ProductionSite[]>([]);
   const [files, setFiles] = useState<{ file: File; status: 'idle' | 'uploading' | 'success' | 'error'; url?: string }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleSite = (site: ProductionSite) => {
+    setSelectedSites(prev => prev.includes(site) ? prev.filter(value => value !== site) : [...prev, site]);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -57,6 +62,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCance
         uploadedProducts.push({
           name: item.file.name.replace(/\.[^/.]+$/, ""),
           category: selectedCategory,
+          production_sites: selectedSites,
           images: [url],
           status: 'draft',
           is_published: 0
@@ -102,8 +108,22 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCance
                     </select>
                 </div>
 
+                <fieldset className="rounded-sm border border-stone-200 p-3">
+                    <legend className="px-1 text-[10px] font-bold uppercase tracking-widest text-stone-500">2. Production Sites / 生产基地</legend>
+                    <p className="mb-3 text-[10px] text-stone-500">Applied to every SKU in this batch.</p>
+                    {([
+                        ['zhaoqing', 'Zhaoqing · China'],
+                        ['cambodia', 'Kandal · Cambodia']
+                    ] as const).map(([site, label]) => (
+                        <label key={site} className="mb-2 flex cursor-pointer items-center gap-2 text-xs text-stone-700">
+                            <input type="checkbox" checked={selectedSites.includes(site)} onChange={() => toggleSite(site)} />
+                            {label}
+                        </label>
+                    ))}
+                </fieldset>
+
                 <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">2. Upload Source</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">3. Upload Source</label>
                     <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="w-full py-8 border-2 border-dashed border-stone-200 rounded-sm hover:border-safety-700 hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-2"
