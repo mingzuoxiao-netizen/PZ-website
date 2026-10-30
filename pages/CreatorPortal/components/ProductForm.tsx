@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProductVariant, Category } from '../../../types';
+import { ProductVariant, Category, ProductionSite } from '../../../types';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
 import { useProductImageActions } from '../../../hooks/useProductImageActions';
@@ -40,6 +40,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const handleChange = (field: keyof ProductVariant, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const toggleProductionSite = (site: ProductionSite) => {
+    setFormData(prev => {
+      const selected = prev.production_sites || [];
+      return {
+        ...prev,
+        production_sites: selected.includes(site)
+          ? selected.filter(value => value !== site)
+          : [...selected, site]
+      };
+    });
   };
 
   const handleLocalSave = (e: React.FormEvent) => {
@@ -115,6 +127,21 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             />
                         </div>
                     </div>
+                    <fieldset className="mt-8 rounded-sm border border-stone-200 bg-stone-50 p-5">
+                        <legend className="px-2 text-[10px] font-bold uppercase tracking-widest text-stone-700">Production Sites / 生产基地</legend>
+                        <p className="mb-4 text-xs text-stone-500">Select all locations that can manufacture this product. This does not change staff permissions.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {([
+                                ['zhaoqing', 'Zhaoqing · China / 肇庆'],
+                                ['cambodia', 'Kandal · Cambodia / 柬埔寨']
+                            ] as const).map(([site, label]) => (
+                                <label key={site} className="flex items-center gap-3 cursor-pointer rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-800">
+                                    <input type="checkbox" className="h-4 w-4 accent-stone-900" checked={(formData.production_sites || []).includes(site)} onChange={() => toggleProductionSite(site)} />
+                                    <span>{label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
                 </section>
 
                 <section>
