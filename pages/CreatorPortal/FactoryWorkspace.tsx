@@ -168,14 +168,24 @@ const FactoryWorkspace: React.FC = () => {
       } catch (e: any) { alert(`Protocol Failure: ${e.message}`); }
   };
 
-  const handleBatchSave = async (newProducts: any[]) => {
-      try {
-          await Promise.all(newProducts.map(p => 
-            factoryFetch('factory/products', { method: 'POST', body: JSON.stringify({ ...p, status: 'draft' }) })
-          ));
-          setIsBatchCreating(false);
-          loadData();
-      } catch (e: any) { alert("Batch error: " + e.message); }
+  // Read fresh registry records before a batch. This is a client-side guard,
+  // not a substitute for a future server-side UNIQUE SKU constraint.
+  const fetchExistingBatchCodes = async (): Promise<string[]> => {
+      const res = await factoryFetch<{ products?: { code?: string }[] }>('factory/products?limit=500');
+      const catalog = res.products;
+      if (!Array.isArray(catalog)) throw new Error('Could not verify the existing SKU registry.');
+      if (catalog.length >= 500) {
+          throw new Error('Registry check is incomplete at 500 records. Server-side SKU validation is required before larger batches.');
+      }
+      return catalog.map(product => product.code || '').filter(Boolean);
+  };
+
+  const createBatchDraft = async (product: any): Promise<void> => {
+      const response = await factoryFetch<{ success?: boolean }>('factory/products', {
+          method: 'POST',
+          body: JSON.stringify({ ...product, status: 'draft', is_published: 0 }),
+      });
+      if (response?.success === false) throw new Error('Worker did not accept the draft.');
   };
 
   const handleBack = () => {
@@ -279,7 +289,14 @@ const FactoryWorkspace: React.FC = () => {
       {loading && products.length === 0 ? (
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">Initializing Registry...</span></div>
       ) : isBatchCreating ? (
-          <BatchCreator categories={categories} onCancel={handleBack} onSave={handleBatchSave} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
+          <BatchCreator
+              categories={categories}
+              onCancel={handleBack}
+              onCreateDraft={createBatchDraft}
+              onFetchExistingCodes={fetchExistingBatchCodes}
+              onCompleted={async () => { await loadData(); }}
+              onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }}
+          />
       ) : editingItem || isCreating ? (
             <ProductForm 
                 initialData={editingItem || {}} 
