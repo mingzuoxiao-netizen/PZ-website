@@ -293,6 +293,13 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const hasUncertain = rows.some(row => row.status === 'verify');
   const canEditSingle = !hasSaved;
 
+  const leaveBatch = () => {
+    if (inFlight.current) return;
+    if (rows.some(row => row.status !== 'saved') && rows.length > 0 &&
+      !window.confirm('Leave Batch Induction? Unfinished inputs will be lost.')) return;
+    onCancel();
+  };
+
   return (
     <div className="mx-auto max-w-6xl overflow-hidden rounded-sm border border-stone-200 bg-white shadow-xl">
       <div className="flex items-center justify-between bg-stone-900 p-6 text-white">
@@ -303,10 +310,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             <p className="mt-1 text-xs text-stone-300">Review product data and images before creating drafts</p>
           </div>
         </div>
-        <button type="button" disabled={isProcessing} onClick={() => {
-          if (rows.some(row => row.status !== 'saved') && rows.length && !window.confirm('Leave the batch? Unfinished inputs will be lost.')) return;
-          onCancel();
-        }} className="rounded p-2 hover:bg-stone-700" aria-label="Close batch uploader"><X size={20}/></button>
+        <button type="button" disabled={isProcessing} onClick={leaveBatch} className="rounded p-2 hover:bg-stone-700" aria-label="Close batch uploader"><X size={20}/></button>
       </div>
 
       <div className="space-y-6 p-6">
@@ -450,7 +454,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5">
           <p className="text-xs text-stone-500">Draft only. No automatic review or publication. A failed D1 save may leave an unused file in R2.</p>
           <div className="flex gap-3">
-            <button type="button" disabled={isProcessing} onClick={onCancel}
+            <button type="button" disabled={isProcessing} onClick={leaveBatch}
               className="border border-stone-200 px-5 py-3 text-xs font-bold">Back to Registry</button>
             <button type="button" disabled={isProcessing || !rows.length || hasUncertain || rows.every(row => row.status === 'saved')}
               onClick={processBatch} className="inline-flex items-center gap-2 bg-stone-900 px-5 py-3 text-xs font-bold text-white disabled:opacity-40">
