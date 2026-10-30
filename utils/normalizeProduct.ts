@@ -1,4 +1,4 @@
-import { ProductVariant } from '../types';
+import { ProductVariant, ProductionSite } from '../types';
 import { isPublishedProduct } from './extractProducts';
 
 /**
@@ -27,6 +27,15 @@ export function normalizeProduct(input: any): ProductVariant {
   } else if (typeof input.image === 'string' && input.image.trim().length > 0) {
     images = [input.image];
   }
+
+  // The Worker returns an array; also tolerate serialized rows from older data paths.
+  let rawSites: unknown = input.production_sites;
+  if (typeof rawSites === 'string') {
+    try { rawSites = JSON.parse(rawSites); } catch { rawSites = []; }
+  }
+  const productionSites: ProductionSite[] = Array.isArray(rawSites)
+    ? Array.from(new Set<ProductionSite>(rawSites.filter((site: unknown): site is ProductionSite => site === 'zhaoqing' || site === 'cambodia')))
+    : [];
 
   // 2. Normalize Status (Standardize into 4 canonical states)
   let status = 'draft';
@@ -60,6 +69,7 @@ export function normalizeProduct(input: any): ProductVariant {
     size: input.size || input.dimensions || '',
     material: input.material || '',
     code: input.code || '',
+    production_sites: productionSites,
     status: status,
     colors: Array.isArray(input.colors) ? input.colors : []
   } as ProductVariant & { __invalid?: boolean };
