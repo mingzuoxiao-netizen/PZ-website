@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { factoryFetch } from '../../utils/factoryFetch';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
+import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
 import { 
@@ -297,7 +298,10 @@ const FactoryWorkspace: React.FC = () => {
                 </div>
                 <ProductList 
                     lang="en" 
-                    items={selectedCategoryId === 'all' ? products : products.filter(i => i.category === selectedCategoryId)} 
+                    items={selectedCategoryId === 'all' ? products : products.filter(item => {
+                        const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+                        return selectedCategory ? categoryMatches(item.category, selectedCategory) : false;
+                    })} 
                     categories={categories} 
                     onEdit={setEditingItem} 
                     onCreate={() => setIsCreating(true)} 
