@@ -1,201 +1,463 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Loader2, Image as ImageIcon, CheckCircle, AlertCircle, Save, Layers } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Upload, X, Loader2, CheckCircle, AlertTriangle, Save,
+  Layers, ArrowUp, ArrowDown, RotateCcw
+} from 'lucide-react';
 import { Category, ProductionSite } from '../../../types';
-import { resolveImage } from '../../../utils/imageResolver';
+
+type Mode = 'many-products' | 'one-product';
+type AssetStatus = 'ready' | 'uploading' | 'uploaded' | 'saved' | 'error' | 'verify';
+
+interface AssetRow {
+  id: number;
+  file: File;
+  previewUrl: string;
+  name: string;
+  code: string;
+  material: string;
+  size: string;
+  url?: string;
+  status: AssetStatus;
+  error?: string;
+}
+
+interface DraftPayload {
+  name: string;
+  code: string;
+  category: string;
+  material: string;
+  size: string;
+  production_sites: ProductionSite[];
+  images: string[];
+  status: 'draft';
+  is_published: 0;
+}
 
 interface BatchCreatorProps {
   categories: Category[];
-  onSave: (products: any[]) => Promise<void>;
+  onCreateDraft: (product: DraftPayload) => Promise<void>;
+  onFetchExistingCodes: () => Promise<string[]>;
+  onCompleted: () => Promise<void>;
   onCancel: () => void;
   onUpload: (file: File) => Promise<string>;
 }
 
-const BatchCreator: React.FC<BatchCreatorProps> = ({ categories, onSave, onCancel, onUpload }) => {
+const MAX_FILES = 30;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const SKU_PATTERN = /^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/;
+const normalizeCode = (code: string) => code.trim().toUpperCase();
+const makeName = (name: string) => name.replace(/\.[^/.]+$/, '').trim();
+const productionSiteOptions: { value: ProductionSite; label: string }[] = [
+  { value: 'zhaoqing', label: 'Zhaoqing · China / 肇庆' },
+  { value: 'cambodia', label: 'Kandal · Cambodia / 柬埔寨' },
+];
+
+const BatchCreator: React.FC<BatchCreatorProps> = ({
+  categories, onCreateDraft, onFetchExistingCodes, onCompleted, onCancel, onUpload
+}) => {
+  const [mode, setMode] = useState<Mode>('many-products');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSites, setSelectedSites] = useState<ProductionSite[]>([]);
-  const [files, setFiles] = useState<{ file: File; status: 'idle' | 'uploading' | 'success' | 'error'; url?: string }[]>([]);
+  const [rows, setRows] = useState<AssetRow[]>([]);
+  const [single, setSingle] = useState({ name: '', code: '', material: '', size: '' });
   const [isProcessing, setIsProcessing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [feedback, setFeedback] = useState('');
+  const [progress, setProgress] = useState('');
+  const nextId = useRef(1);
+  const inFlight = useRef(false);
+  const previewUrls = useRef<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    previewUrls.current.forEach(url => URL.revokeObjectURL(url));
+  }, []);
+
+  const updateRow = (id: number, patch: Partial<AssetRow>) => {
+    setRows(prev => prev.map(row => row.id === id ? { ...row, ...patch } : row));
+  };
+
+  const releasePreview = (url: string) => {
+    URL.revokeObjectURL(url);
+    previewUrls.current = previewUrls.current.filter(item => item !== url);
+  };
+
+  const addFiles = (fileList: FileList | null) => {
+    if (!fileList || inFlight.current) return;
+    const incoming = Array.from(fileList);
+    if (rows.length + incoming.length > MAX_FILES) {
+      setFeedback('Choose up to ' + MAX_FILES + ' images per batch.');
+      return;
+    }
+    if (incoming.some(file => !file.type.startsWith('image/') || file.size > MAX_FILE_BYTES)) {
+      setFeedback('Only image files up to 10 MB each are accepted.');
+      return;
+    }
+    const existing = new Set(rows.map(row => row.file.name + ':' + row.file.size + ':' + row.file.lastModified));
+    const unique = incoming.filter(file => {
+      const key = file.name + ':' + file.size + ':' + file.lastModified;
+      if (existing.has(key)) return false;
+      existing.add(key);
+      return true;
+    });
+    const added = unique.map(file => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrls.current.push(previewUrl);
+      return {
+        id: nextId.current++,
+        file, previewUrl,
+        name: makeName(file.name),
+        code: '', material: '', size: '',
+        status: 'ready' as AssetStatus
+      };
+    });
+    setRows(prev => [...prev, ...added]);
+    setFeedback(unique.length ? '' : 'These image files are already in the queue.');
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const clearRows = () => {
+    rows.forEach(row => releasePreview(row.previewUrl));
+    setRows([]);
+    setFeedback('');
+    setProgress('');
+  };
+
+  const switchMode = (next: Mode) => {
+    if (next === mode || inFlight.current) return;
+    if (rows.length > 0 && !window.confirm('Switching upload mode clears this queue. Continue?')) return;
+    clearRows();
+    setMode(next);
+  };
+
+  const deleteRow = (id: number) => {
+    if (inFlight.current) return;
+    const row = rows.find(item => item.id === id);
+    if (!row || row.status === 'saved') return;
+    releasePreview(row.previewUrl);
+    setRows(prev => prev.filter(item => item.id !== id));
+  };
+
+  const moveImage = (index: number, by: number) => {
+    if (inFlight.current) return;
+    const target = index + by;
+    if (target < 0 || target >= rows.length) return;
+    setRows(prev => {
+      const updated = [...prev];
+      [updated[index], updated[target]] = [updated[target], updated[index]];
+      return updated;
+    });
+  };
 
   const toggleSite = (site: ProductionSite) => {
-    setSelectedSites(prev => prev.includes(site) ? prev.filter(value => value !== site) : [...prev, site]);
+    setSelectedSites(prev => prev.includes(site)
+      ? prev.filter(value => value !== site)
+      : [...prev, site]);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const newFiles = Array.from(e.target.files).map(f => ({ file: f, status: 'idle' as const }));
-    setFiles(prev => [...prev, ...newFiles]);
+  const verifyAndRetry = (rowId?: number) => {
+    if (!window.confirm('First check Master Registry to confirm the SKU was NOT created. Retry only after checking.')) return;
+    setRows(prev => prev.map(row =>
+      row.status === 'verify' && (rowId === undefined || row.id === rowId)
+        ? { ...row, status: row.url ? 'uploaded' : 'ready', error: undefined }
+        : row
+    ));
+    setFeedback('');
   };
 
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const createDraft = (params: { name: string; code: string; material: string; size: string }, urls: string[]) => {
+    const payload: DraftPayload = {
+      name: params.name.trim(), code: normalizeCode(params.code),
+      category: selectedCategory, material: params.material.trim(),
+      size: params.size.trim(), production_sites: [...selectedSites],
+      images: urls, status: 'draft', is_published: 0
+    };
+    return onCreateDraft(payload);
   };
 
-  const startBatchInduction = async () => {
-    if (!selectedCategory) { alert("Please select a target category first."); return; }
-    if (files.length === 0) return;
+  const processBatch = async () => {
+    if (inFlight.current) return;
+    setFeedback('');
+    if (!selectedCategory) return setFeedback('Select a product category first.');
+    if (selectedSites.length === 0) return setFeedback('Select at least one production site.');
+    if (rows.length === 0) return setFeedback('Choose image files first.');
+    if (rows.some(row => row.status === 'verify')) {
+      return setFeedback('A previous save result is uncertain. Check Master Registry before retrying.');
+    }
 
+    const remaining = rows.filter(row => row.status !== 'saved');
+    if (remaining.length === 0) return setFeedback('All drafts in this queue are already saved.');
+
+    const candidates = mode === 'one-product'
+      ? [single]
+      : remaining.map(row => ({ name: row.name, code: row.code, material: row.material, size: row.size }));
+    if (candidates.some(item => !item.name.trim() || !SKU_PATTERN.test(normalizeCode(item.code)))) {
+      return setFeedback('Each product needs a name and a unique SKU such as PZ-BIRCH-001 (2–40 characters after PZ-).');
+    }
+
+    const codes = candidates.map(item => normalizeCode(item.code));
+    if (new Set(codes).size !== codes.length) {
+      return setFeedback('Duplicate SKU codes found within this batch. Correct them before saving.');
+    }
+
+    let knownCodes: string[];
+    try {
+      // Fail closed when fresh catalog validation is unavailable.
+      knownCodes = (await onFetchExistingCodes()).map(normalizeCode);
+    } catch (error: any) {
+      return setFeedback('Cannot check existing SKUs: ' + (error?.message || 'network error'));
+    }
+    const existing = new Set(knownCodes);
+    const collisions = codes.filter(code => existing.has(code));
+    if (collisions.length) return setFeedback('These SKU codes already exist: ' + collisions.join(', '));
+
+    if (!window.confirm('Create ' + (mode === 'one-product' ? '1 product with ' + rows.length + ' images' : remaining.length + ' product drafts') + '? All new records will remain Draft.')) return;
+
+    inFlight.current = true;
     setIsProcessing(true);
-    const uploadedProducts = [];
+    let saved = 0;
+    let failed = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const item = files[i];
-      if (item.status === 'success') continue;
-
-      try {
-        setFiles(prev => {
-          const next = [...prev];
-          next[i].status = 'uploading';
-          return next;
-        });
-
-        const url = await onUpload(item.file);
-        
-        setFiles(prev => {
-          const next = [...prev];
-          next[i].status = 'success';
-          next[i].url = url;
-          return next;
-        });
-
-        // ✅ Batch creates as 'draft'
-        uploadedProducts.push({
-          name: item.file.name.replace(/\.[^/.]+$/, ""),
-          category: selectedCategory,
-          production_sites: selectedSites,
-          images: [url],
-          status: 'draft',
-          is_published: 0
-        });
-
-      } catch (e) {
-        setFiles(prev => {
-          const next = [...prev];
-          next[i].status = 'error';
-          return next;
-        });
+    try {
+      if (mode === 'one-product') {
+        const imageUrls: string[] = [];
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          setProgress('Uploading image ' + (i + 1) + '/' + rows.length);
+          if (row.url) {
+            imageUrls.push(row.url);
+            continue;
+          }
+          updateRow(row.id, { status: 'uploading', error: undefined });
+          try {
+            const url = await onUpload(row.file);
+            if (!url || !url.startsWith('https://')) throw new Error('Invalid uploaded image URL');
+            imageUrls.push(url);
+            updateRow(row.id, { url, status: 'uploaded' });
+          } catch (error: any) {
+            failed++;
+            updateRow(row.id, { status: 'error', error: error?.message || 'Image upload failed' });
+            setFeedback('Image upload failed. Fix the issue and retry; successfully uploaded files are reused.');
+            return;
+          }
+        }
+        setProgress('Saving one draft with ' + imageUrls.length + ' images');
+        try {
+          await createDraft(single, imageUrls);
+          saved++;
+          setRows(prev => prev.map(row => ({ ...row, status: 'saved', error: undefined })));
+        } catch (error: any) {
+          failed++;
+          setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || 'Save outcome unknown' })));
+          setFeedback('Save result uncertain. Check Master Registry for SKU ' + normalizeCode(single.code) + ' before retrying.');
+        }
+      } else {
+        for (let i = 0; i < remaining.length; i++) {
+          const row = remaining[i];
+          setProgress('Processing product ' + (i + 1) + '/' + remaining.length);
+          let url = row.url;
+          if (!url) {
+            updateRow(row.id, { status: 'uploading', error: undefined });
+            try {
+              url = await onUpload(row.file);
+              if (!url || !url.startsWith('https://')) throw new Error('Invalid uploaded image URL');
+              updateRow(row.id, { url, status: 'uploaded' });
+            } catch (error: any) {
+              failed++;
+              updateRow(row.id, { status: 'error', error: error?.message || 'Image upload failed' });
+              continue;
+            }
+          }
+          try {
+            await createDraft(row, [url]);
+            saved++;
+            updateRow(row.id, { status: 'saved', error: undefined });
+          } catch (error: any) {
+            failed++;
+            updateRow(row.id, { status: 'verify', error: error?.message || 'Save outcome unknown' });
+          }
+        }
       }
+    } finally {
+      inFlight.current = false;
+      setIsProcessing(false);
+      setProgress('');
+      if (saved) {
+        try { await onCompleted(); } catch (error) { console.error('Registry refresh failed', error); }
+      }
+      if (!failed && saved) setFeedback('Created ' + saved + ' draft SKU(s). Success rows will not be resubmitted.');
+      if (failed && mode === 'many-products') setFeedback(saved + ' saved; ' + failed + ' failed or need verification. Review each row before retrying.');
     }
-
-    if (uploadedProducts.length > 0) {
-        await onSave(uploadedProducts);
-    }
-    setIsProcessing(false);
   };
+
+  const hasSaved = rows.some(row => row.status === 'saved');
+  const hasUncertain = rows.some(row => row.status === 'verify');
+  const canEditSingle = !hasSaved;
 
   return (
-    <div className="bg-white border border-stone-200 shadow-2xl animate-fade-in-up max-w-5xl mx-auto rounded-sm overflow-hidden">
-      <div className="bg-stone-900 p-6 flex justify-between items-center text-white">
-          <div className="flex items-center gap-3">
-              <Layers size={20} className="text-safety-700" />
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em]">High-Velocity Batch Induction</h3>
+    <div className="mx-auto max-w-6xl overflow-hidden rounded-sm border border-stone-200 bg-white shadow-xl">
+      <div className="flex items-center justify-between bg-stone-900 p-6 text-white">
+        <div className="flex items-center gap-3">
+          <Layers size={20} className="text-safety-700" />
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-widest">Batch Product Induction</h2>
+            <p className="mt-1 text-xs text-stone-300">Review product data and images before creating drafts</p>
           </div>
-          <button onClick={onCancel} className="text-stone-500 hover:text-white transition-colors"><X size={20} /></button>
+        </div>
+        <button type="button" disabled={isProcessing} onClick={() => {
+          if (rows.some(row => row.status !== 'saved') && rows.length && !window.confirm('Leave the batch? Unfinished inputs will be lost.')) return;
+          onCancel();
+        }} className="rounded p-2 hover:bg-stone-700" aria-label="Close batch uploader"><X size={20}/></button>
       </div>
 
-      <div className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-1 space-y-6">
-                <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">1. Target Series</label>
-                    <select 
-                        value={selectedCategory}
-                        onChange={e => setSelectedCategory(e.target.value)}
-                        className="w-full bg-stone-50 border border-stone-200 p-3 text-xs font-bold focus:border-stone-900 outline-none"
-                    >
-                        <option value="">Select Category...</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                    </select>
-                </div>
+      <div className="space-y-6 p-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button type="button" disabled={isProcessing} onClick={() => switchMode('many-products')}
+            className={'rounded-sm border p-4 text-left ' + (mode === 'many-products' ? 'border-stone-900 bg-stone-100' : 'border-stone-200')}>
+            <strong className="text-sm">Multiple products / 多款产品</strong>
+            <p className="mt-1 text-xs text-stone-500">One image creates one draft; each product needs its own SKU.</p>
+          </button>
+          <button type="button" disabled={isProcessing} onClick={() => switchMode('one-product')}
+            className={'rounded-sm border p-4 text-left ' + (mode === 'one-product' ? 'border-stone-900 bg-stone-100' : 'border-stone-200')}>
+            <strong className="text-sm">One product, many photos / 单款多图</strong>
+            <p className="mt-1 text-xs text-stone-500">All images belong to one SKU; first image is the cover.</p>
+          </button>
+        </div>
 
-                <fieldset className="rounded-sm border border-stone-200 p-3">
-                    <legend className="px-1 text-[10px] font-bold uppercase tracking-widest text-stone-500">2. Production Sites / 生产基地</legend>
-                    <p className="mb-3 text-[10px] text-stone-500">Applied to every SKU in this batch.</p>
-                    {([
-                        ['zhaoqing', 'Zhaoqing · China'],
-                        ['cambodia', 'Kandal · Cambodia']
-                    ] as const).map(([site, label]) => (
-                        <label key={site} className="mb-2 flex cursor-pointer items-center gap-2 text-xs text-stone-700">
-                            <input type="checkbox" checked={selectedSites.includes(site)} onChange={() => toggleSite(site)} />
-                            {label}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-xs font-bold uppercase text-stone-600">Product Category
+            <select disabled={isProcessing || hasSaved} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
+              className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900">
+              <option value="">Choose category</option>
+              {categories.map(category => <option key={category.id} value={category.id}>{category.title}</option>)}
+            </select>
+          </label>
+          <fieldset className="border border-stone-200 p-3">
+            <legend className="px-1 text-xs font-bold uppercase text-stone-600">Production Sites / 生产基地</legend>
+            {productionSiteOptions.map(site => (
+              <label key={site.value} className="mr-5 inline-flex items-center gap-2 py-2 text-xs">
+                <input type="checkbox" disabled={isProcessing || hasSaved} checked={selectedSites.includes(site.value)}
+                  onChange={() => toggleSite(site.value)} />
+                {site.label}
+              </label>
+            ))}
+          </fieldset>
+        </div>
+
+        {mode === 'one-product' && (
+          <div className="grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
+            {([
+              ['name', 'Product Name / 产品名称', 'e.g. Oak Dining Table'],
+              ['code', 'SKU (required)', 'PZ-DT-001'],
+              ['material', 'Material / 材质', 'e.g. White Oak'],
+              ['size', 'Size / 尺寸', 'e.g. 72 x 36 x 30 in']
+            ] as const).map(([field, label, hint]) => (
+              <label key={field} className="block text-xs font-bold text-stone-600">
+                {label}
+                <input disabled={!canEditSingle || isProcessing} value={single[field]}
+                  onChange={e => setSingle(prev => ({ ...prev, [field]: field === 'code' ? e.target.value.toUpperCase() : e.target.value }))}
+                  placeholder={hint} className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900" />
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Image Queue: {rows.length}</h3>
+            <p className="text-xs text-stone-500">JPEG, PNG, WebP and other image files · max 10 MB each · max {MAX_FILES} images</p>
+          </div>
+          <div className="flex gap-3">
+            <input type="file" accept="image/*" multiple ref={inputRef} className="hidden" onChange={e => addFiles(e.target.files)} />
+            <button type="button" disabled={isProcessing || hasSaved || rows.length >= MAX_FILES} onClick={() => inputRef.current?.click()}
+              className="inline-flex items-center gap-2 bg-stone-900 px-4 py-3 text-xs font-bold text-white disabled:opacity-40">
+              <Upload size={15} /> Choose Images
+            </button>
+            {rows.length > 0 && !hasSaved && (
+              <button type="button" disabled={isProcessing} onClick={() => {
+                if (window.confirm('Clear all selected images and unsaved inputs?')) clearRows();
+              }} className="border border-stone-200 px-4 py-3 text-xs">Clear</button>
+            )}
+          </div>
+        </div>
+
+        {rows.length > 0 && (
+          <div className="max-h-[600px] space-y-3 overflow-y-auto pr-1">
+            {rows.map((row, index) => (
+              <div key={row.id} className="grid gap-4 rounded border border-stone-200 p-3 md:grid-cols-[108px_minmax(0,1fr)_auto]">
+                <div>
+                  <img src={row.previewUrl} alt={row.file.name} className="h-24 w-24 rounded-sm object-cover"/>
+                  {mode === 'one-product' && index === 0 && <span className="text-[10px] font-bold text-green-700">Cover / 主图</span>}
+                </div>
+                <div className="min-w-0">
+                  {mode === 'many-products' ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {([
+                        ['name', 'Name / 名称'],
+                        ['code', 'SKU (required)'],
+                        ['material', 'Material / 材质'],
+                        ['size', 'Size / 尺寸']
+                      ] as const).map(([field, label]) => (
+                        <label key={field} className="block text-[11px] font-bold text-stone-500">
+                          {label}
+                          <input disabled={isProcessing || row.status === 'saved' || row.status === 'verify'}
+                            value={row[field]} onChange={e => updateRow(row.id, { [field]: field === 'code' ? e.target.value.toUpperCase() : e.target.value })}
+                            className="mt-1 w-full border border-stone-200 p-2 text-xs font-normal text-stone-900" />
                         </label>
-                    ))}
-                </fieldset>
-
-                <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">3. Upload Source</label>
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-8 border-2 border-dashed border-stone-200 rounded-sm hover:border-safety-700 hover:bg-stone-50 transition-all flex flex-col items-center justify-center gap-2"
-                    >
-                        <Upload size={24} className="text-stone-300" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Select Images</span>
-                    </button>
-                    <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-                </div>
-
-                <div className="pt-6 border-t border-stone-100">
-                    <button 
-                        disabled={isProcessing || files.length === 0}
-                        onClick={startBatchInduction}
-                        className="w-full bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 disabled:bg-stone-100 disabled:text-stone-300 transition-all shadow-lg flex items-center justify-center gap-2"
-                    >
-                        {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Process Batch
-                    </button>
-                </div>
-            </div>
-
-            <div className="md:col-span-3 border-l border-stone-100 pl-8">
-                <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Queue: {files.length} Assets</h4>
-                    {files.length > 0 && <button onClick={() => setFiles([])} className="text-[10px] font-bold text-red-500 uppercase">Clear All</button>}
-                </div>
-
-                {files.length === 0 ? (
-                    <div className="h-64 border border-dashed border-stone-100 flex flex-col items-center justify-center text-stone-300 gap-3">
-                        <ImageIcon size={48} className="opacity-10" />
-                        <p className="text-[10px] font-mono uppercase tracking-widest">Queue Empty</p>
+                      ))}
                     </div>
-                ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        {files.map((item, idx) => (
-                            <div key={idx} className="relative aspect-square bg-stone-50 border border-stone-200 group">
-                                <img 
-                                    src={URL.createObjectURL(item.file)} 
-                                    className={`w-full h-full object-cover ${item.status === 'uploading' ? 'opacity-30' : ''}`} 
-                                    alt="" 
-                                />
-                                {item.status === 'uploading' && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-white/20">
-                                        <Loader2 size={16} className="animate-spin text-stone-900" />
-                                    </div>
-                                )}
-                                {item.status === 'success' && (
-                                    <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-0.5">
-                                        <CheckCircle size={10} />
-                                    </div>
-                                )}
-                                {item.status === 'error' && (
-                                    <div className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5">
-                                        <AlertCircle size={10} />
-                                    </div>
-                                )}
-                                <button 
-                                    onClick={() => removeFile(idx)}
-                                    className="absolute inset-0 bg-red-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                <div className="mt-6 p-4 bg-amber-50 text-[10px] text-amber-700 leading-relaxed rounded-sm border border-amber-100">
-                    <p className="font-bold mb-1 uppercase tracking-widest">Efficiency Tip:</p>
-                    <p>Filenames will automatically be used as Product Names. You can edit them later in the Master Inventory.</p>
+                  ) : (
+                    <div className="text-xs text-stone-600">{row.file.name}</div>
+                  )}
+                  <div className="mt-2 text-xs">
+                    <strong className={row.status === 'saved' ? 'text-green-700' : row.status === 'error' || row.status === 'verify' ? 'text-red-700' : 'text-stone-500'}>
+                      {row.status === 'saved' ? 'Draft saved' : row.status === 'verify' ? 'Save uncertain – verify SKU before retry' : row.status}
+                    </strong>
+                    {row.error && <p className="mt-1 break-words text-red-700">{row.error}</p>}
+                  </div>
+                  {row.status === 'verify' && mode === 'many-products' && (
+                    <button type="button" onClick={() => verifyAndRetry(row.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-700">
+                      <RotateCcw size={12}/> I checked Registry; retry
+                    </button>
+                  )}
                 </div>
-            </div>
+                <div className="flex flex-row gap-2 md:flex-col">
+                  {mode === 'one-product' && (
+                    <>
+                      <button type="button" title="Move earlier" disabled={isProcessing || hasSaved || index === 0}
+                        onClick={() => moveImage(index, -1)} className="rounded border border-stone-200 p-2 disabled:opacity-30"><ArrowUp size={15}/></button>
+                      <button type="button" title="Move later" disabled={isProcessing || hasSaved || index === rows.length - 1}
+                        onClick={() => moveImage(index, 1)} className="rounded border border-stone-200 p-2 disabled:opacity-30"><ArrowDown size={15}/></button>
+                    </>
+                  )}
+                  {row.status !== 'saved' && (
+                    <button type="button" title="Remove image" disabled={isProcessing}
+                      onClick={() => deleteRow(row.id)} className="rounded border border-stone-200 p-2 text-red-600 disabled:opacity-30"><X size={15}/></button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasUncertain && mode === 'one-product' && (
+          <button type="button" onClick={() => verifyAndRetry()} className="inline-flex items-center gap-2 text-xs font-bold text-amber-700">
+            <RotateCcw size={14}/> I checked Master Registry; this SKU does not exist. Enable retry.
+          </button>
+        )}
+        {feedback && <div role="alert" className="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle size={16} className="mr-2 inline"/>{feedback}</div>}
+        {progress && <p role="status" className="flex items-center gap-2 text-sm text-stone-700"><Loader2 className="animate-spin" size={16}/>{progress}</p>}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5">
+          <p className="text-xs text-stone-500">Draft only. No automatic review or publication. A failed D1 save may leave an unused file in R2.</p>
+          <div className="flex gap-3">
+            <button type="button" disabled={isProcessing} onClick={onCancel}
+              className="border border-stone-200 px-5 py-3 text-xs font-bold">Back to Registry</button>
+            <button type="button" disabled={isProcessing || !rows.length || hasUncertain || rows.every(row => row.status === 'saved')}
+              onClick={processBatch} className="inline-flex items-center gap-2 bg-stone-900 px-5 py-3 text-xs font-bold text-white disabled:opacity-40">
+              {isProcessing ? <Loader2 size={15} className="animate-spin"/> : <Save size={15}/>}
+              Validate & Create Drafts
+            </button>
+          </div>
         </div>
       </div>
     </div>
