@@ -36,7 +36,7 @@ interface DraftPayload {
 interface BatchCreatorProps {
   categories: Category[];
   onCreateDraft: (product: DraftPayload) => Promise<void>;
-  onFetchExistingCodes: () => Promise<string[]>;
+  onCheckSkuCodes: (codes: string[]) => Promise<string[]>;
   onCompleted: () => Promise<void>;
   onCancel: () => void;
   onUpload: (file: File) => Promise<string>;
@@ -46,6 +46,7 @@ const MAX_FILES = 30;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const SKU_PATTERN = /^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/;
 const normalizeCode = (code: string) => code.trim().toUpperCase();
+const isKnownSkuConflict = (error: unknown) => /SKU_CONFLICT|SKU already exists/i.test(String((error as any)?.message || error));
 const makeName = (name: string) => name.replace(/\.[^/.]+$/, '').trim();
 const productionSiteOptions: { value: ProductionSite; label: string }[] = [
   { value: 'zhaoqing', label: 'Zhaoqing · China / 肇庆' },
@@ -53,7 +54,7 @@ const productionSiteOptions: { value: ProductionSite; label: string }[] = [
 ];
 
 const BatchCreator: React.FC<BatchCreatorProps> = ({
-  categories, onCreateDraft, onFetchExistingCodes, onCompleted, onCancel, onUpload
+  categories, onCreateDraft, onCheckSkuCodes, onCompleted, onCancel, onUpload
 }) => {
   const [mode, setMode] = useState<Mode>('many-products');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -201,8 +202,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
 
     let knownCodes: string[];
     try {
-      // Fail closed when fresh catalog validation is unavailable.
-      knownCodes = (await onFetchExistingCodes()).map(normalizeCode);
+      // Indexed backend lookup; the SQLite UNIQUE index remains authoritative.
+      knownCodes = (await onCheckSkuCodes(codes)).map(normalizeCode);
     } catch (error: any) {
       return setFeedback('Cannot check existing SKUs: ' + (error?.message || 'network error'));
     }
@@ -247,8 +248,13 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           setRows(prev => prev.map(row => ({ ...row, status: 'saved', error: undefined })));
         } catch (error: any) {
           failed++;
-          setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || 'Save outcome unknown' })));
-          setFeedback('Save result uncertain. Check Master Registry for SKU ' + normalizeCode(single.code) + ' before retrying.');
+          if (isKnownSkuConflict(error)) {
+            setRows(prev => prev.map(row => ({ ...row, status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' })));
+            setFeedback('The SKU was taken during upload. Enter a different SKU and retry. Existing uploaded images will be reused.');
+          } else {
+            setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || 'Save outcome unknown' })));
+            setFeedback('Save result uncertain. Check Master Registry for SKU ' + normalizeCode(single.code) + ' before retrying.');
+          }
         }
       } else {
         for (let i = 0; i < remaining.length; i++) {
@@ -273,7 +279,9 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             updateRow(row.id, { status: 'saved', error: undefined });
           } catch (error: any) {
             failed++;
-            updateRow(row.id, { status: 'verify', error: error?.message || 'Save outcome unknown' });
+            updateRow(row.id, isKnownSkuConflict(error)
+              ? { status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' }
+              : { status: 'verify', error: error?.message || 'Save outcome unknown' });
           }
         }
       }
