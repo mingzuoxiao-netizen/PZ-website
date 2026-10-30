@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, LayoutGrid, Plus, ArrowRight, Sparkles } from 'lucide-react';
 import { Category, ProductVariant } from '../../../types';
+import { categoryMatches } from '../../../utils/categoryMatching';
 
 interface CategoryGridProps {
   categories: Category[];
@@ -13,7 +14,8 @@ interface CategoryGridProps {
 
 const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSelectCategory, onSelectAll, onCreateCategory, newCategoryIds = [] }) => {
   const getCount = (catId: string) => {
-    return products.filter(p => (p.category || '').toLowerCase() === catId.toLowerCase()).length;
+    const category = categories.find(cat => cat.id === catId);
+    return category ? products.filter(product => categoryMatches(product.category, category)).length : 0;
   };
 
   return (
