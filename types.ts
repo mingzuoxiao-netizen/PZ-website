@@ -1,3 +1,5 @@
+export type ProductionSite = 'zhaoqing' | 'cambodia';
+
 export interface NavItem {
   label: string;
   path: string;
@@ -16,6 +18,8 @@ export interface ProductVariant {
   size?: string;
   code?: string;
   status?: string;
+  production_sites?: ProductionSite[];
+  created_by?: string | null;
   sub_category?: string;
   category?: string;
   colors?: {
