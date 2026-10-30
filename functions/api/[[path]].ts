@@ -8,10 +8,27 @@ export async function onRequest(context: any) {
 
   // Production defaults to the existing API. Configure PZ_BACKEND_WORKER
   // in *Preview only* to point to an isolated staging Worker + D1.
-  const configuredBackend = String(context.env?.PZ_BACKEND_WORKER || "").trim();
-  const BACKEND_WORKER = /^https:\/\/[a-z0-9.-]+\.workers\.dev\/?$/i.test(configuredBackend)
-    ? configuredBackend.replace(/\/$/, "")
-    : "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+  const configuredBackend = String(context.env?.PZ_BACKEND_WORKER || "").trim().replace(/\/$/, "");
+  const isPreviewHost = url.hostname.endsWith(".pz-website-lw7.pages.dev");
+
+  // Fail closed on Cloudflare Pages previews. A missing/invalid preview binding must
+  // NEVER silently route admin or factory writes to the production Worker/D1.
+  const expectedStagingBackend = "https://pz-inquiry-api-staging.mingzuoxiao29.workers.dev";
+  if (isPreviewHost && configuredBackend !== expectedStagingBackend) {
+    return new Response(JSON.stringify({
+      error: "Preview backend not configured",
+      details: "Set PZ_BACKEND_WORKER to the dedicated Staging Worker in Pages Preview variables, then redeploy this Preview."
+    }), {
+      status: 503,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
+  const BACKEND_WORKER = isPreviewHost
+    ? expectedStagingBackend
+    : /^https:\/\/[a-z0-9.-]+\.workers\.dev\/?$/i.test(configuredBackend)
+      ? configuredBackend
+      : "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
 
   // Removed /site-config and /upload-image from public roots to enforce Auth branch
   const PUBLIC_ROOTS = ["/products"];
