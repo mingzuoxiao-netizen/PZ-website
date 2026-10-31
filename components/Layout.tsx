@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search, Hash, ShieldCheck } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Hash, ShieldCheck, Globe2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { NAV_ITEMS } from '../types';
@@ -23,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { meta } = usePublishedSiteConfig();
 
   // Scroll Detection
@@ -122,7 +122,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
 
           {/* RIGHT ACTIONS */}
-          <div className="flex items-center space-x-6 md:space-x-8 z-50">
+          <div className="flex items-center space-x-3 md:space-x-5 z-50">
             {/* Search Toggle */}
             <button
               onClick={() => {
@@ -136,6 +136,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               className={`focus:outline-none transition-colors duration-500 ${navTextColor} hover:text-safety-700`}
             >
               {isSearchOpen ? <X size={18} /> : <Search size={18} />}
+            </button>
+
+            {/* Public language switch; a visitor's preference is saved locally. */}
+            <button type="button"
+              onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+              aria-label={language === 'en' ? 'Switch website to Chinese' : '切换网站为英文'}
+              title={language === 'en' ? '中文' : 'English'}
+              className="flex items-center gap-1.5 text-[11px] xl:text-xs font-medium text-[#654631] border border-[#e5d9ce] px-2.5 py-2 hover:bg-[#f1e6db] transition-colors"
+            >
+              <Globe2 size={15} aria-hidden="true"/><span>{language === 'en' ? 'EN / 中文' : '中文 / EN'}</span>
             </button>
 
             {/* Mobile Menu Toggle */}
@@ -157,7 +167,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ${useWhiteNav ? 'bg-[#754831] text-white hover:bg-[#573521]' : 'bg-white/5 text-white backdrop-blur-md border border-white/10 hover:bg-white hover:text-stone-900'}
                 `}
             >
-                Request a Quote <ArrowRight size={12} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                {language === 'zh' ? '获取报价' : 'Request a Quote'} <ArrowRight size={12} className="ml-3 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
