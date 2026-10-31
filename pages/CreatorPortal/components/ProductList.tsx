@@ -22,8 +22,9 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh, onSubmit, userRole, isLoading = false
+    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh, onSubmit, userRole, lang = "en", isLoading = false
 }) => {
+  const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -35,11 +36,11 @@ const ProductList: React.FC<ProductListProps> = ({
   const isAdmin = userRole === "ADMIN";
 
   const statusMap: Record<string, { label: string, color: string }> = {
-    all: { label: 'All Statuses', color: '' },
-    published: { label: 'Published', color: 'bg-green-100 text-green-700' },
-    awaiting_review: { label: 'Awaiting Audit', color: 'bg-amber-100 text-amber-700' },
-    draft: { label: 'Draft', color: 'bg-stone-100 text-stone-500' },
-    rejected: { label: 'Correction Req', color: 'bg-red-100 text-red-700' }
+    all: { label: T('All Statuses','全部状态'), color: '' },
+    published: { label: T('Published','已发布'), color: 'bg-green-100 text-green-700' },
+    awaiting_review: { label: T('Awaiting Audit','待审核'), color: 'bg-amber-100 text-amber-700' },
+    draft: { label: T('Draft','草稿'), color: 'bg-stone-100 text-stone-500' },
+    rejected: { label: T('Correction Req','已退回'), color: 'bg-red-100 text-red-700' }
   };
 
   const filteredItems = Array.isArray(items) ? items.filter(i => {
@@ -56,7 +57,7 @@ const ProductList: React.FC<ProductListProps> = ({
   };
 
   const handleSubmitForReview = async (id: string) => {
-      if (!confirm("Are you sure you want to submit this record to the master registry audit?")) return;
+      if (!confirm(T("Are you sure you want to submit this record to the master registry audit?","确认提交此产品进行审核吗？"))) return;
       if (!onSubmit) return;
       setSubmittingIds(prev => [...prev, id]);
       try {
@@ -70,14 +71,14 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handleBulkSubmit = async () => {
       if (selectedIds.length === 0 || !onSubmit) return;
-      if (!confirm(`Confirm submission of ${selectedIds.length} items for technical audit?`)) return;
+      if (!confirm(T(`Confirm submission of ${selectedIds.length} items for technical audit?`,`确认将选中的 ${selectedIds.length} 个产品提交审核吗？`))) return;
 
       setIsBulkProcessing(true);
       try {
           await Promise.all(selectedIds.map(id => onSubmit(id)));
           setSelectedIds([]);
           if (onRefresh) onRefresh();
-          alert("Bulk submission successful.");
+          alert(T("Bulk submission successful.","批量提交成功。"));
       } catch (e: any) {
           alert("Bulk processing error: " + e.message);
       } finally {
@@ -87,13 +88,13 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handleBulkDeleteAction = async () => {
     if (selectedIds.length === 0 || !onBulkDelete) return;
-    if (!confirm(`PERMANENTLY delete ${selectedIds.length} selected records? This action is IRREVERSIBLE.`)) return;
+    if (!confirm(T(`PERMANENTLY delete ${selectedIds.length} selected records? This action is IRREVERSIBLE.`,`确认永久删除 ${selectedIds.length} 个产品吗？此操作不可撤销。`))) return;
 
     setIsBulkProcessing(true);
     try {
         await onBulkDelete(selectedIds);
         setSelectedIds([]);
-        alert("Bulk deletion completed.");
+        alert(T("Bulk deletion completed.","批量删除完成。"));
     } catch (e: any) {
         alert("Deletion failed: " + e.message);
     } finally {
@@ -110,7 +111,7 @@ const ProductList: React.FC<ProductListProps> = ({
                     <Search size={16} className="text-stone-400" />
                     <input 
                         type="text" 
-                        placeholder="Search SKU or Title..." 
+                        placeholder={T("Search SKU or Title...","搜索产品名称或 SKU…")} 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
                         className="ml-3 w-full text-xs focus:outline-none font-sans" 
@@ -122,22 +123,22 @@ const ProductList: React.FC<ProductListProps> = ({
                 onChange={e => setStatusFilter(e.target.value)}
                 className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
              >
-                <option value="all">View All Statuses</option>
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-                <option value="awaiting_review">Awaiting Audit</option>
-                <option value="rejected">Correction Req</option>
+                <option value="all">{T("View All Statuses","查看全部状态")}</option>
+                <option value="published">{T("Published","已发布")}</option>
+                <option value="draft">{T("Draft","草稿")}</option>
+                <option value="awaiting_review">{T("Awaiting Audit","待审核")}</option>
+                <option value="rejected">{T("Correction Req","已退回")}</option>
              </select>
              <select
-                aria-label="Filter production site"
+                aria-label={T("Filter production site","筛选生产基地")}
                 value={siteFilter}
                 onChange={e => setSiteFilter(e.target.value as typeof siteFilter)}
                 className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
              >
-                <option value="all">All Production Sites</option>
-                <option value="zhaoqing">Zhaoqing · China</option>
-                <option value="cambodia">Kandal · Cambodia</option>
-                <option value="unassigned">Not Assigned</option>
+                <option value="all">{T("All Production Sites","全部生产基地")}</option>
+                <option value="zhaoqing">{T("Zhaoqing · China","中国肇庆")}</option>
+                <option value="cambodia">{T("Kandal · Cambodia","柬埔寨干丹")}</option>
+                <option value="unassigned">{T("Not Assigned","未指定生产基地")}</option>
              </select>
           </div>
           
@@ -153,7 +154,7 @@ const ProductList: React.FC<ProductListProps> = ({
               ) : filteredItems.length === 0 ? (
                   <div className="py-32 flex flex-col items-center justify-center text-stone-400">
                       <PackageX size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                      <p className="text-[10px] font-bold uppercase tracking-widest">Zero matching records found.</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest">{T("Zero matching records found.","没有符合条件的产品。")}</p>
                   </div>
               ) : (
                 filteredItems.map((item) => {
@@ -187,7 +188,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                     {statusInfo.label}
                                 </span>
                                 {isPublished && hasNoImages && (
-                                    <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title="Due to lack of valid assets, this product is automatically suppressed on the public site.">
+                                    <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title={T("Due to lack of valid assets, this product is automatically suppressed on the public site.","缺少有效图片，该产品不会在公开网站展示。")}>
                                         <AlertTriangle size={10} /> Hidden (Missing Assets)
                                     </div>
                                 )}
@@ -215,13 +216,13 @@ const ProductList: React.FC<ProductListProps> = ({
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
                                 {(!isFactory || item.status === 'draft' || item.status === 'rejected') && (
-                                    <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="Edit"><Edit size={16} /></button>
+                                    <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
                                 )}
                                 {isAdmin && onDelete && (
                                     <button 
                                         onClick={() => item.id && onDelete(item.id)} 
                                         className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"
-                                        title="Delete"
+                                        title={T("Delete","删除")}
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -241,7 +242,7 @@ const ProductList: React.FC<ProductListProps> = ({
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
                        <span className="text-xs font-mono font-bold text-safety-700 bg-safety-700/10 px-2 py-1 rounded">{selectedIds.length}</span>
-                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">Selected</span>
+                       <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{T("Selected","已选择")}</span>
                    </div>
                    {isFactory ? (
                        <button onClick={handleBulkSubmit} disabled={isBulkProcessing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">

@@ -127,10 +127,10 @@ const InquiryManager: React.FC = () => {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-3">
-            <h1 id="inquiry-heading" className="font-serif text-3xl text-stone-900">Inquiry Management</h1>
-            <span className="border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-stone-500">Read only · V1</span>
+            <h1 id="inquiry-heading" className="font-serif text-3xl text-stone-900">询盘管理</h1>
+            <span className="border border-stone-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-stone-500">只读模式</span>
           </div>
-          <p className="text-sm text-stone-500">Customer submissions received through the PZ website.</p>
+          <p className="text-sm text-stone-500">查看从 PZ 网站收到的客户咨询。</p>
         </div>
         <button
           type="button"
@@ -145,15 +145,15 @@ const InquiryManager: React.FC = () => {
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <div className="border border-stone-200 bg-white p-6">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">Loaded inquiries</p>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">已加载询盘</p>
           <div className="flex items-center gap-3">
             <Inbox size={23} className="text-orange-700" />
             <span className="font-serif text-3xl text-stone-900">{inquiries.length}</span>
           </div>
-          <p className="mt-2 text-xs text-stone-400">The current API returns at most 500 recent records.</p>
+          <p className="mt-2 text-xs text-stone-400">当前接口最多返回最近 500 条记录。</p>
         </div>
         <div className="border border-stone-200 bg-white p-6">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">Most recent submission</p>
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">最新一条询盘</p>
           <div className="flex items-center gap-3">
             <CalendarDays size={23} className="text-orange-700" />
             <span className="font-serif text-lg text-stone-900">
@@ -162,20 +162,20 @@ const InquiryManager: React.FC = () => {
               inquiries[0].createdAt)) : '—'}
             </span>
           </div>
-          <p className="mt-2 text-xs text-stone-400">Dates are displayed in your browser's time zone.</p>
+          <p className="mt-2 text-xs text-stone-400">日期按浏览器所在时区显示。</p>
         </div>
       </div>
 
       <div className="border border-stone-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-200 p-5">
           <label className="relative block w-full max-w-md">
-            <span className="sr-only">Search inquiries</span>
+            <span className="sr-only">搜索询盘</span>
             <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name, email, company, message..."
+              placeholder="搜索姓名、邮箱、公司或留言…"
               className="w-full border border-stone-200 bg-stone-50 py-3 pl-10 pr-3 text-sm text-stone-900 outline-none focus:border-orange-600"
             />
           </label>
@@ -191,7 +191,7 @@ const InquiryManager: React.FC = () => {
         {error && (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
             <span className="flex items-center gap-2"><AlertCircle size={17} /> Failed to refresh: {error}</span>
-            <button type="button" onClick={() => void loadInquiries()} className="font-bold underline">Try again</button>
+            <button type="button" onClick={() => void loadInquiries()} className="font-bold underline">重试</button>
           </div>
         )}
 
@@ -199,12 +199,12 @@ const InquiryManager: React.FC = () => {
           <table className="w-full min-w-[790px] text-left text-sm">
             <thead className="bg-stone-50 text-[11px] uppercase tracking-wider text-stone-500">
               <tr>
-                <th scope="col" className="px-5 py-4">Received</th>
-                <th scope="col" className="px-5 py-4">Customer</th>
-                <th scope="col" className="px-5 py-4">Company</th>
-                <th scope="col" className="px-5 py-4">Product type</th>
-                <th scope="col" className="px-5 py-4">Status</th>
-                <th scope="col" className="px-5 py-4 text-right">Details</th>
+                <th scope="col" className="px-5 py-4">收到时间</th>
+                <th scope="col" className="px-5 py-4">客户</th>
+                <th scope="col" className="px-5 py-4">公司</th>
+                <th scope="col" className="px-5 py-4">产品类型</th>
+                <th scope="col" className="px-5 py-4">状态</th>
+                <th scope="col" className="px-5 py-4 text-right">详情</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -213,9 +213,9 @@ const InquiryManager: React.FC = () => {
                   <span className="inline-flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Loading inquiries...</span>
                 </td></tr>
               ) : !error && inquiries.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">No inquiries have been received yet.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">暂无客户询盘。</td></tr>
               ) : filteredInquiries.length === 0 && !error ? (
-                <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">No inquiries match your search.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">没有符合搜索条件的询盘。</td></tr>
               ) : (
                 filteredInquiries.map((inquiry) => (
                   <tr key={inquiry.id} className="hover:bg-stone-50">
@@ -249,20 +249,20 @@ const InquiryManager: React.FC = () => {
           <div role="dialog" aria-modal="true" aria-labelledby="inquiry-detail-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-stone-200 px-6 py-5">
               <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-orange-700">Customer inquiry</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-orange-700">客户询盘</p>
                 <h2 id="inquiry-detail-title" className="font-serif text-2xl text-stone-900">{selected.name}</h2>
               </div>
-              <button type="button" aria-label="Close details" autoFocus onClick={() => setSelected(null)} className="p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900"><X size={20} /></button>
+              <button type="button" aria-label="关闭详情" autoFocus onClick={() => setSelected(null)} className="p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900"><X size={20} /></button>
             </div>
             <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
-              <Detail label="Received" value={formatDate(selected.createdAt)} />
-              <Detail label="Status" value={selected.status} />
-              <Detail label="Company" value={selected.company} />
-              <Detail label="Product type" value={selected.productType} />
-              <Detail label="Email" value={selected.email} />
-              <Detail label="Source" value={selected.source} />
+              <Detail label="收到时间" value={formatDate(selected.createdAt)} />
+              <Detail label="状态" value={selected.status} />
+              <Detail label="公司" value={selected.company} />
+              <Detail label="产品类型" value={selected.productType} />
+              <Detail label="邮箱" value={selected.email} />
+              <Detail label="来源" value={selected.source} />
               <div className="sm:col-span-2">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">Customer message</p>
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-stone-500">客户留言</p>
                 <p className="whitespace-pre-wrap break-words border border-stone-100 bg-stone-50 p-4 text-sm leading-7 text-stone-800">{selected.message}</p>
               </div>
             </div>
@@ -272,7 +272,7 @@ const InquiryManager: React.FC = () => {
                   <Mail size={15} /> Email customer
                 </a>
               )}
-              <button type="button" onClick={() => setSelected(null)} className="border border-stone-200 px-5 py-3 text-xs font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-50">Close</button>
+              <button type="button" onClick={() => setSelected(null)} className="border border-stone-200 px-5 py-3 text-xs font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-50">关闭</button>
             </div>
           </div>
         </div>

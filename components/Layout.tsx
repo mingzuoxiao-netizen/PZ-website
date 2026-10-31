@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search, Hash, ShieldCheck } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Hash, ShieldCheck, Globe2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { NAV_ITEMS } from '../types';
@@ -23,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { meta } = usePublishedSiteConfig();
 
   // Scroll Detection
@@ -69,7 +69,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const isHome = location.pathname === '/';
   const isMegaMenuActive = activeMenu !== null;
-  const useWhiteNav = isScrolled || !isHome || isMobileMenuOpen || isSearchOpen || isMegaMenuActive;
+  const useWhiteNav = true;
 
   const textColor = useWhiteNav ? 'text-stone-900' : 'text-white';
   const navTextColor = useWhiteNav
@@ -78,10 +78,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const getHeaderBackground = () => {
     if (isSearchOpen) return 'bg-white border-b border-stone-100 shadow-sm';
-    if (isMobileMenuOpen) return 'bg-transparent'; 
+    if (isMobileMenuOpen) return 'bg-[#fcfaf7]'; 
     if (isMegaMenuActive) return 'bg-white border-b border-stone-200';
-    if (useWhiteNav) return 'bg-white/90 backdrop-blur-xl border-b border-stone-200 shadow-[0_2px_15px_rgba(0,0,0,0.03)]';
-    return 'bg-transparent border-b border-white/10';
+    if (useWhiteNav) return 'bg-[#fcfaf7]/95 backdrop-blur-xl border-b border-[#e5dcd2]';
+    return 'bg-[#fcfaf7] border-b border-[#e5dcd2]';
   };
 
   return (
@@ -94,21 +94,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* HEADER BAR */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 h-[70px] md:h-[90px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
+        className={`fixed top-0 left-0 right-0 z-50 h-[70px] md:h-[76px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
       >
         <div className="container mx-auto px-6 md:px-12 h-full flex justify-between items-center relative z-50">
           <Link
             to="/"
-            className="group z-50 flex items-center gap-4"
+            className="group z-50 flex items-center gap-3"
             onClick={() => {
               setIsMobileMenuOpen(false);
               setIsSearchOpen(false);
             }}
           >
-            <div className={`font-serif tracking-tighter leading-none transition-all duration-500 ${isMobileMenuOpen ? 'text-stone-100' : textColor}`}>
-               <span className="text-3xl font-black group-hover:text-safety-700 transition-colors">PZ</span>
+            <div className="font-serif tracking-[-0.08em] leading-none text-[#30221b]">
+               <span className="text-4xl font-normal">PZ.</span>
             </div>
-            {/* Removed vertical separator and Registry OS text as requested */}
+            <div className="hidden xl:flex flex-col border-l border-[#d4c8bd] pl-3 leading-tight"><span className="uppercase font-semibold tracking-[0.12em] text-[#30221b] text-[10px]">Furniture Studio</span><span className="text-[#8b8078] text-[10px]">Solid Wood. Global Manufacturing.</span></div>
           </Link>
 
           {/* DESKTOP NAV */}
@@ -122,7 +122,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
 
           {/* RIGHT ACTIONS */}
-          <div className="flex items-center space-x-6 md:space-x-8 z-50">
+          <div className="flex items-center space-x-3 md:space-x-5 z-50">
             {/* Search Toggle */}
             <button
               onClick={() => {
@@ -133,9 +133,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   setIsMobileMenuOpen(false);
                 }
               }}
-              className={`focus:outline-none transition-colors duration-500 ${isMobileMenuOpen ? 'text-stone-100 hover:text-safety-700' : navTextColor} hover:text-safety-700`}
+              className={`focus:outline-none transition-colors duration-500 ${navTextColor} hover:text-safety-700`}
             >
               {isSearchOpen ? <X size={18} /> : <Search size={18} />}
+            </button>
+
+            {/* Public language switch; a visitor's preference is saved locally. */}
+            <button type="button"
+              onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+              aria-label={language === 'en' ? 'Switch website to Chinese' : '切换网站为英文'}
+              title={language === 'en' ? '中文' : 'English'}
+              className="flex items-center gap-1.5 text-[11px] xl:text-xs font-medium text-[#654631] border border-[#e5d9ce] px-2.5 py-2 hover:bg-[#f1e6db] transition-colors"
+            >
+              <Globe2 size={15} aria-hidden="true"/><span>{language === 'en' ? 'EN / 中文' : '中文 / EN'}</span>
             </button>
 
             {/* Mobile Menu Toggle */}
@@ -145,7 +155,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 setIsSearchOpen(false);
                 setActiveMenu(null);
               }}
-              className={`lg:hidden focus:outline-none transition-all duration-500 ${isMobileMenuOpen ? 'text-stone-100' : navTextColor} hover:scale-110 active:scale-95`}
+              className={`lg:hidden focus:outline-none transition-all duration-500 ${navTextColor} hover:scale-110 active:scale-95`}
             >
               {isMobileMenuOpen ? <X size={28} strokeWidth={1.5} /> : <Menu size={28} strokeWidth={1.5} />}
             </button>
@@ -153,11 +163,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* CTA Button (Desktop) */}
             <Link 
                 to="/inquire" 
-                className={`hidden lg:flex items-center px-7 py-3 text-[9px] font-bold uppercase tracking-[0.3em] transition-all duration-500 rounded-sm group
-                    ${useWhiteNav ? 'bg-stone-900 text-white hover:bg-safety-700' : 'bg-white/5 text-white backdrop-blur-md border border-white/10 hover:bg-white hover:text-stone-900'}
+                className={`hidden lg:flex items-center px-5 py-3 text-[11px] font-semibold tracking-[0.015em] transition-all duration-500 rounded-sm group
+                    ${useWhiteNav ? 'bg-[#754831] text-white hover:bg-[#573521]' : 'bg-white/5 text-white backdrop-blur-md border border-white/10 hover:bg-white hover:text-stone-900'}
                 `}
             >
-                Inquire <ArrowRight size={12} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                {language === 'zh' ? '获取报价' : 'Request a Quote'} <ArrowRight size={12} className="ml-3 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>
@@ -168,7 +178,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* SEARCH OVERLAY */}
       <div
-        className={`fixed inset-0 top-[70px] md:top-[90px] z-30 bg-stone-950/90 backdrop-blur-md transition-opacity duration-700 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        className={`fixed inset-0 top-[70px] md:top-[76px] z-30 bg-stone-950/90 backdrop-blur-md transition-opacity duration-700 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
         onClick={() => setIsSearchOpen(false)}
       >
         <div
@@ -208,7 +218,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="flex-grow">{children}</main>
 
       {/* FOOTER */}
-      <footer className="bg-stone-950 pt-32 pb-12 text-stone-500 relative overflow-hidden">
+      <footer className="bg-[#30221b] pt-20 pb-10 text-[#c2b4a9] relative overflow-hidden">
         <div className="container mx-auto px-6 md:px-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-y-20 gap-x-12 mb-32">
             <div className="md:col-span-5">
@@ -216,13 +226,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                  PZ<span className="text-safety-700 group-hover:animate-pulse">.</span>
               </Link>
               <p className="text-stone-400 max-w-sm mb-12 leading-relaxed text-lg font-light">
-                Engineering high-capacity wood solutions for the world's most exacting brands. <br/>
-                <span className="text-stone-600 italic mt-6 block text-sm border-l border-white/10 pl-6">Industrial precision. Natural material artistry.</span>
+                Furniture and wood component manufacturing for brands, importers and commercial buyers. <br/>
+                <span className="text-stone-600 italic mt-6 block text-sm border-l border-white/10 pl-6">Designed with intention. Built for scale.</span>
               </p>
               <div className="flex flex-wrap gap-8 text-[9px] uppercase tracking-[0.4em] font-black text-stone-600">
-                <div className="space-y-2"><span className="text-stone-800 block">CHINA HQ</span> Zhaoqing Terminal</div>
-                <div className="space-y-2"><span className="text-stone-800 block">CAMBODIA</span> Kandal Terminal</div>
-                <div className="space-y-2"><span className="text-stone-800 block">LOGISTICS</span> Los Angeles</div>
+                <div className="space-y-2"><span className="text-stone-800 block">CHINA HQ</span> Zhaoqing</div>
+                <div className="space-y-2"><span className="text-stone-800 block">CAMBODIA</span> Kandal</div>
+                
               </div>
             </div>
 
@@ -263,11 +273,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           <div className="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center text-[9px] font-mono text-stone-700 uppercase tracking-[0.4em] gap-8">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-12 text-center md:text-left">
-               <p>&copy; {new Date().getFullYear()} PZ Industrial Group.</p>
+               <p>&copy; {new Date().getFullYear()} PZ Furniture Studio</p>
                <p>{t.common.rights}</p>
                {meta?.version && (
                  <span className="bg-white/5 px-4 py-1 rounded-sm text-stone-600 border border-white/5">
-                    Kernel OS v{meta.version}
+                    Site v{meta.version}
                  </span>
                )}
             </div>

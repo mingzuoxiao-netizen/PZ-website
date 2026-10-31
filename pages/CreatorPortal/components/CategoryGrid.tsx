@@ -22,7 +22,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
     <div className="animate-fade-in">
       <div className="flex justify-between items-end mb-8">
           <div className="flex items-center gap-3 border-l-4 border-stone-900 pl-4">
-            <h2 className="text-xl font-bold text-stone-900 uppercase tracking-widest">Select Collection</h2>
+            <h2 className="text-xl font-bold text-stone-900 uppercase tracking-widest">选择产品分类</h2>
           </div>
           <button 
               onClick={onSelectAll}
@@ -48,7 +48,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
                 {isNew && (
                     <div className="absolute top-0 right-0 bg-safety-700 text-white px-3 py-1 flex items-center gap-1.5 shadow-lg">
                         <Sparkles size={10} fill="currentColor" />
-                        <span className="text-[8px] font-black uppercase tracking-widest">New Entry</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest">新增产品</span>
                     </div>
                 )}
 
@@ -60,17 +60,17 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
                         <span className={`font-mono font-bold text-3xl transition-colors ${isNew ? 'text-safety-700' : 'text-stone-200 group-hover:text-safety-700'}`}>
                             {String(count).padStart(2, '0')}
                         </span>
-                        <span className="text-[8px] font-bold text-stone-300 uppercase tracking-tighter">SKU Count</span>
+                        <span className="text-[8px] font-bold text-stone-300 uppercase tracking-tighter">产品数量</span>
                     </div>
                 </div>
 
                 <div className="mt-auto">
-                    <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title}</h3>
+                    <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title_zh || cat.title}</h3>
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{cat.subtitle || 'Production Line'}</p>
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-stone-100 flex items-center justify-between text-stone-400 text-[9px] font-bold uppercase tracking-widest group-hover:text-stone-900 transition-colors">
-                    <span>Access Registry</span>
+                    <span>进入产品列表</span>
                     <ChevronRight size={14} className="transform group-hover:translate-x-1 transition-transform"/>
                 </div>
             </div>
@@ -85,8 +85,8 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
                 <div className="bg-white p-5 rounded-full mb-6 shadow-sm border border-stone-100 group-hover:scale-110 transition-transform group-hover:border-stone-900">
                     <Plus size={32} className="text-stone-300 group-hover:text-stone-900 transition-colors" />
                 </div>
-                <h3 className="font-bold text-stone-400 group-hover:text-stone-900 uppercase tracking-[0.2em] text-[10px] mb-2 transition-colors">New Category Request</h3>
-                <p className="text-[9px] text-stone-400 group-hover:text-stone-500 transition-colors text-center max-w-[180px]">Submit technical proposal for a new production series.</p>
+                <h3 className="font-bold text-stone-400 group-hover:text-stone-900 uppercase tracking-[0.2em] text-[10px] mb-2 transition-colors">申请新分类</h3>
+                <p className="text-[9px] text-stone-400 group-hover:text-stone-500 transition-colors text-center max-w-[180px]">提交新增产品系列申请。</p>
             </div>
         )}
       </div>

@@ -53,6 +53,9 @@ export interface Category {
   id: string;
   title: string;
   title_zh?: string;
+  title_cn?: string;
+  source?: string;
+  proposal_id?: string;
   subtitle: string;
   subtitle_zh?: string;
   description: string;
