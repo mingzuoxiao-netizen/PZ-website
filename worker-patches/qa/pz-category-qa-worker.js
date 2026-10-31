@@ -343,6 +343,11 @@ async function qaCheckState(env){
 function qaAssert(ok,message){if(!ok)throw Error(message);}
 async function qaRun(env){
   const results=[];
+  if(!env.SITE_CONFIG_HISTORY||
+    typeof env.SITE_CONFIG_HISTORY.put!=='function'||
+    typeof env.SITE_CONFIG_HISTORY.get!=='function') {
+    throw Error('QA R2 history binding SITE_CONFIG_HISTORY is required before running tests');
+  }
   const first=await qaCheckState(env);
   const runId=crypto.randomUUID().replace(/-/g,'').slice(0,10);
   const publicBefore=first.row.published_json;
@@ -408,20 +413,105 @@ async function qaRun(env){
     'Stale publish modified public config');
   results.push({name:'过期版本拒绝发布',passed:true,http:409,publicUnchanged:true});
 
-  // No QA R2 history binding by design. Failure must leave public D1 untouched.
+  // A real R2 binding is required before any test writes are made.
+  // These tests are safe only when this Worker is bound to the QA-only history bucket.
   const current=await qaState(env);
-  qaAssert(!env.SITE_CONFIG_HISTORY,'This QA test must have no R2 history binding');
-  const failedPublish=await qaCall('/admin/publish','POST',
-    {revision:current.draft_revision},env);
-  qaAssert(failedPublish.status===503,'Missing history R2 must return 503');
+  const missingR2=await qaCall('/admin/publish','POST',
+    {revision:current.draft_revision},{...env,SITE_CONFIG_HISTORY:undefined});
+  qaAssert(missingR2.status===503,'Missing history R2 must return 503');
   qaAssert((await qaState(env)).published_json===publicBefore,
-    'Failed publish modified public config');
+    'Missing history R2 unexpectedly modified public config');
   results.push({name:'发布依赖缺失时安全失败',passed:true,http:503,publicUnchanged:true});
 
+  // Exercise the real D1 handler with a simulated failure of the R2 PUT.
+  // Do not modify the real QA bucket during this fault injection.
+  const injectedError='QA deliberate R2 write failure';
+  let failedWrite=false;
+  try {
+    await qaCall('/admin/publish','POST',{revision:current.draft_revision},{
+      ...env,SITE_CONFIG_HISTORY:{
+        async put(){throw new Error(injectedError);},
+        async get(key){return env.SITE_CONFIG_HISTORY.get(key);}
+      }
+    });
+  } catch(error) {
+    failedWrite=String(error?.message||error).includes(injectedError);
+  }
+  qaAssert(failedWrite,'Injected R2 storage failure was not propagated');
+  qaAssert((await qaState(env)).published_json===publicBefore,
+    'R2 write failure unexpectedly modified public configuration');
+  results.push({name:'模拟 R2 写入失败保护',passed:true,errorCaught:true,publicUnchanged:true});
+
+  // R2-backed release and rollback. Save the old public snapshot first:
+  // the release handler stores the NEW snapshot, not the previous one.
+  const rollbackVersion='qa-before-'+runId;
+  const restoreKey='snapshots/site_config/'+rollbackVersion+'.json';
+  await env.SITE_CONFIG_HISTORY.put(restoreKey,publicBefore,
+    {httpMetadata:{contentType:'application/json'}});
+  const restoreRead=await env.SITE_CONFIG_HISTORY.get(restoreKey);
+  qaAssert(restoreRead,'QA rollback reference missing from R2 immediately after PUT');
+  qaAssert(await restoreRead.text()===publicBefore,
+    'QA rollback reference in R2 does not equal original public configuration');
+
+  const prior=await qaState(env);
+  const publishResult=await qaCall('/admin/publish','POST',
+    {revision:prior.draft_revision},env);
+  qaAssert(publishResult.status===200,
+    'Real QA R2 publish expected 200, got '+publishResult.status);
+  const publishedState=await qaState(env);
+  qaAssert(publishedState.published_revision===prior.published_revision+1,
+    'Publishing did not increment public revision exactly once');
+  qaAssert(publishedState.published_json===prior.draft_json,
+    'QA published content does not match approved draft');
+  qaAssert(publishedState.published_json!==publicBefore,
+    'QA draft-only changes were not present in published content');
+  qaAssert(publishResult.body.version===publishedState.published_version,
+    'D1 published version does not match response');
+  const publishedKey='snapshots/site_config/'+publishResult.body.version+'.json';
+  const publishedR2=await env.SITE_CONFIG_HISTORY.get(publishedKey);
+  qaAssert(publishedR2,'Published snapshot missing in QA R2 history');
+  qaAssert(await publishedR2.text()===publishedState.published_json,
+    'Published R2 snapshot differs from D1 published JSON');
+  const publicRead=await qaCall('/api/site-config','GET',undefined,env);
+  qaAssert(publicRead.status===200&&
+    JSON.stringify(publicRead.body.config)===publishedState.published_json,
+    'QA public API did not return new D1 published configuration');
+  results.push({name:'真实 R2 发布并读取快照',passed:true,http:publishResult.status,
+    publishedRevision:publishedState.published_revision,objectStored:true,
+    publishedCategoryCount:JSON.parse(publishedState.published_json).categories.length});
+
+  const staleRollback=await qaCall('/admin/rollback','POST',
+    {version:rollbackVersion,publishedRevision:prior.published_revision},env);
+  qaAssert(staleRollback.status===409,
+    'Stale rollback should be rejected with 409');
+  qaAssert((await qaState(env)).published_json===publishedState.published_json,
+    'Stale rollback modified the published configuration');
+  results.push({name:'过期版本拒绝回滚',passed:true,http:409,publicUnchanged:true});
+
+  const rollback=await qaCall('/admin/rollback','POST',{
+    version:rollbackVersion,publishedRevision:publishedState.published_revision
+  },env);
+  qaAssert(rollback.status===200,'QA rollback expected 200, got '+rollback.status);
+  const restored=await qaState(env);
+  qaAssert(restored.published_revision===publishedState.published_revision+1,
+    'Rollback did not increment published revision exactly once');
+  qaAssert(restored.published_json===publicBefore,
+    'QA rollback did not restore original public configuration');
+  qaAssert(restored.published_version===rollbackVersion,
+    'Rollback restored JSON but not the expected version');
+  const verifiedRead=await qaCall('/api/site-config','GET',undefined,env);
+  qaAssert(JSON.stringify(verifiedRead.body.config)===publicBefore,
+    'QA public API does not show restored configuration');
+  results.push({name:'真实 R2 回滚并恢复公开数据',passed:true,http:rollback.status,
+    restoredVersion:rollbackVersion,publicRestored:true,
+    publishedRevision:restored.published_revision});
+
   return {success:true,environment:'QA ONLY',runId,results,
-    revisionBefore:initialRevision,revisionAfter:(await qaState(env)).draft_revision,
-    publishedUnchanged:true,
-    note:'The QA database has new draft-only test records; public snapshot unchanged.'};
+    revisionBefore:initialRevision,revisionAfter:restored.draft_revision,
+    publishedRevisionBefore:first.row.published_revision,
+    publishedRevisionAfter:restored.published_revision,
+    publishedRestored:true,
+    note:'D1 draft has QA-only changes. Public D1 JSON was published then restored to the exact prior snapshot.'};
 }
 function qaHtml(){
   return '<!doctype html><html lang="zh"><head><meta charset="utf-8">'+
@@ -439,7 +529,7 @@ function qaHtml(){
    '<label>QA 测试密钥（不会保存）<input id="key" type="password" autocomplete="off"'+
    ' placeholder="输入你设置的 QA_TEST_KEY"></label>'+
    '<button id="run">运行真实 D1 测试</button>'+
-   '<p><small>测试会给 QA 数据库增加草稿和申请记录，不修改公开快照。</small></p>'+
+   '<p><small>测试会写入 QA 草稿，短暂发布 QA 快照，再从 R2 恢复原公开版本；不影响正式网站。</small></p>'+
    '<pre id="out">尚未运行</pre>'+
    '<script>document.getElementById("run").addEventListener("click",async()=>{'+
    'const btn=document.getElementById("run");btn.disabled=true;'+
@@ -457,7 +547,8 @@ export default {
       return qaJson({error:'QA worker/environment guard failed'},403);
     if(url.pathname==='/qa/health'&&request.method==='GET')
       return qaJson({qa:true,worker:'pz-category-qa',d1Bound:!!env.DB,
-        d1FlagEnabled:pzD1SiteEnabled(env),testKeyConfigured:!!env.QA_TEST_KEY});
+        d1FlagEnabled:pzD1SiteEnabled(env),testKeyConfigured:!!env.QA_TEST_KEY,
+        r2Bound:!!env.SITE_CONFIG_HISTORY});
     if(url.pathname==='/'&&request.method==='GET'){
       return new Response(qaHtml(),{headers:{
         'content-type':'text/html; charset=utf-8','cache-control':'no-store',
@@ -477,7 +568,7 @@ export default {
     catch(error){
       // The test may have partially modified QA-only rows. Do not auto-reset.
       return qaJson({success:false,qa:true,error:String(error?.message||error),
-        note:'QA-only data may be partially modified. Inspect D1 before rerun.'},500);
+        note:'QA-only draft/public data may have changed. If publish succeeded but rollback failed, inspect D1 and R2; do not blindly rerun.'},500);
     }
   }
 };
