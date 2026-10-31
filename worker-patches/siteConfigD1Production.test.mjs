@@ -214,7 +214,9 @@ test('bootstrap refuses to initialize D1 without pre-cutover R2 snapshot',async(
 test('bootstrap refuses mismatched stored R2 snapshot, without modifying D1',async()=>{
   const f=fixture({active:false,seeded:false});
   const preflight=await(await f.call('/admin/site-config/bootstrap',null,'GET')).json();
-  f.history.set('snapshots/site_config/bootstrap-'+preflight.publishedSha,'{"categories":[]}');
+  const collisionKey='snapshots/site_config/bootstrap-'+preflight.publishedSha+'.json';
+  f.history.set(collisionKey,'{"categories":[]}');
+  assert.equal(await (await f.env.SITE_CONFIG_HISTORY.get(collisionKey)).text(),'{"categories":[]}');
   const r=await f.call('/admin/site-config/bootstrap',{
     draftSha:preflight.draftSha,publishedSha:preflight.publishedSha
   });
