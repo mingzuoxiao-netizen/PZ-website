@@ -60,6 +60,8 @@ jobs:
         run: python3 worker-patches/test_category_change_production_migration.py
       - name: Verify product finish D1 migration and Worker persistence
         run: python3 worker-patches/test_product_finish_migration.py
+      - name: Verify Chinese admin and inherited category entry
+        run: python3 worker-patches/test_admin_chinese_category_entry.py
 
       - name: Test Production category amendments
         run: node --check worker-patches/factoryCategoryChangesProduction.mjs && node --test worker-patches/factoryCategoryChangesProduction.test.mjs
