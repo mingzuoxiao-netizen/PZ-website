@@ -4357,22 +4357,23 @@ if (categoryResponse) return categoryResponse;
             if (body?.autoPublish === false) autoPublish = false;
           } catch {
           }
-          await env.DB.prepare(
-            `UPDATE category_requests
-       SET status = ?, updated_at = ?
-       WHERE id = ?`
-          ).bind("approved", nowIso, id).run();
           const proposal = await env.DB.prepare(
-            `SELECT id, title, title_cn, subtitle, image
+            `SELECT id, title, title_cn, subtitle, image, status
        FROM category_requests
        WHERE id = ? LIMIT 1`
           ).bind(id).first();
           if (!proposal) {
             return json({ error: "Category proposal not found" }, 404);
           }
+          if (proposal.status !== "pending" && proposal.status !== "awaiting_review") {
+            return json({ error: "Only pending category requests can be approved" }, 409);
+          }
           const draftRaw = await env.SITE_CONFIG_KV.get("draft:site_config");
-          const draft = safeJsonParse(draftRaw, {});
-          const categories = Array.isArray(draft.categories) ? draft.categories : [];
+          const draft = safeJsonParse(draftRaw, null);
+          if (!draft || !Array.isArray(draft.categories)) {
+            return json({ error: "Missing category draft; request not approved" }, 503);
+          }
+          const categories = draft.categories;
           const slug = String(proposal.title || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `cat-${id.slice(0, 6)}`;
           const newCategory = {
             id: slug,
@@ -4387,12 +4388,19 @@ if (categoryResponse) return categoryResponse;
           const exists = categories.some(
             (c) => c.id === slug || c.proposal_id === id
           );
+          if (exists) return json({ error: "Category already exists in draft" }, 409);
           if (!exists) {
             draft.categories = [newCategory, ...categories];
             await env.SITE_CONFIG_KV.put(
               "draft:site_config",
               JSON.stringify(draft)
             );
+          }
+          const transitioned = await env.DB.prepare(
+            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN (\u0027pending\u0027,\u0027awaiting_review\u0027)"
+          ).bind("approved", nowIso, id).run();
+          if (transitioned?.meta?.changes !== 1) {
+            return json({ error: "Category draft saved but approval state not confirmed; reconcile manually" }, 503);
           }
           let published = false;
           let version = null;
@@ -4436,9 +4444,12 @@ if (categoryResponse) return categoryResponse;
           if (auth instanceof Response) return auth;
           const id = m[1].trim();
           const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-          await env.DB.prepare(
-            `UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ?`
+          const rejected = await env.DB.prepare(
+            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN (\u0027pending\u0027,\u0027awaiting_review\u0027)"
           ).bind("rejected", nowIso, id).run();
+          if (rejected?.meta?.changes !== 1) {
+            return json({ error: "Only pending category requests can be rejected" }, 409);
+          }
           return json({
             success: true,
             id,
