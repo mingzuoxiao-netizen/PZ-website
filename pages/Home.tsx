@@ -8,6 +8,7 @@ import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { resolveImage } from '../utils/imageResolver';
 import { useLanguage } from '../contexts/LanguageContext';
 import { categories as defaultCategories } from '../data/inventory';
+import { homepageSiteCategories } from '../utils/catalogCategories';
 
 /**
  * Website 2.0 — editorial public homepage.
@@ -50,7 +51,7 @@ const Home: React.FC = () => {
     site?.materials?.wood_rubber
   ].filter((item): item is string => typeof item === 'string' && item.length > 0);
 
-  const productCategories = site?.categories?.length ? site.categories : defaultCategories;
+  const homeCategories = homepageSiteCategories(site?.categories);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#f7f4ef] text-[#735a4a]" role="status">Loading PZ Furniture Studio...</div>;
@@ -123,24 +124,30 @@ const Home: React.FC = () => {
             </Link>
           </div>
           <div className="grid sm:grid-cols-3 gap-4 lg:pl-4">
-            {categories.map(cat => {
-              const configured = productCategories.find(item =>
-                cat.aliases.some(a => item.id?.toLowerCase() === a || item.title?.toLowerCase().includes(a)));
-              const image = resolveImage(configured?.image) || cat.fallback;
+            {homeCategories.map(category => {
+              const curated = categories.find(item => item.aliases.some(alias =>
+                category.id.toLowerCase() === alias || category.title.toLowerCase().includes(alias)));
+              const title = curated
+                ? (language === 'zh' ? curated.titleZh : curated.title)
+                : (language === 'zh' ? (category.title_zh || category.title) : category.title);
+              const description = curated
+                ? (language === 'zh' ? curated.descZh : curated.desc)
+                : (language === 'zh' ? (category.description_zh || category.description || category.subtitle_zh || category.subtitle) : (category.description || category.subtitle));
+              const image = resolveImage(category.image) || curated?.fallback || '';
               return (
-                <Link key={cat.id} to={'/collections?category=' + encodeURIComponent(configured?.id || cat.id)} className="group bg-white shadow-[0_8px_28px_rgba(52,37,28,0.05)] border border-[#f0e9e2] hover:shadow-[0_14px_35px_rgba(52,37,28,0.13)] transition-all">
+                <Link key={category.id} to={'/collections?category=' + encodeURIComponent(category.id)}
+                  className="group bg-white shadow-[0_8px_28px_rgba(52,37,28,0.05)] border border-[#f0e9e2] hover:shadow-[0_14px_35px_rgba(52,37,28,0.13)] transition-all">
                   <div className="relative aspect-[4/3] sm:aspect-[4/4] overflow-hidden bg-[#e8ded3]">
-                    {image && <img src={image} alt={language === "zh" ? cat.titleZh : cat.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />}
+                    {image && <img src={image} alt={title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />}
                   </div>
                   <div className="px-4 py-4 relative">
                     <ArrowUpRight size={15} className="absolute right-4 top-5 text-[#91593d]"/>
-                    <h3 className="font-serif text-[18px] leading-snug pr-5 text-[#30221b]">{language === "zh" ? cat.titleZh : cat.title}</h3>
-                    <p className="text-[#82786f] text-[11px] leading-relaxed mt-2">{language === "zh" ? cat.descZh : cat.desc}</p>
+                    <h3 className="font-serif text-[18px] leading-snug pr-5 text-[#30221b]">{title}</h3>
+                    <p className="text-[#82786f] text-[11px] leading-relaxed mt-2">{description}</p>
                   </div>
                 </Link>
               );
-            })}
-          </div>
+            })}          </div>
         </div>
       </section>
 
