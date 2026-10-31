@@ -1,4 +1,5 @@
--- PRODUCTION MIGRATION CANDIDATE. DO NOT APPLY UNTIL FINAL APPROVAL.\n-- Run only against pz-inquiry-api's confirmed Production D1 DB binding.
+-- PRODUCTION MIGRATION CANDIDATE. DO NOT APPLY UNTIL FINAL APPROVAL.
+-- Run only against pz-inquiry-api's confirmed Production D1 DB binding.
 -- Existing category_requests and approved records remain unchanged.
 CREATE TABLE IF NOT EXISTS category_change_requests (
   id TEXT PRIMARY KEY,
