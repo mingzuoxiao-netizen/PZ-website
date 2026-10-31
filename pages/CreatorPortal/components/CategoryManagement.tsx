@@ -35,7 +35,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
     !draft.some(c => c.proposal_id === r.id)), [approvedRequests, draft]);
 
   const patch = (id: string, field: string, value: any) => {
-    setDraft(old => old.map(c => c.id === id ? { ...c, [field]: value } : c));
+    setDraft(old => old.map(c => c.id === id ? (field === 'title_cn' ? { ...c, title_cn: value, title_zh: value } : { ...c, [field]: value }) : c));
   };
   const move = (id: string, offset: number) => {
     setDraft(old => {
