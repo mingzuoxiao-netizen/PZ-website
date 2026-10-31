@@ -203,15 +203,37 @@ export async function handleD1SiteConfig({request,env,pathname,authorize,json,pu
       if(body.error)return body.error;
       if(body.value.draftSha!==draftSha||body.value.publishedSha!==publishedSha)
         return stale(json,'KV values changed since bootstrap preflight');
+      // Preserve the pre-cutover public version *before* the D1 cutover.
+      // A D1 bootstrap without this R2 snapshot could not roll back to the
+      // last published KV site after the very first D1-backed publish.
+      if(!env.SITE_CONFIG_HISTORY ||
+         typeof env.SITE_CONFIG_HISTORY.put!=='function' ||
+         typeof env.SITE_CONFIG_HISTORY.get!=='function')
+        return json({error:'Site config history R2 binding required for safe cutover'},503);
+      const bootstrapVersion='bootstrap-'+publishedSha;
+      const snapshotKey='snapshots/site_config/'+bootstrapVersion+'.json';
+      const preexisting=await env.SITE_CONFIG_HISTORY.get(snapshotKey);
+      if(preexisting) {
+        if(await preexisting.text()!==publishedRaw)
+          return stale(json,'Bootstrap R2 snapshot conflicts with current KV published content');
+      }else{
+        await env.SITE_CONFIG_HISTORY.put(snapshotKey,publishedRaw,{
+          httpMetadata:{contentType:'application/json'}
+        });
+      }
+      const verified=await env.SITE_CONFIG_HISTORY.get(snapshotKey);
+      if(!verified || await verified.text()!==publishedRaw)
+        return json({error:'Bootstrap snapshot was not verified in R2; D1 untouched'},503);
       const timestamp=new Date().toISOString();
       const installed=await env.DB.prepare(
         'INSERT OR IGNORE INTO site_config_state (id,draft_json,draft_revision,published_json,'+
         'published_revision,published_version,published_at,write_token,updated_at) '+
         'VALUES(1,?,1,?,1,?,?,?,?)'
-      ).bind(draftRaw,publishedRaw,String(meta.version||'legacy'),
+      ).bind(draftRaw,publishedRaw,bootstrapVersion,
         String(meta.publishedAt||timestamp),crypto.randomUUID(),timestamp).run();
       if(installed?.meta?.changes!==1)return stale(json,'Site config bootstrapped by another request');
-      return json({success:true,revision:1,draftSha,publishedSha});
+      return json({success:true,revision:1,draftSha,publishedSha,
+        publishedVersion:bootstrapVersion,initialSnapshotVerified:true});
     }
     return json({error:'Method not allowed'},405);
   }
