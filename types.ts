@@ -35,7 +35,7 @@ export interface CategoryRequest {
   subtitle?: string;
   description?: string;
   image: string;
-  status: 'awaiting_review' | 'approved' | 'rejected';
+  status: 'pending' | 'awaiting_review' | 'approved' | 'rejected';
   created_at: string;
   user_id: string;
 }
@@ -56,6 +56,7 @@ export interface Category {
   title_cn?: string;
   source?: string;
   proposal_id?: string;
+  hidden?: boolean;
   subtitle: string;
   subtitle_zh?: string;
   description: string;
