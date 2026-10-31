@@ -256,6 +256,34 @@ test('D1 flag off preserves old new-category approval and blocks new modificatio
   assert.equal(repair.status,503);
 });
 
+test('site-config meta uses KV metadata while D1 cutover flag is off',async()=>{
+  const f=fixture({active:false,seeded:false});
+  const res=await f.call('/site-config/meta',null,'GET');
+  assert.equal(res.status,200);
+  const meta=await res.json();
+  assert.equal(meta.version,'seed');
+  assert.equal(meta.publishedAt,'2026-10-01');
+});
+
+test('site-config meta reflects D1 publish and rollback, not stale KV',async()=>{
+  const f=fixture();
+  const initial=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.equal(initial.version,'old');
+  assert.equal(initial.publishedRevision,1);
+  const published=await(await f.call('/admin/publish',{revision:1})).json();
+  const after=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.equal(after.version,published.version);
+  assert.equal(after.publishedRevision,2);
+  assert.notEqual(after.version,f.kv['published:meta']);
+  const roll=await f.call('/admin/rollback',{version:published.version,publishedRevision:2});
+  assert.equal(roll.status,200);
+  const meta=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.equal(meta.version,published.version);
+  assert.equal(meta.publishedRevision,3);
+  const alias=await(await f.call('/api/site-config/meta',null,'GET')).json();
+  assert.equal(alias.publishedRevision,3);
+});
+
 test('versioned mode keeps bootstrap closed and legacy reconciliation unavailable',async()=>{
   const f=fixture();
   assert.equal((await f.call('/admin/site-config/bootstrap',null,'GET')).status,409);
