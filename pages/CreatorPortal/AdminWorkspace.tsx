@@ -16,6 +16,7 @@ import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
+import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
@@ -188,6 +189,8 @@ const AdminWorkspace: React.FC = () => {
 
       <div className="pb-32">
         {activeTab === 'review' && (
+          <>
+          <CategoryChangeReview onApproved={loadSiteConfig} />
           <ReviewQueue products={reviewProducts} categoryRequests={categoryRequests} onProcessProduct={async (id, action) => {
               try {
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
@@ -224,6 +227,7 @@ const AdminWorkspace: React.FC = () => {
             }}
             reloadQueue={async () => { await loadReviewQueue(); }}
           />
+          </>
         )}
 
         {activeTab === 'inventory' && (
