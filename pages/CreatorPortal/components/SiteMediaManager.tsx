@@ -116,7 +116,7 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGrou
           <div className="grid sm:grid-cols-2 gap-4">
           {groupIndex === 0 && Array.isArray(config.categories) && config.categories.map((category: any, index: number) => (
             <section key={'category-' + category.id} className="bg-white border border-stone-200 p-5">
-              <h3 className="font-semibold text-stone-900 text-sm">产品分类：{category.title_zh || category.title}</h3>
+              <h3 className="font-semibold text-stone-900 text-sm">产品分类：{category.title_zh || category.title_cn || category.title}</h3>
               <p className="text-xs text-stone-400 mt-1 mb-3">分类封面 · {category.id}</p>
               {!!category.image && <img src={resolveImage(category.image)} alt="分类封面预览" className="h-32 w-full object-cover border border-stone-100 mb-3" loading="lazy"/>}
               <PZImageManager
