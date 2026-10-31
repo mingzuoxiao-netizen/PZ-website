@@ -66,7 +66,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories, products, onSel
 
                 <div className="mt-auto">
                     <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title_cn || cat.title_zh || cat.title}</h3>
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{(cat.title_cn || cat.title_zh) ? '' : (cat.subtitle || '')}</p>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{cat.subtitle_zh || cat.description_zh || ''}</p>
                 </div>
 
                 <div className="mt-8 pt-4 border-t border-stone-100 flex items-center justify-between text-stone-400 text-[9px] font-bold uppercase tracking-widest group-hover:text-stone-900 transition-colors">
