@@ -8,10 +8,10 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 interface SiteConfigEditorProps {
   config: any;
   onChange: (nextConfig: any) => void;
-  onSave: () => void;
+  onSave: () => Promise<void> | void;
   onPublish: () => void;
   isSaving: boolean;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void> | void;
   onUpload: (file: File) => Promise<string>;
   onDelete?: (url: string) => Promise<void>;
 }
@@ -42,7 +42,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   if (!config) {
     return (
       <div className="p-8 text-center text-stone-400">
-        Synchronizing protocol configuration...
+        正在读取网站配置…
       </div>
     );
   }
@@ -70,7 +70,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
         <div className="flex items-center space-x-3">
           {hasUnsavedChanges && (
             <button
-              onClick={onRefresh}
+              onClick={async () => { await onRefresh(); setInitialConfigStr(''); }}
               className="text-xs font-bold uppercase text-stone-500 hover:text-red-600 mr-4"
             >
               {t.creator.config.discard}
@@ -78,7 +78,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           )}
 
           <button
-            onClick={onSave}
+            onClick={async () => { await onSave(); setInitialConfigStr(JSON.stringify(config)); }}
             disabled={isSaving || !hasUnsavedChanges}
             className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
               ${
@@ -92,7 +92,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Save size={14} className="mr-2" />
             )}
-            Apply Local Changes
+            保存草稿
           </button>
 
           <div className="w-px h-6 bg-stone-200 mx-2"></div>
@@ -100,7 +100,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
           <button
             onClick={onPublish}
             disabled={isSaving || hasUnsavedChanges}
-            title={hasUnsavedChanges ? "Apply local changes before deployment" : "Push current draft to production environment"}
+            title={hasUnsavedChanges ? "请先保存当前更改" : "发布已保存的网站内容"}
             className={`flex items-center px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-sm transition
               ${
                 !hasUnsavedChanges
@@ -113,7 +113,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
             ) : (
               <Globe size={14} className="mr-2" />
             )}
-            Push to Production
+            发布到网站
           </button>
         </div>
       </div>
