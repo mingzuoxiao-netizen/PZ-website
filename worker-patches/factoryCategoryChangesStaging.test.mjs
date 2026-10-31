@@ -43,6 +43,12 @@ function fixture(role = 'FACTORY') {
               writes.push('db:insert');
               return {meta:{changes:1}};
             }
+            if(sql.includes("status='pending'")) {
+              const [id]=args;
+              const record=records.find(r=>r.id===id&&r.status==='applying');
+              if(record)record.status='pending';
+              return {meta:{changes:record?1:0}};
+            }
             if (sql.includes("status='approved'")) {
               const [reviewed_by,reviewed_at,updated_at,id]=args;
               const record=records.find(r=>r.id===id&&r.status==='applying');
@@ -63,12 +69,6 @@ function fixture(role = 'FACTORY') {
               if(!record)return {meta:{changes:0}};
               Object.assign(record,{status:'rejected',reject_reason,reviewed_by,reviewed_at,updated_at});
               return {meta:{changes:1}};
-            }
-            if(sql.includes("status='pending'")) {
-              const [id]=args;
-              const record=records.find(r=>r.id===id&&r.status==='applying');
-              if(record)record.status='pending';
-              return {meta:{changes:record?1:0}};
             }
             throw Error('Unexpected query: '+sql);
           }
