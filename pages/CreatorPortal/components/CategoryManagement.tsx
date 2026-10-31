@@ -95,7 +95,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
         setMessage('分类草稿已保存，公开网站仍未改变。');
       } else if (action === 'publish') {
         if (dirty) throw new Error('请先保存修改，再发布网站。');
-        if (!confirm('确定发布已保存的整个网站配置吗？')) return;
+        if (!confirm('此操作会发布所有已保存的网站配置草稿（不仅仅是分类，还可能包括首页图片和其他网站内容）。确认全部发布吗？')) return;
         await onPublish();
         setMessage('发布完成。请在正式网站或 Preview 验证。');
       } else {
@@ -120,7 +120,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
             <button onClick={() => void submit('refresh')} disabled={busy} className="border px-4 py-2 text-sm flex items-center gap-2"><RefreshCw size={15}/>刷新</button>
             <button onClick={add} disabled={busy} className="border px-4 py-2 text-sm flex items-center gap-2"><Plus size={15}/>新增分类</button>
             <button onClick={() => void submit('save')} disabled={busy || !dirty} className="bg-stone-900 text-white px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-40"><Save size={15}/>保存草稿</button>
-            <button onClick={() => void submit('publish')} disabled={busy || dirty} className="bg-amber-800 text-white px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-40"><Globe size={15}/>发布网站</button>
+            <button onClick={() => void submit('publish')} disabled={busy || dirty} className="bg-amber-800 text-white px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-40"><Globe size={15}/>发布全部网站配置</button>
           </div>
         </div>
       </header>
