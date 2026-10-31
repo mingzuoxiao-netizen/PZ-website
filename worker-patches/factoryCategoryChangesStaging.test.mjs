@@ -19,6 +19,7 @@ function fixture(role = 'FACTORY') {
   const writes = [];
   const env = {
     PZ_RUNTIME_ENV: 'staging',
+    PZ_STAGING_IMAGE_BASE_URL: 'https://staging-images.example',
     SITE_CONFIG_KV: {
       get: async key=> storage[key] || null,
       put: async (key,value)=>{ writes.push('kv:'+key); storage[key]=value; }
@@ -165,4 +166,22 @@ test('admin can reject with reason without touching draft',async()=>{
   assert.equal((await result.json()).status,'rejected');
   assert.equal(f.records[0].reject_reason,'图片不符合要求');
   assert.deepEqual(f.storage,saved);
+});
+
+test('legacy staging uploader origin is accepted, and matching new variable is allowed', async () => {
+  const f = fixture();
+  f.env.PZ_IMAGE_BASE_URL = f.env.PZ_STAGING_IMAGE_BASE_URL;
+  const r = await f.call('/factory/category-change-requests',f.proposal);
+  assert.equal(r.status,201);
+});
+
+test('staging image variables cannot disagree or point to Production CDN', async () => {
+  const f = fixture();
+  f.env.PZ_IMAGE_BASE_URL = 'https://another-staging.example';
+  assert.equal((await f.call('/factory/category-change-requests',f.proposal)).status,400);
+  assert.equal(f.records.length,0);
+  delete f.env.PZ_IMAGE_BASE_URL;
+  f.env.PZ_STAGING_IMAGE_BASE_URL = 'https://cdn.peng-zhan.com';
+  assert.equal((await f.call('/factory/category-change-requests',f.proposal)).status,400);
+  assert.equal(f.records.length,0);
 });
