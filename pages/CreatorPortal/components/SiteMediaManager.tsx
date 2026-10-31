@@ -110,6 +110,28 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, o
           {groups.map((g, i) => <button key={g.title} type="button" onClick={() => setGroupIndex(i)} className={'w-full text-left text-sm px-4 py-3 border-l-2 ' + (groupIndex === i ? 'bg-[#f8f1e9] text-[#754831] border-[#754831] font-semibold' : 'text-stone-600 border-transparent hover:bg-stone-50')}>{g.title}</button>)}
         </nav>
         <div className="grid sm:grid-cols-2 gap-4">
+          {groupIndex === 1 && Array.isArray(config.categories) && config.categories.map((category: any, index: number) => (
+            <section key={'category-' + category.id} className="bg-white border border-stone-200 p-5">
+              <h3 className="font-semibold text-stone-900 text-sm">产品分类：{category.title_zh || category.title}</h3>
+              <p className="text-xs text-stone-400 mt-1 mb-3">分类封面 · {category.id}</p>
+              {!!category.image && <img src={resolveImage(category.image)} alt="分类封面预览" className="h-32 w-full object-cover border border-stone-100 mb-3" loading="lazy"/>}
+              <PZImageManager
+                label="替换分类封面"
+                images={category.image ? [category.image] : []}
+                onUpdate={images => {
+                  const nextCategories = config.categories.map((item: any, idx: number) =>
+                    idx === index ? { ...item, image: images[0] || '' } : item);
+                  onChange({ ...config, categories: nextCategories });
+                  setError('');
+                  setNotice('');
+                }}
+                onUpload={onUpload}
+                onError={setError}
+                maxImages={1}
+                accept="image/png,image/jpeg,image/webp"
+              />
+            </section>
+          ))}
           {fields.map(field => {
             const image = String(getByPath(config, field.path) || '');
             return (
