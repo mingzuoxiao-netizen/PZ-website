@@ -1,205 +1,225 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  ArrowRight,
-  Anchor,
-  Truck,
-  Loader2,
-  AlertTriangle,
-} from 'lucide-react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../contexts/LanguageContext';
+import {
+  ArrowRight, ArrowUpRight, Boxes, ClipboardList, Cog, Factory,
+  Globe2, PackageCheck, PenTool, ShieldCheck, Truck
+} from 'lucide-react';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
-import { fetchPublicCatalogFacets, CategoryFacet } from '../utils/publicCatalog';
 import { resolveImage } from '../utils/imageResolver';
-import { categories as staticCategories } from '../data/inventory';
+import { categories as defaultCategories } from '../data/inventory';
+
+/**
+ * Website 2.0 — editorial public homepage.
+ * This remains a presentation-only change: catalog and inquiry workflows are
+ * owned by the existing API/Creator routes. Factory images are configurable.
+ */
+const FALLBACK_HERO = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?q=85&w=1800&auto=format&fit=crop';
+const FALLBACK_FACTORY = 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=85&w=1400&auto=format&fit=crop';
+
+const sectionKicker = 'text-[10px] md:text-[11px] font-semibold tracking-[0.19em] uppercase text-[#8b5c43]';
+const darkButton = 'inline-flex items-center justify-center gap-3 bg-[#754831] hover:bg-[#573521] text-white px-6 py-3.5 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#754831]';
+const editorialHeading = 'font-serif font-normal tracking-[-0.045em] leading-[1.13] text-[#30221b]';
+
+const categories = [
+  { title: 'Wood Surfaces & Components', desc: 'Butcher blocks, work surfaces, kitchen islands and shelving.', id: 'butcher-block', aliases: ['butcher-block', 'wood surfaces'], fallback: defaultCategories.find(c => c.id === 'butcher-block')?.image || '' },
+  { title: 'Dining & Seating', desc: 'Dining tables, chairs and benches for residential and commercial use.', id: 'tables', aliases: ['tables', 'seating', 'dining'], fallback: defaultCategories.find(c => c.id === 'tables')?.image || '' },
+  { title: 'Casegoods & Storage', desc: 'Sideboards, media units, bookcases and complementary furniture.', id: 'cabinetry', aliases: ['cabinetry', 'casegoods', 'storage'], fallback: defaultCategories.find(c => c.id === 'cabinetry')?.image || '' }
+];
+
+const processSteps = [
+  { icon: ClipboardList, number: '01', title: 'Project Brief', text: 'Share product references, specifications and commercial requirements.' },
+  { icon: Boxes, number: '02', title: 'Development & Sampling', text: 'Review materials, construction, finishes and sample requirements.' },
+  { icon: Cog, number: '03', title: 'Manufacturing', text: 'Move into production following approved product specifications.' },
+  { icon: Truck, number: '04', title: 'Quality Review & Delivery', text: 'Inspect products and packaging against agreed requirements before shipment.' }
+];
 
 const Home: React.FC = () => {
-  const { t } = useLanguage();
-  const [activeHub, setActiveHub] = useState<'cn' | 'kh'>('cn');
-  const { config: site, loading: siteLoading, isFallback } = usePublishedSiteConfig();
-  const [categoryFacets, setCategoryFacets] = useState<CategoryFacet[]>([]);
+  const { config: site, loading, isFallback } = usePublishedSiteConfig();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchPublicCatalogFacets(controller.signal)
-      .then(setCategoryFacets)
-      .catch(e => { if (!controller.signal.aborted) console.warn('Category load failed', e); });
-    return () => controller.abort();
-  }, []);
+  const heroImage = resolveImage(site?.home?.hero?.image) || FALLBACK_HERO;
+  const factoryImage = resolveImage(site?.home?.factory?.image) || FALLBACK_FACTORY;
+  const chinaImage = resolveImage(site?.home?.hub_cn?.image) || FALLBACK_FACTORY;
+  const cambodiaImage = resolveImage(site?.home?.hub_kh?.image) || FALLBACK_FACTORY;
+  const materialImages = [
+    site?.materials?.wood_oak,
+    site?.materials?.wood_walnut,
+    site?.materials?.wood_ash,
+    site?.materials?.wood_rubber
+  ].filter((item): item is string => typeof item === 'string' && item.length > 0);
 
-  const heroBg = resolveImage(site?.home?.hero?.image);
-  const heroTitle = site?.home?.hero?.title || t.home.heroTitle;
-  const factoryImg = resolveImage(site?.home?.factory?.image);
-  const ctaBg = resolveImage(site?.home?.cta?.image);
-  const hubCnImg = resolveImage(site?.home?.hub_cn?.image);
-  const hubKhImg = resolveImage(site?.home?.hub_kh?.image);
+  const productCategories = site?.categories?.length ? site.categories : defaultCategories;
 
-  const hubs = useMemo(
-    () => [
-      {
-        id: 'cn',
-        title: t.common?.location_cn || "China Terminal",
-        icon: <Anchor size={18} />,
-        details: 'Guangdong • 645k Sq.Ft',
-        image: hubCnImg,
-      },
-      {
-        id: 'kh',
-        title: t.common?.location_kh || "Cambodia Terminal",
-        icon: <Truck size={18} />,
-        details: 'Kandal • Low Tariff',
-        image: hubKhImg,
-      },
-    ],
-    [hubCnImg, hubKhImg, t]
-  );
-
-  const activeCategories = useMemo(() => {
-      const productCategoryIds = new Set(categoryFacets.filter(c => c.count > 0).map(c => c.id));
-      const sourceCategories = (site?.categories && site.categories.length > 0) ? site.categories : staticCategories;
-      
-      return sourceCategories.filter(Boolean).filter(cat => {
-          const catId = cat.id?.toLowerCase().trim();
-          const catTitle = cat.title?.toLowerCase().trim();
-          return productCategoryIds.has(catId) || productCategoryIds.has(catTitle);
-      }).slice(0, 3);
-  }, [categoryFacets, site]);
-
-  const currentHub = hubs.find((h) => h.id === activeHub) || hubs[0];
-
-  if (siteLoading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-stone-900 text-stone-500 font-mono">
-        <Loader2 className="animate-spin mr-3" size={20} />
-        INITIALIZING_SYSTEM...
-      </div>
-    );
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#f7f4ef] text-[#735a4a]" role="status">Loading PZ Furniture Studio...</div>;
   }
 
   return (
-    <>
+    <div className="bg-[#fcfaf7] text-[#30221b]">
       {isFallback && (
-          <div className="bg-amber-600 text-white text-[10px] font-bold uppercase tracking-widest py-2 text-center fixed top-0 left-0 w-full z-[60] flex items-center justify-center gap-2">
-              <AlertTriangle size={12} />
-              Connection offline. Displaying static fallback content.
-          </div>
+        <div role="status" className="bg-[#f4e5d3] text-[#694329] px-5 py-2 text-center text-xs">
+          Content connection is temporarily unavailable. Displaying saved website information.
+        </div>
       )}
 
-      <section className={`relative h-[100dvh] w-full overflow-hidden bg-stone-900 border-b-8 border-safety-700 ${isFallback ? 'pt-6' : ''}`}>
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: heroBg ? `url("${heroBg}")` : undefined }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/60 to-stone-900/40" />
-        </div>
-
-        <div className="relative z-10 h-full container mx-auto px-6 md:px-12 flex flex-col justify-center">
-          <div className="max-w-4xl pt-20">
-            <div className="inline-flex items-center gap-3 mb-6 border border-white/20 bg-stone-950/80 px-4 py-2">
-              <span className="text-stone-300 text-xs font-mono tracking-widest">
-                PZ.EST.2014
-              </span>
-            </div>
-            <h1 className="font-serif text-4xl md:text-7xl text-white mb-6">
-              {heroTitle}
+      {/* 01 — editorial hero, split visual on desktop */}
+      <section className="relative bg-[#f2ece4] lg:min-h-[615px] pt-[70px] md:pt-[90px] overflow-hidden" aria-label="PZ Furniture Studio introduction">
+        <div className="grid lg:grid-cols-[46%_54%] lg:min-h-[615px]">
+          <div className="relative z-10 px-6 sm:px-10 lg:pl-[max(48px,calc((100vw-1330px)/2))] lg:pr-5 py-16 lg:py-20 flex flex-col justify-center bg-[#f2ece4]">
+            <p className={sectionKicker}>Furniture & Wood Component Manufacturing</p>
+            <h1 className={editorialHeading + ' text-[clamp(2.7rem,4.3vw,5.2rem)] mt-6 max-w-[690px]'}>
+              Solid Wood Furniture.<br />Built for Your Brand.
             </h1>
-            <p className="text-stone-300 max-w-xl mb-10">
-              {t.home?.strengthDesc1}
+            <p className="text-[#6a6661] text-[15px] md:text-[16px] leading-[1.75] mt-6 max-w-[495px]">
+              We develop and manufacture furniture and wood components for brands, importers and commercial buyers. From product development to production, our team supports projects across China and Cambodia.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/collections" className="bg-safety-700 text-white px-8 py-4 uppercase text-xs font-bold flex items-center hover:bg-safety-600 transition-colors">
-                Browse Collections <ArrowRight size={16} className="ml-2" />
-              </Link>
-              <Link to="/manufacturing" className="border border-stone-600 text-white px-8 py-4 uppercase text-xs font-bold hover:bg-white/10 transition-colors">
-                {t.home?.heroBtnSecondary}
-              </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/collections" className={darkButton}>Explore Products <ArrowRight size={15}/></Link>
+              <Link to="/manufacturing" className="inline-flex items-center justify-center gap-3 border border-[#b6a698] px-6 py-3.5 text-[12px] font-semibold hover:bg-white/70 transition-colors">Our Manufacturing <ArrowRight size={15}/></Link>
             </div>
+          </div>
+          <div className="relative min-h-[330px] lg:min-h-full overflow-hidden">
+            <img src={heroImage} alt="Solid wood furniture in a warmly lit interior" className="absolute inset-0 h-full w-full object-cover object-center" fetchPriority="high" />
+            <div className="absolute inset-y-0 left-0 w-20 hidden lg:block bg-gradient-to-r from-[#f2ece4] to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#2b1e16]/40 to-transparent pointer-events-none" />
+            <span className="absolute bottom-7 right-8 text-white/90 text-[10px] uppercase tracking-[0.14em]">Solid Wood · Thoughtful Manufacturing</span>
           </div>
         </div>
       </section>
 
-      {/* FEATURED COLLECTIONS SECTION */}
-      {activeCategories.length > 0 && (
-          <section className="bg-stone-50 py-24">
-              <div className="container mx-auto px-6 md:px-12">
-                  <div className="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-stone-200 pb-8 gap-4">
-                      <div>
-                          <h3 className="text-safety-700 font-bold uppercase tracking-widest text-xs mb-2">Our Work</h3>
-                          <h2 className="font-serif text-3xl md:text-5xl text-stone-900">{t.home?.featuredCollections}</h2>
-                      </div>
-                      <Link to="/collections" className="text-stone-400 hover:text-stone-900 text-xs font-bold uppercase tracking-widest flex items-center transition-colors pb-1">
-                          View All Collections <ArrowRight size={14} className="ml-2" />
-                      </Link>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      {activeCategories.map((cat) => {
-                          if (!cat) return null;
-                          return (
-                          <Link key={cat.id} to={`/collections?category=${cat.id}`} className="group block">
-                              <div className="aspect-[4/5] bg-stone-200 overflow-hidden mb-6 shadow-md transition-all duration-700 group-hover:shadow-xl">
-                                  <img src={resolveImage(cat.image)} alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                              </div>
-                              <h3 className="font-serif text-2xl text-stone-900 mb-1 group-hover:text-safety-700 transition-colors">{cat.title}</h3>
-                              <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">{cat.subtitle || 'Production Line'}</p>
-                          </Link>
-                      )})}
-                  </div>
+      {/* 02 — clear reasons to consider PZ */}
+      <section className="bg-white border-b border-[#eee6de]" aria-label="Manufacturing highlights">
+        <div className="max-w-[1330px] mx-auto grid grid-cols-2 lg:grid-cols-4 px-6 md:px-10">
+          {[
+            { icon: Globe2, title: 'Two Production Bases', desc: 'Zhaoqing, China & Kandal, Cambodia' },
+            { icon: PenTool, title: 'OEM / ODM Support', desc: 'Product development and sampling' },
+            { icon: Boxes, title: 'Solid Wood Expertise', desc: 'Butcher blocks, furniture and casegoods' },
+            { icon: ShieldCheck, title: 'Global Supply', desc: 'For brands, importers and commercial projects' }
+          ].map(({ icon: Icon, title, desc }) => (
+            <div key={title} className="flex items-start gap-3.5 py-7 px-2 lg:px-6 border-b lg:border-b-0 border-[#eee6de] first:lg:pl-0">
+              <Icon size={27} strokeWidth={1.5} className="text-[#885338] shrink-0 mt-0.5" />
+              <div>
+                <h2 className="font-semibold text-[13px] text-[#38271f]">{title}</h2>
+                <p className="text-[#807a75] text-[11px] leading-[1.6] mt-1">{desc}</p>
               </div>
-          </section>
-      )}
-
-      <section className="bg-stone-900 text-stone-200 grid grid-cols-1 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden">
-          {factoryImg && (
-            <img src={factoryImg} alt="Factory" className="w-full h-full object-cover opacity-80" />
-          )}
-        </div>
-        <div className="p-12 flex flex-col justify-center">
-          <span className="text-safety-700 uppercase text-xs mb-4">{t.home?.factoryStrength}</span>
-          <h2 className="font-serif text-3xl text-white mb-6">{t.home?.strengthTitle}</h2>
-          <p className="text-stone-400">{t.home?.strengthDesc2}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="bg-white py-24">
-        <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
-          <div>
-            <h2 className="font-serif text-3xl mb-6">{t.home?.globalHubs}</h2>
-            {hubs.map((hub) => (
-              <div
-                key={hub.id}
-                onClick={() => setActiveHub(hub.id as 'cn' | 'kh')}
-                className={`cursor-pointer p-4 border-l-4 mb-4 transition-all ${activeHub === hub.id ? 'border-safety-700 bg-stone-50' : 'border-stone-200 hover:bg-stone-50/50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  {hub.icon}
-                  <div>
-                    <div className="font-bold">{hub.title}</div>
-                    <div className="text-xs text-stone-400">{hub.details}</div>
+      {/* 03 — categories are always visible, even with zero published SKUs */}
+      <section className="py-16 md:py-20 bg-[#fcfaf7]" aria-labelledby="what-we-make">
+        <div className="max-w-[1330px] mx-auto px-6 md:px-10 grid lg:grid-cols-[28%_72%] gap-9 lg:gap-0">
+          <div className="lg:pr-12 flex flex-col justify-center">
+            <p className={sectionKicker}>Our Product Categories</p>
+            <h2 id="what-we-make" className={editorialHeading + ' text-4xl md:text-5xl mt-4'}>What We Make</h2>
+            <p className="text-[#77716a] text-[14px] leading-[1.8] mt-5 max-w-[340px]">
+              Explore our furniture and wood product capabilities, developed for different markets, applications and commercial requirements.
+            </p>
+            <Link to="/collections" className="group inline-flex items-center gap-3 mt-7 text-[#754831] font-semibold text-[13px] underline underline-offset-4">
+              View All Products <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4 lg:pl-4">
+            {categories.map(cat => {
+              const configured = productCategories.find(item =>
+                cat.aliases.some(a => item.id?.toLowerCase() === a || item.title?.toLowerCase().includes(a)));
+              const image = resolveImage(configured?.image) || cat.fallback;
+              return (
+                <Link key={cat.id} to={'/collections?category=' + encodeURIComponent(configured?.id || cat.id)} className="group bg-white shadow-[0_8px_28px_rgba(52,37,28,0.05)] border border-[#f0e9e2] hover:shadow-[0_14px_35px_rgba(52,37,28,0.13)] transition-all">
+                  <div className="relative aspect-[4/3] sm:aspect-[4/4] overflow-hidden bg-[#e8ded3]">
+                    {image && <img src={image} alt={cat.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />}
                   </div>
-                </div>
+                  <div className="px-4 py-4 relative">
+                    <ArrowUpRight size={15} className="absolute right-4 top-5 text-[#91593d]"/>
+                    <h3 className="font-serif text-[18px] leading-snug pr-5 text-[#30221b]">{cat.title}</h3>
+                    <p className="text-[#82786f] text-[11px] leading-relaxed mt-2">{cat.desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 04 — human craftsmanship + four-step workflow */}
+      <section className="grid lg:grid-cols-[42%_58%] bg-white" aria-labelledby="workflow-title">
+        <div className="relative min-h-[390px] lg:min-h-[380px] overflow-hidden bg-[#3a2b22]">
+          <img src={factoryImage} alt="Furniture workshop and hands-on production" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1e130e]/90 via-[#1e130e]/65 to-[#1e130e]/20" />
+          <div className="relative z-10 max-w-[510px] px-7 md:px-12 py-12 lg:py-14 flex flex-col justify-center h-full">
+            <p className="text-white/80 tracking-[0.18em] uppercase text-[10px] font-semibold">From Concept to Production</p>
+            <h2 id="workflow-title" className="font-serif text-[clamp(2rem,2.65vw,3.2rem)] text-white tracking-[-0.03em] leading-tight mt-4">
+              A Manufacturing Partner, Not Just a Supplier.
+            </h2>
+            <p className="mt-4 text-[13px] md:text-sm text-white/85 leading-[1.75]">
+              We work with your team from product requirements and sampling through production and quality review.
+            </p>
+            <Link to="/inquire" className="self-start inline-flex items-center gap-3 mt-7 bg-white text-[#754831] hover:bg-[#f4e8dd] px-5 py-3.5 font-semibold uppercase tracking-[0.025em] text-xs transition-colors">
+              Discuss Your Project <ArrowRight size={16}/>
+            </Link>
+          </div>
+        </div>
+        <div className="px-6 md:px-9 xl:px-12 py-11 lg:py-16 grid grid-cols-2 xl:grid-cols-4 gap-7 lg:gap-5 items-start">
+          {processSteps.map(({ icon: Icon, number, title, text }) => (
+            <div key={number} className="flex flex-col gap-4">
+              <Icon size={31} strokeWidth={1.45} className="text-[#875338]"/>
+              <div>
+                <span className="font-serif text-2xl text-[#885338] mr-2">{number}</span>
+                <h3 className="inline text-[#3a2a22] text-[14px] font-semibold leading-snug">{title}</h3>
               </div>
+              <p className="text-[12px] text-[#817a72] leading-[1.75]">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 05 — two facilities / materials */}
+      <section className="bg-[#f9f6f1] py-12 md:py-16 border-y border-[#eee5dc]">
+        <div className="max-w-[1330px] mx-auto px-6 md:px-10 grid lg:grid-cols-[27%_45%_28%] gap-9 lg:gap-0">
+          <div className="lg:pr-8">
+            <p className={sectionKicker}>Our Manufacturing Network</p>
+            <h2 className={editorialHeading + ' text-3xl md:text-4xl mt-3'}>China & Cambodia</h2>
+            <p className="text-[#77716a] text-[13px] leading-[1.75] mt-4">Coordinated product management and manufacturing across two locations, supporting a flexible supply network.</p>
+            <Link to="/capacity" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">Explore Our Facilities <ArrowRight size={14}/></Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:pr-8">
+            {[
+              { name: 'Zhaoqing, China', desc: 'Headquarters and main production base.', image: chinaImage },
+              { name: 'Kandal, Cambodia', desc: 'An additional manufacturing location.', image: cambodiaImage }
+            ].map(item => (
+              <Link to="/capacity" key={item.name} className="group">
+                <div className="aspect-[4/3] bg-[#e5ded5] overflow-hidden"><img src={item.image} alt={item.name + ' manufacturing facility'} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/></div>
+                <h3 className="font-serif text-[14px] text-[#30221b] text-center mt-3">{item.name}</h3>
+                <p className="text-[#817a72] text-[11px] leading-snug text-center mt-1">{item.desc}</p>
+              </Link>
             ))}
           </div>
-          <div className="aspect-video border bg-stone-900 overflow-hidden rounded-sm">
-            {currentHub?.image && (
-              <img src={currentHub.image} alt={currentHub.title} className="w-full h-full object-cover animate-fade-in" key={currentHub.id} />
-            )}
+          <div className="border-t lg:border-t-0 lg:border-l border-[#dbd0c5] pt-7 lg:pt-0 lg:pl-9">
+            <p className={sectionKicker}>Materials & Craftsmanship</p>
+            <h2 className={editorialHeading + ' text-3xl md:text-4xl mt-3'}>Detail in Every Material.</h2>
+            <p className="text-[#77716a] text-[13px] leading-[1.75] mt-4">Wood species, construction methods and finish options to support different product designs.</p>
+            <div className="flex gap-1.5 mt-5" aria-label="Material examples">
+              {materialImages.length ? materialImages.map((image, idx) => <img key={idx} src={resolveImage(image)} alt={'Wood material sample ' + (idx + 1)} loading="lazy" className="h-9 w-16 object-cover" />) :
+                ['#b67b49','#845432','#d4aa78','#9b6943'].map(color => <span key={color} className="h-9 w-14" style={{backgroundColor:color}} aria-hidden="true"/>)}
+            </div>
+            <Link to="/materials" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">Explore Materials & Quality <ArrowRight size={14}/></Link>
           </div>
         </div>
       </section>
 
-      <section className="relative py-32 bg-stone-900 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: ctaBg ? `url("${ctaBg}")` : undefined }} />
-        <div className="relative z-10">
-          <h2 className="font-serif text-4xl text-white mb-6">{t.home?.readyToScale}</h2>
-          <Link to="/inquire" className="inline-block bg-safety-700 text-white px-12 py-4 uppercase text-xs font-bold hover:bg-safety-600 transition-colors shadow-xl">
-            {t.common?.startProject}
-          </Link>
+      {/* 06 — direct conversion */}
+      <section className="relative overflow-hidden bg-[#352219] text-white" aria-label="Start a project">
+        <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{backgroundImage: 'url(' + (resolveImage(site?.home?.cta?.image) || heroImage) + ')'}}/>
+        <div className="max-w-[1330px] mx-auto px-6 md:px-10 relative z-10 py-9 md:py-11 flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
+          <div className="md:flex-1">
+            <p className="text-white/65 tracking-[0.19em] uppercase text-[10px]">Let's Work Together</p>
+            <h2 className="font-serif text-3xl md:text-4xl mt-2 tracking-tight">Have a Product in Mind?</h2>
+          </div>
+          <p className="md:flex-1 max-w-[440px] text-white/80 text-[13px] leading-relaxed">Tell us about your product, target market, specifications and estimated order volume. Our team can review the details.</p>
+          <Link to="/inquire" className="inline-flex shrink-0 items-center justify-center gap-3 px-7 py-4 text-[12px] font-semibold bg-[#805036] hover:bg-[#9b6446] transition-colors">Request a Quote <ArrowRight size={16}/></Link>
         </div>
       </section>
-    </>
+    </div>
   );
 };
 
