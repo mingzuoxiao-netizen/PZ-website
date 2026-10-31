@@ -4,6 +4,7 @@ import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
+import { publishedSiteCategories } from '../../utils/catalogCategories';
 import PortalLayout from './PortalLayout';
 import { 
     Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, 
@@ -42,7 +43,7 @@ const FactoryWorkspace: React.FC = () => {
 
   const [isRequestingCategory, setIsRequestingCategory] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
-  const [catRequest, setCatRequest] = useState({ title: '', subtitle: '', description: '', image: '' });
+  const [catRequest, setCatRequest] = useState({ title: '', title_cn: '', subtitle: '', description: '', image: '' });
 
   const userName = sessionStorage.getItem('pz_user_name') || '工厂操作员';
 
@@ -72,8 +73,8 @@ const FactoryWorkspace: React.FC = () => {
               added.forEach((c: any) => addNotification('category', `新增产品系列：${c.title}`));
           }
           
-          setCategories(incomingCats);
-          categoriesRef.current = incomingCats;
+          setCategories(publishedSiteCategories(incomingCats));
+          categoriesRef.current = publishedSiteCategories(incomingCats);
       }
     } catch (e) {
       console.error("[Registry] Config sync failed:", e);
@@ -226,22 +227,24 @@ const FactoryWorkspace: React.FC = () => {
                   </div>
                   <form onSubmit={async (e) => {
                       e.preventDefault();
-                      if (!catRequest.title || !catRequest.image) return alert("Title and image required.");
+                      if (!catRequest.title.trim() || !catRequest.image) return alert('请填写英文分类名称并上传封面图片。');
                       setIsSavingCategory(true);
                       try {
                           const draft = await factoryFetch('factory/category-requests', { method: 'POST', body: JSON.stringify(catRequest) });
                           await factoryFetch(`factory/category-requests/${draft.id}/submit`, { method: 'POST' });
-                          alert("Proposal submitted.");
+                          alert('新品类申请已提交，请等待管理员审核。通过后才会显示在网站上。');
                           setIsRequestingCategory(false);
-                          setCatRequest({ title: '', subtitle: '', description: '', image: '' });
+                          setCatRequest({ title: '', title_cn: '', subtitle: '', description: '', image: '' });
                       } catch (e: any) { alert(e.message); }
                       finally { setIsSavingCategory(false); }
                   }} className="p-8 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-4">
                               <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类名称</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类英文名称（必填）</label>
                                   <input type="text" required value={catRequest.title} onChange={e => setCatRequest({...catRequest, title: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" />
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-3 mb-2">中文名称（选填）</label>
+                                  <input type="text" value={catRequest.title_cn} onChange={e => setCatRequest({...catRequest, title_cn: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" placeholder="例如：实木台面" />
                               </div>
                               <div>
                                   <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类描述</label>
@@ -256,7 +259,7 @@ const FactoryWorkspace: React.FC = () => {
                       <div className="pt-6 border-t border-stone-100 flex gap-4">
                           <button type="button" onClick={() => setIsRequestingCategory(false)} className="flex-1 py-4 border border-stone-200 text-[10px] font-bold uppercase tracking-widest">取消</button>
                           <button type="submit" disabled={isSavingCategory} className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all flex items-center justify-center gap-3">
-                              {isSavingCategory ? <Loader2 size={16} className="animate-spin" /> : <><Send size={14} /> Transmit Review</>}
+                              {isSavingCategory ? <Loader2 size={16} className="animate-spin" /> : <><Send size={14} /> 提交审核</>}
                           </button>
                       </div>
                   </form>
