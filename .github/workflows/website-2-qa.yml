@@ -26,6 +26,8 @@ jobs:
         run: npm run typecheck
       - name: Automated tests
         run: npm test
+      - name: Test staging category API patch
+        run: node --check worker-patches/factoryCategoryStaging.mjs && node --test worker-patches/factoryCategoryStaging.test.mjs
       - name: Build frontend
         run: npm run build
       - name: Build Pages Functions
