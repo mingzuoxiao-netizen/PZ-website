@@ -28,7 +28,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
     if (!isSingleMode && images.length + fileList.length > maxImages) { 
-        onError(`Registry Limit: Maximum ${maxImages} assets allowed.`); 
+        onError(`最多可上传 ${maxImages} 张图片。`); 
         return; 
     }
 
@@ -45,7 +45,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         const successfulUrls = results.filter(Boolean);
         onUpdate(isSingleMode ? [successfulUrls[0]] : [...images, ...successfulUrls]);
     } catch (err: any) {
-        onError(`Upload Protocol Error: ${err.message}`);
+        onError(`图片上传失败：${err.message}`);
     } finally {
         setIsUploading(false);
     }
@@ -62,7 +62,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   const removeImage = async (index: number) => {
     const urlToRemove = images[index];
     if (onDelete) {
-        try { await onDelete(urlToRemove); } catch (e) { console.warn("Reference removal only"); }
+        try { await onDelete(urlToRemove); } catch (e) { console.warn("仅移除图片引用"); }
     } else {
         onUpdate(images.filter((_, i) => i !== index));
     }
@@ -107,7 +107,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           <div className="flex flex-col items-center gap-2">
             <Upload size={24} className={isDragging ? 'text-safety-700' : 'text-stone-300'} />
             <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">
-              {isDragging ? 'Release to Upload' : 'Drag assets or click to browse'}
+              {isDragging ? '松开即可上传' : '拖拽图片到此处，或点击选择文件'}
             </p>
           </div>
         )}
@@ -128,11 +128,11 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
                 <div className="flex justify-between items-start">
                    {onSetMain && idx !== 0 ? (
-                       <button onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="Set as Primary">
+                       <button onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
                          <Star size={12} />
                        </button>
                    ) : <div></div>}
-                   <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="Remove Asset">
+                   <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
                      <X size={12} />
                    </button>
                 </div>

@@ -19,8 +19,9 @@ interface ProductFormProps {
 
 const ProductForm: React.FC<ProductFormProps> = ({ 
   initialData, categories, onSave, onSubmit, onCancel, 
-  fixedCategoryId, userRole 
+  fixedCategoryId, userRole, lang = "en"
 }) => {
+  const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [formData, setFormData] = useState<Partial<ProductVariant>>(initialData);
   const [submitting, setSubmitting] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
@@ -59,15 +60,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
     if (submitting) return;
     const code = String(formData.code || '').trim().toUpperCase();
     if (!String(formData.name || '').trim()) {
-      alert('Product name is required.');
+      alert(T('Product name is required.','请输入产品名称。'));
       return;
     }
     if (!formData.id && !code) {
-      alert('SKU is required for new products (e.g. PZ-BIRCH-001).');
+      alert(T('SKU is required for new products (e.g. PZ-BIRCH-001).','新建产品必须填写 SKU（例如 PZ-BIRCH-001）。'));
       return;
     }
     if (code && !/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
-      alert('Invalid SKU. Use PZ- followed by 2–40 letters, numbers, hyphens or underscores.');
+      alert(T('Invalid SKU. Use PZ- followed by 2–40 letters, numbers, hyphens or underscores.','SKU 格式错误，请使用 PZ- 开头，后面输入 2–40 位字母、数字或连接符。'));
       return;
     }
     setSubmitting(true);
@@ -86,7 +87,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const handlePromote = async () => {
       if (!formData.id || !onSubmit) return;
-      if (!confirm("Proceed with submitting this SKU to the master registry audit?")) return;
+      if (!confirm(T("Proceed with submitting this SKU to the master registry audit?","确认将该 SKU 提交审核吗？"))) return;
       setIsPromoting(true);
       try {
           await onSubmit(formData.id);
@@ -103,10 +104,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
              <div className="bg-stone-900 px-8 py-4 flex justify-between items-center text-white">
                 <div className="flex items-center gap-3">
                    <ClipboardList size={18} className="text-safety-700" />
-                   <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">Product Induction Protocol</h3>
+                   <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">{T("Product Induction Protocol","产品资料录入")}</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-[9px] font-mono opacity-40 uppercase">Revision v1.2</span>
+                   <span className="text-[9px] font-mono opacity-40 uppercase">{T("Revision v1.2","表单版本 1.2")}</span>
                 </div>
              </div>
 
@@ -114,35 +115,35 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">01</div>
-                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">Identification & Classification</h4>
+                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">{T("Identification & Classification","产品分类与编号")}</h4>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Production Series</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Production Series","产品系列")}</label>
                             <select 
                                 value={formData.category || ''} 
                                 onChange={e => handleChange('category', e.target.value)} 
                                 disabled={!!fixedCategoryId} 
                                 className="w-full bg-stone-50 border border-stone-200 p-4 text-sm font-bold focus:border-stone-900 outline-none transition-colors appearance-none"
                             >
-                                <option value="">Select Target Category...</option>
+                                <option value="">{T("Select Target Category...","请选择产品分类…")}</option>
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Sub-Collection (Optional)</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Sub-Collection (Optional)","子分类（选填）")}</label>
                             <input 
                                 type="text" 
                                 value={formData.sub_category || ''} 
                                 onChange={e => handleChange('sub_category', e.target.value)} 
                                 className="w-full bg-stone-50 border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none transition-colors" 
-                                placeholder="e.g. Minimalist Series" 
+                                placeholder={T("e.g. Minimalist Series","例如：餐桌系列")} 
                             />
                         </div>
                     </div>
                     <fieldset className="mt-8 rounded-sm border border-stone-200 bg-stone-50 p-5">
-                        <legend className="px-2 text-[10px] font-bold uppercase tracking-widest text-stone-700">Production Sites / 生产基地</legend>
-                        <p className="mb-4 text-xs text-stone-500">Select all locations that can manufacture this product. This does not change staff permissions.</p>
+                        <legend className="px-2 text-[10px] font-bold uppercase tracking-widest text-stone-700">{T("Production Sites / 生产基地","生产基地")}</legend>
+                        <p className="mb-4 text-xs text-stone-500">{T("Select all locations that can manufacture this product. This does not change staff permissions.","选择能够生产该产品的工厂，不影响员工账号权限。")}</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {([
                                 ['zhaoqing', 'Zhaoqing · China / 肇庆'],
@@ -160,39 +161,39 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">02</div>
-                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">Product Specification</h4>
+                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">{T("Product Specification","产品规格")}</h4>
                     </div>
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Display Name</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Display Name","产品名称")}</label>
                             <input 
                                 type="text" 
                                 required
                                 value={formData.name || ''} 
                                 onChange={e => handleChange('name', e.target.value)} 
                                 className="w-full border-b-2 border-stone-100 p-4 font-serif text-2xl outline-none focus:border-safety-700 transition-colors" 
-                                placeholder="Formal Product Title" 
+                                placeholder={T("Formal Product Title","输入产品名称")} 
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Technical Description</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Technical Description","产品说明")}</label>
                             <textarea 
                                 rows={4} 
                                 value={formData.description || ''} 
                                 onChange={e => handleChange('description', e.target.value)} 
                                 className="w-full bg-stone-50 border border-stone-200 p-4 text-sm outline-none focus:border-stone-900 resize-none leading-relaxed" 
-                                placeholder="Detail the structural characteristics and design intent..." 
+                                placeholder={T("Detail the structural characteristics and design intent...","填写产品结构、尺寸与设计要求…")} 
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Primary Material</label>
-                            <input type="text" value={formData.material || ''} onChange={e => handleChange('material', e.target.value)} className="w-full border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none" placeholder="e.g. Solid North American Oak" />
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Primary Material","主要材料")}</label>
+                            <input type="text" value={formData.material || ''} onChange={e => handleChange('material', e.target.value)} className="w-full border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none" placeholder={T("e.g. Solid North American Oak","例如：北美白橡木")} />
                         </div>
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">Registry SKU Code</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Registry SKU Code","产品 SKU 编号")}</label>
                             <div className="flex">
                                 <span className="bg-stone-100 border border-r-0 border-stone-200 px-4 flex items-center text-stone-400 font-mono text-xs font-bold">PZ-</span>
                                 <input 
@@ -200,7 +201,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     value={(formData.code || '').replace(/^PZ-/, '')} 
                                     onChange={e => handleChange('code', `PZ-${e.target.value.toUpperCase()}`)} 
                                     className="w-full border border-stone-200 p-4 text-sm font-mono focus:border-stone-900 outline-none uppercase" 
-                                    placeholder="XXX-000" 
+                                    placeholder="PZ-XXX-000" 
                                 />
                             </div>
                         </div>
@@ -210,7 +211,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 <section>
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">03</div>
-                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">Digital Asset Management</h4>
+                        <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">{T("Digital Asset Management","产品图片管理")}</h4>
                     </div>
                     <PZImageManager 
                         images={formData.images || []}
@@ -252,7 +253,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <div className="sticky top-24">
               <div className="bg-stone-900 text-white px-5 py-3 flex items-center gap-2 rounded-t-sm">
                   <Database size={14} className="text-safety-700" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Registry Insight Preview</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{T("Registry Insight Preview","产品预览")}</span>
               </div>
               <div className="border border-t-0 border-stone-200 p-1 bg-stone-50 shadow-2xl">
                  <LivePreview formData={formData} />
@@ -261,7 +262,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   <div className="flex items-start gap-3">
                       <Info size={18} className="text-amber-700 flex-shrink-0 mt-0.5" />
                       <div className="text-[10px] text-amber-800 leading-relaxed uppercase tracking-widest font-bold">
-                          <p className="mb-2">Induction Note:</p>
+                          <p className="mb-2">{T("Induction Note:","录入提示：")}</p>
                           <p className="font-normal normal-case text-amber-600">This form adheres to Version-A Safety Protocols. Physical deletion of cloud assets is restricted to prevent library corruption.</p>
                       </div>
                   </div>
