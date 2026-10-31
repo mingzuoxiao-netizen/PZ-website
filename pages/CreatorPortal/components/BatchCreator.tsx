@@ -16,6 +16,7 @@ interface AssetRow {
   code: string;
   material: string;
   size: string;
+  production_sites: ProductionSite[];
   url?: string;
   status: AssetStatus;
   error?: string;
@@ -108,6 +109,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         file, previewUrl,
         name: makeName(file.name),
         code: '', material: '', size: '',
+        production_sites: [...selectedSites],
         status: 'ready' as AssetStatus
       };
     });
@@ -165,11 +167,11 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     setFeedback('');
   };
 
-  const createDraft = (params: { name: string; code: string; material: string; size: string }, urls: string[]) => {
+  const createDraft = (params: { name: string; code: string; material: string; size: string }, urls: string[], sites: ProductionSite[]) => {
     const payload: DraftPayload = {
       name: params.name.trim(), code: normalizeCode(params.code),
       category: selectedCategory, material: params.material.trim(),
-      size: params.size.trim(), production_sites: [...selectedSites],
+      size: params.size.trim(), production_sites: [...sites],
       images: urls, status: 'draft', is_published: 0
     };
     return onCreateDraft(payload);
@@ -179,7 +181,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     if (inFlight.current) return;
     setFeedback('');
     if (!selectedCategory) return setFeedback('Select a product category first.');
-    if (selectedSites.length === 0) return setFeedback('Select at least one production site.');
+    if (mode === 'one-product' && selectedSites.length === 0) return setFeedback('Select at least one production site.');
     if (rows.length === 0) return setFeedback('Choose image files first.');
     if (rows.some(row => row.status === 'verify')) {
       return setFeedback('A previous save result is uncertain. Check Master Registry before retrying.');
@@ -187,6 +189,9 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
 
     const remaining = rows.filter(row => row.status !== 'saved');
     if (remaining.length === 0) return setFeedback('All drafts in this queue are already saved.');
+    if (mode === 'many-products' && remaining.some(row => row.production_sites.length === 0)) {
+      return setFeedback('Select at least one production site for each product.');
+    }
 
     const candidates = mode === 'one-product'
       ? [single]
@@ -243,7 +248,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         }
         setProgress('Saving one draft with ' + imageUrls.length + ' images');
         try {
-          await createDraft(single, imageUrls);
+          await createDraft(single, imageUrls, selectedSites);
           saved++;
           setRows(prev => prev.map(row => ({ ...row, status: 'saved', error: undefined })));
         } catch (error: any) {
@@ -274,7 +279,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             }
           }
           try {
-            await createDraft(row, [url]);
+            await createDraft(row, [url], row.production_sites);
             saved++;
             updateRow(row.id, { status: 'saved', error: undefined });
           } catch (error: any) {
@@ -344,7 +349,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             </select>
           </label>
           <fieldset className="border border-stone-200 p-3">
-            <legend className="px-1 text-xs font-bold uppercase text-stone-600">Production Sites / 生产基地</legend>
+            <legend className="px-1 text-xs font-bold uppercase text-stone-600">{mode === 'many-products' ? 'Default Production Sites / 默认生产基地' : 'Production Sites / 生产基地'}</legend>
             {productionSiteOptions.map(site => (
               <label key={site.value} className="mr-5 inline-flex items-center gap-2 py-2 text-xs">
                 <input type="checkbox" disabled={isProcessing || hasSaved} checked={selectedSites.includes(site.value)}
@@ -352,6 +357,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                 {site.label}
               </label>
             ))}
+            {mode === 'many-products' && <p className="text-xs text-stone-500">Applies to newly added products only. Choose at least one site on each product card.</p>}
           </fieldset>
         </div>
 
@@ -416,6 +422,20 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                             className="mt-1 w-full border border-stone-200 p-2 text-xs font-normal text-stone-900" />
                         </label>
                       ))}
+                      <fieldset className="border border-stone-200 p-2 sm:col-span-2">
+                        <legend className="px-1 text-[11px] font-bold text-stone-600">Production Sites / 生产基地 (required)</legend>
+                        {productionSiteOptions.map(site => (
+                          <label key={site.value} className="mr-5 inline-flex items-center gap-2 py-2 text-xs">
+                            <input type="checkbox" disabled={isProcessing || row.status === 'saved' || row.status === 'verify'}
+                              checked={row.production_sites.includes(site.value)}
+                              onChange={() => updateRow(row.id, { production_sites: row.production_sites.includes(site.value)
+                                ? row.production_sites.filter(value => value !== site.value)
+                                : [...row.production_sites, site.value] })} />
+                            {site.label}
+                          </label>
+                        ))}
+                        {row.production_sites.length === 0 && <p className="text-xs text-red-700">Select at least one production site.</p>}
+                      </fieldset>
                     </div>
                   ) : (
                     <div className="text-xs text-stone-600">{row.file.name}</div>
