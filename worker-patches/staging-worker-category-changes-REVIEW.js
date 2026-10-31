@@ -4351,12 +4351,7 @@ if (categoryResponse) return categoryResponse;
           if (auth instanceof Response) return auth;
           const id = match[1].trim();
           const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-          let autoPublish = false;
-          try {
-            const body = await request.json();
-            if (body?.autoPublish === false) autoPublish = false;
-          } catch {
-          }
+          // Staging review approves to draft only; a separate admin publish is mandatory.
           const proposal = await env.DB.prepare(
             `SELECT id, title, title_cn, subtitle, image, status
        FROM category_requests
@@ -4397,43 +4392,20 @@ if (categoryResponse) return categoryResponse;
             );
           }
           const transitioned = await env.DB.prepare(
-            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN (\u0027pending\u0027,\u0027awaiting_review\u0027)"
+            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN ('pending','awaiting_review')"
           ).bind("approved", nowIso, id).run();
           if (transitioned?.meta?.changes !== 1) {
             return json({ error: "Category draft saved but approval state not confirmed; reconcile manually" }, 503);
-          }
-          let published = false;
-          let version = null;
-          let publishedAt = null;
-          if (autoPublish) {
-            try {
-              const snapshot = publishTransform(draft, env);
-              version = String(Date.now());
-              publishedAt = (/* @__PURE__ */ new Date()).toISOString();
-              await env.SITE_CONFIG_KV.put(
-                "published:site_config",
-                JSON.stringify(snapshot)
-              );
-              await env.SITE_CONFIG_KV.put(
-                "published:meta",
-                JSON.stringify({ version, publishedAt })
-              );
-              published = true;
-            } catch (e) {
-              console.error("[category approve] auto publish failed:", e);
-            }
           }
           return json({
             success: true,
             id,
             action: "approve",
             status: "approved",
-            published,
-            needsPublish: !published,
-            version,
-            publishedAt,
+            published: false,
+            needsPublish: true,
             categoryId: slug,
-            draftUpdated: !exists
+            draftUpdated: true
           });
         }
       }
@@ -4445,7 +4417,7 @@ if (categoryResponse) return categoryResponse;
           const id = m[1].trim();
           const nowIso = (/* @__PURE__ */ new Date()).toISOString();
           const rejected = await env.DB.prepare(
-            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN (\u0027pending\u0027,\u0027awaiting_review\u0027)"
+            "UPDATE category_requests SET status = ?, updated_at = ? WHERE id = ? AND status IN ('pending','awaiting_review')"
           ).bind("rejected", nowIso, id).run();
           if (rejected?.meta?.changes !== 1) {
             return json({ error: "Only pending category requests can be rejected" }, 409);
