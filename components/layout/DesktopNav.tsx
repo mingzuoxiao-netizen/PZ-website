@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ArrowUpRight } from 'lucide-react';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { categories as staticCategories } from '../../data/inventory';
+import { publishedSiteCategories } from '../../utils/catalogCategories';
 
 interface DesktopNavProps {
   activeMenu: string | null;
@@ -20,7 +20,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
   const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const { config } = usePublishedSiteConfig();
   const closeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const productCategories = config?.categories?.length ? config.categories : staticCategories;
+  const productCategories = publishedSiteCategories(config?.categories);
   const nav = [
     { label: 'Home', zh: '首页', to: '/' },
     { label: 'Products', zh: '产品中心', to: '/collections', menu: 'products' },
