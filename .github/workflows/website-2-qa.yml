@@ -60,6 +60,10 @@ jobs:
         run: python3 worker-patches/test_category_change_production_migration.py
       - name: Test Production category amendments
         run: node --check worker-patches/factoryCategoryChangesProduction.mjs && node --test worker-patches/factoryCategoryChangesProduction.test.mjs
+      - name: D1 CAS draft and publish concurrency regression
+        run: node --check worker-patches/siteConfigD1Production.mjs && node --test worker-patches/siteConfigD1Production.test.mjs
+      - name: Check D1 site config schema in SQLite
+        run: python3 worker-patches/test_site_config_d1_migration.py
       - name: Production Worker candidate syntax and auth-isolation
         run: |
           node --check worker-patches/production-worker-category-governance-REVIEW.js
