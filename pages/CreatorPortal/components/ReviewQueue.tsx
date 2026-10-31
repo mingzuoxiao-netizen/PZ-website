@@ -55,7 +55,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0 || isProcessing) return;
     const count = selectedIds.length;
-    if (!confirm(`确认批准 ${count} 条记录吗？批准后将立即发布。`)) return;
+    if (!confirm(view === 'categories' ? `确认批准 ${count} 条分类申请并存入草稿吗？不会自动发布。` : `确认批准 ${count} 条产品吗？`)) return;
     setMessage('');
     setIsProcessing(true);
     try {
@@ -108,7 +108,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 {selectedIds.length > 0 && (
                     <button disabled={isProcessing} onClick={handleBulkApprove} className="bg-stone-900 text-white px-6 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all flex items-center gap-2 rounded-sm">
                         {isProcessing ? <RefreshCw className="animate-spin" size={14}/> : <CheckCircle size={14}/>}
-                        批准并发布
+                        {view === 'categories' ? '批准并保存草稿' : '批准产品'}
                     </button>
                 )}
             </div>
@@ -161,7 +161,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                 ) : (
                                     <div className="flex gap-4 pt-4 border-t border-stone-50 opacity-100 transition-opacity">
                                         <button disabled={isProcessing} onClick={() => { void processItem(item.id!, 'approve'); }} className="flex items-center bg-stone-900 text-white px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all">
-                                            <CheckCircle size={12} className="mr-2" /> Approve & Publish
+                                            <CheckCircle size={12} className="mr-2" /> {view === 'categories' ? '批准并保存草稿' : '批准产品'}
                                         </button>
                                         <button disabled={isProcessing} onClick={() => setRejectId(item.id || null)} className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest">
                                             <XCircle size={12} className="mr-2" /> 驳回申请
