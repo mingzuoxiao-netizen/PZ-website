@@ -218,7 +218,7 @@ const AdminWorkspace: React.FC = () => {
               const body = await response.json();
               const publicCategories = body?.config?.categories ?? body?.categories ?? [];
               if (!Array.isArray(publicCategories) ||
-                !publicCategories.some((item: any) => item.id === result.categoryId || item.proposal_id === id)) {
+                !publicCategories.some((item: any) => item.proposal_id === id)) {
                 throw new Error('分类已批准，但公开配置暂未找到新分类，请检查发布状态。');
               }
             }}
