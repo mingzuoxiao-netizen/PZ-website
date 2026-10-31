@@ -191,7 +191,7 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
       if (err) return err;
       // Preserve id, subCategories, product relationships, and all unedited fields.
       draft.categories = draft.categories.map(c => c.id === row.category_id
-        ? { ...c, ...proposed, title_zh: proposed.title_cn || c.title_zh }
+        ? { ...c, ...proposed, title_zh: proposed.title_cn }
         : c);
       await env.SITE_CONFIG_KV.put('draft:site_config',JSON.stringify(draft));
       savedDraft = true;
