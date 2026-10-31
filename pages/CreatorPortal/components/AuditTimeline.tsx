@@ -17,7 +17,7 @@ const AuditTimeline: React.FC = () => {
                     <Activity className="mr-3 text-amber-700" size={24} />
                     System Audit Logs
                 </h3>
-                <p className="text-stone-500 text-sm">Immutable history of registry modifications, process approvals, and security events.</p>
+                <p className="text-stone-500 text-sm">产品更改、审批及安全事件的操作记录。</p>
             </div>
 
             <div className="space-y-4">
@@ -34,7 +34,7 @@ const AuditTimeline: React.FC = () => {
                                 <span className="text-[10px] text-stone-400">{log.date}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Operator:</span>
+                                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">操作人：</span>
                                 <span className="text-[10px] font-bold text-safety-700 bg-safety-50 px-1.5 py-0.5 rounded">{log.user}</span>
                             </div>
                         </div>
