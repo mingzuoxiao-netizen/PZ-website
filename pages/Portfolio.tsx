@@ -7,6 +7,7 @@ import { categories as staticCategories } from '../data/inventory';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
+import { publishedSiteCategories } from '../utils/catalogCategories';
 import { useLanguage } from '../contexts/LanguageContext';
 import { adminFetch } from '../utils/adminFetch';
 import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
@@ -99,7 +100,7 @@ const Portfolio: React.FC = () => {
     const productCategoryStrs = mode === 'public'
       ? new Set(facets.filter(f => f.count > 0).map(f => f.id))
       : new Set(products.map(p => (p.category || '').toLowerCase().trim()));
-    const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
+    const sourceCategories = publishedSiteCategories(config?.categories);
     
     if (mode === 'public') return sourceCategories;
     return sourceCategories.filter(cat => {
