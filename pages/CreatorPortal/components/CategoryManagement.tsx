@@ -85,9 +85,13 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
     try {
       if (action === 'save') {
         const ids = new Set<string>();
+        const titles = new Set<string>();
         for (const c of draft) {
           if (!c.id || !c.title?.trim()) throw new Error('所有分类都必须填写英文名称。');
           if (ids.has(c.id.toLowerCase())) throw new Error('存在重复分类 ID。');
+          const title = c.title.trim().toLowerCase();
+          if (titles.has(title)) throw new Error('存在重复的英文分类名称，请先处理冲突。');
+          titles.add(title);
           ids.add(c.id.toLowerCase());
         }
         await onSave(copy(draft), copy(baseline));
