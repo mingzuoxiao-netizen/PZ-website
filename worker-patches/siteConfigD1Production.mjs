@@ -169,10 +169,11 @@ export async function handleD1SiteConfig({request,env,pathname,authorize,json,pu
     return isBootstrap?json({error:'Production only'},403):null;
   const active=pzD1SiteEnabled(env);
   if(!active&&!isBootstrap) {
-    // Existing site config routes are temporarily preserved during opt-in.
-    // Both approval paths are intentionally blocked until the D1 cutover.
-    return unsafeLegacyApprovals(pathname)
-      ?json({error:'D1 approval migration is not activated'},503)
+    // Keep existing new-category approval available during the short opt-in
+    // window. Only the newly introduced modification approval/reconciliation
+    // requires a bootstrapped D1 state.
+    return categoryChangeApprove.test(pathname)||reconcileChange.test(pathname)
+      ?json({error:'D1 category changes are not activated'},503)
       :null;
   }
   if(!isBootstrap&&pathname==='/api/site-config'&&request.method==='GET') {
