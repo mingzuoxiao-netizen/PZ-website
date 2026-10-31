@@ -54,7 +54,7 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
             <div><h4 className="font-semibold text-stone-900">{request.category_id}</h4>
               <p className="text-xs text-stone-500">申请人：{request.created_by} · {request.created_at}</p>
             </div>
-            <span className="text-xs text-amber-800">pending</span>
+            <span className="text-xs text-amber-800">待审核</span>
           </div>
           <div className="grid lg:grid-cols-2 gap-5">
             <div className="border p-4 bg-stone-50">
