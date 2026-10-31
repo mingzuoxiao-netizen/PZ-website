@@ -185,3 +185,18 @@ test('staging image variables cannot disagree or point to Production CDN', async
   assert.equal((await f.call('/factory/category-change-requests',f.proposal)).status,400);
   assert.equal(f.records.length,0);
 });
+
+test('factory cannot rename a category to another published category title', async () => {
+  const f = fixture();
+  for (const key of ['published:site_config','draft:site_config']) {
+    const config = JSON.parse(f.storage[key]);
+    config.categories.push({id:'rugs', title:'RUGS', title_cn:'地毯', image:''});
+    f.storage[key] = JSON.stringify(config);
+  }
+  const r = await f.call('/factory/category-change-requests',{
+    category_id:'sofa',
+    proposed:{title:'RUGS'}
+  });
+  assert.equal(r.status,409);
+  assert.equal(f.records.length,0);
+});
