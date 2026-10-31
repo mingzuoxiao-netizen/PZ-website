@@ -171,7 +171,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
                 <h4 className="font-semibold mb-2 flex items-center gap-2"><ImageIcon size={17}/>分类封面</h4>
                 {selectedCategory.image && <img src={resolveImage(selectedCategory.image)} alt="现有封面" className="w-full max-w-md h-40 object-cover mb-3"/>}
                 <PZImageManager images={selectedCategory.image ? [selectedCategory.image] : []}
-                  onUpdate={urls=>patch(selectedCategory.id,'image',urls[0]||'')} onUpload={onUpload} maxImages={1} />
+                  onUpdate={urls=>patch(selectedCategory.id,'image',urls[0]||'')} onUpload={onUpload} onError={setError} maxImages={1} />
               </section>
               <section className="border-t pt-5 space-y-3">
                 <div className="flex items-center justify-between">
@@ -191,7 +191,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
                     </div>
                     <PZImageManager images={sub.image ? [sub.image] : []}
                       onUpdate={urls=>updateSub(selectedCategory.id,i,'image',urls[0]||'')}
-                      onUpload={onUpload} maxImages={1}/>
+                      onUpload={onUpload} onError={setError} maxImages={1}/>
                     <button className="text-xs text-red-700 border border-red-200 px-3 py-2" onClick={()=>{
                       if (confirm('从此分类的草稿中移除这个子分类？关联产品不会删除。'))
                         patch(selectedCategory.id,'subCategories',(selectedCategory.subCategories||[]).filter((_:any,j:number)=>j!==i));
