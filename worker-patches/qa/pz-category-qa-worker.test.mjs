@@ -19,6 +19,7 @@ test('health is safe and reports flag off',async()=>{
   const r=await call(qaHost+'/qa/health');assert.equal(r.status,200);
   const v=JSON.parse(r.body);assert.equal(v.qa,true);assert.equal(v.d1FlagEnabled,false);
   assert.equal(v.testKeyConfigured,true);
+  assert.equal(v.r2Bound,false);
 });
 test('test runner requires a configured 24+ character secret',async()=>{
   const e=env();delete e.QA_TEST_KEY;
@@ -36,4 +37,20 @@ test('test runner refuses mutation while QA D1 flag is disabled',async()=>{
   },e);
   assert.equal(r.status,503);
   assert.match(r.body,/QA Worker only/);
+});
+
+test('QA release exercise refuses to start without an R2 history binding',async()=>{
+  const e=env();e.PZ_D1_SITE_CONFIG_ENABLED='true';
+  const r=await call(qaHost+'/qa/run',{
+    method:'POST',headers:{'x-qa-test-key':e.QA_TEST_KEY}
+  },e);
+  assert.equal(r.status,500);
+  const result=JSON.parse(r.body);
+  assert.equal(result.success,false);
+  assert.match(result.error,/SITE_CONFIG_HISTORY/);
+});
+test('health reports isolated R2 binding presence',async()=>{
+  const e=env();e.SITE_CONFIG_HISTORY={get:async()=>null,put:async()=>{}};
+  const r=await call(qaHost+'/qa/health',{},e);
+  assert.equal(JSON.parse(r.body).r2Bound,true);
 });
