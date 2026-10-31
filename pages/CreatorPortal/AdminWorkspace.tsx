@@ -53,8 +53,11 @@ const AdminWorkspace: React.FC = () => {
       const res = await adminFetch<{ products?: any[]; items?: any[] }>('admin/products?status=awaiting_review&limit=1000');
       const raw = res.products ?? res.items ?? [];
       setReviewProducts(normalizeProducts(raw));
-      const catRes = await adminFetch<{ items: any[] }>('admin/category-requests?status=awaiting_review');
-      setCategoryRequests(catRes.items ?? []);
+      // Legacy D1 category_requests defaults to "pending"; newer client
+      // workflows may use "awaiting_review". Load both, not just one status.
+      const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
+      setCategoryRequests((catRes.items ?? []).filter(item =>
+        item.status === 'pending' || item.status === 'awaiting_review'));
     } catch (e) { console.error('Queue sync error', e); }
   }, []);
 
