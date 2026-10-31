@@ -77,9 +77,11 @@ function fixture(role = 'FACTORY') {
       }
     }
   };
-  const authorize = async()=>role==='ANONYMOUS'
-    ?new Response('{}',{status:401})
-    :{user:{id:'user-1',role}};
+  const authorize = async (_request, _env, allowedRoles) => {
+    if (role === 'ANONYMOUS') return new Response('{}',{status:401});
+    if (!allowedRoles.includes(role)) return new Response('{}',{status:403});
+    return {user:{id:'user-1',role}};
+  };
   const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json'}});
   const badRequest=value=>json({error:value},400);
   const call=(pathname,body,method='POST')=>handleCategoryChanges({
@@ -129,7 +131,7 @@ test('duplicate pending amendment is blocked',async()=>{
 });
 
 test('admin approval modifies draft only and preserves category identity',async()=>{
-  const f=fixture();
+  const f=fixture('ADMIN');
   const initialPublished=f.storage['published:site_config'];
   const created=await(await f.call('/factory/category-change-requests',f.proposal)).json();
   const result=await f.call('/admin/category-change-requests/'+created.id+'/approve',{});
@@ -147,7 +149,7 @@ test('admin approval modifies draft only and preserves category identity',async(
 });
 
 test('stale changes conflict instead of overwriting admin edits',async()=>{
-  const f=fixture();
+  const f=fixture('ADMIN');
   const created=await(await f.call('/factory/category-change-requests',f.proposal)).json();
   const draft=JSON.parse(f.storage['draft:site_config']);
   draft.categories[0].title='New admin edit';
@@ -159,7 +161,7 @@ test('stale changes conflict instead of overwriting admin edits',async()=>{
 });
 
 test('admin can reject with reason without touching draft',async()=>{
-  const f=fixture();
+  const f=fixture('ADMIN');
   const created=await(await f.call('/factory/category-change-requests',f.proposal)).json();
   const saved=structuredClone(f.storage);
   const result=await f.call('/admin/category-change-requests/'+created.id+'/reject',{reason:'图片不符合要求'});
@@ -199,4 +201,16 @@ test('factory cannot rename a category to another published category title', asy
   });
   assert.equal(r.status,409);
   assert.equal(f.records.length,0);
+});
+
+test('factory role cannot approve or reject category amendments', async () => {
+  const f = fixture('FACTORY');
+  const created = await (await f.call('/factory/category-change-requests',f.proposal)).json();
+  const published = f.storage['published:site_config'];
+  const draft = f.storage['draft:site_config'];
+  assert.equal((await f.call('/admin/category-change-requests/'+created.id+'/approve',{})).status,403);
+  assert.equal((await f.call('/admin/category-change-requests/'+created.id+'/reject',{})).status,403);
+  assert.equal(f.records[0].status,'pending');
+  assert.equal(f.storage['published:site_config'],published);
+  assert.equal(f.storage['draft:site_config'],draft);
 });
