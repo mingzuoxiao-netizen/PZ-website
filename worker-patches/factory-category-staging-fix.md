@@ -1,3 +1,26 @@
+## 2026-10-30 Staging D1 schema discovered — STOP OLD MIGRATION
+
+The real `PRAGMA table_info('category_requests')` result has **8 columns**:
+`id, title, title_cn, subtitle, image, status, created_at, updated_at`.
+The existing default is `status = 'pending'`, NOT `'draft'`.
+The original 003 migration and the current candidate `factoryCategoryStaging.mjs`
+assume missing `description`, `user_id` columns and new statuses.
+**Do not deploy the candidate yet and do not apply 003.**
+First run these two read-only queries on **Staging D1**:
+
+```sql
+SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'category_requests';
+SELECT status, COUNT(*) AS qty FROM category_requests GROUP BY status;
+```
+
+The CREATE SQL may contain CHECK constraints that reject new status values;
+counts tell us whether legacy `pending` records must be preserved.
+Choose a data-preserving migration only after reviewing both.
+The admin UI was patched to display BOTH legacy `pending` and
+`awaiting_review` requests. PR #6 remains Draft.
+
+---
+
 # PZ 新品类申请 404：Staging Worker 修复实施清单
 
 **状态：仅已准备补丁；尚未部署 Staging Worker；尚未完成端到端验收。**
