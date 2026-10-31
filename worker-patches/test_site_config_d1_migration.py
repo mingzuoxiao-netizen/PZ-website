@@ -36,6 +36,7 @@ assert conn.execute("SELECT draft_revision FROM site_config_state").fetchone()[0
 conn.execute("""INSERT INTO category_change_requests (
 id,category_id,base_json,proposed_json,created_by,created_at,updated_at
 ) VALUES('change-1','sofa','{}','{}','factory','today','today')""")
+conn.commit()
 conn.execute("BEGIN")
 try:
     a=conn.execute("""UPDATE site_config_state SET draft_json=?,
