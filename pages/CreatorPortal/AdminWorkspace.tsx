@@ -263,7 +263,7 @@ const AdminWorkspace: React.FC = () => {
             onSave={async (next, expected) => {
               setIsSavingConfig(true);
               try {
-                const response = await adminFetch<{ draft: any }>('admin/draft/site-config');
+                const response = await adminFetch<{ draft: any; revision?: number }>('admin/draft/site-config');
                 const live = response.draft;
                 if (!live || !Array.isArray(live.categories)) throw new Error('正式站点草稿分类不存在，拒绝覆盖。');
                 if (JSON.stringify(live.categories) !== JSON.stringify(expected)) {
