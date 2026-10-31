@@ -151,10 +151,10 @@ const AccountsManager: React.FC = () => {
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
-            <Users className="mr-3 text-safety-700" size={24} /> Identity Registry
+            <Users className="mr-3 text-safety-700" size={24} /> 账号权限管理
           </h3>
           <p className="text-stone-500 text-xs mt-1 uppercase tracking-widest font-mono">
-            {accounts.length} REGISTERED NODES DETECTED
+            当前共 {accounts.length} 个账号
           </p>
         </div>
         <div className="flex gap-3">
@@ -162,14 +162,14 @@ const AccountsManager: React.FC = () => {
             onClick={fetchAccounts}
             className="border border-stone-200 text-stone-600 px-5 py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:border-stone-900 hover:text-stone-900 transition-all shadow-sm flex items-center gap-2"
           >
-            <RefreshCw size={16} /> Sync Registry
+            <RefreshCw size={16} /> 刷新账号列表
           </button>
 
           <button
             onClick={() => { setIsCreating(true); setError(null); }}
             className="bg-stone-900 text-white px-8 py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all shadow-lg flex items-center gap-2 group"
           >
-            <UserPlus size={16} className="group-hover:rotate-12 transition-transform" /> Provision Account
+            <UserPlus size={16} className="group-hover:rotate-12 transition-transform" /> 创建账号
           </button>
         </div>
       </div>
@@ -180,7 +180,7 @@ const AccountsManager: React.FC = () => {
           <div className="bg-white w-full max-w-md shadow-2xl border border-stone-200 overflow-hidden animate-fade-in-up">
             <div className="bg-stone-900 p-6 flex justify-between items-center">
               <h4 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-3">
-                <Shield size={16} className="text-safety-700" /> Identity Provisioning
+                <Shield size={16} className="text-safety-700" /> 创建登录账号
               </h4>
               <button onClick={() => setIsCreating(false)} className="text-stone-500 hover:text-white transition-colors">
                 <X size={20} />
@@ -230,7 +230,7 @@ const AccountsManager: React.FC = () => {
                       ${role === 'FACTORY' ? 'bg-stone-900 border-stone-900 text-white shadow-md' : 'bg-white border-stone-200 text-stone-400 hover:border-stone-900'}
                     `}
                   >
-                    <Factory size={14} /> Factory
+                    <Factory size={14} /> 工厂账号
                   </button>
                   <button
                     type="button"
@@ -239,7 +239,7 @@ const AccountsManager: React.FC = () => {
                       ${role === 'ADMIN' ? 'bg-safety-700 border-safety-700 text-white shadow-md' : 'bg-white border-stone-200 text-stone-400 hover:border-safety-700'}
                     `}
                   >
-                    <Shield size={14} /> Admin
+                    <Shield size={14} /> 管理员
                   </button>
                 </div>
               </div>
@@ -250,14 +250,14 @@ const AccountsManager: React.FC = () => {
                   onClick={() => setIsCreating(false)}
                   className="flex-1 py-4 text-[10px] font-bold border border-stone-200 text-stone-500 hover:bg-stone-50 transition-colors"
                 >
-                  Discard
+                  取消
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
                   className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all shadow-lg flex items-center justify-center gap-2"
                 >
-                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Submit Induction</>}
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> 创建账号</>}
                 </button>
               </div>
             </form>
@@ -301,7 +301,7 @@ const AccountsManager: React.FC = () => {
                   disabled={isUpdatingPassword}
                   className="w-full bg-amber-700 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-amber-800 transition-all shadow-lg flex items-center justify-center gap-2"
                 >
-                  {isUpdatingPassword ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16} /> Commit Rotation</>}
+                  {isUpdatingPassword ? <RefreshCw className="animate-spin" size={16} /> : <><Save size={16} /> 确认重置密码</>}
                 </button>
               </div>
             </form>
@@ -344,7 +344,7 @@ const AccountsManager: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-sm font-bold text-stone-900">{account.username}</div>
-                          <div className="text-[9px] text-stone-400 font-mono mt-0.5 uppercase">UID: {account.id.slice(0, 8)}...</div>
+                          <div className="text-[9px] text-stone-400 font-mono mt-0.5 uppercase">账号编号：{account.id.slice(0, 8)}...</div>
                         </div>
                       </div>
                     </td>
@@ -353,7 +353,7 @@ const AccountsManager: React.FC = () => {
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border inline-block
                         ${account.role === 'ADMIN' ? 'border-safety-700/20 text-safety-700 bg-safety-50' : 'border-stone-200 text-stone-500 bg-stone-50'}
                       `}>
-                        {account.role === 'ADMIN' ? 'Administrator' : 'Factory Op'}
+                        {account.role === 'ADMIN' ? '管理员' : '工厂操作员'}
                       </span>
                     </td>
 
@@ -399,10 +399,10 @@ const AccountsManager: React.FC = () => {
 
       <div className="mt-8 flex items-center justify-center gap-6 py-8 border-t border-stone-200 opacity-30 grayscale hover:opacity-60 transition-opacity">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">
-          <Shield size={12} /> Encrypted Registry Node
+          <Shield size={12} /> 账号信息受保护
         </div>
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">
-          <CheckCircle size={12} /> Protocol Verified
+          <CheckCircle size={12} /> 权限管理
         </div>
       </div>
     </div>
