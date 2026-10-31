@@ -1,3 +1,4 @@
+
 export async function onRequest(context: any) {
   const { request } = context;
   const url = new URL(request.url);
@@ -6,10 +7,12 @@ export async function onRequest(context: any) {
   let path = url.pathname.replace(/^\/api/, "");
   if (!path.startsWith("/")) path = "/" + path;
 
- 
-  // PZ API Gateway - Production / Preview isolation.
-  // Preview must explicitly use the Staging Worker.
-  // Missing or incorrect configuration fails closed.
+  // ============================================================
+  // PZ API GATEWAY - ENVIRONMENT ISOLATION
+  // Production uses the production Worker.
+  // Preview must explicitly use the dedicated Staging Worker.
+  // Missing or invalid configuration fails closed.
+  // ============================================================
 
   const PRODUCTION_WORKER =
     "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
@@ -19,6 +22,8 @@ export async function onRequest(context: any) {
 
   const hostname = url.hostname.toLowerCase();
 
+  // Only these canonical hostnames are treated as Production.
+  // All other hostnames must have the Staging backend configured.
   const PRODUCTION_HOSTS = new Set([
     "www.peng-zhan.com",
     "peng-zhan.com",
@@ -27,6 +32,7 @@ export async function onRequest(context: any) {
 
   const isProductionHost = PRODUCTION_HOSTS.has(hostname);
 
+  // Normalize optional trailing slashes.
   const configuredBackend = String(
     context.env?.PZ_BACKEND_WORKER || ""
   )
@@ -38,16 +44,20 @@ export async function onRequest(context: any) {
     error: string,
     details: string
   ) =>
-    new Response(JSON.stringify({ error, details }), {
-      status,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
-    });
+    new Response(
+      JSON.stringify({ error, details }),
+      {
+        status,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+      }
+    );
 
+  // Production may omit PZ_BACKEND_WORKER.
+  // If explicitly configured, it must match Production.
   if (isProductionHost) {
-    // Production must not accidentally connect to Staging.
     if (
       configuredBackend &&
       configuredBackend !== PRODUCTION_WORKER
@@ -59,8 +69,8 @@ export async function onRequest(context: any) {
       );
     }
   } else {
-    // Preview and unknown hostnames must use Staging.
-    // Never silently fall back to Production.
+    // Fail closed on Preview and unknown hostnames.
+    // Never silently fall back to the Production Worker.
     if (configuredBackend !== STAGING_WORKER) {
       return jsonError(
         503,
@@ -74,31 +84,58 @@ export async function onRequest(context: any) {
     ? PRODUCTION_WORKER
     : STAGING_WORKER;
 
-  // Removed /site-config and /upload-image from public roots to enforce Auth branch
+  // ============================================================
+  // PUBLIC API ACCESS CONTROL
+  // ============================================================
+
+  // Removed /site-config and /upload-image from public roots
+  // to enforce the protected authorization branch.
   const PUBLIC_ROOTS = ["/products"];
+
   if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204 });
+    return new Response(null, {
+      status: 204,
+    });
   }
 
   // Inquiries are public submissions, never a public listing.
-  // Administrative reads use /admin/inquiries and backend authorization.
-  if ((path === "/inquiries" || path.startsWith("/inquiries/")) &&
-      !(path === "/inquiries" && request.method === "POST")) {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Allow": "POST" },
-    });
+  // Administrative reads use /admin/inquiries and backend auth.
+  if (
+    (path === "/inquiries" ||
+      path.startsWith("/inquiries/")) &&
+    !(
+      path === "/inquiries" &&
+      request.method === "POST"
+    )
+  ) {
+    return new Response(
+      JSON.stringify({
+        error: "Method Not Allowed",
+      }),
+      {
+        status: 405,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+          "Allow": "POST",
+        },
+      }
+    );
   }
 
   const isPublicPath = PUBLIC_ROOTS.some(
     (p) => path === p || path.startsWith(p + "/")
   );
 
-  // Only allow GET/HEAD for public paths
-  const isReadMethod = request.method === "GET" || request.method === "HEAD";
-  const isPublicRead = isPublicPath && isReadMethod;
+  // Only GET and HEAD are public read methods.
+  const isReadMethod =
+    request.method === "GET" ||
+    request.method === "HEAD";
 
-  // Enforce read-only for public paths (block POST/PUT/PATCH/DELETE)
+  const isPublicRead =
+    isPublicPath && isReadMethod;
+
+  // Block writes to public product endpoints.
   const isWriteMethod =
     request.method === "POST" ||
     request.method === "PUT" ||
@@ -109,7 +146,8 @@ export async function onRequest(context: any) {
     return new Response(
       JSON.stringify({
         error: "Method Not Allowed",
-        details: `Public endpoint is read-only: ${request.method} ${path}`,
+        details:
+          `Public endpoint is read-only: ${request.method} ${path}`,
       }),
       {
         status: 405,
@@ -121,22 +159,43 @@ export async function onRequest(context: any) {
     );
   }
 
-  // Target routing: publicRead branch prepends /public, others go direct to protected backend
-  const targetUrl = path === "/site-config" && request.method === "GET"
-    ? `${BACKEND_WORKER}/api/site-config${url.search}`
-    : isPublicRead
-    ? `${BACKEND_WORKER}/public${path}${url.search}`
-    : `${BACKEND_WORKER}${path}${url.search}`;
+  // ============================================================
+  // BACKEND ROUTING
+  // ============================================================
 
+  // Public product reads -> /public/products
+  // Site config reads    -> /api/site-config
+  // Other routes         -> backend's protected routes
+
+  const targetUrl =
+    path === "/site-config" &&
+    request.method === "GET"
+      ? `${BACKEND_WORKER}/api/site-config${url.search}`
+      : isPublicRead
+        ? `${BACKEND_WORKER}/public${path}${url.search}`
+        : `${BACKEND_WORKER}${path}${url.search}`;
+
+  // Forward only required request headers.
   const headers = new Headers();
+
   const auth = request.headers.get("authorization");
-  if (auth) headers.set("authorization", auth);
+  if (auth) {
+    headers.set("authorization", auth);
+  }
 
   const accept = request.headers.get("accept");
-  if (accept) headers.set("accept", accept);
+  if (accept) {
+    headers.set("accept", accept);
+  }
 
   const ct = request.headers.get("content-type");
-  if (ct) headers.set("content-type", ct);
+  if (ct) {
+    headers.set("content-type", ct);
+  }
+
+  // ============================================================
+  // FORWARD REQUEST
+  // ============================================================
 
   try {
     const init: RequestInit = {
@@ -145,33 +204,75 @@ export async function onRequest(context: any) {
       redirect: "manual",
     };
 
-    if (request.method !== "GET" && request.method !== "HEAD") {
+    if (
+      request.method !== "GET" &&
+      request.method !== "HEAD"
+    ) {
       init.body = request.body;
     }
 
-    const backendResponse = await fetch(targetUrl, init);
+    const backendResponse = await fetch(
+      targetUrl,
+      init
+    );
 
-    const resHeaders = new Headers(backendResponse.headers);
-    resHeaders.delete("Access-Control-Allow-Origin");
-    resHeaders.delete("Access-Control-Allow-Methods");
-    resHeaders.delete("Access-Control-Allow-Headers");
-    resHeaders.delete("Access-Control-Max-Age");
-    // Catalog V2 responses may use short public CDN TTLs. All authenticated
-    // and legacy routes remain uncached. The Worker is authoritative for V2.
-    if (isPublicRead && request.method === "GET" && url.searchParams.get("v") === "2") {
-      resHeaders.set("Cache-Control", backendResponse.headers.get("Cache-Control") || "public, max-age=0, s-maxage=15");
+    const resHeaders = new Headers(
+      backendResponse.headers
+    );
+
+    // The Pages gateway owns the browser-facing response.
+    // Do not forward upstream CORS headers.
+    resHeaders.delete(
+      "Access-Control-Allow-Origin"
+    );
+    resHeaders.delete(
+      "Access-Control-Allow-Methods"
+    );
+    resHeaders.delete(
+      "Access-Control-Allow-Headers"
+    );
+    resHeaders.delete(
+      "Access-Control-Max-Age"
+    );
+
+    // ==========================================================
+    // CACHE POLICY
+    // ==========================================================
+
+    // Catalog V2 can use short public CDN caching.
+    // Authenticated and legacy routes are always uncached.
+    if (
+      isPublicRead &&
+      request.method === "GET" &&
+      url.searchParams.get("v") === "2"
+    ) {
+      resHeaders.set(
+        "Cache-Control",
+        backendResponse.headers.get(
+          "Cache-Control"
+        ) ||
+          "public, max-age=0, s-maxage=15"
+      );
     } else {
-      resHeaders.set("Cache-Control", "no-store");
+      resHeaders.set(
+        "Cache-Control",
+        "no-store"
+      );
     }
 
-    return new Response(backendResponse.body, {
-      status: backendResponse.status,
-      headers: resHeaders,
-    });
-  } catch (err: any) {
     return new Response(
-      JSON.stringify({ error: "Gateway error", details: err?.message ?? String(err) }),
-      { status: 502, headers: { "Content-Type": "application/json" } }
+      backendResponse.body,
+      {
+        status: backendResponse.status,
+        headers: resHeaders,
+      }
+    );
+  } catch (err: any) {
+    return jsonError(
+      502,
+      "Gateway error",
+      err?.message ?? String(err)
     );
   }
 }
+
