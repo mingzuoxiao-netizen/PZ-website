@@ -20,7 +20,7 @@ import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'inquiries' | 'media' | 'config' | 'accounts' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'config' | 'accounts' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -60,10 +60,19 @@ const AdminWorkspace: React.FC = () => {
 
   const loadSiteConfig = useCallback(async () => {
     try {
-      const res = await adminFetch<any>('site-config');
-      const remoteConfig = res?.config ?? res;
+      // Edit the saved draft, not the published snapshot.
+      const result = await adminFetch<any>('admin/draft/site-config');
+      let remoteConfig = result?.draft;
+      if (!remoteConfig || Object.keys(remoteConfig).length === 0) {
+        const published = await adminFetch<any>('site-config');
+        remoteConfig = published?.config ?? published;
+      }
       setSiteConfig({ ...DEFAULT_CONFIG, ...remoteConfig });
-    } catch (e) { setSiteConfig(DEFAULT_CONFIG); }
+    } catch (e) {
+      console.error('读取网站配置失败', e);
+      // Never overwrite approved categories using fallback defaults.
+      setSiteConfig(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -147,7 +156,8 @@ const AdminWorkspace: React.FC = () => {
     { id: 'review', label: '审核中心', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
-    { id: 'media', label: '网站图片管理', icon: <Settings size={18} /> },
+    { id: 'categories', label: '产品分类封面', icon: <LayoutGrid size={18} /> },
+    { id: 'media', label: '其他网站图片', icon: <Settings size={18} /> },
     { id: 'config', label: '网站内容配置', icon: <Settings size={18} /> },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} /> },
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} /> },
@@ -190,12 +200,27 @@ const AdminWorkspace: React.FC = () => {
               } catch (e: any) { alert(e.message); }
             }}
             onProcessCategory={async (id, action) => {
-              try {
-                const endpoint = action === 'approve' ? 'approve' : 'reject';
-                await adminFetch(`/admin/category-requests/${id}/${endpoint}`, { method: 'POST' });
-                alert(action === 'approve' ? '分类申请已批准并发布。' : '申请已驳回。');
-                await loadReviewQueue(); await loadSiteConfig();
-              } catch (e: any) { alert(e?.message || '处理失败'); }
+              const endpoint = action === 'approve' ? 'approve' : 'reject';
+              const result = await adminFetch<any>(
+                `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
+                { method: 'POST' }
+              );
+              if (result?.success !== true || result.status !== (action === 'approve' ? 'approved' : 'rejected')) {
+                throw new Error('分类审核结果未确认，请刷新后核对状态。');
+              }
+              await Promise.all([loadReviewQueue(), loadSiteConfig()]);
+              if (action === 'reject') return;
+              if (result.published !== true) {
+                throw new Error('分类已批准，但网站发布尚未完成。请检查网站图片管理并手动发布，勿重复批准。');
+              }
+              const response = await fetch('/api/site-config', { cache: 'no-store' });
+              if (!response.ok) throw new Error('分类已批准，但无法验证公开网站配置。');
+              const body = await response.json();
+              const publicCategories = body?.config?.categories ?? body?.categories ?? [];
+              if (!Array.isArray(publicCategories) ||
+                !publicCategories.some((item: any) => item.id === result.categoryId || item.proposal_id === id)) {
+                throw new Error('分类已批准，但公开配置暂未找到新分类，请检查发布状态。');
+              }
             }}
             reloadQueue={async () => { await loadReviewQueue(); }}
           />
@@ -205,12 +230,14 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onDelete={handleDeleteProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onBulkStatusChange={handleBulkStatusChange} onBulkDelete={async (ids) => { if(!confirm(`确认删除选中的 ${ids.length} 条记录吗？`)) return; for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); } loadProducts(); }} onRefresh={loadProducts} lang="en" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onDelete={handleDeleteProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onBulkStatusChange={handleBulkStatusChange} onBulkDelete={async (ids) => { if(!confirm(`确认删除选中的 ${ids.length} 条记录吗？`)) return; for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); } loadProducts(); }} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
           )
         )}
 
-        {activeTab === 'media' && (
+        {(activeTab === 'media' || activeTab === 'categories') && (
           <SiteMediaManager
+            key={activeTab}
+            initialGroupIndex={activeTab === 'categories' ? 0 : 1}
             config={siteConfig}
             onChange={setSiteConfig}
             onSave={async () => {
