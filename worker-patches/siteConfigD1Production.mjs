@@ -176,8 +176,24 @@ export async function handleD1SiteConfig({request,env,pathname,authorize,json,pu
     if(!active) {
       const raw=await env.SITE_CONFIG_KV.get('published:meta');
       const metadata=parse(raw);
-      return json(metadata&&typeof metadata==='object'&&!Array.isArray(metadata)
-        ? metadata:{version:null,publishedAt:null});
+      if(metadata&&typeof metadata==='object'&&!Array.isArray(metadata)&&
+         typeof metadata.version==='string'&&metadata.version.trim())
+        return json({version:metadata.version,
+          publishedAt:metadata.publishedAt||metadata.published_at||null,
+          source:'kv-meta'});
+      // KV may temporarily return a cached miss after a key rename.
+      // Do NOT return a meaningless null version: the factory's refresh
+      // polling depends on a stable, content-sensitive version marker.
+      // Use only the existing published snapshot, never mutate KV.
+      const publishedRaw=await env.SITE_CONFIG_KV.get('published:site_config');
+      const published=parse(publishedRaw);
+      if(!isConfig(published))
+        return json({error:'Published KV site configuration unavailable',
+          code:'SITE_CONFIG_META_AND_CONTENT_UNAVAILABLE'},503);
+      const fingerprint=await sha256(publishedRaw);
+      return json({version:'kv-sha256-'+fingerprint,
+        publishedAt:null,source:'kv-published-content-fallback',
+        metaStatus:raw===null?'kv-read-null':'kv-invalid-or-incomplete'});
     }
     const state=await requireRow(env,json);
     if(state.error)return state.error;
