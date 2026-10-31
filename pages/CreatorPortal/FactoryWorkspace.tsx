@@ -44,7 +44,7 @@ const FactoryWorkspace: React.FC = () => {
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [catRequest, setCatRequest] = useState({ title: '', subtitle: '', description: '', image: '' });
 
-  const userName = sessionStorage.getItem('pz_user_name') || 'Factory Operator';
+  const userName = sessionStorage.getItem('pz_user_name') || '工厂操作员';
 
   const addNotification = (type: Notification['type'], message: string, target?: string) => {
       const id = Math.random().toString(36).substr(2, 9);
@@ -69,7 +69,7 @@ const FactoryWorkspace: React.FC = () => {
           
           if (added.length > 0) {
               setNewCategoryIds(prev => [...prev, ...added.map((c: any) => c.id)]);
-              added.forEach((c: any) => addNotification('category', `New Production Series: ${c.title}`));
+              added.forEach((c: any) => addNotification('category', `新增产品系列：${c.title}`));
           }
           
           setCategories(incomingCats);
@@ -91,7 +91,7 @@ const FactoryWorkspace: React.FC = () => {
           incomingProducts.forEach(newItem => {
               const oldItem = productsRef.current.find(o => o.id === newItem.id);
               if (oldItem && oldItem.status === 'awaiting_review' && newItem.status === 'published') {
-                  addNotification('approval', `Audit Confirmed: ${newItem.name}`, newItem.id);
+                  addNotification('approval', `审核通过：${newItem.name}`, newItem.id);
               }
           });
       }
@@ -165,7 +165,7 @@ const FactoryWorkspace: React.FC = () => {
           await loadData();
           setEditingItem(null);
           setIsCreating(false);
-      } catch (e: any) { alert(`Protocol Failure: ${e.message}`); }
+      } catch (e: any) { alert(`操作失败：${e.message}`); }
   };
 
   // O(batch size) indexed SKU lookup, rather than downloading the entire catalog.
@@ -174,7 +174,7 @@ const FactoryWorkspace: React.FC = () => {
           method: 'POST',
           body: JSON.stringify({ codes }),
       });
-      if (!Array.isArray(res?.existingCodes)) throw new Error('SKU validation response unavailable.');
+      if (!Array.isArray(res?.existingCodes)) throw new Error('SKU 校验接口暂不可用。');
       return res.existingCodes;
   };
 
@@ -183,11 +183,11 @@ const FactoryWorkspace: React.FC = () => {
           method: 'POST',
           body: JSON.stringify({ ...product, status: 'draft', is_published: 0 }),
       });
-      if (response?.success !== true) throw new Error('Worker did not confirm draft creation. Verify the SKU in Master Registry.');
+      if (response?.success !== true) throw new Error('草稿保存结果未确认，请到产品总库核对 SKU。');
   };
 
   const handleBack = () => {
-      if (isBatchCreating && !window.confirm('Leave Batch Induction? Unfinished inputs will be lost.')) return;
+      if (isBatchCreating && !window.confirm('确认离开批量录入吗？未完成的输入将丢失。')) return;
       if (isCreating || editingItem || isBatchCreating) {
           setIsCreating(false);
           setIsBatchCreating(false);
@@ -197,7 +197,7 @@ const FactoryWorkspace: React.FC = () => {
       }
   };
 
-  const navItems = [{ id: 'inventory', label: 'Production Registry', icon: <Package size={18} /> }];
+  const navItems = [{ id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> }];
 
   return (
     <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab="inventory" onTabChange={() => {}}>
@@ -209,7 +209,7 @@ const FactoryWorkspace: React.FC = () => {
                   <div className="flex items-start gap-3">
                       {n.type === 'approval' ? <CheckCircle size={18} className="text-green-500 flex-shrink-0" /> : <Database size={18} className="text-safety-700 flex-shrink-0" />}
                       <div>
-                          <p className="text-[10px] font-mono font-bold uppercase text-stone-500 tracking-widest mb-1">{n.type === 'approval' ? 'Registry Update' : 'Kernel Update'}</p>
+                          <p className="text-[10px] font-mono font-bold uppercase text-stone-500 tracking-widest mb-1">{n.type === 'approval' ? '产品状态更新' : '系统通知'}</p>
                           <p className="text-xs text-white leading-relaxed font-bold">{n.message}</p>
                       </div>
                   </div>
@@ -221,7 +221,7 @@ const FactoryWorkspace: React.FC = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/70 backdrop-blur-md p-4 animate-fade-in">
               <div className="bg-white w-full max-w-xl shadow-2xl rounded-sm overflow-hidden animate-fade-in-up">
                   <div className="bg-stone-900 p-6 flex justify-between items-center text-white">
-                      <div className="flex items-center gap-3"><LayoutGrid size={18} className="text-safety-700" /><h4 className="text-[10px] font-bold uppercase tracking-[0.2em]">New Series Proposal</h4></div>
+                      <div className="flex items-center gap-3"><LayoutGrid size={18} className="text-safety-700" /><h4 className="text-[10px] font-bold uppercase tracking-[0.2em]">新增产品分类申请</h4></div>
                       <button onClick={() => setIsRequestingCategory(false)} className="opacity-60 hover:opacity-100"><X size={20} /></button>
                   </div>
                   <form onSubmit={async (e) => {
@@ -240,21 +240,21 @@ const FactoryWorkspace: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-4">
                               <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Category Name</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类名称</label>
                                   <input type="text" required value={catRequest.title} onChange={e => setCatRequest({...catRequest, title: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" />
                               </div>
                               <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Description</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类描述</label>
                                   <textarea rows={3} value={catRequest.description} onChange={e => setCatRequest({...catRequest, description: e.target.value})} className="w-full border border-stone-200 p-3 text-xs focus:border-stone-900 outline-none resize-none" />
                               </div>
                           </div>
                           <div>
-                              <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Cover Asset</label>
+                              <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类封面</label>
                               <PZImageManager images={catRequest.image ? [catRequest.image] : []} onUpdate={(imgs) => setCatRequest({...catRequest, image: imgs[0] || ''})} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} maxImages={1} aspectRatio={4/3} onError={alert} />
                           </div>
                       </div>
                       <div className="pt-6 border-t border-stone-100 flex gap-4">
-                          <button type="button" onClick={() => setIsRequestingCategory(false)} className="flex-1 py-4 border border-stone-200 text-[10px] font-bold uppercase tracking-widest">Discard</button>
+                          <button type="button" onClick={() => setIsRequestingCategory(false)} className="flex-1 py-4 border border-stone-200 text-[10px] font-bold uppercase tracking-widest">取消</button>
                           <button type="submit" disabled={isSavingCategory} className="flex-[2] bg-stone-900 text-white py-4 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-safety-700 transition-all flex items-center justify-center gap-3">
                               {isSavingCategory ? <Loader2 size={16} className="animate-spin" /> : <><Send size={14} /> Transmit Review</>}
                           </button>
@@ -271,14 +271,14 @@ const FactoryWorkspace: React.FC = () => {
                       <button onClick={handleBack} className="p-2 bg-white border border-stone-200 rounded-full hover:border-stone-900 transition-colors shadow-sm group"><ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" /></button>
                   )}
                   <div>
-                      <h1 className="text-2xl font-serif text-stone-900">{isBatchCreating ? 'Batch SKU Induction' : isCreating ? 'Provision SKU' : editingItem ? `Modifying SKU` : selectedCategoryId ? 'Series Registry' : 'Production Board'}</h1>
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1"><span>Kernel v2.5</span><span>/</span><span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : 'Master'}</span></div>
+                      <h1 className="text-2xl font-serif text-stone-900">{isBatchCreating ? '批量录入产品' : isCreating ? '新增产品' : editingItem ? `编辑产品` : selectedCategoryId ? '分类产品管理' : '工厂产品管理'}</h1>
+                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1"><span>工厂后台</span><span>/</span><span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : '产品总库'}</span></div>
                   </div>
               </div>
               {!isCreating && !editingItem && !isBatchCreating && (
                   <div className="hidden md:flex gap-6">
-                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><Clock size={16} className="text-amber-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">Pending</div><div className="text-sm font-bold text-stone-900">{stats.pending}</div></div></div>
-                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><AlertCircle size={16} className="text-red-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">Rejected</div><div className="text-sm font-bold text-stone-900">{stats.rejected}</div></div></div>
+                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><Clock size={16} className="text-amber-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">待审核</div><div className="text-sm font-bold text-stone-900">{stats.pending}</div></div></div>
+                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><AlertCircle size={16} className="text-red-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">已退回</div><div className="text-sm font-bold text-stone-900">{stats.rejected}</div></div></div>
                   </div>
               )}
           </div>
@@ -286,7 +286,7 @@ const FactoryWorkspace: React.FC = () => {
       </div>
 
       {loading && products.length === 0 ? (
-        <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">Initializing Registry...</span></div>
+        <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">正在加载产品…</span></div>
       ) : isBatchCreating ? (
           <BatchCreator
               categories={categories}
@@ -304,7 +304,7 @@ const FactoryWorkspace: React.FC = () => {
                 onSubmit={handleSubmitForReview}
                 onCancel={handleBack} 
                 userRole="FACTORY" 
-                lang="en" 
+                lang="zh" 
             />
           ) : selectedCategoryId ? (
             <div className="space-y-6">
@@ -330,7 +330,7 @@ const FactoryWorkspace: React.FC = () => {
           ) : (
             <div className="space-y-8">
                 <div className="bg-stone-900 rounded-sm p-12 text-white relative overflow-hidden mb-8 shadow-2xl">
-                    <div className="relative z-10"><h2 className="text-3xl font-serif mb-4">Welcome, {userName}</h2><p className="text-stone-400 text-sm max-w-lg leading-relaxed font-light">Access production series registry to submit new items or verify approval status.</p></div>
+                    <div className="relative z-10"><h2 className="text-3xl font-serif mb-4">欢迎，{userName}</h2><p className="text-stone-400 text-sm max-w-lg leading-relaxed font-light">在此管理产品系列、录入新产品并查看审核状态。</p></div>
                     <LayoutGrid className="absolute right-[-20px] bottom-[-20px] text-white opacity-5 w-72 h-72 rotate-12" />
                 </div>
                 <CategoryGrid 
