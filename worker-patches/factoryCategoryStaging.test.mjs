@@ -117,3 +117,16 @@ test('non-category requests fall through to normal Worker routes', async () => {
   const res=await f.call('/factory/products',f.item);
   assert.equal(res,null);
 });
+
+test('missing staging draft configuration blocks category creation without touching D1', async () => {
+  const f=createFixture();
+  delete f.kv['draft:site_config'];
+  const res=await f.call('/factory/category-requests',f.item);
+  assert.equal(res.status,503);
+  assert.equal(f.records.length,0);
+});
+test('invalid percent encoded submission identifier yields 400, not Worker 500', async () => {
+  const f=createFixture();
+  const res=await f.call('/factory/category-requests/%ZZ/submit');
+  assert.equal(res.status,400);
+});
