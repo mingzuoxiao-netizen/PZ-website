@@ -48,10 +48,17 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
     });
   };
   const add = () => {
-    const id = 'new-' + crypto.randomUUID().slice(0, 8);
-    setDraft(old => [...old, { id, title: '', title_cn: '', subtitle: '', description: '', image: '', subCategories: [], hidden: true }]);
+    const title = prompt('请输入新分类的英文名称（生成固定分类 ID）')?.trim();
+    if (!title) return;
+    const id = slugify(title);
+    if (!id || draft.some(c => c.id.toLowerCase() === id || String(c.title || '').toLowerCase() === title.toLowerCase())) {
+      setError('该分类名称无法生成有效 ID，或分类已存在。');
+      return;
+    }
+    setDraft(old => [...old, { id, title, title_cn: '', subtitle: '', description: '', image: '', subCategories: [], hidden: true }]);
     setSelected(id);
-    setMessage('新分类已加入草稿。填写后保存；取消隐藏并发布后才会公开。');
+    setError('');
+    setMessage('新分类已加入草稿，默认隐藏；取消隐藏并发布后才会公开。');
   };
   const importApproved = (r: Approved) => {
     const base = slugify(r.title) || 'category-' + r.id.slice(0, 8);
