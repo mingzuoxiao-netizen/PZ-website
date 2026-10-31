@@ -143,8 +143,8 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                     <div>
                                         <h4 className="font-serif text-xl text-stone-900">{('name' in item ? item.name : item.title)}</h4>
                                         <div className="flex gap-3 mt-1">
-                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">REF: {item.code}</span>}
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">{'category' in item ? item.category : 'Proposal'}</span>
+                                            {'code' in item && <span className="text-[9px] font-bold bg-stone-100 px-2 py-0.5 rounded text-stone-500 font-mono">产品编号：{item.code}</span>}
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">{'category' in item ? item.category : '分类申请'}</span>
                                         </div>
                                     </div>
                                     <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待审核</span>
