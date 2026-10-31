@@ -288,7 +288,7 @@ const FactoryWorkspace: React.FC = () => {
       {loading && products.length === 0 ? (
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">正在加载产品…</span></div>
       ) : isBatchCreating ? (
-          <BatchCreator
+          <BatchCreator lang="zh"
               categories={categories}
               onCancel={handleBack}
               onCreateDraft={createBatchDraft}
