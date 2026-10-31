@@ -164,10 +164,26 @@ const unsafeLegacyApprovals=path=>categoryNewApprove.test(path)||
 export async function handleD1SiteConfig({request,env,pathname,authorize,json,publishTransform}) {
   const boot='/admin/site-config/bootstrap';
   const isBootstrap=pathname===boot;
-  if(!isBootstrap&&!protectedRoutes.has(pathname)&&!unsafeLegacyApprovals(pathname))return null;
+  // Pages /api/site-config/meta maps to /site-config/meta on the Worker.
+  const isPublicMeta=pathname==='/site-config/meta'||pathname==='/api/site-config/meta';
+  if(!isBootstrap&&!isPublicMeta&&!protectedRoutes.has(pathname)&&!unsafeLegacyApprovals(pathname))return null;
   if(String(env.PZ_RUNTIME_ENV||'').toLowerCase()!=='production')
     return isBootstrap?json({error:'Production only'},403):null;
   const active=pzD1SiteEnabled(env);
+  // FactoryWorkspace polls this public version endpoint. Use the same
+  // authority as GET /api/site-config in both cutover states.
+  if(isPublicMeta&&request.method==='GET') {
+    if(!active) {
+      const raw=await env.SITE_CONFIG_KV.get('published:meta');
+      const metadata=parse(raw);
+      return json(metadata&&typeof metadata==='object'&&!Array.isArray(metadata)
+        ? metadata:{version:null,publishedAt:null});
+    }
+    const state=await requireRow(env,json);
+    if(state.error)return state.error;
+    return json({version:state.row.published_version,publishedAt:state.row.published_at,
+      publishedRevision:state.row.published_revision});
+  }
   if(!active&&!isBootstrap) {
     // Keep existing new-category approval available during the short opt-in
     // window. Only the newly introduced modification approval/reconciliation
