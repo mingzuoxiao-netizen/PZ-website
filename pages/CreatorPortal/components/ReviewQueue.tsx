@@ -38,7 +38,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
 
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Proceed with bulk approval for ${selectedIds.length} items? This triggers immediate publication.`)) return;
+    if (!confirm(`确认批准 ${selectedIds.length} 条记录吗？批准后将立即发布。`)) return;
 
     setIsProcessing(true);
     try {
@@ -46,7 +46,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
         await Promise.all(selectedIds.map(id => processor(id, 'approve')));
         setSelectedIds([]);
         await reloadQueue();
-        alert(`Successfully processed ${selectedIds.length} records.`);
+        alert(`成功处理 ${selectedIds.length} 条记录。`);
     } catch (e: any) {
         await reloadQueue();
     } finally {
@@ -96,8 +96,8 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
         {currentItems.length === 0 ? (
             <div className="bg-white border border-stone-200 p-24 text-center rounded-sm">
                 <CheckCircle size={40} className="mx-auto mb-6 text-green-600" />
-                <h3 className="font-serif text-2xl text-stone-900 mb-2">Registry Clear</h3>
-                <p className="text-stone-500 font-light text-sm">All submissions have been audited.</p>
+                <h3 className="font-serif text-2xl text-stone-900 mb-2">审核队列已清空</h3>
+                <p className="text-stone-500 font-light text-sm">当前没有待审核项目。</p>
             </div>
         ) : (
             <div className="space-y-4">
@@ -114,7 +114,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                 {('images' in item ? item.images?.[0] : item.image) ? (
                                     <img src={resolveImage('images' in item ? item.images[0] : item.image)} className="w-full h-full object-cover" alt="" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">NO ASSET</div>
+                                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-300 font-mono">没有图片</div>
                                 )}
                             </div>
                             <div className="p-6 flex-grow">
@@ -126,15 +126,15 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                             <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">{'category' in item ? item.category : 'Proposal'}</span>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">Audit Required</span>
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待审核</span>
                                 </div>
                                 <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || 'No technical remarks provided.'}</p>
                                 {rejectId === item.id ? (
                                     <div className="bg-red-50 p-4 border border-red-100 rounded-sm">
-                                        <textarea className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20" placeholder="Feedback for factory..." value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
+                                        <textarea className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20" placeholder="填写退回原因，供工厂修改…" value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
                                         <div className="flex gap-2">
-                                            <button onClick={() => { onProcessProduct(item.id!, 'reject', rejectNote); setRejectId(null); setRejectNote(""); }} className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest">Confirm Reject</button>
-                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">Cancel</button>
+                                            <button onClick={() => { onProcessProduct(item.id!, 'reject', rejectNote); setRejectId(null); setRejectNote(""); }} className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest">确认驳回</button>
+                                            <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">取消</button>
                                         </div>
                                     </div>
                                 ) : (
