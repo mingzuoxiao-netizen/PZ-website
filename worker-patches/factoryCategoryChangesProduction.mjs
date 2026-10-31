@@ -153,6 +153,7 @@ export async function handleProductionCategoryChanges({ request, env, pathname, 
     const [, id, action] = matchAction;
     const row = await env.DB.prepare('SELECT * FROM category_change_requests WHERE id = ? LIMIT 1').bind(id).first();
     if (!row) return json({ error: 'Request not found' }, 404);
+    const now = new Date().toISOString();
     if (action === 'reconcile') {
       if (row.status !== 'applying') return conflict('Request is not awaiting reconciliation', json);
       // Only confirm completion if the D1 proposal is already reflected in KV.
@@ -170,7 +171,6 @@ export async function handleProductionCategoryChanges({ request, env, pathname, 
       return json({ success:true, id, status:'approved', needsPublish:true, published:false, reconciled:true });
     }
     if (row.status !== 'pending') return conflict('Request has already been processed', json);
-    const now = new Date().toISOString();
     if (action === 'reject') {
       const body = await request.json().catch(() => ({}));
       const reason = typeof body?.reason === 'string' ? body.reason.trim().slice(0,1000) : '';
