@@ -43,18 +43,18 @@ function fixture(role = 'FACTORY') {
               writes.push('db:insert');
               return {meta:{changes:1}};
             }
-            if (sql.includes("status='applying'")) {
-              const [time,id]=args;
-              const record=records.find(r=>r.id===id&&r.status==='pending');
-              if (!record)return {meta:{changes:0}};
-              record.status='applying';record.updated_at=time;
-              return {meta:{changes:1}};
-            }
             if (sql.includes("status='approved'")) {
               const [reviewed_by,reviewed_at,updated_at,id]=args;
               const record=records.find(r=>r.id===id&&r.status==='applying');
               if(!record)return {meta:{changes:0}};
               Object.assign(record,{status:'approved',reviewed_by,reviewed_at,updated_at});
+              return {meta:{changes:1}};
+            }
+            if (sql.includes("status='applying'")) {
+              const [time,id]=args;
+              const record=records.find(r=>r.id===id&&r.status==='pending');
+              if (!record)return {meta:{changes:0}};
+              record.status='applying';record.updated_at=time;
               return {meta:{changes:1}};
             }
             if (sql.includes("status='rejected'")) {
