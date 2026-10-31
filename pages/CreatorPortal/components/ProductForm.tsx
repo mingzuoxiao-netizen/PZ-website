@@ -60,7 +60,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     if (submitting) return;
     const code = String(formData.code || '').trim().toUpperCase();
     const categoryId = fixedCategoryId || formData.category || '';
-    if (!categoryId || !categories.some(c => c.id === categoryId)) {
+    if (!formData.id && (!categoryId || !categories.some(c => c.id === categoryId))) {
       alert(T('Select a valid product category.', '请选择有效的产品分类。'));
       return;
     }
