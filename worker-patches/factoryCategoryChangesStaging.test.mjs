@@ -43,7 +43,7 @@ function fixture(role = 'FACTORY') {
               writes.push('db:insert');
               return {meta:{changes:1}};
             }
-            if(sql.includes("status='pending'")) {
+            if(sql.includes("SET status='pending'")) {
               const [id]=args;
               const record=records.find(r=>r.id===id&&r.status==='applying');
               if(record)record.status='pending';
