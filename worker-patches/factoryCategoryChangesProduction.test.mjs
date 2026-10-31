@@ -119,7 +119,7 @@ test('anonymous request is rejected',async()=>{
 
 test('incorrect R2 origin and missing image fail without writing',async()=>{
   const f=fixture();
-  assert.equal((await f.call('/factory/category-change-requests',{...f.proposal,proposed:{image:'https://cdn.peng-zhan.com/uploads%2Fnew.webp'}})).status,400);
+  assert.equal((await f.call('/factory/category-change-requests',{...f.proposal,proposed:{image:'https://outside.example/uploads%2Fnew.webp'}})).status,400);
   assert.equal((await f.call('/factory/category-change-requests',{...f.proposal,proposed:{image:'https://cdn.peng-zhan.com/uploads%2Fmissing.webp'}})).status,400);
   assert.equal(f.records.length,0);
 });
