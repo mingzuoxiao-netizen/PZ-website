@@ -82,6 +82,14 @@ export async function handleFactoryCategoryRequests({
 
     // Reject duplicates already approved or awaiting review.
     const draftRaw = await env.SITE_CONFIG_KV.get('draft:site_config');
+    if (!draftRaw) {
+      return json({ error: 'Staging draft site config is missing; initialize it in Admin before accepting new categories' }, 503);
+    }
+    let draftConfig;
+    try { draftConfig = JSON.parse(draftRaw); } catch { draftConfig = null; }
+    if (!draftConfig || !Array.isArray(draftConfig.categories)) {
+      return json({ error: 'Staging draft site config lacks category registry; initialize in Admin first' }, 503);
+    }
     const publicRaw = await env.SITE_CONFIG_KV.get('published:site_config');
     for (const rawConfig of [draftRaw, publicRaw]) {
       let parsed = {};
@@ -109,7 +117,8 @@ export async function handleFactoryCategoryRequests({
     return json({ success: true, id, status: 'draft' }, 201);
   }
 
-  const id = decodeURIComponent(submitMatch[1]);
+  let id;
+  try { id = decodeURIComponent(submitMatch[1]); } catch { return badRequest('Invalid category request ID'); }
   if (!/^[a-f0-9-]{36}$/i.test(id)) return badRequest('Invalid category request ID');
   const now = new Date().toISOString();
   const updated = await env.DB.prepare(
