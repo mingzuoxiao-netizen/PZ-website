@@ -60,7 +60,7 @@ const Home: React.FC = () => {
     <div className="bg-[#fcfaf7] text-[#30221b]">
       {isFallback && (
         <div role="status" className="bg-[#f4e5d3] text-[#694329] px-5 py-2 text-center text-xs">
-          Content connection is temporarily unavailable. Displaying saved website information.
+          {L('Content connection is temporarily unavailable. Displaying saved website information.','内容连接暂时不可用，正在显示备用网站信息。')}
         </div>
       )}
 
@@ -70,14 +70,14 @@ const Home: React.FC = () => {
           <div className="relative z-10 px-6 sm:px-10 lg:pl-[max(48px,calc((100vw-1330px)/2))] lg:pr-5 py-16 lg:py-20 flex flex-col justify-center bg-[#f2ece4]">
             <p className={sectionKicker}>{L("Furniture & Wood Component Manufacturing","家具与木制品制造")}</p>
             <h1 className={editorialHeading + ' text-[clamp(2.7rem,4.3vw,5.2rem)] mt-6 max-w-[690px]'}>
-              Solid Wood Furniture.<br />Built for Your Brand.
+              {L('Solid Wood Furniture.','实木家具制造。')}<br />{L('Built for Your Brand.','成就您的品牌。')}
             </h1>
             <p className="text-[#6a6661] text-[15px] md:text-[16px] leading-[1.75] mt-6 max-w-[495px]">
-              We develop and manufacture furniture and wood components for brands, importers and commercial buyers. From product development to production, our team supports projects across China and Cambodia.
+              {L('We develop and manufacture furniture and wood components for brands, importers and commercial buyers. From product development to production, our team supports projects across China and Cambodia.','我们为家具品牌、进口商和商业采购商开发及制造家具与木制品，依托中国与柬埔寨的生产基地，提供从产品开发到量产的支持。')}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/collections" className={darkButton}>Explore Products <ArrowRight size={15}/></Link>
-              <Link to="/manufacturing" className="inline-flex items-center justify-center gap-3 border border-[#b6a698] px-6 py-3.5 text-[12px] font-semibold hover:bg-white/70 transition-colors">Our Manufacturing <ArrowRight size={15}/></Link>
+              <Link to="/collections" className={darkButton}>{L('Explore Products','浏览产品')} <ArrowRight size={15}/></Link>
+              <Link to="/manufacturing" className="inline-flex items-center justify-center gap-3 border border-[#b6a698] px-6 py-3.5 text-[12px] font-semibold hover:bg-white/70 transition-colors">{L('Our Manufacturing','了解制造能力')} <ArrowRight size={15}/></Link>
             </div>
           </div>
           <div className="relative min-h-[330px] lg:min-h-full overflow-hidden">
@@ -93,16 +93,16 @@ const Home: React.FC = () => {
       <section className="bg-white border-b border-[#eee6de]" aria-label="Manufacturing highlights">
         <div className="max-w-[1330px] mx-auto grid grid-cols-2 lg:grid-cols-4 px-6 md:px-10">
           {[
-            { icon: Globe2, title: 'Two Production Bases', desc: 'Zhaoqing, China & Kandal, Cambodia' },
-            { icon: PenTool, title: 'OEM / ODM Support', desc: 'Product development and sampling' },
-            { icon: Boxes, title: 'Solid Wood Expertise', desc: 'Butcher blocks, furniture and casegoods' },
-            { icon: ShieldCheck, title: 'Global Supply', desc: 'For brands, importers and commercial projects' }
-          ].map(({ icon: Icon, title, desc }) => (
+            { icon: Globe2, title: 'Two Production Bases', titleZh:'两大生产基地', descZh:'中国肇庆与柬埔寨干丹', desc: 'Zhaoqing, China & Kandal, Cambodia' },
+            { icon: PenTool, title: 'OEM / ODM Support', titleZh:'OEM / ODM 定制支持', descZh:'产品开发与打样', desc: 'Product development and sampling' },
+            { icon: Boxes, title: 'Solid Wood Expertise', titleZh:'实木制造专长', descZh:'实木台面、家具和柜类', desc: 'Butcher blocks, furniture and casegoods' },
+            { icon: ShieldCheck, title: 'Global Supply', titleZh:'国际供应合作', descZh:'服务品牌、进口商和商业项目', desc: 'For brands, importers and commercial projects' }
+          ].map(({ icon: Icon, title, titleZh, desc, descZh }) => (
             <div key={title} className="flex items-start gap-3.5 py-7 px-2 lg:px-6 border-b lg:border-b-0 border-[#eee6de] first:lg:pl-0">
               <Icon size={27} strokeWidth={1.5} className="text-[#885338] shrink-0 mt-0.5" />
               <div>
-                <h2 className="font-semibold text-[13px] text-[#38271f]">{title}</h2>
-                <p className="text-[#807a75] text-[11px] leading-[1.6] mt-1">{desc}</p>
+                <h2 className="font-semibold text-[13px] text-[#38271f]">{language === 'zh' ? titleZh : title}</h2>
+                <p className="text-[#807a75] text-[11px] leading-[1.6] mt-1">{language === 'zh' ? descZh : desc}</p>
               </div>
             </div>
           ))}
@@ -116,10 +116,10 @@ const Home: React.FC = () => {
             <p className={sectionKicker}>{L("Our Product Categories","我们的产品分类")}</p>
             <h2 id="what-we-make" className={editorialHeading + ' text-4xl md:text-5xl mt-4'}>{L("What We Make","我们能够制造什么")}</h2>
             <p className="text-[#77716a] text-[14px] leading-[1.8] mt-5 max-w-[340px]">
-              Explore our furniture and wood product capabilities, developed for different markets, applications and commercial requirements.
+              {L('Explore our furniture and wood product capabilities, developed for different markets, applications and commercial requirements.','浏览我们面向不同市场与商业项目的家具及木制品系列。')}
             </p>
             <Link to="/collections" className="group inline-flex items-center gap-3 mt-7 text-[#754831] font-semibold text-[13px] underline underline-offset-4">
-              View All Products <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              {L('View All Products','查看全部产品')} <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
           <div className="grid sm:grid-cols-3 gap-4 lg:pl-4">
@@ -152,13 +152,13 @@ const Home: React.FC = () => {
           <div className="relative z-10 max-w-[510px] px-7 md:px-12 py-12 lg:py-14 flex flex-col justify-center h-full">
             <p className="text-white/80 tracking-[0.18em] uppercase text-[10px] font-semibold">{L("From Concept to Production","从概念到量产")}</p>
             <h2 id="workflow-title" className="font-serif text-[clamp(2rem,2.65vw,3.2rem)] text-white tracking-[-0.03em] leading-tight mt-4">
-              A Manufacturing Partner, Not Just a Supplier.
+              {L('A Manufacturing Partner, Not Just a Supplier.','值得信赖的制造合作伙伴，而不仅是供应商。')}
             </h2>
             <p className="mt-4 text-[13px] md:text-sm text-white/85 leading-[1.75]">
-              We work with your team from product requirements and sampling through production and quality review.
+              {L('We work with your team from product requirements and sampling through production and quality review.','我们与您的团队紧密合作，从产品需求、打样到量产及品质检验。')}
             </p>
             <Link to="/inquire" className="self-start inline-flex items-center gap-3 mt-7 bg-white text-[#754831] hover:bg-[#f4e8dd] px-5 py-3.5 font-semibold uppercase tracking-[0.025em] text-xs transition-colors">
-              Discuss Your Project <ArrowRight size={16}/>
+              {L('Discuss Your Project','洽谈您的项目')} <ArrowRight size={16}/>
             </Link>
           </div>
         </div>
@@ -183,7 +183,7 @@ const Home: React.FC = () => {
             <p className={sectionKicker}>{L("Our Manufacturing Network","我们的制造网络")}</p>
             <h2 className={editorialHeading + ' text-3xl md:text-4xl mt-3'}>{L("China & Cambodia","中国与柬埔寨")}</h2>
             <p className="text-[#77716a] text-[13px] leading-[1.75] mt-4">{L("Coordinated product management and manufacturing across two locations, supporting a flexible supply network.","两地生产基地协同开展产品管理与制造，为客户提供灵活的供应支持。")}</p>
-            <Link to="/capacity" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">Explore Our Facilities <ArrowRight size={14}/></Link>
+            <Link to="/capacity" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">{L('Explore Our Facilities','了解生产基地')} <ArrowRight size={14}/></Link>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:pr-8">
             {[
@@ -205,7 +205,7 @@ const Home: React.FC = () => {
               {materialImages.length ? materialImages.map((image, idx) => <img key={idx} src={resolveImage(image)} alt={'Wood material sample ' + (idx + 1)} loading="lazy" className="h-9 w-16 object-cover" />) :
                 ['#b67b49','#845432','#d4aa78','#9b6943'].map(color => <span key={color} className="h-9 w-14" style={{backgroundColor:color}} aria-hidden="true"/>)}
             </div>
-            <Link to="/materials" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">Explore Materials & Quality <ArrowRight size={14}/></Link>
+            <Link to="/materials" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">{L('Explore Materials & Quality','了解材料与品质')} <ArrowRight size={14}/></Link>
           </div>
         </div>
       </section>
@@ -219,7 +219,7 @@ const Home: React.FC = () => {
             <h2 className="font-serif text-3xl md:text-4xl mt-2 tracking-tight">{L("Have a Product in Mind?","您有新的产品项目吗？")}</h2>
           </div>
           <p className="md:flex-1 max-w-[440px] text-white/80 text-[13px] leading-relaxed">{L("Tell us about your product, target market, specifications and estimated order volume. Our team can review the details.","告诉我们您的产品、目标市场、规格和预计采购数量，我们的团队将与您进一步沟通。")}</p>
-          <Link to="/inquire" className="inline-flex shrink-0 items-center justify-center gap-3 px-7 py-4 text-[12px] font-semibold bg-[#805036] hover:bg-[#9b6446] transition-colors">Request a Quote <ArrowRight size={16}/></Link>
+          <Link to="/inquire" className="inline-flex shrink-0 items-center justify-center gap-3 px-7 py-4 text-[12px] font-semibold bg-[#805036] hover:bg-[#9b6446] transition-colors">{L('Request a Quote','获取报价')} <ArrowRight size={16}/></Link>
         </div>
       </section>
     </div>
