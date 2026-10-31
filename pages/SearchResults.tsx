@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { resolveImage } from '../utils/imageResolver';
-import { normalizeProducts } from '../utils/normalizeProduct';
-import { API_BASE } from '../utils/siteConfig';
-import { extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
+import { fetchPublicCatalogPage } from '../utils/publicCatalog';
+import type { ProductVariant } from '../types';
 // Added ArrowRight to the imports from lucide-react
 import { Loader2, Search as SearchIcon, PackageX, ArrowRight } from 'lucide-react';
 
@@ -18,62 +17,64 @@ interface SearchResultItem {
   code?: string;
 }
 
+const toSearchItem = (p: ProductVariant): SearchResultItem => ({
+  type: 'variant',
+  categoryTitle: p.category || 'General',
+  name: p.name,
+  description: p.description || '',
+  image: p.images[0] || '',
+  link: '/portfolio?category=' + encodeURIComponent(p.category || '') +
+    '&product=' + encodeURIComponent(p.id || p.code || ''),
+  code: p.code
+});
+
 const SearchResults: React.FC = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const { t } = useLanguage();
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   useEffect(() => {
-    const performSearch = async () => {
-      if (!query.trim()) {
-        setResults([]);
-        return;
-      }
-      
-      setLoading(true);
-      try {
-        const response = await fetch(`${API_BASE}/products`, { cache: 'no-store' });
-        if (!response.ok) throw new Error("Search registry unavailable");
-        
-        const json = await response.json();
-        const rawData = extractProductsArray(json);
-        const allProducts = normalizeProducts(rawData).filter(isPublishedProduct);
-        
-        const lowerQuery = query.toLowerCase();
-        const matchedItems: SearchResultItem[] = [];
-
-        // Search through valid products
-        allProducts.forEach(p => {
-            if (
-                p.name.toLowerCase().includes(lowerQuery) || 
-                (p.description && p.description.toLowerCase().includes(lowerQuery)) ||
-                (p.code && p.code.toLowerCase().includes(lowerQuery))
-            ) {
-                matchedItems.push({
-                    type: 'variant',
-                    categoryTitle: p.category || 'General',
-                    name: p.name,
-                    description: p.description || '',
-                    image: p.images[0] || '',
-                    link: `/portfolio?category=${p.category}&product=${p.id || p.code}`,
-                    code: p.code
-                });
-            }
-        });
-
-        setResults(matchedItems);
-      } catch (e) {
-        console.error("Search failed:", e);
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    performSearch();
+    const controller = new AbortController();
+    setResults([]);
+    setNextCursor(null);
+    if (!query.trim()) {
+      setLoading(false);
+      return () => controller.abort();
+    }
+    setLoading(true);
+    fetchPublicCatalogPage({ q: query, limit: 24, signal: controller.signal })
+      .then(page => {
+        if (controller.signal.aborted) return;
+        setResults(page.items.map(toSearchItem));
+        setNextCursor(page.nextCursor);
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) console.error('Search failed', e);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [query]);
+
+  const handleLoadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchPublicCatalogPage({ q: query, limit: 24, cursor: nextCursor });
+      setResults(previous => {
+        const existing = new Set(previous.map(p => p.link));
+        return [...previous, ...page.items.map(toSearchItem).filter(p => !existing.has(p.link))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch (e) {
+      console.error('Additional search results failed', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div className="bg-stone-50 min-h-screen pt-32 pb-20">
@@ -97,6 +98,7 @@ const SearchResults: React.FC = () => {
             <p className="text-stone-400 text-xs">{t.common.searchRefine}</p>
           </div>
         ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
              {results.map((item, idx) => (
                <Link to={item.link} key={idx} className="bg-white border border-stone-200 group hover:border-safety-700 transition-all shadow-sm hover:shadow-xl rounded-sm overflow-hidden flex flex-col">
@@ -123,6 +125,15 @@ const SearchResults: React.FC = () => {
                </Link>
              ))}
           </div>
+          {nextCursor && (
+            <div className="mt-14 text-center">
+              <button onClick={handleLoadMore} disabled={loadingMore}
+                className="bg-stone-900 text-white px-10 py-4 text-xs font-bold uppercase tracking-widest disabled:opacity-50">
+                {loadingMore ? 'Loading...' : 'Load More Results'}
+              </button>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

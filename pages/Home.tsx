@@ -9,35 +9,22 @@ import {
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
-import { normalizeProducts } from '../utils/normalizeProduct';
-import { API_BASE } from '../utils/siteConfig';
+import { fetchPublicCatalogFacets, CategoryFacet } from '../utils/publicCatalog';
 import { resolveImage } from '../utils/imageResolver';
 import { categories as staticCategories } from '../data/inventory';
-import { ProductVariant } from '../types';
-import { extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const [activeHub, setActiveHub] = useState<'cn' | 'kh'>('cn');
   const { config: site, loading: siteLoading, isFallback } = usePublishedSiteConfig();
-  const [categoryProducts, setCategoryProducts] = useState<ProductVariant[]>([]);
+  const [categoryFacets, setCategoryFacets] = useState<CategoryFacet[]>([]);
 
   useEffect(() => {
-    const fetchHomeData = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/products`, { cache: 'no-store' });
-        if (!response.ok) return;
-        
-        const json = await response.json();
-        const rawData = extractProductsArray(json);
-        // Only consider products that meet the safety protocol for the home page calculation
-        const liveProducts = normalizeProducts(rawData).filter(isPublishedProduct);
-        setCategoryProducts(liveProducts);
-      } catch (e) {
-        // Silent fail
-      }
-    };
-    fetchHomeData();
+    const controller = new AbortController();
+    fetchPublicCatalogFacets(controller.signal)
+      .then(setCategoryFacets)
+      .catch(e => { if (!controller.signal.aborted) console.warn('Category load failed', e); });
+    return () => controller.abort();
   }, []);
 
   const heroBg = resolveImage(site?.home?.hero?.image);
@@ -68,7 +55,7 @@ const Home: React.FC = () => {
   );
 
   const activeCategories = useMemo(() => {
-      const productCategoryIds = new Set(categoryProducts.map(p => (p.category || '').toLowerCase().trim()));
+      const productCategoryIds = new Set(categoryFacets.filter(c => c.count > 0).map(c => c.id));
       const sourceCategories = (site?.categories && site.categories.length > 0) ? site.categories : staticCategories;
       
       return sourceCategories.filter(Boolean).filter(cat => {
@@ -76,7 +63,7 @@ const Home: React.FC = () => {
           const catTitle = cat.title?.toLowerCase().trim();
           return productCategoryIds.has(catId) || productCategoryIds.has(catTitle);
       }).slice(0, 3);
-  }, [categoryProducts, site]);
+  }, [categoryFacets, site]);
 
   const currentHub = hubs.find((h) => h.id === activeHub) || hubs[0];
 
