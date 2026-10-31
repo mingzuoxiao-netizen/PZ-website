@@ -4,7 +4,7 @@ import { NAV_ITEMS } from '../../types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ArrowRight, Globe, Factory, MapPin, Plus, Minus, ChevronRight } from 'lucide-react';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
-import { categories as staticCategories } from '../../data/inventory';
+import { publishedSiteCategories } from '../../utils/catalogCategories';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -13,11 +13,11 @@ interface MobileNavProps {
 }
 
 const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { config } = usePublishedSiteConfig();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const dynamicCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
+  const dynamicCategories = publishedSiteCategories(config?.categories);
 
   const toggleExpand = (key: string) => {
     setExpandedItems(prev => 
@@ -27,7 +27,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
 
   const menuDetails: Record<string, { label: string; href: string }[]> = {
     collections: dynamicCategories.map(cat => ({
-      label: cat.title,
+      label: language === 'zh' ? (cat.title_zh || cat.title) : cat.title,
       href: `/collections?category=${cat.id}`
     })),
     manufacturing: [
