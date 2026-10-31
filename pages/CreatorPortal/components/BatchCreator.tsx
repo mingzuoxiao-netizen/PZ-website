@@ -90,7 +90,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     if (!fileList || inFlight.current) return;
     const incoming = Array.from(fileList);
     if (rows.length + incoming.length > MAX_FILES) {
-      setFeedback('Choose up to ' + MAX_FILES + ' images per batch.');
+      setFeedback('单批最多选择 ' + MAX_FILES + ' 张图片。');
       return;
     }
     if (incoming.some(file => !file.type.startsWith('image/') || file.size > MAX_FILE_BYTES)) {
@@ -200,12 +200,12 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       ? [single]
       : remaining.map(row => ({ name: row.name, code: row.code, material: row.material, size: row.size }));
     if (candidates.some(item => !item.name.trim() || !SKU_PATTERN.test(normalizeCode(item.code)))) {
-      return setFeedback('Each product needs a name and a unique SKU such as PZ-BIRCH-001 (2–40 characters after PZ-).');
+      return setFeedback('每款产品必须填写名称和唯一 SKU，例如 PZ-BIRCH-001（前缀后 2–40 位字符）。');
     }
 
     const codes = candidates.map(item => normalizeCode(item.code));
     if (new Set(codes).size !== codes.length) {
-      return setFeedback('Duplicate SKU codes found within this batch. Correct them before saving.');
+      return setFeedback('本批次存在重复 SKU，请修改后再保存。');
     }
 
     let knownCodes: string[];
@@ -213,11 +213,11 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       // Indexed backend lookup; the SQLite UNIQUE index remains authoritative.
       knownCodes = (await onCheckSkuCodes(codes)).map(normalizeCode);
     } catch (error: any) {
-      return setFeedback('Cannot check existing SKUs: ' + (error?.message || 'network error'));
+      return setFeedback('无法核对已有 SKU：' + (error?.message || '网络异常'));
     }
     const existing = new Set(knownCodes);
     const collisions = codes.filter(code => existing.has(code));
-    if (collisions.length) return setFeedback('These SKU codes already exist: ' + collisions.join(', '));
+    if (collisions.length) return setFeedback('以下 SKU 已存在：' + collisions.join(', '));
 
     if (!window.confirm('Create ' + (mode === 'one-product' ? '1 product with ' + rows.length + ' images' : remaining.length + ' product drafts') + '? All new records will remain Draft.')) return;
 
@@ -245,7 +245,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           } catch (error: any) {
             failed++;
             updateRow(row.id, { status: 'error', error: error?.message || 'Image upload failed' });
-            setFeedback('Image upload failed. Fix the issue and retry; successfully uploaded files are reused.');
+            setFeedback('图片上传失败，请修正后重试；已成功上传的图片会继续使用。');
             return;
           }
         }
@@ -258,7 +258,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           failed++;
           if (isKnownSkuConflict(error)) {
             setRows(prev => prev.map(row => ({ ...row, status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' })));
-            setFeedback('The SKU was taken during upload. Enter a different SKU and retry. Existing uploaded images will be reused.');
+            setFeedback('上传期间发现 SKU 已被占用，请更换 SKU 后重试，已上传图片仍会保留。');
           } else {
             setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || T('Save outcome unknown','保存结果未确认') })));
             setFeedback(T('Save result uncertain. Check Master Registry for SKU ', '保存结果不明确，请到产品总库核查 SKU ') + normalizeCode(single.code) + ' before retrying.');
@@ -300,7 +300,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       if (saved) {
         try { await onCompleted(); } catch (error) { console.error('Registry refresh failed', error); }
       }
-      if (!failed && saved) setFeedback('Created ' + saved + ' draft SKU(s). Success rows will not be resubmitted.');
+      if (!failed && saved) setFeedback('已创建 ' + saved + ' 个产品草稿；成功记录不会重复提交。');
       if (failed && mode === 'many-products') setFeedback(saved + ' saved; ' + failed + ' failed or need verification. Review each row before retrying.');
     }
   };
