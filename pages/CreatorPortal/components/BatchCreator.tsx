@@ -41,6 +41,7 @@ interface BatchCreatorProps {
   onCompleted: () => Promise<void>;
   onCancel: () => void;
   onUpload: (file: File) => Promise<string>;
+  lang?: 'en' | 'zh';
 }
 
 const MAX_FILES = 30;
@@ -55,8 +56,9 @@ const productionSiteOptions: { value: ProductionSite; label: string }[] = [
 ];
 
 const BatchCreator: React.FC<BatchCreatorProps> = ({
-  categories, onCreateDraft, onCheckSkuCodes, onCompleted, onCancel, onUpload
+  categories, onCreateDraft, onCheckSkuCodes, onCompleted, onCancel, onUpload, lang = 'en'
 }) => {
+  const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [mode, setMode] = useState<Mode>('many-products');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSites, setSelectedSites] = useState<ProductionSite[]>([]);
@@ -91,7 +93,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       return;
     }
     if (incoming.some(file => !file.type.startsWith('image/') || file.size > MAX_FILE_BYTES)) {
-      setFeedback('Only image files up to 10 MB each are accepted.');
+      setFeedback(T('Only image files up to 10 MB each are accepted.', '仅支持单张不超过 10 MB 的图片。'));
       return;
     }
     const existing = new Set(rows.map(row => row.file.name + ':' + row.file.size + ':' + row.file.lastModified));
@@ -127,7 +129,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
 
   const switchMode = (next: Mode) => {
     if (next === mode || inFlight.current) return;
-    if (rows.length > 0 && !window.confirm('Switching upload mode clears this queue. Continue?')) return;
+    if (rows.length > 0 && !window.confirm(T('Switching upload mode clears this queue. Continue?', '切换上传模式将清空当前队列，确认继续吗？'))) return;
     clearRows();
     setMode(next);
   };
@@ -158,7 +160,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   };
 
   const verifyAndRetry = (rowId?: number) => {
-    if (!window.confirm('First check Master Registry to confirm the SKU was NOT created. Retry only after checking.')) return;
+    if (!window.confirm(T('First check Master Registry to confirm the SKU was NOT created. Retry only after checking.', '请先在产品总库确认该 SKU 未被创建，再尝试重试。'))) return;
     setRows(prev => prev.map(row =>
       row.status === 'verify' && (rowId === undefined || row.id === rowId)
         ? { ...row, status: row.url ? 'uploaded' : 'ready', error: undefined }
@@ -180,9 +182,9 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const processBatch = async () => {
     if (inFlight.current) return;
     setFeedback('');
-    if (!selectedCategory) return setFeedback('Select a product category first.');
+    if (!selectedCategory) return setFeedback(T('Select a product category first.', '请先选择产品分类。'));
     if (mode === 'one-product' && selectedSites.length === 0) return setFeedback('Select at least one production site.');
-    if (rows.length === 0) return setFeedback('Choose image files first.');
+    if (rows.length === 0) return setFeedback(T('Choose image files first.', '请先选择图片。'));
     if (rows.some(row => row.status === 'verify')) {
       return setFeedback('A previous save result is uncertain. Check Master Registry before retrying.');
     }
@@ -190,7 +192,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     const remaining = rows.filter(row => row.status !== 'saved');
     if (remaining.length === 0) return setFeedback('All drafts in this queue are already saved.');
     if (mode === 'many-products' && remaining.some(row => row.production_sites.length === 0)) {
-      return setFeedback('Select at least one production site for each product.');
+      return setFeedback(T('Select at least one production site for each product.', '每个产品必须选择至少一个生产基地。'));
     }
 
     const candidates = mode === 'one-product'
@@ -257,8 +259,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             setRows(prev => prev.map(row => ({ ...row, status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' })));
             setFeedback('The SKU was taken during upload. Enter a different SKU and retry. Existing uploaded images will be reused.');
           } else {
-            setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || 'Save outcome unknown' })));
-            setFeedback('Save result uncertain. Check Master Registry for SKU ' + normalizeCode(single.code) + ' before retrying.');
+            setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || T('Save outcome unknown','保存结果未确认') })));
+            setFeedback(T('Save result uncertain. Check Master Registry for SKU ', '保存结果不明确，请到产品总库核查 SKU ') + normalizeCode(single.code) + ' before retrying.');
           }
         }
       } else {
@@ -286,7 +288,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             failed++;
             updateRow(row.id, isKnownSkuConflict(error)
               ? { status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' }
-              : { status: 'verify', error: error?.message || 'Save outcome unknown' });
+              : { status: 'verify', error: error?.message || T('Save outcome unknown','保存结果未确认') });
           }
         }
       }
@@ -309,7 +311,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const leaveBatch = () => {
     if (inFlight.current) return;
     if (rows.some(row => row.status !== 'saved') && rows.length > 0 &&
-      !window.confirm('Leave Batch Induction? Unfinished inputs will be lost.')) return;
+      !window.confirm(T('Leave Batch Induction? Unfinished inputs will be lost.', '离开批量录入会丢失尚未保存的内容，确定离开吗？'))) return;
     onCancel();
   };
 
@@ -323,7 +325,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             <p className="mt-1 text-xs text-stone-300">Review product data and images before creating drafts</p>
           </div>
         </div>
-        <button type="button" disabled={isProcessing} onClick={leaveBatch} className="rounded p-2 hover:bg-stone-700" aria-label="Close batch uploader"><X size={20}/></button>
+        <button type="button" disabled={isProcessing} onClick={leaveBatch} className="rounded p-2 hover:bg-stone-700" aria-label={T("Close batch uploader","关闭批量上传")}><X size={20}/></button>
       </div>
 
       <div className="space-y-6 p-6">
@@ -335,8 +337,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           </button>
           <button type="button" disabled={isProcessing} onClick={() => switchMode('one-product')}
             className={'rounded-sm border p-4 text-left ' + (mode === 'one-product' ? 'border-stone-900 bg-stone-100' : 'border-stone-200')}>
-            <strong className="text-sm">One product, many photos / 单款多图</strong>
-            <p className="mt-1 text-xs text-stone-500">All images belong to one SKU; first image is the cover.</p>
+            <strong className="text-sm">{T("One product, many photos / 单款多图","单款产品，多张图片")}</strong>
+            <p className="mt-1 text-xs text-stone-500">{T("All images belong to one SKU; first image is the cover.","所有图片归属同一 SKU，第一张作为主图。")}</p>
           </button>
         </div>
 
@@ -344,7 +346,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           <label className="block text-xs font-bold uppercase text-stone-600">Product Category
             <select disabled={isProcessing || hasSaved} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
               className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900">
-              <option value="">Choose category</option>
+              <option value="">{T("Choose category","选择产品分类")}</option>
               {categories.map(category => <option key={category.id} value={category.id}>{category.title}</option>)}
             </select>
           </label>
@@ -357,7 +359,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                 {site.label}
               </label>
             ))}
-            {mode === 'many-products' && <p className="text-xs text-stone-500">Applies to newly added products only. Choose at least one site on each product card.</p>}
+            {mode === 'many-products' && <p className="text-xs text-stone-500">{T("Applies to newly added products only. Choose at least one site on each product card.","默认生产基地仅对之后添加的产品生效；每个产品都必须选择生产基地。")}</p>}
           </fieldset>
         </div>
 
@@ -373,7 +375,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                 {label}
                 <input disabled={!canEditSingle || isProcessing} value={single[field]}
                   onChange={e => setSingle(prev => ({ ...prev, [field]: field === 'code' ? e.target.value.toUpperCase() : e.target.value }))}
-                  placeholder={hint} className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900" />
+                  placeholder={lang === 'zh' ? (field === 'name' ? '例如：白橡木餐桌' : field === 'material' ? '例如：白橡木' : hint) : hint} className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900" />
               </label>
             ))}
           </div>
@@ -381,7 +383,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold">Image Queue: {rows.length}</h3>
+            <h3 className="text-sm font-semibold">{T("Image Queue:","图片队列：")} {rows.length}</h3>
             <p className="text-xs text-stone-500">JPEG, PNG, WebP and other image files · max 10 MB each · max {MAX_FILES} images</p>
           </div>
           <div className="flex gap-3">
@@ -392,8 +394,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             </button>
             {rows.length > 0 && !hasSaved && (
               <button type="button" disabled={isProcessing} onClick={() => {
-                if (window.confirm('Clear all selected images and unsaved inputs?')) clearRows();
-              }} className="border border-stone-200 px-4 py-3 text-xs">Clear</button>
+                if (window.confirm(T('Clear all selected images and unsaved inputs?', '清空已选图片和未保存内容吗？'))) clearRows();
+              }} className="border border-stone-200 px-4 py-3 text-xs">{T("Clear","清空")}</button>
             )}
           </div>
         </div>
@@ -404,7 +406,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
               <div key={row.id} className="grid gap-4 rounded border border-stone-200 p-3 md:grid-cols-[108px_minmax(0,1fr)_auto]">
                 <div>
                   <img src={row.previewUrl} alt={row.file.name} className="h-24 w-24 rounded-sm object-cover"/>
-                  {mode === 'one-product' && index === 0 && <span className="text-[10px] font-bold text-green-700">Cover / 主图</span>}
+                  {mode === 'one-product' && index === 0 && <span className="text-[10px] font-bold text-green-700">{T("Cover / 主图","主图")}</span>}
                 </div>
                 <div className="min-w-0">
                   {mode === 'many-products' ? (
@@ -434,7 +436,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                             {site.label}
                           </label>
                         ))}
-                        {row.production_sites.length === 0 && <p className="text-xs text-red-700">Select at least one production site.</p>}
+                        {row.production_sites.length === 0 && <p className="text-xs text-red-700">{T("Select at least one production site.","请选择至少一个生产基地。")}</p>}
                       </fieldset>
                     </div>
                   ) : (
@@ -442,7 +444,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                   )}
                   <div className="mt-2 text-xs">
                     <strong className={row.status === 'saved' ? 'text-green-700' : row.status === 'error' || row.status === 'verify' ? 'text-red-700' : 'text-stone-500'}>
-                      {row.status === 'saved' ? 'Draft saved' : row.status === 'verify' ? 'Save uncertain – verify SKU before retry' : row.status}
+                      {row.status === 'saved' ? T('Draft saved','草稿已保存') : row.status === 'verify' ? T('Save uncertain – verify SKU before retry','保存结果未确认，请核实 SKU 后再重试') : row.status}
                     </strong>
                     {row.error && <p className="mt-1 break-words text-red-700">{row.error}</p>}
                   </div>
@@ -455,14 +457,14 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                 <div className="flex flex-row gap-2 md:flex-col">
                   {mode === 'one-product' && (
                     <>
-                      <button type="button" title="Move earlier" disabled={isProcessing || hasSaved || index === 0}
+                      <button type="button" title={T('Move earlier','向前移动')} disabled={isProcessing || hasSaved || index === 0}
                         onClick={() => moveImage(index, -1)} className="rounded border border-stone-200 p-2 disabled:opacity-30"><ArrowUp size={15}/></button>
-                      <button type="button" title="Move later" disabled={isProcessing || hasSaved || index === rows.length - 1}
+                      <button type="button" title={T('Move later','向后移动')} disabled={isProcessing || hasSaved || index === rows.length - 1}
                         onClick={() => moveImage(index, 1)} className="rounded border border-stone-200 p-2 disabled:opacity-30"><ArrowDown size={15}/></button>
                     </>
                   )}
                   {row.status !== 'saved' && (
-                    <button type="button" title="Remove image" disabled={isProcessing}
+                    <button type="button" title={T('Remove image','移除图片')} disabled={isProcessing}
                       onClick={() => deleteRow(row.id)} className="rounded border border-stone-200 p-2 text-red-600 disabled:opacity-30"><X size={15}/></button>
                   )}
                 </div>
@@ -480,10 +482,10 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         {progress && <p role="status" className="flex items-center gap-2 text-sm text-stone-700"><Loader2 className="animate-spin" size={16}/>{progress}</p>}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-5">
-          <p className="text-xs text-stone-500">Draft only. No automatic review or publication. A failed D1 save may leave an unused file in R2.</p>
+          <p className="text-xs text-stone-500">{T("Draft only. No automatic review or publication. A failed D1 save may leave an unused file in R2.","仅创建草稿，不会自动审核或发布。保存失败可能在 R2 留下未引用的图片。")}</p>
           <div className="flex gap-3">
             <button type="button" disabled={isProcessing} onClick={leaveBatch}
-              className="border border-stone-200 px-5 py-3 text-xs font-bold">Back to Registry</button>
+              className="border border-stone-200 px-5 py-3 text-xs font-bold">{T("Back to Registry","返回产品列表")}</button>
             <button type="button" disabled={isProcessing || !rows.length || hasUncertain || rows.every(row => row.status === 'saved')}
               onClick={processBatch} className="inline-flex items-center gap-2 bg-stone-900 px-5 py-3 text-xs font-bold text-white disabled:opacity-40">
               {isProcessing ? <Loader2 size={15} className="animate-spin"/> : <Save size={15}/>}
