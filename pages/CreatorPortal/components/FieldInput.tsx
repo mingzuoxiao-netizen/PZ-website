@@ -22,6 +22,7 @@ const FieldInput: React.FC<FieldInputProps> = ({ label, type, value, onChange, o
     return (
       <div className="mb-6">
         <PZImageManager
+          lang="zh"
           label={label}
           images={imageValue ? [imageValue] : []}
           onUpdate={(imgs) => onChange(imgs[0] || "")}
