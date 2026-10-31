@@ -24,6 +24,7 @@ export function publishedSiteCategories(configCategories: unknown): Category[] {
     ? configCategories : fallbackCategories;
   const seen = new Set<string>();
   return source.map(normalizeSiteCategory).filter(category => {
+    if (category.hidden) return false;
     const key = category.id.toLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
