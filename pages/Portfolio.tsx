@@ -7,12 +7,15 @@ import { categories as staticCategories } from '../data/inventory';
 import { normalizeProducts } from '../utils/normalizeProduct';
 import { API_BASE } from '../utils/siteConfig';
 import { resolveImage } from '../utils/imageResolver';
+import { useLanguage } from '../contexts/LanguageContext';
 import { adminFetch } from '../utils/adminFetch';
 import { extractSubCategories, extractProductsArray, isPublishedProduct } from '../utils/extractProducts';
 import { ProductCardSkeleton } from '../components/common/Skeleton';
 import { fetchPublicCatalogPage, fetchPublicCatalogFacets, fetchPublicCatalogProduct, CategoryFacet } from '../utils/publicCatalog';
 
 const Portfolio: React.FC = () => {
+  const { language } = useLanguage();
+  const T = (en: string, zh: string) => language === 'zh' ? zh : en;
   const { config, mode } = usePublishedSiteConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -98,6 +101,7 @@ const Portfolio: React.FC = () => {
       : new Set(products.map(p => (p.category || '').toLowerCase().trim()));
     const sourceCategories = (config?.categories && config.categories.length > 0) ? config.categories : staticCategories;
     
+    if (mode === 'public') return sourceCategories;
     return sourceCategories.filter(cat => {
         const catId = cat.id.toLowerCase().trim();
         const catTitle = cat.title.toLowerCase().trim();
@@ -195,23 +199,23 @@ const Portfolio: React.FC = () => {
               <div className="w-full lg:w-2/5 p-8 lg:p-16 flex flex-col justify-center">
                 <button onClick={() => setSelectedProduct(null)} className="hidden lg:block absolute top-8 right-8 text-stone-400 hover:text-stone-900 transition-colors"><X size={32} /></button>
                 <div className="mb-8">
-                    <span className="text-[10px] font-mono font-bold text-safety-700 uppercase tracking-[0.3em] mb-4 block">Archive Ref. {selectedProduct.code || 'UNKNOWN'}</span>
-                    <h2 className="font-serif text-4xl text-stone-900 mb-6 leading-tight">{selectedProduct.name}</h2>
+                    <span className="text-[10px] font-mono font-bold text-safety-700 uppercase tracking-[0.3em] mb-4 block">{T('Product Code','产品编号')} {selectedProduct.code || 'UNKNOWN'}</span>
+                    <h2 className="font-serif text-4xl text-stone-900 mb-6 leading-tight">{language === 'zh' ? (selectedProduct.name_cn || selectedProduct.name) : selectedProduct.name}</h2>
                     <div className="w-16 h-1 bg-safety-700 mb-10"></div>
                 </div>
                 
                 <p className="text-stone-600 mb-10 leading-relaxed font-light text-lg">
-                    {selectedProduct.description || "A precision-engineered piece combining structural integrity with natural material excellence for professional environments."}
+                    {(language === 'zh' ? (selectedProduct.description_cn || selectedProduct.description) : selectedProduct.description) || T('A precision-engineered piece combining structural integrity with natural material excellence for professional environments.','结合实木材质与制造工艺打造的家具产品。')}
                 </p>
 
                 <div className="grid grid-cols-1 gap-8 mb-12">
                     <div className="border-l-2 border-stone-100 pl-6 font-mono">
-                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Technical Dimensions</span>
-                        <span className="text-stone-800 text-sm">{selectedProduct.size || "Custom SKU Available"}</span>
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">{T("Technical Dimensions","产品尺寸")}</span>
+                        <span className="text-stone-800 text-sm">{selectedProduct.size || T('Custom SKU Available','规格可咨询')}</span>
                     </div>
                     <div className="border-l-2 border-stone-100 pl-6 font-mono">
-                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Primary Materials</span>
-                        <span className="text-stone-800 text-sm">{selectedProduct.material || "Industrial Grade Raw Wood"}</span>
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">{T("Primary Materials","主要材料")}</span>
+                        <span className="text-stone-800 text-sm">{selectedProduct.material || T('Industrial Grade Raw Wood','材料可咨询')}</span>
                     </div>
                 </div>
 
@@ -230,27 +234,27 @@ const Portfolio: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div className="animate-fade-in-up">
                         <button onClick={handleBackToOverview} className="group flex items-center text-stone-400 hover:text-stone-900 text-[10px] font-bold uppercase tracking-[0.3em] mb-6 transition-colors font-mono">
-                            <ChevronLeft size={14} className="mr-2 group-hover:-translate-x-1 transition-transform"/> Return to Portfolio
+                            <ChevronLeft size={14} className="mr-2 group-hover:-translate-x-1 transition-transform"/ >{T('Return to Portfolio','返回产品分类')}
                         </button>
                         <h1 className="font-serif text-5xl md:text-7xl text-stone-900 leading-tight mb-4 tracking-tighter">
-                            {activeCategoryDef?.title}
+                            {language === 'zh' ? (activeCategoryDef?.title_zh || activeCategoryDef?.title) : activeCategoryDef?.title}
                         </h1>
                         <p className="text-stone-400 font-mono text-xs uppercase tracking-[0.2em]">
-                            {isLoading ? '...' : displayedCount} Items Indexed // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
+                            {isLoading ? '...' : displayedCount} {T('Items Indexed','件产品')} // {activeSubCategory === 'all' ? 'Master Collection' : activeSubCategory}
                         </p>
                     </div>
                     {config?.catalog?.url && (
                         <a href={resolveImage(config.catalog.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 bg-stone-50 border border-stone-200 hover:border-safety-700 px-8 py-5 transition-all group shadow-sm">
                             <FileText size={20} className="text-stone-400 group-hover:text-safety-700 transition-colors" />
-                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-stone-900">Technical Catalog (PDF)</span>
+                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-stone-900">{T("Technical Catalog (PDF)","下载产品目录")}</span>
                         </a>
                     )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div className="max-w-2xl">
-                        <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">Archive Registry</h3>
-                        <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter leading-none">Portfolio</h1>
+                        <h3 className="text-safety-700 font-bold tracking-[0.3em] uppercase text-[10px] mb-6 inline-block border-b border-safety-700 pb-1 font-mono">{T("Archive Registry","产品系列")}</h3>
+                        <h1 className="font-serif text-5xl md:text-8xl text-stone-900 mb-8 tracking-tighter leading-none">{T("Portfolio","产品中心")}</h1>
                         <p className="text-stone-500 text-xl md:text-2xl font-light leading-relaxed">
                             A comprehensive archive of precision woodwork solutions engineered for global hospitality and commercial luxury.
                         </p>
@@ -284,7 +288,7 @@ const Portfolio: React.FC = () => {
                                 return (
                                     <div key={cat.id} className="group cursor-pointer flex flex-col" onClick={() => handleCategorySelect(cat.id)}>
                                         <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
-                                            <img src={resolveImage(cat.image)} loading="lazy" alt={cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                            <img src={resolveImage(cat.image)} loading="lazy" alt={language === 'zh' ? (cat.title_zh || cat.title) : cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
                                             <div className="absolute inset-0 bg-stone-950/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
                                                 <div className="w-16 h-16 bg-white flex items-center justify-center rounded-full scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500">
                                                     <ArrowRight size={24} className="text-stone-900" />
@@ -295,7 +299,7 @@ const Portfolio: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex flex-col">
-                                            <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{cat.title}</h3>
+                                            <h3 className="font-serif text-3xl text-stone-900 mb-2 group-hover:text-safety-700 transition-colors leading-tight">{language === 'zh' ? (cat.title_zh || cat.title) : cat.title}</h3>
                                             <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em] font-mono">{cat.subtitle}</p>
                                         </div>
                                     </div>
@@ -317,7 +321,7 @@ const Portfolio: React.FC = () => {
                                             ${activeSubCategory === 'all' ? 'text-safety-700 translate-x-2' : 'text-stone-400 hover:text-stone-900'}
                                         `}
                                     >
-                                        <span className="text-xs font-bold uppercase tracking-widest">Master Set</span>
+                                        <span className="text-xs font-bold uppercase tracking-widest">{T("Master Set","全部产品")}</span>
                                         <Hash size={12} className={activeSubCategory === 'all' ? 'opacity-100' : 'opacity-0'} />
                                     </button>
                                     {subCategories.map(sub => (
@@ -343,7 +347,7 @@ const Portfolio: React.FC = () => {
                             ) : filteredProducts.length === 0 ? (
                                 <div className="py-40 text-center bg-stone-50 border border-dashed border-stone-200 flex flex-col items-center">
                                     <LayoutGrid size={48} className="text-stone-200 mb-6" />
-                                    <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">Zero entries detected for specified criteria.</p>
+                                    <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">{T("Zero entries detected for specified criteria.","当前筛选条件下暂无已发布的产品。")}</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-12">
