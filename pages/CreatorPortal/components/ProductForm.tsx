@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProductVariant, Category } from '../../../types';
+import { ProductVariant, Category, ProductionSite } from '../../../types';
 import PZImageManager from './PZImageManager';
 import LivePreview from './LivePreview';
 import { useProductImageActions } from '../../../hooks/useProductImageActions';
@@ -8,7 +8,7 @@ import { Save, ArrowLeft, Info, Send, Loader2, Database, ClipboardList } from 'l
 interface ProductFormProps {
   initialData: Partial<ProductVariant>;
   categories: Category[];
-  onSave: (data: any) => void;
+  onSave: (data: any) => void | Promise<void>;
   onSubmit?: (id: string) => Promise<void>;
   onCancel: () => void;
   onUpload?: (file: File) => Promise<string>; 
@@ -42,21 +42,46 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLocalSave = (e: React.FormEvent) => {
+  const toggleProductionSite = (site: ProductionSite) => {
+    setFormData(prev => {
+      const selected = prev.production_sites || [];
+      return {
+        ...prev,
+        production_sites: selected.includes(site)
+          ? selected.filter(value => value !== site)
+          : [...selected, site]
+      };
+    });
+  };
+
+  const handleLocalSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    if (!formData.name) { 
-        alert("Product name is required for induction."); 
-        setSubmitting(false); 
-        return; 
+    if (submitting) return;
+    const code = String(formData.code || '').trim().toUpperCase();
+    if (!String(formData.name || '').trim()) {
+      alert('Product name is required.');
+      return;
     }
-    
-    let finalStatus = formData.status || 'draft';
-    onSave({
+    if (!formData.id && !code) {
+      alert('SKU is required for new products (e.g. PZ-BIRCH-001).');
+      return;
+    }
+    if (code && !/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
+      alert('Invalid SKU. Use PZ- followed by 2–40 letters, numbers, hyphens or underscores.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const finalStatus = formData.status || 'draft';
+      await onSave({
         ...formData,
+        code,
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
-    });
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handlePromote = async () => {
@@ -115,6 +140,21 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             />
                         </div>
                     </div>
+                    <fieldset className="mt-8 rounded-sm border border-stone-200 bg-stone-50 p-5">
+                        <legend className="px-2 text-[10px] font-bold uppercase tracking-widest text-stone-700">Production Sites / 生产基地</legend>
+                        <p className="mb-4 text-xs text-stone-500">Select all locations that can manufacture this product. This does not change staff permissions.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {([
+                                ['zhaoqing', 'Zhaoqing · China / 肇庆'],
+                                ['cambodia', 'Kandal · Cambodia / 柬埔寨']
+                            ] as const).map(([site, label]) => (
+                                <label key={site} className="flex items-center gap-3 cursor-pointer rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-800">
+                                    <input type="checkbox" className="h-4 w-4 accent-stone-900" checked={(formData.production_sites || []).includes(site)} onChange={() => toggleProductionSite(site)} />
+                                    <span>{label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
                 </section>
 
                 <section>

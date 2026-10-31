@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { factoryFetch } from '../../utils/factoryFetch';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
+import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
 import PortalLayout from './PortalLayout';
 import { 
@@ -167,17 +168,26 @@ const FactoryWorkspace: React.FC = () => {
       } catch (e: any) { alert(`Protocol Failure: ${e.message}`); }
   };
 
-  const handleBatchSave = async (newProducts: any[]) => {
-      try {
-          await Promise.all(newProducts.map(p => 
-            factoryFetch('factory/products', { method: 'POST', body: JSON.stringify({ ...p, status: 'draft' }) })
-          ));
-          setIsBatchCreating(false);
-          loadData();
-      } catch (e: any) { alert("Batch error: " + e.message); }
+  // O(batch size) indexed SKU lookup, rather than downloading the entire catalog.
+  const checkBatchSkuCodes = async (codes: string[]): Promise<string[]> => {
+      const res = await factoryFetch<{ existingCodes?: string[] }>('factory/products/check-skus', {
+          method: 'POST',
+          body: JSON.stringify({ codes }),
+      });
+      if (!Array.isArray(res?.existingCodes)) throw new Error('SKU validation response unavailable.');
+      return res.existingCodes;
+  };
+
+  const createBatchDraft = async (product: any): Promise<void> => {
+      const response = await factoryFetch<{ success?: boolean }>('factory/products', {
+          method: 'POST',
+          body: JSON.stringify({ ...product, status: 'draft', is_published: 0 }),
+      });
+      if (response?.success !== true) throw new Error('Worker did not confirm draft creation. Verify the SKU in Master Registry.');
   };
 
   const handleBack = () => {
+      if (isBatchCreating && !window.confirm('Leave Batch Induction? Unfinished inputs will be lost.')) return;
       if (isCreating || editingItem || isBatchCreating) {
           setIsCreating(false);
           setIsBatchCreating(false);
@@ -278,7 +288,14 @@ const FactoryWorkspace: React.FC = () => {
       {loading && products.length === 0 ? (
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">Initializing Registry...</span></div>
       ) : isBatchCreating ? (
-          <BatchCreator categories={categories} onCancel={handleBack} onSave={handleBatchSave} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
+          <BatchCreator
+              categories={categories}
+              onCancel={handleBack}
+              onCreateDraft={createBatchDraft}
+              onCheckSkuCodes={checkBatchSkuCodes}
+              onCompleted={async () => { await loadData(); }}
+              onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }}
+          />
       ) : editingItem || isCreating ? (
             <ProductForm 
                 initialData={editingItem || {}} 
@@ -297,7 +314,10 @@ const FactoryWorkspace: React.FC = () => {
                 </div>
                 <ProductList 
                     lang="en" 
-                    items={selectedCategoryId === 'all' ? products : products.filter(i => i.category === selectedCategoryId)} 
+                    items={selectedCategoryId === 'all' ? products : products.filter(item => {
+                        const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+                        return selectedCategory ? categoryMatches(item.category, selectedCategory) : false;
+                    })} 
                     categories={categories} 
                     onEdit={setEditingItem} 
                     onCreate={() => setIsCreating(true)} 

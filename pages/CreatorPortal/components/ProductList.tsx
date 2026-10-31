@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
-import { ProductVariant, Category } from '../../../types';
+import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
 
@@ -27,6 +27,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [siteFilter, setSiteFilter] = useState<'all' | 'unassigned' | ProductionSite>('all');
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
@@ -45,7 +46,9 @@ const ProductList: React.FC<ProductListProps> = ({
     const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || 
                          (i.code && i.code.toLowerCase().includes(search.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const sites = i.production_sites || [];
+    const matchesSite = siteFilter === 'all' || (siteFilter === 'unassigned' ? sites.length === 0 : sites.includes(siteFilter));
+    return matchesSearch && matchesStatus && matchesSite;
   }) : [];
 
   const toggleSelect = (id: string) => {
@@ -125,6 +128,17 @@ const ProductList: React.FC<ProductListProps> = ({
                 <option value="awaiting_review">Awaiting Audit</option>
                 <option value="rejected">Correction Req</option>
              </select>
+             <select
+                aria-label="Filter production site"
+                value={siteFilter}
+                onChange={e => setSiteFilter(e.target.value as typeof siteFilter)}
+                className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
+             >
+                <option value="all">All Production Sites</option>
+                <option value="zhaoqing">Zhaoqing · China</option>
+                <option value="cambodia">Kandal · Cambodia</option>
+                <option value="unassigned">Not Assigned</option>
+             </select>
           </div>
           
           <div className="text-[10px] font-mono text-stone-400 font-bold uppercase tracking-widest">
@@ -181,6 +195,11 @@ const ProductList: React.FC<ProductListProps> = ({
                             <div className="flex items-center gap-4 font-mono text-[9px]">
                                 <span className="text-stone-400 font-bold uppercase">{item.code || "NO_SKU"}</span>
                                 <span className="text-stone-500 uppercase tracking-tight">{item.category || 'GENERAL'}</span>
+                                {(item.production_sites || []).map(site => (
+                                    <span key={site} className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600 uppercase">
+                                        {site === 'zhaoqing' ? 'Zhaoqing' : 'Cambodia'}
+                                    </span>
+                                ))}
                             </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -195,7 +214,9 @@ const ProductList: React.FC<ProductListProps> = ({
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="Edit"><Edit size={16} /></button>
+                                {(!isFactory || item.status === 'draft' || item.status === 'rejected') && (
+                                    <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title="Edit"><Edit size={16} /></button>
+                                )}
                                 {isAdmin && onDelete && (
                                     <button 
                                         onClick={() => item.id && onDelete(item.id)} 
