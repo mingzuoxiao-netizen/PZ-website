@@ -16,7 +16,7 @@ Before this change, multiple administrative writes to `draft:site_config` used d
 
 ## Safeguards
 
-- Old Worker behavior remains for ordinary site-config routes while `PZ_D1_SITE_CONFIG_ENABLED` is not `true`; new category approval paths are **blocked** until D1 cutover. The old direct KV writes remain a temporary risk in this phase, so observe a short editor maintenance window.
+- While `PZ_D1_SITE_CONFIG_ENABLED` is not `true`, old site-config routes and pre-existing new-category approval remain routable; **new category modification approval and reconciliation** return 503 until D1 cutover. Legacy new-category approval in the full candidate now saves draft only (no auto-publish); communicate the behavior change before deployment. Direct KV writes remain a temporary risk in this phase, so observe a short editor maintenance window.
 - With the flag on: reads and writes of draft/published configuration go to **D1**. `PUT /site-config` requires `{revision,config}`; `POST /admin/publish` requires `{revision}`; stale writes return 409; missing revision returns 428.
 - Legacy new category approval and new category amendment approval update D1 draft + request status in a single D1 `batch` transaction with a unique write token. Both are draft-only.
 - Public `GET /api/site-config`, factory category amendment reads and admin preview read D1 authoritative data. Legacy KV reconciliation is rejected after cutover.
