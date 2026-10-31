@@ -43,7 +43,7 @@ const FactoryWorkspace: React.FC = () => {
 
   const [isRequestingCategory, setIsRequestingCategory] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
-  const [catRequest, setCatRequest] = useState({ title: '', title_cn: '', subtitle: '', description: '', image: '' });
+  const [catRequest, setCatRequest] = useState({ title: '', title_cn: '', subtitle: '', image: '' });
 
   const userName = sessionStorage.getItem('pz_user_name') || '工厂操作员';
 
@@ -230,17 +230,15 @@ const FactoryWorkspace: React.FC = () => {
                       if (!catRequest.title.trim() || !catRequest.image) return alert('请填写英文分类名称并上传封面图片。');
                       setIsSavingCategory(true);
                       try {
-                          const draft = await factoryFetch('factory/category-requests', { method: 'POST', body: JSON.stringify(catRequest) });
-                          if (!draft?.id || draft?.status !== 'draft') throw new Error('分类草稿创建结果未确认，请检查接口返回值。');
-                          try {
-                            const submitted = await factoryFetch(`factory/category-requests/${encodeURIComponent(draft.id)}/submit`, { method: 'POST' });
-                            if (submitted?.status !== 'awaiting_review') throw new Error('状态未确认');
-                          } catch (submitError: any) {
-                            throw new Error(`分类草稿已创建（编号 ${draft.id}），但提交审核失败。请联系管理员检查该记录，暂时不要重复创建。${submitError?.message || ''}`);
+                          // Existing Staging D1 creates a reviewable "pending" request in one POST.
+                          // There is no draft/submit endpoint in the verified legacy schema.
+                          const created = await factoryFetch('factory/category-requests', { method: 'POST', body: JSON.stringify(catRequest) });
+                          if (!created?.id || created?.status !== 'pending' || created?.success !== true) {
+                            throw new Error('分类申请结果未确认，请让管理员检查待审核新品类，勿重复提交。');
                           }
                           alert('新品类申请已提交，请等待管理员审核。通过后才会显示在网站上。');
                           setIsRequestingCategory(false);
-                          setCatRequest({ title: '', title_cn: '', subtitle: '', description: '', image: '' });
+                          setCatRequest({ title: '', title_cn: '', subtitle: '', image: '' });
                       } catch (e: any) {
                           const message = String(e?.message || '未知错误');
                           alert(message.includes('Not found') && !message.includes('草稿已创建')
@@ -258,8 +256,8 @@ const FactoryWorkspace: React.FC = () => {
                                   <input type="text" value={catRequest.title_cn} onChange={e => setCatRequest({...catRequest, title_cn: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" placeholder="例如：实木台面" />
                               </div>
                               <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类描述</label>
-                                  <textarea rows={3} value={catRequest.description} onChange={e => setCatRequest({...catRequest, description: e.target.value})} className="w-full border border-stone-200 p-3 text-xs focus:border-stone-900 outline-none resize-none" />
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类副标题（选填，200 字以内）</label>
+                                  <textarea rows={3} maxLength={200} value={catRequest.subtitle} onChange={e => setCatRequest({...catRequest, subtitle: e.target.value})} className="w-full border border-stone-200 p-3 text-xs focus:border-stone-900 outline-none resize-none" />
                               </div>
                           </div>
                           <div>
