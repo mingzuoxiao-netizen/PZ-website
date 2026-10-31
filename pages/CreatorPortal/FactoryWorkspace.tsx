@@ -15,6 +15,7 @@ import {
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import CategoryGrid from './components/CategoryGrid';
+import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
 import BatchCreator from './components/BatchCreator';
 
@@ -27,6 +28,7 @@ interface Notification {
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
+  const [activeTab, setActiveTab] = useState<'inventory' | 'categories'>('inventory');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
@@ -198,10 +200,22 @@ const FactoryWorkspace: React.FC = () => {
       }
   };
 
-  const navItems = [{ id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> }];
+  const navItems = [
+    { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
+    { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
+  ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab="inventory" onTabChange={() => {}}>
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as 'inventory' | 'categories')}>
+      {activeTab === 'categories' ? (
+        <FactoryCategoryManagement categories={categories} onUpload={async file => {
+          const form = new FormData(); form.append('file', file);
+          const uploaded = await factoryFetch<{url:string}>('upload-image', { method: 'POST', body: form });
+          if (!uploaded.url) throw new Error('上传封面未返回图片地址');
+          return uploaded.url;
+        }} />
+      ) : (<>
+
       
       {/* Comms Notification Center */}
       <div className="fixed top-24 right-8 z-[200] flex flex-col gap-3 pointer-events-none">
@@ -227,7 +241,7 @@ const FactoryWorkspace: React.FC = () => {
                   </div>
                   <form onSubmit={async (e) => {
                       e.preventDefault();
-                      if (!catRequest.title.trim() || !catRequest.image) return alert('请填写英文分类名称并上传封面图片。');
+                      if (!catRequest.title.trim() || !catRequest.title_cn.trim() || !catRequest.image) return alert('请填写中英文分类名称并上传封面图片。');
                       setIsSavingCategory(true);
                       try {
                           // Existing Staging D1 creates a reviewable "pending" request in one POST.
@@ -242,7 +256,7 @@ const FactoryWorkspace: React.FC = () => {
                       } catch (e: any) {
                           const message = String(e?.message || '未知错误');
                           alert(message.includes('Not found') && !message.includes('草稿已创建')
-                            ? 'Staging Worker 尚未提供「新品类申请」接口（404）。当前没有提交成功，请联系管理员部署对应接口补丁。'
+                            ? '当前 Worker 尚未提供「新品类申请」接口（404）。当前没有提交成功，请联系管理员检查环境部署。'
                             : message);
                       }
                       finally { setIsSavingCategory(false); }
@@ -252,7 +266,7 @@ const FactoryWorkspace: React.FC = () => {
                               <div>
                                   <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">分类英文名称（必填）</label>
                                   <input type="text" required value={catRequest.title} onChange={e => setCatRequest({...catRequest, title: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" />
-                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-3 mb-2">中文名称（选填）</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-3 mb-2">中文名称（必填）</label>
                                   <input type="text" value={catRequest.title_cn} onChange={e => setCatRequest({...catRequest, title_cn: e.target.value})} className="w-full border border-stone-200 p-3 text-sm focus:border-stone-900 outline-none" placeholder="例如：实木台面" />
                               </div>
                               <div>
@@ -355,6 +369,7 @@ const FactoryWorkspace: React.FC = () => {
                 />
             </div>
           )}
+          </>)}
     </PortalLayout>
   );
 };

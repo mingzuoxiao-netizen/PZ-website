@@ -57,3 +57,14 @@ test('rejecting a new category calls category rejection, never product rejection
     (globalThis as any).window = previousWindow;
   }
 });
+
+test('hidden category stays out of public categories and homepage after publishing', () => {
+  const categories = [
+    { id: 'butcher-block', title: 'Butcher Block', image: 'a' },
+    { id: 'sofa', title: 'Sofa', image: 'b', hidden: true },
+    { id: 'rugs', title: 'Rugs', image: 'c', hidden: false }
+  ];
+  assert.ok(!publishedSiteCategories(categories).some(c => c.id === 'sofa'));
+  assert.ok(!homepageSiteCategories(categories).some(c => c.id === 'sofa'));
+  assert.ok(publishedSiteCategories(categories).some(c => c.id === 'rugs'));
+});

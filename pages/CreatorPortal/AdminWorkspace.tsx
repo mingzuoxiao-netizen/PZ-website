@@ -15,6 +15,8 @@ import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import SiteConfigEditor from './components/SiteConfigEditor';
 import SiteMediaManager from './components/SiteMediaManager';
+import CategoryManagement from './components/CategoryManagement';
+import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
@@ -29,6 +31,7 @@ const AdminWorkspace: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [reviewProducts, setReviewProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
+  const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
 
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -56,6 +59,7 @@ const AdminWorkspace: React.FC = () => {
       // Legacy D1 category_requests defaults to "pending"; newer client
       // workflows may use "awaiting_review". Load both, not just one status.
       const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
+      setAllCategoryRequests(catRes.items ?? []);
       setCategoryRequests((catRes.items ?? []).filter(item =>
         item.status === 'pending' || item.status === 'awaiting_review'));
     } catch (e) { console.error('Queue sync error', e); }
@@ -88,6 +92,7 @@ const AdminWorkspace: React.FC = () => {
   }, [activeTab, loadReviewQueue]);
 
   useEffect(() => { loadProducts(); loadSiteConfig(); }, [loadProducts, loadSiteConfig]);
+  useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
   const handleDeployEverything = async () => {
     if (!confirm('确认同步已审核的产品，并发布已经保存的网站配置吗？')) return;
@@ -159,7 +164,7 @@ const AdminWorkspace: React.FC = () => {
     { id: 'review', label: '审核中心', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
-    { id: 'categories', label: '产品分类封面', icon: <LayoutGrid size={18} /> },
+    { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} /> },
     { id: 'media', label: '其他网站图片', icon: <Settings size={18} /> },
     { id: 'config', label: '网站内容配置', icon: <Settings size={18} /> },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} /> },
@@ -184,6 +189,8 @@ const AdminWorkspace: React.FC = () => {
 
       <div className="pb-32">
         {activeTab === 'review' && (
+          <>
+          <CategoryChangeReview onApproved={loadSiteConfig} />
           <ReviewQueue products={reviewProducts} categoryRequests={categoryRequests} onProcessProduct={async (id, action) => {
               try {
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
@@ -206,27 +213,21 @@ const AdminWorkspace: React.FC = () => {
               const endpoint = action === 'approve' ? 'approve' : 'reject';
               const result = await adminFetch<any>(
                 `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
-                { method: 'POST' }
+                { method: 'POST', body: JSON.stringify(action === 'approve' ? { autoPublish: false } : {}) }
               );
               if (result?.success !== true || result.status !== (action === 'approve' ? 'approved' : 'rejected')) {
                 throw new Error('分类审核结果未确认，请刷新后核对状态。');
               }
               await Promise.all([loadReviewQueue(), loadSiteConfig()]);
-              if (action === 'reject') return;
-              if (result.published !== true) {
-                throw new Error('分类已批准，但网站发布尚未完成。请检查网站图片管理并手动发布，勿重复批准。');
-              }
-              const response = await fetch('/api/site-config', { cache: 'no-store' });
-              if (!response.ok) throw new Error('分类已批准，但无法验证公开网站配置。');
-              const body = await response.json();
-              const publicCategories = body?.config?.categories ?? body?.categories ?? [];
-              if (!Array.isArray(publicCategories) ||
-                !publicCategories.some((item: any) => item.proposal_id === id)) {
-                throw new Error('分类已批准，但公开配置暂未找到新分类，请检查发布状态。');
+              // Approval writes to draft only. Publishing is always a separate admin action.
+              // Never verify public visibility until an explicit publish.
+              if (action === 'approve' && result.needsPublish !== true) {
+                throw new Error('分类审核完成，但草稿状态未确认；请检查网站配置。');
               }
             }}
             reloadQueue={async () => { await loadReviewQueue(); }}
           />
+          </>
         )}
 
         {activeTab === 'inventory' && (
@@ -237,10 +238,45 @@ const AdminWorkspace: React.FC = () => {
           )
         )}
 
-        {(activeTab === 'media' || activeTab === 'categories') && (
+        {activeTab === 'categories' && siteConfig && (
+          <CategoryManagement
+            categories={siteConfig.categories || []}
+            approvedRequests={allCategoryRequests}
+            onSave={async (next, expected) => {
+              setIsSavingConfig(true);
+              try {
+                const response = await adminFetch<{ draft: any }>('admin/draft/site-config');
+                const live = response.draft;
+                if (!live || !Array.isArray(live.categories)) throw new Error('正式站点草稿分类不存在，拒绝覆盖。');
+                if (JSON.stringify(live.categories) !== JSON.stringify(expected)) {
+                  throw new Error('其他管理员已经修改分类，请先刷新页面后重新编辑。');
+                }
+                await adminFetch('site-config', { method:'PUT', body: JSON.stringify({ ...live, categories: next }) });
+                setHasPendingDeploy(true);
+                await loadSiteConfig();
+              } finally { setIsSavingConfig(false); }
+            }}
+            onPublish={async () => {
+              setIsSavingConfig(true);
+              try {
+                await adminFetch('admin/publish', { method: 'POST' });
+                setHasPendingDeploy(false);
+                await loadSiteConfig();
+              } finally { setIsSavingConfig(false); }
+            }}
+            onRefresh={loadSiteConfig}
+            onUpload={async file => {
+              const form = new FormData(); form.append('file', file);
+              const response = await adminFetch<{ url: string }>('upload-image', { method:'POST', body:form });
+              if (!response.url) throw new Error('封面上传没有返回图片地址');
+              return response.url;
+            }}
+          />
+        )}
+        {activeTab === 'media' && (
           <SiteMediaManager
             key={activeTab}
-            initialGroupIndex={activeTab === 'categories' ? 0 : 1}
+            initialGroupIndex={1}
             config={siteConfig}
             onChange={setSiteConfig}
             onSave={async () => {

@@ -2,7 +2,7 @@ name: Website 2.0 QA
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feature/website-2-editorial-redesign]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,32 @@ jobs:
         run: node --check worker-patches/factoryCategoryStaging.mjs && node --test worker-patches/factoryCategoryStaging.test.mjs
       - name: Test production category API candidate
         run: node --check worker-patches/factoryCategoryProduction.mjs && node --test worker-patches/factoryCategoryProduction.test.mjs
+      - name: Validate category D1 migration (in-memory SQLite)
+        run: python3 worker-patches/test_category_change_migration.py
+      - name: Test staging category amendment API
+        run: node --check worker-patches/factoryCategoryChangesStaging.mjs && node --test worker-patches/factoryCategoryChangesStaging.test.mjs
+      - name: Verify assembled Staging Worker syntax and route isolation
+        run: |
+          node --check worker-patches/staging-worker-category-changes-REVIEW.js
+          node --input-type=module -e "
+            import('./worker-patches/staging-worker-category-changes-REVIEW.js').then(async m => {
+              const request = new Request('https://staging.example/factory/category-change-requests',{
+                method:'POST', headers:{'content-type':'application/json'}, body:'{}'
+              });
+              const stage = await m.default.fetch(request,{PZ_RUNTIME_ENV:'staging'});
+              if(stage.status !== 401) throw Error('Staging anonymous route expected 401, got '+stage.status);
+              const prod = await m.default.fetch(request,{PZ_RUNTIME_ENV:'production'});
+              if(prod.status !== 403) throw Error('Production on Staging-only route expected 403, got '+prod.status);
+            }).catch(e => { console.error(e); process.exit(1); });
+          "
+      - name: Verify legacy approval requires explicit publishing
+        run: |
+          node -e "
+            const fs = require('fs');
+            const s = fs.readFileSync('worker-patches/staging-worker-category-changes-REVIEW.js','utf8');
+            const p=s.indexOf('Only pending category requests can be approved'); const q=s.indexOf('Only pending category requests can be rejected'); const a=s.slice(p,q); if(p<0 || q<=p || !a.includes('needsPublish: true') || a.includes('published:site_config') || s.includes('let autoPublish = true;')) process.exit(1);
+            if(!s.includes('handleFactoryCategoryRequests') || !s.includes('handleCategoryChanges')) process.exit(1);
+          "
       - name: Build frontend
         run: npm run build
       - name: Build Pages Functions
