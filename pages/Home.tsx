@@ -37,7 +37,8 @@ const Home: React.FC = () => {
   const { config: site, loading, isFallback } = usePublishedSiteConfig();
 
   const heroImage = resolveImage(site?.home?.hero?.image) || FALLBACK_HERO;
-  const factoryImage = resolveImage(site?.home?.factory?.image) || FALLBACK_FACTORY;
+  const factoryImage = '/images/pz-workshop-back.png';
+  const factoryFallback = resolveImage(site?.home?.factory?.image) || FALLBACK_FACTORY;
   const chinaImage = resolveImage(site?.home?.hub_cn?.image) || FALLBACK_FACTORY;
   const cambodiaImage = resolveImage(site?.home?.hub_kh?.image) || FALLBACK_FACTORY;
   const materialImages = [
@@ -62,7 +63,7 @@ const Home: React.FC = () => {
       )}
 
       {/* 01 — editorial hero, split visual on desktop */}
-      <section className="relative bg-[#f2ece4] lg:min-h-[615px] pt-[70px] md:pt-[90px] overflow-hidden" aria-label="PZ Furniture Studio introduction">
+      <section className="relative bg-[#f2ece4] lg:min-h-[615px] pt-[70px] md:pt-[76px] overflow-hidden" aria-label="PZ Furniture Studio introduction">
         <div className="grid lg:grid-cols-[46%_54%] lg:min-h-[615px]">
           <div className="relative z-10 px-6 sm:px-10 lg:pl-[max(48px,calc((100vw-1330px)/2))] lg:pr-5 py-16 lg:py-20 flex flex-col justify-center bg-[#f2ece4]">
             <p className={sectionKicker}>Furniture & Wood Component Manufacturing</p>
@@ -144,7 +145,7 @@ const Home: React.FC = () => {
       {/* 04 — human craftsmanship + four-step workflow */}
       <section className="grid lg:grid-cols-[42%_58%] bg-white" aria-labelledby="workflow-title">
         <div className="relative min-h-[390px] lg:min-h-[380px] overflow-hidden bg-[#3a2b22]">
-          <img src={factoryImage} alt="Furniture workshop and hands-on production" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-center" />
+          <img src={factoryImage} alt="PZ furniture workshop team member seen from behind" loading="lazy" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = factoryFallback; }} className="absolute inset-0 w-full h-full object-cover object-center" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1e130e]/90 via-[#1e130e]/65 to-[#1e130e]/20" />
           <div className="relative z-10 max-w-[510px] px-7 md:px-12 py-12 lg:py-14 flex flex-col justify-center h-full">
             <p className="text-white/80 tracking-[0.18em] uppercase text-[10px] font-semibold">From Concept to Production</p>
