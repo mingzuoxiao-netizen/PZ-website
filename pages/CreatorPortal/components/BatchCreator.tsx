@@ -36,6 +36,7 @@ interface DraftPayload {
 
 interface BatchCreatorProps {
   categories: Category[];
+  fixedCategoryId?: string;
   onCreateDraft: (product: DraftPayload) => Promise<void>;
   onCheckSkuCodes: (codes: string[]) => Promise<string[]>;
   onCompleted: () => Promise<void>;
@@ -56,11 +57,11 @@ const productionSiteOptions: { value: ProductionSite; label: string }[] = [
 ];
 
 const BatchCreator: React.FC<BatchCreatorProps> = ({
-  categories, onCreateDraft, onCheckSkuCodes, onCompleted, onCancel, onUpload, lang = 'en'
+  categories, fixedCategoryId, onCreateDraft, onCheckSkuCodes, onCompleted, onCancel, onUpload, lang = 'en'
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [mode, setMode] = useState<Mode>('many-products');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(fixedCategoryId || '');
   const [selectedSites, setSelectedSites] = useState<ProductionSite[]>([]);
   const [rows, setRows] = useState<AssetRow[]>([]);
   const [single, setSingle] = useState({ name: '', code: '', material: '', size: '' });
@@ -172,7 +173,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const createDraft = (params: { name: string; code: string; material: string; size: string }, urls: string[], sites: ProductionSite[]) => {
     const payload: DraftPayload = {
       name: params.name.trim(), code: normalizeCode(params.code),
-      category: selectedCategory, material: params.material.trim(),
+      category: fixedCategoryId || selectedCategory, material: params.material.trim(),
       size: params.size.trim(), production_sites: [...sites],
       images: urls, status: 'draft', is_published: 0
     };
@@ -182,7 +183,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const processBatch = async () => {
     if (inFlight.current) return;
     setFeedback('');
-    if (!selectedCategory) return setFeedback(T('Select a product category first.', '请先选择产品分类。'));
+    if (!(fixedCategoryId || selectedCategory)) return setFeedback(T('Select a product category first.', '请先选择产品分类。'));
     if (mode === 'one-product' && selectedSites.length === 0) return setFeedback('Select at least one production site.');
     if (rows.length === 0) return setFeedback(T('Choose image files first.', '请先选择图片。'));
     if (rows.some(row => row.status === 'verify')) {
@@ -343,13 +344,25 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-xs font-bold uppercase text-stone-600">Product Category
-            <select disabled={isProcessing || hasSaved} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-              className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900">
-              <option value="">{T("Choose category","选择产品分类")}</option>
-              {categories.map(category => <option key={category.id} value={category.id}>{category.title}</option>)}
-            </select>
-          </label>
+          <div className="block text-xs font-bold uppercase text-stone-600">
+            {T("Product Category","产品分类")}
+            {fixedCategoryId ? (
+              <div className="mt-2 w-full border border-stone-200 bg-stone-100 p-3 text-sm font-normal text-stone-900">
+                {(() => {
+                  const selected = categories.find(c => c.id === fixedCategoryId);
+                  return selected
+                    ? (lang === 'zh' ? (selected.title_cn || selected.title_zh || selected.title) : selected.title)
+                    : T('Category unavailable','分类不存在');
+                })()} · {T('Auto-selected','已自动关联')}
+              </div>
+            ) : (
+              <select disabled={isProcessing || hasSaved} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
+                className="mt-2 w-full border border-stone-200 bg-white p-3 text-sm font-normal text-stone-900">
+                <option value="">{T("Choose category","选择产品分类")}</option>
+                {categories.map(category => <option key={category.id} value={category.id}>{lang === 'zh' ? (category.title_cn || category.title_zh || category.title) : category.title}</option>)}
+              </select>
+            )}
+          </div>
           <fieldset className="border border-stone-200 p-3">
             <legend className="px-1 text-xs font-bold uppercase text-stone-600">{mode === 'many-products' ? 'Default Production Sites / 默认生产基地' : 'Production Sites / 生产基地'}</legend>
             {productionSiteOptions.map(site => (
