@@ -151,3 +151,44 @@ export const zhTranslations: Record<string, any> = {
       publish:'发布更改',pushProd:'发布到网站',publishing:'正在发布…',unsaved:'未保存更改',apply:'保存草稿'}
   }
 };
+
+// Additional page-specific copy keeps the entire public navigation journey bilingual.
+Object.assign(zhTranslations.about, {
+  milestones: {
+    '2014': { title: '肇庆工厂起步', desc: '公司发展初期的制造基地。' },
+    '2018': { title: '生产设备升级', desc: '持续加强家具加工与制造能力。' },
+    '2021': { title: '柬埔寨基地', desc: '将生产网络拓展至干丹。' },
+    '2024': { title: '数字化产品管理', desc: '逐步完善产品与流程管理。' },
+    '2025': { title: '持续改进', desc: '持续关注材料、生产与企业发展。' }
+  }
+});
+Object.assign(zhTranslations.manufacturing, {
+  machineryList: [
+    { type: '数控设备', name: 'CNC 加工', desc: '支持产品结构与关键尺寸的加工。' },
+    { type: '表面处理', name: '涂装生产线', desc: '为不同涂装工艺提供生产支持。' },
+    { type: '木材准备', name: '木材加工设备', desc: '协助完成木材准备与表面加工。' }
+  ]
+});
+Object.assign(zhTranslations.capabilities, {
+  cta: { title: '准备开始新项目？', btn: '提交生产需求' }
+});
+Object.assign(zhTranslations.capacity, {
+  leadTime: '交付周期', sampleDev: '样品开发', initProd: '首批生产', reOrder: '重复订单',
+  leadTimeNote: '实际交付时间取决于材料供应、产品复杂度及订单安排。',
+  logisticsTitle: '海运物流', chinaOrigin: '中国港口', khOrigin: '柬埔寨港口',
+  shippingDesc: '可根据订单和物流方案讨论整柜或拼箱运输。',
+  clientDist: '市场与合作', clientDesc: '我们面向不同国际市场的家具品牌和采购客户。',
+  stats: { sqft: '生产设施面积', brands: '合作品牌', units: '月度产能', logistics: '物流支持' },
+  supplyChainDesc: '根据产品需求协调采购、生产与物流。',
+  flexible: '灵活的生产安排', flexibleDesc: '根据产品及订单情况协调两个生产基地。',
+  warehouseDesc: '可针对客户的物流和仓储需求讨论可行方案。',
+  locations: {
+    usa_title: '北美市场', usa_desc: '了解面向北美客户的产品与出货需求。',
+    can_title: '加拿大市场', can_desc: '支持客户讨论不同品类的采购需求。',
+    uk_title: '英国市场', uk_desc: '可根据具体产品和市场要求讨论合作。',
+    de_title: '欧洲市场', de_desc: '可根据具体产品和市场要求讨论合作。',
+    me_title: '中东项目', me_desc: '可根据商业项目要求讨论家具供应。',
+    cn_title: '中国肇庆总部', cn_desc: '产品管理及主要制造业务所在地。',
+    kh_title: '柬埔寨干丹工厂', kh_desc: '支持公司制造与国际供应业务的另一生产基地。'
+  }
+});
