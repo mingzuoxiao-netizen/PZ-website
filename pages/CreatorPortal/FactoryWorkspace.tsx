@@ -231,11 +231,22 @@ const FactoryWorkspace: React.FC = () => {
                       setIsSavingCategory(true);
                       try {
                           const draft = await factoryFetch('factory/category-requests', { method: 'POST', body: JSON.stringify(catRequest) });
-                          await factoryFetch(`factory/category-requests/${draft.id}/submit`, { method: 'POST' });
+                          if (!draft?.id || draft?.status !== 'draft') throw new Error('分类草稿创建结果未确认，请检查接口返回值。');
+                          try {
+                            const submitted = await factoryFetch(`factory/category-requests/${encodeURIComponent(draft.id)}/submit`, { method: 'POST' });
+                            if (submitted?.status !== 'awaiting_review') throw new Error('状态未确认');
+                          } catch (submitError: any) {
+                            throw new Error(`分类草稿已创建（编号 ${draft.id}），但提交审核失败。请联系管理员检查该记录，暂时不要重复创建。${submitError?.message || ''}`);
+                          }
                           alert('新品类申请已提交，请等待管理员审核。通过后才会显示在网站上。');
                           setIsRequestingCategory(false);
                           setCatRequest({ title: '', title_cn: '', subtitle: '', description: '', image: '' });
-                      } catch (e: any) { alert(e.message); }
+                      } catch (e: any) {
+                          const message = String(e?.message || '未知错误');
+                          alert(message.includes('Not found') && !message.includes('草稿已创建')
+                            ? 'Staging Worker 尚未提供「新品类申请」接口（404）。当前没有提交成功，请联系管理员部署对应接口补丁。'
+                            : message);
+                      }
                       finally { setIsSavingCategory(false); }
                   }} className="p-8 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
