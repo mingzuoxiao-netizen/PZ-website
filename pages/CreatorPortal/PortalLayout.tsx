@@ -20,7 +20,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
   const { t } = useLanguage();
   
   const handleLogout = () => {
-    if (confirm("Terminate current session?")) {
+    if (confirm("确认退出当前登录账号吗？")) {
         sessionStorage.clear();
         window.location.href = '#/admin-pzf-2025';
     }
@@ -28,10 +28,10 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-stone-50 flex overflow-hidden">
-       <aside className="w-64 bg-stone-900 text-white flex flex-col flex-shrink-0 z-50">
+       <aside className="w-64 bg-[#1e3045] text-white flex flex-col flex-shrink-0 z-50">
           <div className="p-8 border-b border-white/5 flex items-center gap-3">
-              <div className="bg-safety-700 w-8 h-8 rounded flex items-center justify-center font-serif font-bold text-white shadow-lg">P</div>
-              <div className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase opacity-60">System Kernel</div>
+              <div className="bg-[#476b9a] w-8 h-8 rounded flex items-center justify-center font-serif font-bold text-white shadow-lg">P</div>
+              <div className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase opacity-60">PZ 管理后台</div>
           </div>
 
           <nav className="flex-grow p-4 space-y-1">
@@ -41,11 +41,11 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                    onClick={() => onTabChange(item.id)}
                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-all group font-sans text-[13px] font-medium
                     ${activeTab === item.id 
-                        ? 'bg-white/10 text-white shadow-[inset_3px_0_0_0_#c2410c]' 
+                        ? 'bg-white/10 text-white shadow-[inset_3px_0_0_0_#8fb3e0]' 
                         : 'text-stone-500 hover:bg-white/5 hover:text-stone-300'}
                    `}
                 >
-                   <span className={activeTab === item.id ? 'text-safety-700' : 'text-stone-600 group-hover:text-stone-400'}>
+                   <span className={activeTab === item.id ? 'text-blue-200' : 'text-stone-400 group-hover:text-stone-200'}>
                        {item.icon}
                    </span>
                    {item.label}
@@ -60,7 +60,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                     <span className="text-xs font-bold text-white truncate">{userName}</span>
                  </div>
                  <p className="text-[10px] text-stone-600 uppercase tracking-widest font-mono">
-                    {role === 'ADMIN' ? 'Administrator' : 'Factory Operator'}
+                    {role === 'ADMIN' ? '网站管理员' : '工厂操作员'}
                  </p>
              </div>
              
@@ -80,18 +80,18 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                     {navItems.find(i => i.id === activeTab)?.label}
                   </h2>
                   <div className="flex items-center gap-2 px-2 py-1 bg-stone-100 rounded text-[9px] font-mono text-stone-500 uppercase tracking-widest">
-                    Registry OS v2.5 // READY
+                    管理系统 / 已连接
                   </div>
               </div>
 
               <div className="flex items-center gap-6">
                   <Link to="/" target="_blank" className="flex items-center gap-2 text-xs font-bold text-stone-400 hover:text-stone-900 transition-colors">
-                      Live Preview <Globe size={14} />
+                      查看网站 <Globe size={14} />
                   </Link>
                   <div className="h-6 w-px bg-stone-200"></div>
                   <div className="flex items-center gap-2">
                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                     <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">Synchronized</span>
+                     <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">已同步</span>
                   </div>
               </div>
           </header>
