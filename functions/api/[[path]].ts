@@ -6,29 +6,73 @@ export async function onRequest(context: any) {
   let path = url.pathname.replace(/^\/api/, "");
   if (!path.startsWith("/")) path = "/" + path;
 
-  // Production defaults to the existing API. Configure PZ_BACKEND_WORKER
-  // in *Preview only* to point to an isolated staging Worker + D1.
-  const configuredBackend = String(context.env?.PZ_BACKEND_WORKER || "").trim().replace(/\/$/, "");
-  const isPreviewHost = url.hostname.endsWith(".pz-website-lw7.pages.dev");
+ 
+  // PZ API Gateway - Production / Preview isolation.
+  // Preview must explicitly use the Staging Worker.
+  // Missing or incorrect configuration fails closed.
 
-  // Fail closed on Cloudflare Pages previews. A missing/invalid preview binding must
-  // NEVER silently route admin or factory writes to the production Worker/D1.
-  const expectedStagingBackend = "https://pz-inquiry-api-staging.mingzuoxiao29.workers.dev";
-  if (isPreviewHost && configuredBackend !== expectedStagingBackend) {
-    return new Response(JSON.stringify({
-      error: "Preview backend not configured",
-      details: "Set PZ_BACKEND_WORKER to the dedicated Staging Worker in Pages Preview variables, then redeploy this Preview."
-    }), {
-      status: 503,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  const PRODUCTION_WORKER =
+    "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+
+  const STAGING_WORKER =
+    "https://pz-inquiry-api-staging.mingzuoxiao29.workers.dev";
+
+  const hostname = url.hostname.toLowerCase();
+
+  const PRODUCTION_HOSTS = new Set([
+    "www.peng-zhan.com",
+    "peng-zhan.com",
+    "pz-website-lw7.pages.dev",
+  ]);
+
+  const isProductionHost = PRODUCTION_HOSTS.has(hostname);
+
+  const configuredBackend = String(
+    context.env?.PZ_BACKEND_WORKER || ""
+  )
+    .trim()
+    .replace(/\/+$/, "");
+
+  const jsonError = (
+    status: number,
+    error: string,
+    details: string
+  ) =>
+    new Response(JSON.stringify({ error, details }), {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      },
     });
+
+  if (isProductionHost) {
+    // Production must not accidentally connect to Staging.
+    if (
+      configuredBackend &&
+      configuredBackend !== PRODUCTION_WORKER
+    ) {
+      return jsonError(
+        503,
+        "Production backend misconfigured",
+        "The Production environment must use the Production Worker."
+      );
+    }
+  } else {
+    // Preview and unknown hostnames must use Staging.
+    // Never silently fall back to Production.
+    if (configuredBackend !== STAGING_WORKER) {
+      return jsonError(
+        503,
+        "Preview backend not configured",
+        "Set PZ_BACKEND_WORKER to the dedicated Staging Worker in Cloudflare Pages Preview settings."
+      );
+    }
   }
 
-  const BACKEND_WORKER = isPreviewHost
-    ? expectedStagingBackend
-    : /^https:\/\/[a-z0-9.-]+\.workers\.dev\/?$/i.test(configuredBackend)
-      ? configuredBackend
-      : "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+  const BACKEND_WORKER = isProductionHost
+    ? PRODUCTION_WORKER
+    : STAGING_WORKER;
 
   // Removed /site-config and /upload-image from public roots to enforce Auth branch
   const PUBLIC_ROOTS = ["/products"];
