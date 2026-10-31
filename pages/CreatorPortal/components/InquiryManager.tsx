@@ -57,6 +57,14 @@ const normalizeInquiry = (row: ApiInquiry): Inquiry => ({
   source: optionalText(row.source),
 });
 
+const statusLabels: Record<string, string> = {
+  new: '新询盘',
+  read: '已查看',
+  replied: '已回复',
+  pending: '待处理'
+};
+const statusLabel = (status: string) => statusLabels[status.toLowerCase()] || status;
+
 const dateValue = (value: string): number => {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -65,7 +73,7 @@ const dateValue = (value: string): number => {
 const formatDate = (value: string) => {
   const timestamp = dateValue(value);
   if (!timestamp) return value || '—';
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('zh-CN', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(timestamp);
@@ -85,13 +93,13 @@ const InquiryManager: React.FC = () => {
     try {
       const response = await adminFetch<InquiryResponse>('admin/inquiries');
       if (!response || !Array.isArray(response.inquiries)) {
-        throw new Error('Unexpected server response: inquiries list is missing.');
+        throw new Error('服务器响应异常：缺少询盘列表。');
       }
       setInquiries(response.inquiries.map(normalizeInquiry));
     } catch (err) {
       // Keep the last successful list, and display a visible error instead
       // of quietly presenting it as fresh data.
-      setError(err instanceof Error ? err.message : 'Unable to load inquiries.');
+      setError(err instanceof Error ? err.message : '无法加载询盘。');
     } finally {
       setLoading(false);
     }
@@ -226,7 +234,7 @@ const InquiryManager: React.FC = () => {
                     </td>
                     <td className="px-5 py-4 text-stone-600">{inquiry.company}</td>
                     <td className="px-5 py-4 text-stone-600">{inquiry.productType}</td>
-                    <td className="px-5 py-4 text-stone-600">{inquiry.status}</td>
+                    <td className="px-5 py-4 text-stone-600">{statusLabel(inquiry.status)}</td>
                     <td className="px-5 py-4 text-right">
                       <button type="button" onClick={() => setSelected(inquiry)} className="text-xs font-bold uppercase tracking-wider text-orange-700 hover:underline" aria-label={`查看来自 ${inquiry.name} 的询盘`}>
                         查看详情
@@ -256,7 +264,7 @@ const InquiryManager: React.FC = () => {
             </div>
             <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
               <Detail label="收到时间" value={formatDate(selected.createdAt)} />
-              <Detail label="状态" value={selected.status} />
+              <Detail label="状态" value={statusLabel(selected.status)} />
               <Detail label="公司" value={selected.company} />
               <Detail label="产品类型" value={selected.productType} />
               <Detail label="邮箱" value={selected.email} />
