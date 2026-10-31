@@ -139,7 +139,7 @@ const InquiryManager: React.FC = () => {
           className="inline-flex items-center gap-2 border border-stone-200 bg-white px-5 py-3 text-xs font-bold uppercase tracking-widest text-stone-900 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          Refresh
+          刷新
         </button>
       </div>
 
@@ -210,7 +210,7 @@ const InquiryManager: React.FC = () => {
             <tbody className="divide-y divide-stone-100">
               {loading && inquiries.length === 0 ? (
                 <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">
-                  <span className="inline-flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> Loading inquiries...</span>
+                  <span className="inline-flex items-center gap-2"><Loader2 size={18} className="animate-spin" /> 正在加载询盘…</span>
                 </td></tr>
               ) : !error && inquiries.length === 0 ? (
                 <tr><td colSpan={6} className="px-5 py-16 text-center text-stone-500">暂无客户询盘。</td></tr>
@@ -228,8 +228,8 @@ const InquiryManager: React.FC = () => {
                     <td className="px-5 py-4 text-stone-600">{inquiry.productType}</td>
                     <td className="px-5 py-4 text-stone-600">{inquiry.status}</td>
                     <td className="px-5 py-4 text-right">
-                      <button type="button" onClick={() => setSelected(inquiry)} className="text-xs font-bold uppercase tracking-wider text-orange-700 hover:underline" aria-label={`View inquiry from ${inquiry.name}`}>
-                        View details
+                      <button type="button" onClick={() => setSelected(inquiry)} className="text-xs font-bold uppercase tracking-wider text-orange-700 hover:underline" aria-label={`查看来自 ${inquiry.name} 的询盘`}>
+                        查看详情
                       </button>
                     </td>
                   </tr>
@@ -239,8 +239,8 @@ const InquiryManager: React.FC = () => {
           </table>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 px-5 py-3 text-xs text-stone-400">
-          <span>Showing {filteredInquiries.length} of {inquiries.length} loaded inquiries</span>
-          {loading && inquiries.length > 0 && <span className="flex items-center gap-1"><Loader2 size={13} className="animate-spin" /> Refreshing...</span>}
+          <span>已加载 {inquiries.length} 条，当前显示 {filteredInquiries.length} 条</span>
+          {loading && inquiries.length > 0 && <span className="flex items-center gap-1"><Loader2 size={13} className="animate-spin" /> 正在刷新…</span>}
         </div>
       </div>
 
@@ -269,7 +269,7 @@ const InquiryManager: React.FC = () => {
             <div className="flex flex-wrap justify-end gap-3 border-t border-stone-200 px-6 py-4">
               {selected.email !== '—' && (
                 <a href={`mailto:${selected.email}`} className="inline-flex items-center gap-2 bg-stone-900 px-5 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-700">
-                  <Mail size={15} /> Email customer
+                  <Mail size={15} /> 邮件联系客户
                 </a>
               )}
               <button type="button" onClick={() => setSelected(null)} className="border border-stone-200 px-5 py-3 text-xs font-bold uppercase tracking-wider text-stone-600 hover:bg-stone-50">关闭</button>
