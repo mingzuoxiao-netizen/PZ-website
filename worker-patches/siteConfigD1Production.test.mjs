@@ -246,6 +246,16 @@ test('bootstrap initial public snapshot can be restored after first D1 publish',
   assert.equal(f.db.state.published_json,original);
 });
 
+test('D1 flag off preserves old new-category approval and blocks new modification approval',async()=>{
+  const f=fixture({active:false,seeded:false});
+  const oldCategory=await f.call('/admin/category-requests/example/approve');
+  assert.equal(oldCategory,null,'New-category approval must fall through to legacy route before cutover');
+  const change=await f.call('/admin/category-change-requests/example/approve');
+  assert.equal(change.status,503,'New modification approval must remain inactive until cutover');
+  const repair=await f.call('/admin/category-change-requests/example/reconcile');
+  assert.equal(repair.status,503);
+});
+
 test('versioned mode keeps bootstrap closed and legacy reconciliation unavailable',async()=>{
   const f=fixture();
   assert.equal((await f.call('/admin/site-config/bootstrap',null,'GET')).status,409);
