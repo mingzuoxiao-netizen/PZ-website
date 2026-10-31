@@ -2,7 +2,7 @@ name: Website 2.0 QA
 
 on:
   pull_request:
-    branches: [main, feature/website-2-editorial-redesign]
+    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval]
   workflow_dispatch:
 
 permissions:
@@ -55,6 +55,34 @@ jobs:
             const s = fs.readFileSync('worker-patches/staging-worker-category-changes-REVIEW.js','utf8');
             const p=s.indexOf('Only pending category requests can be approved'); const q=s.indexOf('Only pending category requests can be rejected'); const a=s.slice(p,q); if(p<0 || q<=p || !a.includes('needsPublish: true') || a.includes('published:site_config') || s.includes('let autoPublish = true;')) process.exit(1);
             if(!s.includes('handleFactoryCategoryRequests') || !s.includes('handleCategoryChanges')) process.exit(1);
+          "
+      - name: Validate Production D1 schema candidate in memory
+        run: python3 worker-patches/test_category_change_production_migration.py
+      - name: Test Production category amendments
+        run: node --check worker-patches/factoryCategoryChangesProduction.mjs && node --test worker-patches/factoryCategoryChangesProduction.test.mjs
+      - name: Production Worker candidate syntax and auth-isolation
+        run: |
+          node --check worker-patches/production-worker-category-governance-REVIEW.js
+          node --input-type=module -e "
+            import('./worker-patches/production-worker-category-governance-REVIEW.js').then(async m => {
+              const url='https://production.example/factory/category-change-requests';
+              const req=()=>new Request(url,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+              const prod=await m.default.fetch(req(),{PZ_RUNTIME_ENV:'production'});
+              if(prod.status!==401) throw Error('Production auth expected 401, got '+prod.status);
+              const stage=await m.default.fetch(req(),{PZ_RUNTIME_ENV:'staging'});
+              if(stage.status!==403) throw Error('Production-only module must reject Staging, got '+stage.status);
+            }).catch(e=>{ console.error(e);process.exit(1); });
+          "
+      - name: Production legacy review is draft only
+        run: |
+          node -e "
+            const fs=require('fs');
+            const s=fs.readFileSync('worker-patches/production-worker-category-governance-REVIEW.js','utf8');
+            const p=s.indexOf('Only pending category requests can be approved');
+            const q=s.indexOf('Only pending category requests can be rejected');
+            const part=s.slice(p,q);
+            if(p<0||q<=p||part.includes('published:site_config')||!part.includes('needsPublish: true'))process.exit(1);
+            if(!s.includes('handleProductionCategoryChanges')||!s.includes('category_change_requests'))process.exit(1);
           "
       - name: Build frontend
         run: npm run build
