@@ -315,6 +315,7 @@ const FactoryWorkspace: React.FC = () => {
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">正在加载产品…</span></div>
       ) : isBatchCreating ? (
           <BatchCreator lang="zh"
+              fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
               categories={categories}
               onCancel={handleBack}
               onCreateDraft={createBatchDraft}
@@ -325,6 +326,7 @@ const FactoryWorkspace: React.FC = () => {
       ) : editingItem || isCreating ? (
             <ProductForm 
                 initialData={editingItem || {}} 
+                fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
                 categories={categories} 
                 onSave={handleSaveDraft} 
                 onSubmit={handleSubmitForReview}
@@ -335,11 +337,11 @@ const FactoryWorkspace: React.FC = () => {
           ) : selectedCategoryId ? (
             <div className="space-y-6">
                 <div className="flex justify-end gap-3">
-                    <button onClick={() => setIsBatchCreating(true)} className="bg-white border border-stone-200 text-stone-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:border-stone-900 transition-colors shadow-sm flex items-center gap-2"><Layers size={16} /> Batch Induction</button>
-                    <button onClick={() => setIsCreating(true)} className="bg-stone-900 text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"><ClipboardList size={16} /> Single SKU</button>
+                    <button onClick={() => setIsBatchCreating(true)} className="bg-white border border-stone-200 text-stone-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:border-stone-900 transition-colors shadow-sm flex items-center gap-2"><Layers size={16} /> 批量录入</button>
+                    <button onClick={() => setIsCreating(true)} className="bg-stone-900 text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"><ClipboardList size={16} /> 新建产品</button>
                 </div>
                 <ProductList 
-                    lang="en" 
+                    lang="zh" 
                     items={selectedCategoryId === 'all' ? products : products.filter(item => {
                         const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
                         return selectedCategory ? categoryMatches(item.category, selectedCategory) : false;
