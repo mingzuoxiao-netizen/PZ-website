@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ArrowUpRight } from 'lucide-react';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { categories as staticCategories } from '../../data/inventory';
 
 interface DesktopNavProps {
@@ -15,27 +16,29 @@ interface DesktopNavProps {
 
 const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSearchOpen }) => {
   const location = useLocation();
+  const { language } = useLanguage();
+  const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const { config } = usePublishedSiteConfig();
   const closeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const productCategories = config?.categories?.length ? config.categories : staticCategories;
   const nav = [
-    { label: 'Home', to: '/' },
-    { label: 'Products', to: '/collections', menu: 'products' },
-    { label: 'Custom Manufacturing', to: '/capabilities', menu: 'manufacturing' },
-    { label: 'Our Facilities', to: '/capacity' },
-    { label: 'Materials & Quality', to: '/materials' },
-    { label: 'About PZ', to: '/about' }
+    { label: 'Home', zh: '首页', to: '/' },
+    { label: 'Products', zh: '产品中心', to: '/collections', menu: 'products' },
+    { label: 'Custom Manufacturing', zh: '定制制造', to: '/capabilities', menu: 'manufacturing' },
+    { label: 'Our Facilities', zh: '生产基地', to: '/capacity' },
+    { label: 'Materials & Quality', zh: '材料与品质', to: '/materials' },
+    { label: 'About PZ', zh: '关于我们', to: '/about' }
   ];
   const submenu = activeMenu === 'products'
     ? [
-        { label: 'All Products', to: '/collections' },
-        ...productCategories.map(c => ({ label: c.title, to: '/collections?category=' + encodeURIComponent(c.id) }))
+        { label: L('All Products','全部产品'), to: '/collections' },
+        ...productCategories.map(c => ({ label: language === 'zh' ? (c.title_zh || c.title) : c.title, to: '/collections?category=' + encodeURIComponent(c.id) }))
       ]
     : [
-        { label: 'OEM / ODM Capabilities', to: '/capabilities' },
-        { label: 'Manufacturing Process', to: '/manufacturing' },
-        { label: 'Our Facilities', to: '/capacity' },
-        { label: 'Materials & Finishes', to: '/materials' }
+        { label: L('OEM / ODM Capabilities','OEM / ODM 定制制造'), to: '/capabilities' },
+        { label: L('Manufacturing Process','制造流程'), to: '/manufacturing' },
+        { label: L('Our Facilities','生产基地'), to: '/capacity' },
+        { label: L('Materials & Finishes','材料与涂装'), to: '/materials' }
       ];
 
   const clearTimer = () => {
@@ -60,7 +63,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
               <Link to={item.to} onClick={() => setActiveMenu(null)}
                 className={'h-full inline-flex gap-1 items-center border-b-2 text-[11px] xl:text-[12px] font-medium whitespace-nowrap transition-colors ' +
                 (selected ? 'text-[#754831] border-[#754831]' : 'text-[#5e5954] border-transparent hover:text-[#754831]')}>
-                {item.label}
+                {language === 'zh' ? item.zh : item.label}
                 {item.menu && <ChevronDown size={12} />}
               </Link>
             </div>
@@ -72,9 +75,9 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
           onMouseEnter={clearTimer} onMouseLeave={closeLater}>
           <div className="max-w-[1260px] mx-auto px-10 py-9 grid grid-cols-[1fr_2fr] gap-12">
             <div>
-              <span className="uppercase tracking-[0.18em] text-[#956b51] text-[10px]">Discover PZ</span>
-              <h3 className="font-serif text-3xl text-[#30221b] mt-3">{activeMenu === 'products' ? 'What We Make' : 'Working with PZ'}</h3>
-              <p className="text-[#7f7770] text-sm leading-relaxed mt-3 max-w-[280px]">{activeMenu === 'products' ? 'Explore our product categories and wood furniture capabilities.' : 'Learn how we support development, sampling and manufacturing.'}</p>
+              <span className="uppercase tracking-[0.18em] text-[#956b51] text-[10px]">{L('Discover PZ','了解 PZ')}</span>
+              <h3 className="font-serif text-3xl text-[#30221b] mt-3">{activeMenu === 'products' ? 'L('What We Make','产品分类') : L('Working with PZ','与 PZ 合作')}</h3>
+              <p className="text-[#7f7770] text-sm leading-relaxed mt-3 max-w-[280px]">{activeMenu === 'products' ? 'L('Explore our product categories and wood furniture capabilities.','查看我们的产品系列与实木家具制造能力。') : L('Learn how we support development, sampling and manufacturing.','了解产品开发、打样和生产流程。')}</p>
             </div>
             <div className="grid grid-cols-2 gap-x-7 gap-y-1">
               {submenu.map(entry => (
