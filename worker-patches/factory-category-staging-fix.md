@@ -1,92 +1,62 @@
-## 2026-10-30 Staging D1 schema discovered — STOP OLD MIGRATION
+# PZ 新品类申请 404 — 已根据真实 Staging D1 修订
 
-The real `PRAGMA table_info('category_requests')` result has **8 columns**:
-`id, title, title_cn, subtitle, image, status, created_at, updated_at`.
-The existing default is `status = 'pending'`, NOT `'draft'`.
-The original 003 migration and the current candidate `factoryCategoryStaging.mjs`
-assume missing `description`, `user_id` columns and new statuses.
-**Do not deploy the candidate yet and do not apply 003.**
-First run these two read-only queries on **Staging D1**:
+**状态：GitHub 补丁已准备；尚未部署到 Staging Worker；Production 不得修改。**
 
-```sql
-SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'category_requests';
-SELECT status, COUNT(*) AS qty FROM category_requests GROUP BY status;
-```
+## 已确认事实
 
-The CREATE SQL may contain CHECK constraints that reject new status values;
-counts tell us whether legacy `pending` records must be preserved.
-Choose a data-preserving migration only after reviewing both.
-The admin UI was patched to display BOTH legacy `pending` and
-`awaiting_review` requests. PR #6 remains Draft.
+- Screenshot: Preview 提交 `Sofa / 沙发` 返回 `{"error":"Not found"}`。
+- Existing Worker V3.2 source has no `POST /factory/category-requests`.
+- Staging D1 already contains `category_requests`, with 8 columns:
+  `id, title, title_cn, subtitle, image, status, created_at, updated_at`.
+- `status` default is `pending`; there is no CHECK constraint and currently **zero rows**.
+- **No schema migration is necessary**. The old 003 file was replaced with read-only diagnostic SQL.
 
----
+## New workflow
 
-# PZ 新品类申请 404：Staging Worker 修复实施清单
+1. Factory user uploads category-cover image to **Staging R2** using existing `/upload-image`.
+2. Factory submits one request to `POST /factory/category-requests`.
+3. Worker validates role, title, configured Staging R2 image, duplicates, draft category registry; inserts one D1 row with **status=pending**.
+4. Frontend expects `201` JSON `{"success":true,"id":"...","status":"pending"}`. **Do not call `/submit`**.
+5. Admin review queue reads category requests with `pending` (and legacy `awaiting_review`); reject/approve continue to use existing ADMIN routes.
+6. Approval must return `published:true` and public `/api/site-config` must contain a category with the exact `proposal_id`. The category then appears on Home, Products and navigation, including Chinese title.
+7. Admin changes category cover in **产品分类封面**, saves draft and publishes. Public page must show the new cover.
 
-**状态：仅已准备补丁；尚未部署 Staging Worker；尚未完成端到端验收。**
+## Apply to CURRENT Staging Worker only
 
-## 已确认根因
+First open **Workers & Pages → pz-inquiry-api-staging → Edit Code**. Preserve a copy of the **current deployed** Worker source and ensure current Staging bindings remain untouched.
 
-Preview 截图显示 `{"error":"Not found"}`，且前端按顺序调用：
+Copy the function in [factoryCategoryStaging.mjs](./factoryCategoryStaging.mjs) into the **current Worker source** at top level. The Cloudflare single-file editor requires removing only the `export` keyword from `export async function handleFactoryCategoryRequests`.
 
-1. `POST /api/factory/category-requests`（新建草稿）
-2. `POST /api/factory/category-requests/{id}/submit`（提交审核）
-
-原有 V3.2 Worker 全量源码可见 ADMIN 查询、批准及驳回分类申请，但找不到这两个 FACTORY POST 路由。Worker 的兜底响应正是 HTTP 404 `{"error":"Not found"}`。
-
-## 补丁文件
-
-- [factoryCategoryStaging.mjs](./factoryCategoryStaging.mjs)：Staging-only 工厂分类申请路由。必须保留账号鉴权、R2 图片验证、重复分类校验和只允许本人提交草稿。
-- [factoryCategoryStaging.test.mjs](./factoryCategoryStaging.test.mjs)：针对接口的本地 Mock 自动测试。
-- [migrations/003_factory_category_requests_staging.sql](./migrations/003_factory_category_requests_staging.sql)：仅在 **Staging D1 缺少对应表时**考虑的建表迁移，不能直接用于现有不同结构的表。
-
-## 修复顺序
-
-### 1. 检查数据库，先不写入
-
-打开 Cloudflare 控制台 **D1 → Staging 数据库 → Console**，只运行：
-
-```sql
-SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'category_requests';
-PRAGMA table_info('category_requests');
-SELECT status, COUNT(*) FROM category_requests GROUP BY status;
-```
-
-第三条仅在表存在且具有 `status` 列时才运行。核对以下字段是否存在：
-
-`id, title, title_cn, subtitle, description, image, status, user_id, created_at, updated_at`
-
-如果没有表，再审查并按需在 Staging 执行上述 003 SQL；如果表存在但字段不同，**暂停，先修订迁移，不要直接覆盖或删除原表**。
-
-### 2. 只修改 Staging Worker
-
-打开 **Workers & Pages → pz-inquiry-api-staging → Edit Code**。基于当前已部署 Worker 源码保存独立副本，切勿用旧版 V3.2 文件整体覆盖新版 V3.2.1。
-
-把 `factoryCategoryStaging.mjs` 中 `handleFactoryCategoryRequests` 函数放在 Worker 顶层（在控制台单文件粘贴时，去掉 `export` 关键字）。在当前 Worker 的 `fetch(request, env)` 内，`const { pathname } = new URL(request.url)` 已经执行、进入 `try` 后且到达末尾 `Not found` 之前，插入：
+Inside current `fetch(request, env)` where `pathname` already exists, insert **inside `try` and before the final Not Found**:
 
 ```js
-const categoryResult = await handleFactoryCategoryRequests({
+const categoryResponse = await handleFactoryCategoryRequests({
   request, env, pathname, authorize, json, badRequest, pzConfiguredImageBase
 });
-if (categoryResult) return categoryResult;
+if (categoryResponse) return categoryResponse;
 ```
 
-只在 **Staging** 部署。补丁带有 `PZ_RUNTIME_ENV === 'staging'` 保护，不可当作 Production 的已审核补丁使用。不要修改生产 Worker、D1、KV、R2 或 `PZ_CATALOG_V2_ENABLED`。
+Check the source contains the required existing helpers:
+`authorize, json, badRequest, pzConfiguredImageBase`.
+The helper checks `PZ_RUNTIME_ENV === 'staging'` and rejects use in Production.
 
-### 3. 在 Preview 执行完整验收
+**Do not paste the entire older V3.2 Worker over the current Staging Worker.** The patch is a small addition, not a Worker replacement. No D1 schema writes are needed before deployment.
 
-1. 确认当前 Preview 的 `PZ_BACKEND_WORKER` 确实指向 `pz-inquiry-api-staging`。
-2. FACTORY 账号填写独特测试英文名（如 `PZ QA Sofa Test`），中文名 `沙发测试`，并上传 Staging R2 图片。
-3. 创建返回 `201 {success:true,id,status:"draft"}`；提交返回 `200 {success:true,id,status:"awaiting_review"}`。
-4. 使用公开 Preview `/api/site-config`：在 ADMIN 批准之前，分类**不可**显示。
-5. ADMIN 进入 **审核中心 → 待审核新品类**。检查标题、图片与状态，先用一条测试申请验证驳回路径。
-6. 再用另一条测试申请验证批准：返回 `status:"approved"` 且 `published:true`（否则需要人工发布）。
-7. 刷新公开 Preview：首页、产品目录、英文和中文导航都能看到新分类。点击分类后允许显示“暂无产品”，不应 404。
-8. ADMIN 进入 **产品分类封面**，替换主图，保存草稿并发布；刷新页面及 `/api/site-config` 验证新的图片 URL 已生效。
-9. 验证 FACTORY 身份访问 ADMIN 审批接口必须得到 403。
+## Staging end-to-end QA
 
-## 额外安全注意
+1. Verify the Preview Pages environment variable `PZ_BACKEND_WORKER` is the staging Worker, never Production.
+2. After staging Worker deploy, Factory user submits a uniquely named category (`PZ-QA-SOFA-1030`, Chinese `沙发测试`) with real Staging R2 cover.
+3. Confirm one D1 record exists, `status = pending`; public `/api/site-config` and public home do NOT show it yet.
+4. Admin enters **审核中心 → 待审核新品类**, views the record and image, tests **reject** on one test request; rejected category must not appear publicly.
+5. Create another distinct test category, **approve** via Admin. Verify response `status = approved, published = true`. If `needsPublish = true` or `published = false`, treat that as a partial operation and inspect site config, don't blindly retry approval.
+6. Confirm category is present in public `/api/site-config` with correct `proposal_id`, name, image; check Home, Products, navigation and EN / 中文.
+7. In Admin **产品分类封面**, replace the category cover, save draft, publish, refresh website, and confirm displayed image URL changed.
+8. Verify FACTORY cannot call admin approval; expected HTTP 403. Verify no pending/rejected categories are publicly visible.
 
-当前旧版 Worker 的分类批准路由不是只允许 `awaiting_review` 状态，而是按 id 直接更新。正式发布前应单独收紧它的状态迁移、类别重名处理，并对两个管理员同时审批造成的 KV 丢失更新风险进行测试。只通过前端 Unit Tests **不能**确认这个问题已解决。
+## Blockers / caveats
 
-如果任何 Staging 步骤出现 400/404/409/500，请保留响应状态和消息，不要反复重试创建，更不要将失败中的 Worker 源码覆盖到 Production。
+- The **existing** Worker approval handler needs real-world Staging verification, including pending-only transitions and how it updates published KV. It currently updates rows by ID without an expected-state guard.
+- Duplicate-category protection at creation is an application-side check, not a DB unique constraint. Do not run concurrent repeated submissions during QA.
+- The existing 8-column schema has no `description`; the Factory form has been changed to offer **subtitle** rather than silently discard a description.
+- No user_id column: submissions can be reviewed, but per-user ownership audit is **not supported** without future schema work. Role checks remain.
+- Do not merge PR #6 or touch Production until Staging is end-to-end verified.
