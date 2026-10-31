@@ -184,13 +184,64 @@ test('bootstrap requires hash preflight and is one-time only',async()=>{
   assert.match(status.draftSha,/^[0-9a-f]{64}$/);
   assert.equal((await f.call('/admin/site-config/bootstrap',{draftSha:'bad',publishedSha:status.publishedSha})).status,409);
   assert.equal(f.db.state,null);
-  assert.equal((await f.call('/admin/site-config/bootstrap',
-    {draftSha:status.draftSha,publishedSha:status.publishedSha})).status,200);
+  const seededResponse=await f.call('/admin/site-config/bootstrap',
+    {draftSha:status.draftSha,publishedSha:status.publishedSha});
+  assert.equal(seededResponse.status,200);
+  const seededBody=await seededResponse.json();
+  assert.equal(seededBody.initialSnapshotVerified,true);
+  assert.equal(seededBody.publishedVersion,'bootstrap-'+status.publishedSha);
+  assert.equal(f.db.state.published_version,seededBody.publishedVersion);
+  const initialR2='snapshots/site_config/'+seededBody.publishedVersion+'.json';
+  assert.equal(f.history.get(initialR2),f.kv['published:site_config']);
   assert.equal((await f.call('/admin/site-config/bootstrap',
     {draftSha:status.draftSha,publishedSha:status.publishedSha})).status,409);
   f.env.PZ_D1_SITE_CONFIG_ENABLED='true';
   const result=await(await f.call('/api/site-config',null,'GET')).json();
   assert.equal(result.config.categories[0].title,'Sofa');
+});
+
+test('bootstrap refuses to initialize D1 without pre-cutover R2 snapshot',async()=>{
+  const f=fixture({active:false,seeded:false});
+  const preflight=await(await f.call('/admin/site-config/bootstrap',null,'GET')).json();
+  delete f.env.SITE_CONFIG_HISTORY;
+  const r=await f.call('/admin/site-config/bootstrap',{
+    draftSha:preflight.draftSha,publishedSha:preflight.publishedSha
+  });
+  assert.equal(r.status,503);
+  assert.equal(f.db.state,null);
+});
+
+test('bootstrap refuses mismatched stored R2 snapshot, without modifying D1',async()=>{
+  const f=fixture({active:false,seeded:false});
+  const preflight=await(await f.call('/admin/site-config/bootstrap',null,'GET')).json();
+  f.history.set('snapshots/site_config/bootstrap-'+preflight.publishedSha,'{"categories":[]}');
+  const r=await f.call('/admin/site-config/bootstrap',{
+    draftSha:preflight.draftSha,publishedSha:preflight.publishedSha
+  });
+  assert.equal(r.status,409);
+  assert.equal(f.db.state,null);
+});
+
+test('bootstrap initial public snapshot can be restored after first D1 publish',async()=>{
+  const f=fixture({active:false,seeded:false});
+  const preflight=await(await f.call('/admin/site-config/bootstrap',null,'GET')).json();
+  const bootstrap=await(await f.call('/admin/site-config/bootstrap',{
+    draftSha:preflight.draftSha,publishedSha:preflight.publishedSha
+  })).json();
+  const original=f.db.state.published_json;
+  f.env.PZ_D1_SITE_CONFIG_ENABLED='true';
+  const draft=JSON.parse(f.db.state.draft_json);
+  draft.home.hero.title='Publish after bootstrap';
+  const changed=await f.call('/site-config',{revision:1,config:draft},'PUT');
+  assert.equal(changed.status,200);
+  const published=await f.call('/admin/publish',{revision:2});
+  assert.equal(published.status,200);
+  assert.notEqual(f.db.state.published_json,original);
+  const rollback=await f.call('/admin/rollback',{
+    version:bootstrap.publishedVersion,publishedRevision:2
+  });
+  assert.equal(rollback.status,200);
+  assert.equal(f.db.state.published_json,original);
 });
 
 test('versioned mode keeps bootstrap closed and legacy reconciliation unavailable',async()=>{
