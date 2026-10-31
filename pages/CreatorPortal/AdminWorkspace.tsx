@@ -36,6 +36,22 @@ const AdminWorkspace: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [siteConfig, setSiteConfig] = useState<any | null>(null);
+  const [draftRevision, setDraftRevision] = useState<number | null>(null);
+  // New Production D1 API returns a revision; Staging legacy KV may not.
+  const saveDraftVersioned = async (config: any, revision: number | null = draftRevision) => {
+    const payload = Number.isSafeInteger(revision)
+      ? { revision, config }
+      : config;
+    const response = await adminFetch<{revision?:number}>('site-config', {
+      method:'PUT', body:JSON.stringify(payload)
+    });
+    if (typeof response?.revision === 'number') setDraftRevision(response.revision);
+    return response;
+  };
+  const publishVersioned = async (revision: number | null = draftRevision) => {
+    const payload = Number.isSafeInteger(revision) ? {revision} : {};
+    return adminFetch('admin/publish',{method:'POST',body:JSON.stringify(payload)});
+  };
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasPendingDeploy, setHasPendingDeploy] = useState(false);
@@ -70,6 +86,7 @@ const AdminWorkspace: React.FC = () => {
       // Edit the saved draft, not the published snapshot.
       const result = await adminFetch<any>('admin/draft/site-config');
       let remoteConfig = result?.draft;
+      setDraftRevision(typeof result?.revision === 'number' ? result.revision : null);
       if (!remoteConfig || Object.keys(remoteConfig).length === 0) {
         const published = await adminFetch<any>('site-config');
         remoteConfig = published?.config ?? published;
@@ -79,6 +96,7 @@ const AdminWorkspace: React.FC = () => {
       console.error('读取网站配置失败', e);
       // Never overwrite approved categories using fallback defaults.
       setSiteConfig(null);
+      setDraftRevision(null);
     }
   }, []);
 
@@ -99,7 +117,7 @@ const AdminWorkspace: React.FC = () => {
     setIsSyncing(true);
     try {
       await adminFetch('admin/publish/products', { method: 'POST' });
-      await adminFetch('admin/publish', { method: 'POST' });
+      await publishVersioned();
       setHasPendingDeploy(false);
       alert('发布成功，公开网站内容已更新。');
     } catch (e: any) { alert(`发布失败：${e.message}`); }
@@ -251,7 +269,7 @@ const AdminWorkspace: React.FC = () => {
                 if (JSON.stringify(live.categories) !== JSON.stringify(expected)) {
                   throw new Error('其他管理员已经修改分类，请先刷新页面后重新编辑。');
                 }
-                await adminFetch('site-config', { method:'PUT', body: JSON.stringify({ ...live, categories: next }) });
+                await saveDraftVersioned({ ...live, categories: next }, typeof response.revision === 'number' ? response.revision : null);
                 setHasPendingDeploy(true);
                 await loadSiteConfig();
               } finally { setIsSavingConfig(false); }
@@ -259,7 +277,7 @@ const AdminWorkspace: React.FC = () => {
             onPublish={async () => {
               setIsSavingConfig(true);
               try {
-                await adminFetch('admin/publish', { method: 'POST' });
+                await publishVersioned();
                 setHasPendingDeploy(false);
                 await loadSiteConfig();
               } finally { setIsSavingConfig(false); }
@@ -282,7 +300,7 @@ const AdminWorkspace: React.FC = () => {
             onSave={async () => {
               setIsSavingConfig(true);
               try {
-                await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) });
+                await saveDraftVersioned(siteConfig);
                 setHasPendingDeploy(true);
                 await loadSiteConfig();
               } catch (e) {
@@ -294,7 +312,7 @@ const AdminWorkspace: React.FC = () => {
             onPublish={async () => {
               setIsSavingConfig(true);
               try {
-                await adminFetch('admin/publish', { method: 'POST' });
+                await publishVersioned();
                 setHasPendingDeploy(false);
                 await loadSiteConfig();
               } finally {
@@ -314,7 +332,7 @@ const AdminWorkspace: React.FC = () => {
         )}
 
         {activeTab === 'config' && (
-          <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => { setIsSavingConfig(true); try { await adminFetch('site-config', { method: 'PUT', body: JSON.stringify(siteConfig) }); setHasPendingDeploy(true); await loadSiteConfig(); } catch (e: any) { alert(e.message); } finally { setIsSavingConfig(false); } }} onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
+          <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => { setIsSavingConfig(true); try { await saveDraftVersioned(siteConfig); setHasPendingDeploy(true); await loadSiteConfig(); } finally { setIsSavingConfig(false); } }} onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
         )}
 
         {activeTab === 'inquiries' && <InquiryManager />}
