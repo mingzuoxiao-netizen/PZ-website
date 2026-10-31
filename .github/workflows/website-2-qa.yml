@@ -2,7 +2,7 @@ name: Website 2.0 QA
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feature/website-2-editorial-redesign]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,8 @@ jobs:
         run: node --check worker-patches/factoryCategoryStaging.mjs && node --test worker-patches/factoryCategoryStaging.test.mjs
       - name: Test production category API candidate
         run: node --check worker-patches/factoryCategoryProduction.mjs && node --test worker-patches/factoryCategoryProduction.test.mjs
+      - name: Test staging category amendment API
+        run: node --check worker-patches/factoryCategoryChangesStaging.mjs && node --test worker-patches/factoryCategoryChangesStaging.test.mjs
       - name: Build frontend
         run: npm run build
       - name: Build Pages Functions
