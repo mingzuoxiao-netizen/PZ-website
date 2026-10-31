@@ -58,8 +58,8 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload }) =>
         method:'POST', body:JSON.stringify({ category_id: selected.id, proposed })
       });
       if (!result.success || result.status !== 'pending') throw new Error('服务器未确认待审核状态。');
-      setNotice('申请已提交，状态 pending。原分类信息不会立即改变。');
       choose(selected.id);
+      setNotice('申请已提交，状态 pending。原分类信息不会立即改变。');
       await refresh();
     } catch (e:any) { setError(e?.message || '提交失败'); }
     finally { setBusy(false); }
@@ -105,7 +105,7 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload }) =>
                 <h4 className="font-semibold mb-3">分类封面（上传只保存到当前环境 R2，审核批准前不会公开）</h4>
                 {original?.image && <img src={resolveImage(original.image)} alt="当前正式封面" className="w-full max-w-md h-36 object-cover mb-4"/>}
                 <PZImageManager images={form.image?[form.image]:[]} onUpdate={urls=>setForm(prev=>prev?{...prev,image:urls[0]||''}:null)}
-                  onUpload={onUpload} maxImages={1}/>
+                  onUpload={onUpload} onError={setError} maxImages={1}/>
                 {form.image!==original?.image && <p className="text-xs text-amber-800 mt-2">新旧封面不同，管理员将看到修改前后对比。</p>}
               </section>
               <button onClick={()=>void submit()} disabled={busy || !changed || requests.some(r=>r.category_id===categoryId && r.status==='pending')}
