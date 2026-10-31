@@ -212,7 +212,7 @@ const AdminWorkspace: React.FC = () => {
           <ReviewQueue products={reviewProducts} categoryRequests={categoryRequests} onProcessProduct={async (id, action) => {
               try {
                 const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
-                if (!original) throw new Error("Registry record not found");
+                if (!original) throw new Error("未找到产品记录");
                 const nextStatus = action === 'approve' ? 'published' : 'rejected';
                 const isPublished = nextStatus === 'published' ? 1 : 0;
                 await adminFetch(`admin/products/${id}`, { 
