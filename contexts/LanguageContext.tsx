@@ -1,9 +1,10 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import { zhTranslations } from './zhTranslations';
 
 interface LanguageContextType {
-  language: 'en';
+  language: 'en' | 'zh';
   t: typeof translations.en;
-  setLanguage: (lang: 'en') => void;
+  setLanguage: (lang: 'en' | 'zh') => void;
   toggleLanguage: () => void;
 }
 
@@ -442,13 +443,46 @@ const translations = {
   }
 };
 
+function mergeLocale(base: any, override: any): any {
+  if (!override || typeof override !== 'object' || Array.isArray(override)) return override ?? base;
+  if (Array.isArray(base)) {
+    return override.map((entry: any, index: number) => mergeLocale(base[index], entry));
+  }
+  const result = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    result[key] = value && typeof value === 'object'
+      ? mergeLocale(base?.[key], value)
+      : value;
+  }
+  return result;
+}
+
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children?: ReactNode }) => {
-  const language = 'en' as const;
-  const t = translations.en;
-  const value = { language, t, setLanguage: () => {}, toggleLanguage: () => {} };
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+  const [language, setLanguage] = useState<'en' | 'zh'>(() => {
+    if (typeof window === 'undefined') return 'en';
+    try { return window.localStorage.getItem('pz-public-language') === 'zh' ? 'zh' : 'en'; }
+    catch { return 'en'; }
+  });
+
+  useEffect(() => {
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+    try { window.localStorage.setItem('pz-public-language', language); } catch { /* storage disabled */ }
+  }, [language]);
+
+  const t = useMemo(
+    () => (language === 'zh'
+      ? mergeLocale(translations.en, zhTranslations) as typeof translations.en
+      : translations.en),
+    [language]
+  );
+  const toggleLanguage = () => setLanguage(current => current === 'en' ? 'zh' : 'en');
+  return (
+    <LanguageContext.Provider value={{ language, t, setLanguage, toggleLanguage }}>
+      {children}
+    </LanguageContext.Provider>
+  );
 };
 
 export const useLanguage = () => {
