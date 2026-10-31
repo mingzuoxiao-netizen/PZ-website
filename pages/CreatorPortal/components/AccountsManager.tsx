@@ -361,7 +361,7 @@ const AccountsManager: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-stone-300'}`}></div>
                         <span className={`text-[10px] font-bold uppercase tracking-widest ${account.status === 'Active' ? 'text-stone-900' : 'text-stone-400'}`}>
-                          {account.status === 'Active' ? 'Active' : 'Disabled'}
+                          {account.status === 'Active' ? '已启用' : '已停用'}
                         </span>
                       </div>
                     </td>
