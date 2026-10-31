@@ -88,6 +88,8 @@ jobs:
             if(p<0||q<=p||part.includes('published:site_config')||!part.includes('needsPublish: true'))process.exit(1);
             if(!s.includes('handleProductionCategoryChanges')||!s.includes('category_change_requests'))process.exit(1);
           "
+      - name: Guarded Cloudflare QA Worker syntax and isolation
+        run: node --check worker-patches/qa/pz-category-qa-worker.js && node --test worker-patches/qa/pz-category-qa-worker.test.mjs
       - name: Build frontend
         run: npm run build
       - name: Build Pages Functions
