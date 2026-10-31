@@ -76,8 +76,8 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
           <div className="max-w-[1260px] mx-auto px-10 py-9 grid grid-cols-[1fr_2fr] gap-12">
             <div>
               <span className="uppercase tracking-[0.18em] text-[#956b51] text-[10px]">{L('Discover PZ','了解 PZ')}</span>
-              <h3 className="font-serif text-3xl text-[#30221b] mt-3">{activeMenu === 'products' ? 'L('What We Make','产品分类') : L('Working with PZ','与 PZ 合作')}</h3>
-              <p className="text-[#7f7770] text-sm leading-relaxed mt-3 max-w-[280px]">{activeMenu === 'products' ? 'L('Explore our product categories and wood furniture capabilities.','查看我们的产品系列与实木家具制造能力。') : L('Learn how we support development, sampling and manufacturing.','了解产品开发、打样和生产流程。')}</p>
+              <h3 className="font-serif text-3xl text-[#30221b] mt-3">{activeMenu === 'products' ? L('What We Make','产品分类') : L('Working with PZ','与 PZ 合作')}</h3>
+              <p className="text-[#7f7770] text-sm leading-relaxed mt-3 max-w-[280px]">{activeMenu === 'products' ? L('Explore our product categories and wood furniture capabilities.','查看我们的产品系列与实木家具制造能力。') : L('Learn how we support development, sampling and manufacturing.','了解产品开发、打样和生产流程。')}</p>
             </div>
             <div className="grid grid-cols-2 gap-x-7 gap-y-1">
               {submenu.map(entry => (
