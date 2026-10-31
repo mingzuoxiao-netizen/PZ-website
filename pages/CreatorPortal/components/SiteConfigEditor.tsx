@@ -3,7 +3,6 @@ import { SITE_SCHEMA } from '../../../utils/siteSchema';
 import { getByPath, setByPath } from '../../../utils/objectPath';
 import FieldInput from './FieldInput';
 import { Save, RefreshCw, AlertCircle, Globe } from 'lucide-react';
-import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface SiteConfigEditorProps {
   config: any;
@@ -26,7 +25,22 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
   onUpload,
   onDelete
 }) => {
-  const { t } = useLanguage();
+  // Management screens stay Chinese regardless of public website language.
+  const sectionNames: Record<string, string> = {
+    'Global Settings': '全站设置',
+    'Navigation Menu (Posters)': '导航菜单图片',
+    'Home Page / Hero': '首页主视觉',
+    'Home Page / Sections': '首页其他区域',
+    'Home Page / Global Hubs': '双工厂展示',
+    'About Page': '关于我们页面',
+    'Manufacturing Page': '生产制造页面',
+    'Capabilities Page': '制造能力页面',
+    'Portfolio Page': '产品中心页面',
+    'Inquire Page': '客户询盘页面',
+    'Global Capacity / Terminals': '全球生产基地与物流',
+    'Materials / Technical Construction': '木材加工工艺',
+    'Materials / Lumber Registry': '木材样品图库'
+  };
 
   const [initialConfigStr, setInitialConfigStr] = useState('');
 
@@ -54,16 +68,16 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
       <div className="sticky top-[70px] md:top-[90px] z-30 -mx-6 md:-mx-12 px-6 md:px-12 py-4 mb-8 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
-            {t.creator.config.title}
+            网站内容配置
             {hasUnsavedChanges && (
               <span className="ml-3 text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold uppercase border border-amber-200 flex items-center animate-pulse">
                 <AlertCircle size={10} className="mr-1" />
-                {t.creator.config.unsaved}
+                未保存更改
               </span>
             )}
           </h3>
           <p className="text-stone-500 text-xs mt-1">
-            {t.creator.config.desc}
+            编辑网站文本、图片和站点展示设置。
           </p>
         </div>
 
@@ -73,7 +87,7 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
               onClick={async () => { await onRefresh(); setInitialConfigStr(''); }}
               className="text-xs font-bold uppercase text-stone-500 hover:text-red-600 mr-4"
             >
-              {t.creator.config.discard}
+              放弃未保存更改
             </button>
           )}
 
@@ -122,21 +136,17 @@ const SiteConfigEditor: React.FC<SiteConfigEditorProps> = ({
         {SITE_SCHEMA.map(section => (
           <div key={section.section} className="bg-white border p-8 shadow-sm">
             <h2 className="text-lg font-serif mb-6 border-b pb-4 text-stone-900">
-              {t.siteConfig?.sections?.[section.section] ?? section.section}
+              {sectionNames[section.section] || '网站内容设置'}
             </h2>
 
             <div className="space-y-2">
               {section.fields.map(field => (
                 <FieldInput
                   key={field.path}
-                  label={
-                    t.siteConfig?.fields?.[field.path]?.label ?? field.label
-                  }
+                  label={field.label}
                   type={field.type}
                   value={getByPath(config, field.path)}
-                  help={
-                    t.siteConfig?.fields?.[field.path]?.help ?? field.help
-                  }
+                  help={field.help}
                   onChange={val =>
                     onChange(setByPath(config, field.path, val))
                   }
