@@ -53,7 +53,7 @@ jobs:
           node -e "
             const fs = require('fs');
             const s = fs.readFileSync('worker-patches/staging-worker-category-changes-REVIEW.js','utf8');
-            if(!s.includes('let autoPublish = false;') || s.includes('let autoPublish = true;')) process.exit(1);
+            const a=s.slice(s.indexOf('const match = pathname.match(/^\\/admin\\/category[-_]requests\\/'),s.indexOf('const m = pathname.match(/^\\/admin\\/category[-_]requests\\/')); if(!a.includes('needsPublish: true') || a.includes('published:site_config') || s.includes('let autoPublish = true;')) process.exit(1);
             if(!s.includes('handleFactoryCategoryRequests') || !s.includes('handleCategoryChanges')) process.exit(1);
           "
       - name: Build frontend
