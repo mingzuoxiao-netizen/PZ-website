@@ -3,7 +3,7 @@
  * fetch() after existing authentication helpers, before the 404 fallback:
  *
  * const response = await handleCategoryChanges({
- *   request, env, pathname, authorize, json, badRequest, pzConfiguredImageBase
+ *   request, env, pathname, authorize, json, badRequest
  * });
  * if (response) return response;
  *
@@ -56,6 +56,25 @@ function validateProposed(input, base, badRequest) {
   return next;
 }
 
+/**
+ * The deployed Staging uploader historically used PZ_STAGING_IMAGE_BASE_URL;
+ * later candidate bundles use PZ_IMAGE_BASE_URL. Fail closed if both disagree.
+ * Production and its CDN domains must never be accepted.
+ */
+export function stagingCategoryImageBase(env) {
+  const legacy = String(env.PZ_STAGING_IMAGE_BASE_URL || '').trim().replace(/\/+$/, '');
+  const current = String(env.PZ_IMAGE_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (legacy && current && legacy !== current) return null;
+  const base = legacy || current;
+  try {
+    const uri = new URL(base);
+    if (uri.protocol !== 'https:' || uri.origin !== base || uri.username || uri.password ||
+        uri.hostname === 'peng-zhan.com' || uri.hostname.endsWith('.peng-zhan.com') ||
+        uri.hostname === 'localhost') return null;
+    return base;
+  } catch { return null; }
+}
+
 async function validateReplacementImage(image, currentImage, env, imageBase, badRequest) {
   if (image === currentImage || image === '') return null;
   if (!imageBase || !env.PRODUCT_IMAGES) return badRequest('Staging image storage unavailable');
@@ -72,7 +91,7 @@ async function validateReplacementImage(image, currentImage, env, imageBase, bad
   return null;
 }
 
-export async function handleCategoryChanges({ request, env, pathname, authorize, json, badRequest, pzConfiguredImageBase }) {
+export async function handleCategoryChanges({ request, env, pathname, authorize, json, badRequest }) {
   const root = '/factory/category-change-requests';
   const adminRoot = '/admin/category-change-requests';
   const matchAction = pathname.match(/^\/admin\/category-change-requests\/([^/]+)\/(approve|reject)$/);
@@ -112,7 +131,7 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
     const base = fields(existing);
     const proposed = validateProposed(body.proposed, base, badRequest);
     if (proposed instanceof Response) return proposed;
-    const imgError = await validateReplacementImage(proposed.image, base.image, env, pzConfiguredImageBase(env), badRequest);
+    const imgError = await validateReplacementImage(proposed.image, base.image, env, stagingCategoryImageBase(env), badRequest);
     if (imgError) return imgError;
 
     // Exactly one pending request per category, enforced by the partial unique index.
@@ -168,7 +187,7 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);
-      const err = await validateReplacementImage(proposed.image,base.image,env,pzConfiguredImageBase(env),badRequest);
+      const err = await validateReplacementImage(proposed.image,base.image,env,stagingCategoryImageBase(env),badRequest);
       if (err) return err;
       // Preserve id, subCategories, product relationships, and all unedited fields.
       draft.categories = draft.categories.map(c => c.id === row.category_id
@@ -176,9 +195,13 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
         : c);
       await env.SITE_CONFIG_KV.put('draft:site_config',JSON.stringify(draft));
       savedDraft = true;
-      await env.DB.prepare(
+      const completed = await env.DB.prepare(
         "UPDATE category_change_requests SET status='approved', reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=? AND status='applying'"
       ).bind(actor,now,now,id).run();
+      if (completed?.meta?.changes !== 1) {
+        // Draft may already contain the change. Leave 'applying' for review.
+        return json({ error: 'Draft saved but approval status not confirmed. Manual reconciliation required.' }, 503);
+      }
       return json({ success:true, id, status:'approved', needsPublish:true, published:false });
     } finally {
       // On validation errors reset the claim. After a successful KV write,
