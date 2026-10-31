@@ -265,6 +265,45 @@ test('site-config meta uses KV metadata while D1 cutover flag is off',async()=>{
   assert.equal(meta.publishedAt,'2026-10-01');
 });
 
+test('KV meta read miss gets a stable published-content version without writing KV',async()=>{
+  const f=fixture({active:false,seeded:false});
+  delete f.kv['published:meta'];
+  const originalSnapshot=f.kv['published:site_config'];
+  const first=await f.call('/site-config/meta',null,'GET');
+  assert.equal(first.status,200);
+  const meta=await first.json();
+  assert.match(meta.version,/^kv-sha256-[a-f0-9]{64}$/);
+  assert.equal(meta.publishedAt,null);
+  assert.equal(meta.source,'kv-published-content-fallback');
+  assert.equal(meta.metaStatus,'kv-read-null');
+  const second=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.equal(second.version,meta.version);
+  assert.equal(f.kv['published:site_config'],originalSnapshot);
+  assert.equal(f.kv['published:meta'],undefined);
+});
+
+test('KV metadata fallback tracks public changes, not draft-only edits',async()=>{
+  const f=fixture({active:false,seeded:false});
+  f.kv['published:meta']='not-valid-json';
+  const before=await(await f.call('/api/site-config/meta',null,'GET')).json();
+  assert.equal(before.metaStatus,'kv-invalid-or-incomplete');
+  f.kv['draft:site_config']=JSON.stringify({categories:[],home:{hero:{title:'Draft edit'}}});
+  const draftOnly=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.equal(draftOnly.version,before.version);
+  f.kv['published:site_config']=JSON.stringify({categories:[],home:{hero:{title:'New public release'}}});
+  const after=await(await f.call('/site-config/meta',null,'GET')).json();
+  assert.notEqual(after.version,before.version);
+});
+
+test('KV metadata fallback fails closed if published site config is also unavailable',async()=>{
+  const f=fixture({active:false,seeded:false});
+  delete f.kv['published:meta'];
+  delete f.kv['published:site_config'];
+  const res=await f.call('/site-config/meta',null,'GET');
+  assert.equal(res.status,503);
+  assert.equal((await res.json()).code,'SITE_CONFIG_META_AND_CONTENT_UNAVAILABLE');
+});
+
 test('site-config meta reflects D1 publish and rollback, not stale KV',async()=>{
   const f=fixture();
   const initial=await(await f.call('/site-config/meta',null,'GET')).json();
