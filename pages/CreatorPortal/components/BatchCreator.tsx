@@ -463,7 +463,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                   </div>
                   {row.status === 'verify' && mode === 'many-products' && (
                     <button type="button" onClick={() => verifyAndRetry(row.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-700">
-                      <RotateCcw size={12}/> 已核实产品库，重新尝试
+                      <RotateCcw size={12}/> {T('I checked Registry; retry','已核实产品库，重新尝试')}
                     </button>
                   )}
                 </div>
