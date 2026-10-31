@@ -93,7 +93,7 @@ const AccountsManager: React.FC = () => {
         setPassword("");
         setRole("FACTORY");
         setIsCreating(false);
-        alert("Identity assigned successfully.");
+        alert("账号创建成功。");
         await fetchAccounts();
       } else {
         setError("Kernel rejected the provision request.");
@@ -108,7 +108,7 @@ const AccountsManager: React.FC = () => {
   const handleToggleStatus = async (id: string, currentStatus: UiStatus) => {
     const isActive = currentStatus === 'Active';
     const action = isActive ? "disable" : "restore";
-    if (!confirm(`Confirm identity ${action}?`)) return;
+    if (!confirm(`确认执行账号操作 ${action} 吗？`)) return;
 
     try {
       await adminFetch(`/admin/accounts/${id}`, {
@@ -117,7 +117,7 @@ const AccountsManager: React.FC = () => {
       });
       await fetchAccounts();
     } catch (e: any) {
-      alert(`Control signal failed: ${e.message}`);
+      alert(`操作失败：${e.message}`);
     }
   };
 
@@ -135,12 +135,12 @@ const AccountsManager: React.FC = () => {
         body: JSON.stringify({ password: pwd }),
       });
 
-      alert(`Access key for [${resettingUser.username}] rotated.`);
+      alert(`账号 ${resettingUser.username} 的密码已重置。`);
       setResettingUser(null);
       setNewPassword("");
       await fetchAccounts();
     } catch (e: any) {
-      alert(`Rotation protocol failure: ${e.message}`);
+      alert(`密码重置失败：${e.message}`);
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -195,19 +195,19 @@ const AccountsManager: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Registration Username</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">登录账号</label>
                 <input
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  placeholder="e.g. factory_kandal"
+                  placeholder="例如：factory_kandal"
                   className="w-full bg-stone-50 border border-stone-200 p-4 text-stone-900 text-sm focus:border-safety-700 outline-none transition-colors font-mono"
                   autoComplete="off"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Temporary Access Key</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">初始登录密码</label>
                 <div className="relative">
                   <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" size={16} />
                   <input
@@ -221,7 +221,7 @@ const AccountsManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Authorization Level</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">账号权限</label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     type="button"
@@ -272,7 +272,7 @@ const AccountsManager: React.FC = () => {
             <div className="bg-amber-700 p-6 flex justify-between items-center text-white">
               <div className="flex items-center gap-3">
                 <Lock size={18} />
-                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em]">Rotate Security Key</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em]">重置登录密码</h4>
               </div>
               <button onClick={() => setResettingUser(null)} className="opacity-60 hover:opacity-100 transition-opacity">
                 <X size={20} />
@@ -280,17 +280,17 @@ const AccountsManager: React.FC = () => {
             </div>
             <form onSubmit={handleCommitPasswordReset} className="p-8 space-y-6">
               <div className="text-center pb-2">
-                <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">Target Account</p>
+                <p className="text-[10px] font-bold uppercase text-stone-400 mb-1">目标账号</p>
                 <p className="text-lg font-serif text-stone-900">{resettingUser.username}</p>
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">New Access Key</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">新密码</label>
                 <input
                   type="password"
                   required
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Enter new key..."
+                  placeholder="输入新密码…"
                   className="w-full bg-stone-50 border border-stone-200 p-4 text-stone-900 text-sm focus:border-amber-700 outline-none transition-colors font-mono"
                   autoFocus
                 />
@@ -314,22 +314,22 @@ const AccountsManager: React.FC = () => {
         {loading && accounts.length === 0 ? (
           <div className="p-32 text-center text-stone-400 flex flex-col items-center">
             <RefreshCw className="animate-spin mb-4" size={32} />
-            <span className="text-[10px] font-bold font-mono tracking-widest">Synchronizing Registry...</span>
+            <span className="text-[10px] font-bold font-mono tracking-widest">正在加载账号…</span>
           </div>
         ) : accounts.length === 0 ? (
           <div className="p-32 text-center text-stone-400 flex flex-col items-center border-2 border-dashed border-stone-100 m-6">
             <Users className="mb-4 opacity-20" size={48} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Zero identities found.</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest">暂无账号记录。</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-stone-50 border-b border-stone-200">
                 <tr className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
-                  <th className="px-8 py-4">Identity Profile</th>
-                  <th className="px-8 py-4">Auth Level</th>
-                  <th className="px-8 py-4">Status</th>
-                  <th className="px-8 py-4 text-right">Operations</th>
+                  <th className="px-8 py-4">账号信息</th>
+                  <th className="px-8 py-4">账号类型</th>
+                  <th className="px-8 py-4">状态</th>
+                  <th className="px-8 py-4 text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -370,7 +370,7 @@ const AccountsManager: React.FC = () => {
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleToggleStatus(account.id, account.status)}
-                          title={account.status === 'Active' ? 'Revoke Access' : 'Restore Access'}
+                          title={account.status === 'Active' ? '停用账号' : '恢复账号'}
                           className={`p-2 transition-all rounded border
                             ${account.status === 'Active'
                               ? 'border-stone-200 text-stone-400 hover:border-red-600 hover:text-red-600 hover:bg-red-50'
@@ -383,7 +383,7 @@ const AccountsManager: React.FC = () => {
                         <button
                           onClick={() => setResettingUser(account)}
                           className="p-2 border border-stone-200 text-stone-400 hover:border-stone-900 hover:text-stone-900 hover:bg-white rounded transition-all"
-                          title="Rotate Keys"
+                          title="重置密码"
                         >
                           <RefreshCw size={14} />
                         </button>
