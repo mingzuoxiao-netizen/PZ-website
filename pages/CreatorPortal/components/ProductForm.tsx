@@ -59,6 +59,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
     e.preventDefault();
     if (submitting) return;
     const code = String(formData.code || '').trim().toUpperCase();
+    const categoryId = fixedCategoryId || formData.category || '';
+    if (!categoryId || !categories.some(c => c.id === categoryId)) {
+      alert(T('Select a valid product category.', '请选择有效的产品分类。'));
+      return;
+    }
     if (!String(formData.name || '').trim()) {
       alert(T('Product name is required.','请输入产品名称。'));
       return;
@@ -76,6 +81,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       const finalStatus = formData.status || 'draft';
       await onSave({
         ...formData,
+        category: categoryId,
         code,
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
@@ -120,15 +126,26 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Production Series","产品系列")}</label>
-                            <select 
-                                value={formData.category || ''} 
-                                onChange={e => handleChange('category', e.target.value)} 
-                                disabled={!!fixedCategoryId} 
-                                className="w-full bg-stone-50 border border-stone-200 p-4 text-sm font-bold focus:border-stone-900 outline-none transition-colors appearance-none"
-                            >
-                                <option value="">{T("Select Target Category...","请选择产品分类…")}</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{lang === 'zh' ? (c.title_cn || c.title_zh || c.title) : c.title}</option>)}
-                            </select>
+                            {fixedCategoryId ? (
+                                <div className="w-full bg-stone-100 border border-stone-200 p-4 text-sm font-bold text-stone-800" aria-label={T('Selected product category','当前产品分类')}>
+                                    {(() => {
+                                      const selected = categories.find(c => c.id === fixedCategoryId);
+                                      return selected
+                                        ? (lang === 'zh' ? (selected.title_cn || selected.title_zh || selected.title) : selected.title)
+                                        : T('Category unavailable','分类不存在');
+                                    })()}
+                                    <span className="ml-3 text-xs font-normal text-stone-500">{T('Inherited from the current category','已自动关联当前分类')}</span>
+                                </div>
+                            ) : (
+                                <select
+                                    value={formData.category || ''}
+                                    onChange={e => handleChange('category', e.target.value)}
+                                    className="w-full bg-stone-50 border border-stone-200 p-4 text-sm font-bold focus:border-stone-900 outline-none transition-colors appearance-none"
+                                >
+                                    <option value="">{T("Select Target Category...","请选择产品分类…")}</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{lang === 'zh' ? (c.title_cn || c.title_zh || c.title) : c.title}</option>)}
+                                </select>
+                            )}
                         </div>
                         <div>
                             <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Sub-Collection (Optional)","子分类（选填）")}</label>
