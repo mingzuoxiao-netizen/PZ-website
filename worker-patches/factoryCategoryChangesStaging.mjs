@@ -131,6 +131,11 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
     const base = fields(existing);
     const proposed = validateProposed(body.proposed, base, badRequest);
     if (proposed instanceof Response) return proposed;
+    const requestedTitle = proposed.title.toLowerCase();
+    if (published.categories.some(c => c?.id !== categoryId &&
+      String(c?.title || '').trim().toLowerCase() === requestedTitle)) {
+      return conflict('Another published category already uses this English title', json);
+    }
     const imgError = await validateReplacementImage(proposed.image, base.image, env, stagingCategoryImageBase(env), badRequest);
     if (imgError) return imgError;
 
@@ -187,6 +192,11 @@ export async function handleCategoryChanges({ request, env, pathname, authorize,
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);
+      const requestedTitle = String(proposed.title || '').trim().toLowerCase();
+      if ([...draft.categories, ...published.categories].some(c =>
+        c?.id !== row.category_id && String(c?.title || '').trim().toLowerCase() === requestedTitle)) {
+        return conflict('Another category now uses the proposed English title', json);
+      }
       const err = await validateReplacementImage(proposed.image,base.image,env,stagingCategoryImageBase(env),badRequest);
       if (err) return err;
       // Preserve id, subCategories, product relationships, and all unedited fields.
