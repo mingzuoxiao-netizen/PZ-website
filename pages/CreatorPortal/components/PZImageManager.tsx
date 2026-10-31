@@ -130,22 +130,22 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
                 <div className="flex justify-between items-start">
                    {onSetMain && idx !== 0 ? (
-                       <button onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
+                       <button type="button" onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
                          <Star size={12} />
                        </button>
                    ) : <div></div>}
-                   <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
+                   <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
                      <X size={12} />
                    </button>
                 </div>
                 <div className="flex justify-center gap-2">
                   {idx > 0 && (
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
                       <ArrowLeft size={14} />
                     </button>
                   )}
                   {idx < images.length - 1 && (
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'right'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); moveImage(idx, 'right'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
                       <ArrowRight size={14} />
                     </button>
                   )}
