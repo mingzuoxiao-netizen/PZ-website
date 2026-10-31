@@ -158,7 +158,9 @@ const categoryNewApprove=/^\/admin\/category[-_]requests\/([^/]+)\/approve$/;
 const categoryChangeApprove=/^\/admin\/category-change-requests\/([^/]+)\/approve$/;
 const protectedRoutes=new Set(['/admin/draft/site-config','/site-config','/admin/publish',
   '/admin/rollback','/admin/preview/site-config','/api/site-config']);
-const unsafeLegacyApprovals=path=>categoryNewApprove.test(path)||categoryChangeApprove.test(path);
+const reconcileChange=/^\/admin\/category-change-requests\/([^/]+)\/reconcile$/;
+const unsafeLegacyApprovals=path=>categoryNewApprove.test(path)||
+  categoryChangeApprove.test(path)||reconcileChange.test(path);
 export async function handleD1SiteConfig({request,env,pathname,authorize,json,publishTransform}) {
   const boot='/admin/site-config/bootstrap';
   const isBootstrap=pathname===boot;
@@ -236,6 +238,11 @@ export async function handleD1SiteConfig({request,env,pathname,authorize,json,pu
   if(newMatch&&request.method==='POST')return approveNewCategory(env,json,newMatch[1]);
   const changeMatch=pathname.match(categoryChangeApprove);
   if(changeMatch&&request.method==='POST')return approveCategoryChange(env,json,changeMatch[1]);
+  if(reconcileChange.test(pathname)&&request.method==='POST') {
+    // Under D1 transactional approvals there is no split KV/D1 'applying'
+    // step, so the legacy KV-based repair route must not execute.
+    return json({error:'Legacy KV reconciliation disabled under D1 mode'},409);
+  }
   if(pathname==='/admin/publish'&&request.method==='POST') {
     const body=await readJsonBody(request,json);
     if(body.error)return body.error;
