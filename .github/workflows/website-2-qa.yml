@@ -28,6 +28,8 @@ jobs:
         run: npm test
       - name: Test staging category API patch
         run: node --check worker-patches/factoryCategoryStaging.mjs && node --test worker-patches/factoryCategoryStaging.test.mjs
+      - name: Test production category API candidate
+        run: node --check worker-patches/factoryCategoryProduction.mjs && node --test worker-patches/factoryCategoryProduction.test.mjs
       - name: Build frontend
         run: npm run build
       - name: Build Pages Functions
