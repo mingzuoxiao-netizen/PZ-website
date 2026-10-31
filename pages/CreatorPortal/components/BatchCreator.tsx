@@ -184,14 +184,14 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     if (inFlight.current) return;
     setFeedback('');
     if (!(fixedCategoryId || selectedCategory)) return setFeedback(T('Select a product category first.', '请先选择产品分类。'));
-    if (mode === 'one-product' && selectedSites.length === 0) return setFeedback('Select at least one production site.');
+    if (mode === 'one-product' && selectedSites.length === 0) return setFeedback('请选择至少一个生产基地。');
     if (rows.length === 0) return setFeedback(T('Choose image files first.', '请先选择图片。'));
     if (rows.some(row => row.status === 'verify')) {
-      return setFeedback('A previous save result is uncertain. Check Master Registry before retrying.');
+      return setFeedback('先前保存结果未确认，请到产品总库核实后再重试。');
     }
 
     const remaining = rows.filter(row => row.status !== 'saved');
-    if (remaining.length === 0) return setFeedback('All drafts in this queue are already saved.');
+    if (remaining.length === 0) return setFeedback('当前队列的草稿已全部保存。');
     if (mode === 'many-products' && remaining.some(row => row.production_sites.length === 0)) {
       return setFeedback(T('Select at least one production site for each product.', '每个产品必须选择至少一个生产基地。'));
     }
@@ -322,8 +322,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         <div className="flex items-center gap-3">
           <Layers size={20} className="text-safety-700" />
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-widest">Batch Product Induction</h2>
-            <p className="mt-1 text-xs text-stone-300">Review product data and images before creating drafts</p>
+            <h2 className="text-sm font-bold uppercase tracking-widest">批量产品录入</h2>
+            <p className="mt-1 text-xs text-stone-300">创建草稿前请检查产品资料和图片</p>
           </div>
         </div>
         <button type="button" disabled={isProcessing} onClick={leaveBatch} className="rounded p-2 hover:bg-stone-700" aria-label={T("Close batch uploader","关闭批量上传")}><X size={20}/></button>
@@ -333,8 +333,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         <div className="grid gap-3 sm:grid-cols-2">
           <button type="button" disabled={isProcessing} onClick={() => switchMode('many-products')}
             className={'rounded-sm border p-4 text-left ' + (mode === 'many-products' ? 'border-stone-900 bg-stone-100' : 'border-stone-200')}>
-            <strong className="text-sm">Multiple products / 多款产品</strong>
-            <p className="mt-1 text-xs text-stone-500">One image creates one draft; each product needs its own SKU.</p>
+            <strong className="text-sm">多款产品</strong>
+            <p className="mt-1 text-xs text-stone-500">每张图片创建一份产品草稿，每款产品需要独立 SKU。</p>
           </button>
           <button type="button" disabled={isProcessing} onClick={() => switchMode('one-product')}
             className={'rounded-sm border p-4 text-left ' + (mode === 'one-product' ? 'border-stone-900 bg-stone-100' : 'border-stone-200')}>
@@ -364,7 +364,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             )}
           </div>
           <fieldset className="border border-stone-200 p-3">
-            <legend className="px-1 text-xs font-bold uppercase text-stone-600">{mode === 'many-products' ? 'Default Production Sites / 默认生产基地' : 'Production Sites / 生产基地'}</legend>
+            <legend className="px-1 text-xs font-bold uppercase text-stone-600">{mode === 'many-products' ? '默认生产基地' : '生产基地'}</legend>
             {productionSiteOptions.map(site => (
               <label key={site.value} className="mr-5 inline-flex items-center gap-2 py-2 text-xs">
                 <input type="checkbox" disabled={isProcessing || hasSaved} checked={selectedSites.includes(site.value)}
@@ -379,10 +379,10 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         {mode === 'one-product' && (
           <div className="grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
             {([
-              ['name', 'Product Name / 产品名称', 'e.g. Oak Dining Table'],
-              ['code', 'SKU (required)', 'PZ-DT-001'],
-              ['material', 'Material / 材质', 'e.g. White Oak'],
-              ['size', 'Size / 尺寸', 'e.g. 72 x 36 x 30 in']
+              ['name', '产品名称', '例如：白橡木餐桌'],
+              ['code', 'SKU（必填）', 'PZ-DT-001'],
+              ['material', '材质', '例如：白橡木'],
+              ['size', '尺寸', '例如：72 × 36 × 30 英寸']
             ] as const).map(([field, label, hint]) => (
               <label key={field} className="block text-xs font-bold text-stone-600">
                 {label}
@@ -397,13 +397,13 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold">{T("Image Queue:","图片队列：")} {rows.length}</h3>
-            <p className="text-xs text-stone-500">JPEG, PNG, WebP and other image files · max 10 MB each · max {MAX_FILES} images</p>
+            <p className="text-xs text-stone-500">支持常用图片格式，每张不超过 10 MB，最多 {MAX_FILES} 张</p>
           </div>
           <div className="flex gap-3">
             <input type="file" accept="image/*" multiple ref={inputRef} className="hidden" onChange={e => addFiles(e.target.files)} />
             <button type="button" disabled={isProcessing || hasSaved || rows.length >= MAX_FILES} onClick={() => inputRef.current?.click()}
               className="inline-flex items-center gap-2 bg-stone-900 px-4 py-3 text-xs font-bold text-white disabled:opacity-40">
-              <Upload size={15} /> Choose Images
+              <Upload size={15} /> 选择图片
             </button>
             {rows.length > 0 && !hasSaved && (
               <button type="button" disabled={isProcessing} onClick={() => {
@@ -425,10 +425,10 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                   {mode === 'many-products' ? (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {([
-                        ['name', 'Name / 名称'],
-                        ['code', 'SKU (required)'],
-                        ['material', 'Material / 材质'],
-                        ['size', 'Size / 尺寸']
+                        ['name', '产品名称'],
+                        ['code', 'SKU（必填）'],
+                        ['material', '材质'],
+                        ['size', '尺寸']
                       ] as const).map(([field, label]) => (
                         <label key={field} className="block text-[11px] font-bold text-stone-500">
                           {label}
@@ -438,7 +438,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                         </label>
                       ))}
                       <fieldset className="border border-stone-200 p-2 sm:col-span-2">
-                        <legend className="px-1 text-[11px] font-bold text-stone-600">Production Sites / 生产基地 (required)</legend>
+                        <legend className="px-1 text-[11px] font-bold text-stone-600">生产基地（必选）</legend>
                         {productionSiteOptions.map(site => (
                           <label key={site.value} className="mr-5 inline-flex items-center gap-2 py-2 text-xs">
                             <input type="checkbox" disabled={isProcessing || row.status === 'saved' || row.status === 'verify'}
@@ -449,7 +449,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                             {site.label}
                           </label>
                         ))}
-                        {row.production_sites.length === 0 && <p className="text-xs text-red-700">{T("Select at least one production site.","请选择至少一个生产基地。")}</p>}
+                        {row.production_sites.length === 0 && <p className="text-xs text-red-700">{T("请选择至少一个生产基地。","请选择至少一个生产基地。")}</p>}
                       </fieldset>
                     </div>
                   ) : (
@@ -463,7 +463,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                   </div>
                   {row.status === 'verify' && mode === 'many-products' && (
                     <button type="button" onClick={() => verifyAndRetry(row.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-700">
-                      <RotateCcw size={12}/> I checked Registry; retry
+                      <RotateCcw size={12}/> 已核实产品库，重新尝试
                     </button>
                   )}
                 </div>
@@ -488,7 +488,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
 
         {hasUncertain && mode === 'one-product' && (
           <button type="button" onClick={() => verifyAndRetry()} className="inline-flex items-center gap-2 text-xs font-bold text-amber-700">
-            <RotateCcw size={14}/> I checked Master Registry; this SKU does not exist. Enable retry.
+            <RotateCcw size={14}/> 已核实产品库中没有此 SKU，允许重试。
           </button>
         )}
         {feedback && <div role="alert" className="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle size={16} className="mr-2 inline"/>{feedback}</div>}
