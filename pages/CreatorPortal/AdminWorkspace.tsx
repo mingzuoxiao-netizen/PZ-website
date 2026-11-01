@@ -16,6 +16,7 @@ import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
 import SiteMediaManager from './components/SiteMediaManager';
+import MediaTools from './components/MediaTools';
 import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
@@ -334,6 +335,7 @@ const AdminWorkspace: React.FC = () => {
           />
         )}
         {activeTab === 'media' && (
+          <div className="space-y-8">
           <SiteMediaManager
             key={activeTab}
             config={siteConfig}
@@ -374,6 +376,8 @@ const AdminWorkspace: React.FC = () => {
               return result.url;
             }}
           />
+          <MediaTools />
+          </div>
         )}
 
         {activeTab === 'basics' && (
