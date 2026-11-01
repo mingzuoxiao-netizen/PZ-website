@@ -4735,6 +4735,41 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     return result;
   }
 
+  function summarizeConfig(raw) {
+    const c = safeObject(raw);
+    const values = {};
+    const paths = [
+      "home.hero.title", "home.hero.image", "home.factory.image",
+      "home.cta.image", "home.hub_cn.image", "home.hub_kh.image",
+      "catalog.url", "about.banner",
+      "portfolio.hero_poster", "inquire.hero_poster",
+      "manufacturing.hero_machinery", "manufacturing.hero_qc",
+      "capabilities.hero_poster", "capacity.map_bg",
+      "capacity.card_cn", "capacity.card_kh",
+      "menu.feat_collections", "menu.feat_mfg", "menu.feat_capabilities",
+      "menu.feat_default"
+    ];
+    for (const path of paths) {
+      const v = path.split(".").reduce((obj, part) => obj?.[part], c);
+      if (typeof v === "string") values[path] = v.slice(0, 240);
+    }
+    const categories = Array.isArray(c.categories) ? c.categories : [];
+    values["categories.count"] = categories.length;
+    for (const category of categories.slice(0, 100)) {
+      const id = String(category?.id || "").replace(/[^a-z0-9_-]/gi, "").slice(0, 60);
+      if (!id) continue;
+      for (const field of ["title", "title_cn", "title_zh", "image", "hidden"]) {
+        const v = category[field];
+        if (typeof v === "string" || typeof v === "boolean")
+          values["categories." + id + "." + field] =
+            typeof v === "string" ? v.slice(0, 240) : v;
+      }
+      values["categories." + id + ".subCategories_count"] =
+        Array.isArray(category.subCategories) ? category.subCategories.length : 0;
+    }
+    return values;
+  }
+
   async function snapshot(env, entityType, id) {
     if (!env.DB) return null;
     if (entityType === "product" && id) {
@@ -4749,23 +4784,62 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       ).bind(id).first();
       return safeSummary(row, accountFields);
     }
+    if (entityType === "category_request" && id) {
+      const row = await env.DB.prepare(
+        "SELECT title,title_cn,subtitle,status,image FROM category_requests WHERE id=? LIMIT 1"
+      ).bind(id).first();
+      return safeSummary(row, ["title", "title_cn", "subtitle", "status", "image"]);
+    }
+    if (entityType === "category_change" && id) {
+      const row = await env.DB.prepare(
+        "SELECT category_id,status,created_by FROM category_change_requests WHERE id=? LIMIT 1"
+      ).bind(id).first();
+      return safeSummary(row, ["category_id", "status", "created_by"]);
+    }
     if (entityType === "site_config") {
       if (String(env.PZ_D1_SITE_CONFIG_ENABLED || "").toLowerCase() === "true") {
         const row = await env.DB.prepare(
-          "SELECT draft_revision,published_revision,published_version FROM site_config_state WHERE id=1"
+          "SELECT draft_revision,published_revision,published_version,draft_json,published_json FROM site_config_state WHERE id=1"
         ).first();
-        return row ? { draft_revision: row.draft_revision, published_revision: row.published_revision,
-          published_version: row.published_version } : null;
+        if (!row) return null;
+        const draft = JSON.parse(row.draft_json || "{}");
+        const published = JSON.parse(row.published_json || "{}");
+        return {
+          draft_revision: row.draft_revision,
+          published_revision: row.published_revision,
+          published_version: row.published_version,
+          draft_fields: summarizeConfig(draft),
+          published_fields: summarizeConfig(published)
+        };
       }
-      return { store: "kv" };
+      const kv = env.SITE_CONFIG_KV;
+      if (!kv) return { store: "kv" };
+      const [draftRaw,publishedRaw] = await Promise.all([
+        kv.get("draft:site_config"), kv.get("published:site_config")
+      ]);
+      return { store: "kv", draft_fields: summarizeConfig(JSON.parse(draftRaw || "{}")),
+        published_fields: summarizeConfig(JSON.parse(publishedRaw || "{}")) };
     }
     return null;
   }
 
   function changes(before, after) {
     if (!before || !after) return [];
-    const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
-    return [...keys].filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k])).slice(0, 50);
+    const changed = [];
+    const walk = (a, b, prefix) => {
+      const keys = new Set([...Object.keys(safeObject(a)), ...Object.keys(safeObject(b))]);
+      for (const key of keys) {
+        const full = prefix ? prefix + "." + key : key;
+        if (key === "draft_fields" || key === "published_fields") {
+          walk(a?.[key], b?.[key], key === "draft_fields" ? "draft" : "published");
+        } else if (JSON.stringify(a?.[key]) !== JSON.stringify(b?.[key])) {
+          changed.push(full);
+        }
+        if (changed.length >= 100) return;
+      }
+    };
+    walk(before,after,"");
+    return changed;
   }
 
   async function readLogs(request, env) {
@@ -4850,6 +4924,13 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     let before = null;
     try {
       before = await snapshot(env, event.entity_type, event.entity_id);
+      // Product approval/rejection is a distinct event from ordinary editing.
+      if (event.action === "product.update" && path.startsWith("/admin/") &&
+          before?.status === "awaiting_review") {
+        const body = await request.clone().json().catch(() => ({}));
+        if (body?.status === "published") event.action = "product.approve";
+        else if (body?.status === "rejected") event.action = "product.reject";
+      }
       // Reserve the event before the mutation. A migration/binding failure blocks
       // mutations, rather than permitting unaudited changes.
       await env.DB.prepare(
