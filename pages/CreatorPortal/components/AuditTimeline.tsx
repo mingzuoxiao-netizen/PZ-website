@@ -100,6 +100,7 @@ function changedValue(snapshot: Record<string, unknown>, key: string): unknown {
   return snapshot[key];
 }
 const AuditTimeline: React.FC = () => {
+  const [storage, setStorage] = useState<{total:number;pending:number;oldest:string|null;jsonPayloadBytes:number}|null>(null);
   const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [applied, setApplied] = useState<Filters>(emptyFilters);
   const [result, setResult] = useState<AuditPage | null>(null);
@@ -130,6 +131,14 @@ const AuditTimeline: React.FC = () => {
   }, []);
 
   useEffect(() => { void load(emptyFilters, 1); }, [load]);
+  useEffect(() => {
+    let alive = true;
+    adminFetch<{total:number;pending:number;oldest:string|null;jsonPayloadBytes:number}>('admin/audit-storage')
+      .then(value => { if (alive) setStorage(value); })
+      .catch(() => { if (alive) setStorage(null); });
+    return () => { alive = false; };
+  }, []);
+
   const apply = (e: React.FormEvent) => {
     e.preventDefault();
     setApplied({ ...draft });
@@ -154,6 +163,15 @@ const AuditTimeline: React.FC = () => {
         </p>
       </header>
 
+      {storage && (
+        <section className="bg-white border border-stone-200 p-5 text-sm text-stone-600">
+          <p className="font-semibold text-stone-900 mb-2">日志存储概况（D1）</p>
+          <p>共 {storage.total.toLocaleString()} 条 · 待确认 {storage.pending.toLocaleString()} 条 ·
+            JSON 文本约 {(storage.jsonPayloadBytes / (1024 * 1024)).toFixed(2)} MB</p>
+          <p className="text-xs mt-2">该数字不含 D1 数据库页、索引和其他表；当前没有自动删除策略。
+            建议保留审计记录，达到一定规模后先归档再考虑清理。</p>
+        </section>
+      )}
       <form onSubmit={apply} className="bg-white border border-stone-200 p-5 grid md:grid-cols-3 xl:grid-cols-6 gap-3">
         <label className="text-xs font-semibold text-stone-600 flex flex-col gap-1">操作人
           <input value={draft.actor} maxLength={120} onChange={e => setDraft(x => ({ ...x, actor: e.target.value }))}
