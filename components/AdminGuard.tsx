@@ -20,7 +20,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
       const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
       const role = sessionStorage.getItem("pz_user_role") as 'ADMIN' | 'FACTORY' | null;
       
-      if (!token) {
+      if (!token || (role !== 'ADMIN' && role !== 'FACTORY')) {
         setAuthorized(false);
         setChecking(false);
         return;
@@ -33,6 +33,8 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
       }
 
       if (requiredRole && role !== requiredRole) {
+          setAuthorized(false);
+          setChecking(false);
           const target = role === 'ADMIN' ? '/creator/admin' : '/creator/factory';
           navigate(target, { replace: true });
           return;
@@ -44,6 +46,13 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
 
     validateToken();
   }, [navigate, requiredRole, location.pathname]);
+
+  const handleLoginSuccess = (role: 'ADMIN' | 'FACTORY') => {
+    // sessionStorage writes do not trigger React renders. Explicitly refresh
+    // this guard even when the user logs in from an unchanged URL.
+    setAuthorized(!requiredRole || requiredRole === role);
+    setChecking(false);
+  };
 
   if (checking) {
     return (
@@ -58,7 +67,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     return <>{children}</>;
   }
 
-  return <AdminLogin />;
+  return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
 };
 
 export default AdminGuard;
