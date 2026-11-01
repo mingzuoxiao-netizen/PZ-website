@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
+import { mergeSiteMediaDraft, getSiteImageChanges } from '../../utils/siteMediaChanges';
 import PortalLayout from './PortalLayout';
 import {
   RefreshCw, Package, Inbox,
@@ -91,12 +92,15 @@ const AdminWorkspace: React.FC = () => {
         const published = await adminFetch<any>('site-config');
         remoteConfig = published?.config ?? published;
       }
-      setSiteConfig({ ...DEFAULT_CONFIG, ...remoteConfig });
+      const hydrated = { ...DEFAULT_CONFIG, ...remoteConfig };
+      setSiteConfig(hydrated);
+      return hydrated;
     } catch (e) {
       console.error('读取网站配置失败', e);
       // Never overwrite approved categories using fallback defaults.
       setSiteConfig(null);
       setDraftRevision(null);
+      return null;
     }
   }, []);
 
@@ -334,14 +338,18 @@ const AdminWorkspace: React.FC = () => {
             key={activeTab}
             config={siteConfig}
             onChange={setSiteConfig}
-            onSave={async () => {
+            onSave={async (edited, baseline) => {
               setIsSavingConfig(true);
               try {
-                await saveDraftVersioned(siteConfig);
+                const changes = getSiteImageChanges(baseline, edited);
+                if (!changes.length) return;
+                const latest = await adminFetch<{ draft: any; revision?: number }>('admin/draft/site-config');
+                const live = latest?.draft;
+                // Product covers, categories and site text are untouched.
+                const merged = mergeSiteMediaDraft(live, baseline, edited);
+                await saveDraftVersioned(merged, typeof latest.revision === 'number' ? latest.revision : null);
                 setHasPendingDeploy(true);
                 await loadSiteConfig();
-              } catch (e) {
-                throw e;
               } finally {
                 setIsSavingConfig(false);
               }
