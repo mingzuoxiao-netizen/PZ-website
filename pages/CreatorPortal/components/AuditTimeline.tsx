@@ -35,6 +35,8 @@ const emptyFilters: Filters = { actor: '', action: '', type: '', status: '', fro
 const actionLabels: Record<string, string> = {
   'product.create': '新建产品',
   'product.update': '修改产品',
+  'product.approve': '批准产品',
+  'product.reject': '退回产品',
   'product.delete': '删除产品',
   'product.submit': '提交产品审核',
   'product.remove_image': '移除产品图片',
@@ -67,7 +69,11 @@ const fields: Record<string, string> = {
   production_sites_count: '生产基地数量', created_by: '创建人 ID',
   updated_at: '最后修改时间', username: '账号名称', role: '账号角色',
   is_active: '账号状态', draft_revision: '草稿版本',
-  published_revision: '发布修订号', published_version: '发布版本'
+  published_revision: '发布修订号', published_version: '发布版本',
+  'draft': '草稿', 'published': '已发布',
+  title: '英文标题', title_cn: '中文标题', image: '图片链接',
+  hidden: '是否隐藏', category_id: '分类 ID',
+  created_by: '创建人 ID'
 };
 function displayDate(value: string) {
   const dt = new Date(value);
