@@ -4973,7 +4973,7 @@ if (
 // Entries are reserved BEFORE each audited mutation; incomplete entries remain
 // visibly "pending" rather than silently claiming successful audit coverage.
 
-function pzAuditCreateFetch(originalFetch, { authorize, json }) {
+function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected }) {
   const maxLimit = 100;
   const productFields = [
     "name", "name_cn", "category", "sub_category", "material", "size", "finish",
@@ -5148,6 +5148,12 @@ function pzAuditCreateFetch(originalFetch, { authorize, json }) {
   }
 
   return async function auditFetch(request, env, ctx) {
+    // Preserve each standalone Worker's own environment isolation behavior.
+    // In particular Staging-only category routes must keep returning 403 in
+    // production mode, before audit authentication is even considered.
+    if (runtimeExpected && String(env?.PZ_RUNTIME_ENV || "").toLowerCase() !== runtimeExpected) {
+      return originalFetch.call(this, request, env, ctx);
+    }
     const path = new URL(request.url).pathname;
     if (path === "/admin/audit-logs") {
       if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
@@ -5222,7 +5228,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json }) {
 }
 
 const pzAuditOriginalFetch = index_default.fetch;
-index_default.fetch = pzAuditCreateFetch(pzAuditOriginalFetch, { authorize, json });
+index_default.fetch = pzAuditCreateFetch(pzAuditOriginalFetch, { authorize, json, runtimeExpected: 'production' });
 
 var pzCorsOriginalFetch = index_default.fetch;
 index_default.fetch = async function(request, env, ctx) {
