@@ -1,43 +1,80 @@
-
 import React, { useState } from 'react';
-import { Trash2, AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react';
+import { AlertTriangle, FileSearch, RefreshCw, ShieldCheck } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
-import { extractKeyFromUrl } from '../../../utils/imageResolver';
 
+type CheckResult = {
+  key: string;
+  exists: boolean | null;
+  references: Record<string, number>;
+  confirmedReferences: number;
+  unchecked: string[];
+  safeToDelete: false;
+  message: string;
+};
+
+/**
+ * Read-only media usage inspector.
+ * Intentionally does not implement R2 DELETE: unlisted historical R2
+ * snapshots and external links could still reference an image.
+ */
 const MediaTools: React.FC = () => {
-  const [urls, setUrls] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{ success: number; failed: number } | null>(null);
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<CheckResult | null>(null);
 
-  const handleDelete = async () => {
-    if (!urls.trim()) return;
-    if (!confirm("Are you sure? This will permanently delete these files from the server. This cannot be undone.")) return;
-    setProcessing(true);
+  async function inspect() {
+    setLoading(true);
+    setError('');
     setResult(null);
-    const urlList = urls.split('\n').map(u => u.trim()).filter(Boolean);
-    const keys = urlList.map(extractKeyFromUrl).filter((k): k is string => Boolean(k));
-    if (keys.length === 0) { alert("No valid managed URLs found in the input."); setProcessing(false); return; }
-    let successCount = 0;
-    let failCount = 0;
-    for (const key of keys) {
-      try {
-        await adminFetch('admin/delete-image', { method: 'POST', body: JSON.stringify({ key }) });
-        successCount++;
-      } catch (e) { failCount++; }
+    try {
+      const data = await adminFetch<CheckResult>(
+        'admin/media/image-usage?url=' + encodeURIComponent(url.trim())
+      );
+      if (!data || data.safeToDelete !== false || !data.references) {
+        throw new Error('检查结果不完整，请勿删除图片。');
+      }
+      setResult(data);
+    } catch (err: any) {
+      setError(err?.message || '检查失败');
+    } finally {
+      setLoading(false);
     }
-    setResult({ success: successCount, failed: failCount });
-    setUrls('');
-    setProcessing(false);
-  };
+  }
 
   return (
-    <div className="animate-fade-in">
-      <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8"><h3 className="font-serif text-2xl text-stone-900 mb-4 flex items-center"><Trash2 className="mr-3 text-red-600" size={24} />Media Cleanup Tool</h3><p className="text-stone-500 text-sm max-w-3xl leading-relaxed">Manually delete unused images from the cloud storage using individual deletion requests.</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2"><div className="bg-white border border-stone-200 p-6 shadow-sm"><label className="block text-xs font-bold uppercase tracking-widest text-stone-500 mb-4">Image URLs (One per line)</label><textarea value={urls} onChange={(e) => setUrls(e.target.value)} className="w-full h-64 p-4 text-xs font-mono bg-stone-50 border border-stone-200 focus:border-red-500 outline-none resize-none mb-4" placeholder="https://cdn.peng-zhan.com/uploads/..." />{result && (<div className={`mb-4 text-sm flex items-center ${result.failed === 0 ? 'text-green-600' : 'text-red-600'}`}>{result.failed === 0 ? <CheckCircle size={16} className="mr-2" /> : <AlertTriangle size={16} className="mr-2" />}<span>Successfully deleted {result.success} images.{result.failed > 0 && ` Failed: ${result.failed}`}</span></div>)}<button onClick={handleDelete} disabled={processing || !urls.trim()} className="w-full bg-red-600 text-white font-bold uppercase tracking-widest py-4 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center">{processing ? <>Processing <Loader2 size={16} className="ml-3 animate-spin" /></> : 'Permanently Delete Images'}</button></div></div>
-        <div className="md:col-span-1"><div className="bg-amber-50 border border-amber-200 p-6 text-amber-900 text-sm leading-relaxed"><h4 className="font-bold uppercase tracking-widest mb-4 flex items-center"><Info size={16} className="mr-2" /> Operational Safety</h4><ul className="list-disc pl-4 space-y-2"><li>Deletion is permanent.</li><li>Only managed CDN URLs will be accepted.</li><li>Processing may take a few moments.</li></ul></div></div>
+    <section className="border border-stone-200 bg-white p-6">
+      <h3 className="font-serif text-xl text-stone-900 flex gap-2 items-center">
+        <FileSearch size={20}/> 云端图片引用检查（只读）
+      </h3>
+      <p className="mt-2 text-sm text-stone-600">
+        粘贴一条本网站上传图片的完整 CDN 地址，查看是否仍被产品或网站配置使用。
+        此工具不执行永久删除。
+      </p>
+      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+        <input value={url} onChange={e => setUrl(e.target.value)}
+          className="flex-1 border border-stone-200 p-3 text-sm"
+          placeholder="https://cdn.peng-zhan.com/uploads%2F..." aria-label="图片 CDN 地址"/>
+        <button type="button" onClick={() => void inspect()} disabled={loading || !url.trim()}
+          className="bg-stone-900 text-white px-5 py-3 text-sm disabled:opacity-40 flex items-center justify-center gap-2">
+          {loading ? <RefreshCw size={15} className="animate-spin"/> : <ShieldCheck size={15}/>}
+          检查引用
+        </button>
       </div>
-    </div>
+      {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
+      {result && <div className="mt-5 space-y-2 text-sm">
+        <p>R2 文件状态：{result.exists === true ? '存在' : result.exists === false ? '未找到' : '未能确认'}</p>
+        <p>检测到的引用：<strong>{result.confirmedReferences}</strong> 处（已知数据源）</p>
+        {Object.entries(result.references).map(([source, count]) =>
+          <p key={source} className="text-stone-600">{source}：{count}</p>
+        )}
+        <div className="bg-amber-50 border border-amber-200 p-4 text-amber-900 flex items-start gap-2">
+          <AlertTriangle size={18} className="shrink-0"/>
+          <p>无论检查结果是否为零，都不代表可以永久删除。历史快照、外部链接和缓存可能仍使用图片。
+          尚未覆盖：{result.unchecked.join('、') || '无' }。请勿直接在 R2 中清理。</p>
+        </div>
+      </div>}
+    </section>
   );
 };
 
