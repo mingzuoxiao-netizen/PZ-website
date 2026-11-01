@@ -4891,8 +4891,8 @@ if (
         let key;
         try {
           const parsed = new URL(input);
-          if (parsed.origin !== "https://cdn.peng-zhan.com" || parsed.search || parsed.hash) {
-            return badRequest("Only PZ production CDN URLs are supported");
+          if (parsed.origin !== pzConfiguredImageBase(env) || parsed.search || parsed.hash) {
+            return badRequest("Only current-environment PZ CDN URLs are supported");
           }
           key = decodeURIComponent(parsed.pathname.slice(1));
           if (!/^uploads\/[a-zA-Z0-9._-]+\.(?:jpg|png|webp)$/.test(key) || key.includes("..")) {
