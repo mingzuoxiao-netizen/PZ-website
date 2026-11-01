@@ -4683,7 +4683,7 @@ if (
         if (file.size < 8 || file.size > MAX_PDF_BYTES) {
           return json({ error: "PDF size must be 15 MB or less" }, 413);
         }
-        if (!/\\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
+        if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
           return json({ error: "Only PDF files are accepted" }, 415);
         }
         const buffer = await file.arrayBuffer();
