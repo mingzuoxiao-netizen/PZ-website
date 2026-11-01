@@ -70,7 +70,7 @@ async function testLogin(initialPath: string, loginRole: Role) {
     assert.equal(renderer.root.findAllByProps({ 'data-workspace': target }).length, 1,
       'workspace should show immediately after login, without refreshing');
     assert.equal(renderer.root.findAllByType(AdminLogin).length, 0);
-    assert.equal(renderer.root.findByType(LocationMarker).props['data-path'], '/creator/' + target);
+    assert.equal(renderer.root.findByType('span').props['data-path'], '/creator/' + target);
     assert.equal(storage.getItem('pz_user_role'), loginRole);
     assert.equal(storage.getItem('pz_auth_token'), 'only-a-mocked-test-token');
 
