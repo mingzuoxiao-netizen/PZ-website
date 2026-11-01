@@ -84,6 +84,21 @@ function displayValue(value: unknown): string {
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
+function fieldLabel(key: string): string {
+  if (key.startsWith('draft.')) return '草稿 · ' + key.slice(6);
+  if (key.startsWith('published.')) return '已发布 · ' + key.slice(10);
+  return fields[key] || key;
+}
+function changedValue(snapshot: Record<string, unknown>, key: string): unknown {
+  if (key.startsWith('draft.') || key.startsWith('published.')) {
+    const part = key.startsWith('draft.') ? 'draft_fields' : 'published_fields';
+    const fieldKey = key.slice(key.startsWith('draft.') ? 6 : 10);
+    const values = snapshot[part];
+    return values && typeof values === 'object'
+      ? (values as Record<string, unknown>)[fieldKey] : undefined;
+  }
+  return snapshot[key];
+}
 const AuditTimeline: React.FC = () => {
   const [draft, setDraft] = useState<Filters>(emptyFilters);
   const [applied, setApplied] = useState<Filters>(emptyFilters);
@@ -223,9 +238,20 @@ const AuditTimeline: React.FC = () => {
             {expanded === item.id && (
               <div className="mt-4 border-t border-stone-100 pt-4 text-xs space-y-3">
                 <p className="text-stone-500">事件编号：{item.id} · HTTP 状态：{item.http_status ?? '尚未确认'}</p>
-                <p className="font-semibold text-stone-700">变更字段：{item.changed_fields?.length ? item.changed_fields.map(field => fields[field] || field).join('、') : '未提供字段级差异'}</p>
+                <p className="font-semibold text-stone-700">变更字段：{item.changed_fields?.length ? item.changed_fields.map(fieldLabel).join('、') : '未提供字段级差异'}</p>
                 {item.action === 'account.reset_password' && <p className="text-stone-500">出于安全考虑，不记录密码或密码哈希。</p>}
-                {(item.before && Object.keys(item.before).length > 0 || item.after && Object.keys(item.after).length > 0) && (
+                {item.entity_type === 'site_config' && item.changed_fields?.length > 0 && (
+                  <div className="border border-stone-200 divide-y divide-stone-100">
+                    {item.changed_fields.map(field => (
+                      <div key={field} className="grid md:grid-cols-[1.2fr_1fr_1fr] gap-2 text-xs p-3">
+                        <span className="font-medium text-stone-700 break-words">{fieldLabel(field)}</span>
+                        <span className="break-words text-stone-500">之前：{displayValue(changedValue(item.before || {}, field))}</span>
+                        <span className="break-words text-stone-800">之后：{displayValue(changedValue(item.after || {}, field))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {item.entity_type !== 'site_config' && (item.before && Object.keys(item.before).length > 0 || item.after && Object.keys(item.after).length > 0) && (
                   <div className="grid md:grid-cols-2 gap-4">
                     {([['操作前', item.before], ['操作后', item.after]] as const).map(([title, data]) => (
                       <div key={title} className="bg-stone-50 border border-stone-100 p-3 min-w-0">
