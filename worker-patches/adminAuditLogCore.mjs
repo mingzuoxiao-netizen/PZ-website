@@ -36,6 +36,8 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
     m = path.match(/^\/admin\/accounts\/([^/]+)$/);
     if (m && method === "PUT")
       return { action: "account.update", entity_type: "account", entity_id: decodeURIComponent(m[1]) };
+    if (m && method === "DELETE")
+      return { action: "account.delete", entity_type: "account", entity_id: decodeURIComponent(m[1]) };
     for (const prefix of ["admin", "factory"]) {
       if (path === `/${prefix}/products` && method === "POST")
         return { action: "product.create", entity_type: "product", entity_id: "" };

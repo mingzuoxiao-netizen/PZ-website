@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users, Shield, RefreshCw, UserPlus, X, Key, Loader2,
-  Save, Factory, ShieldAlert, CheckCircle, Power, Lock
+  Save, Factory, ShieldAlert, CheckCircle, Power, Lock, Pencil, Trash2
 } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 
@@ -46,6 +46,11 @@ const AccountsManager: React.FC = () => {
   const [resettingUser, setResettingUser] = useState<Account | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const [accountAction, setAccountAction] = useState<{ type: 'rename' | 'delete'; account: Account } | null>(null);
+  const [actionName, setActionName] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -154,6 +159,40 @@ const AccountsManager: React.FC = () => {
     }
   };
 
+
+  const openAccountAction = (type: 'rename' | 'delete', account: Account) => {
+    setAccountAction({ type, account });
+    setActionName(type === 'rename' ? account.username : '');
+    setActionError('');
+  };
+
+  const handleAccountAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountAction || actionBusy) return;
+    const { type, account } = accountAction;
+    const name = actionName.trim();
+    if (type === 'delete' && actionName !== account.username) {
+      setActionError('请输入完整账号名称以确认删除。'); return;
+    }
+    if (type === 'rename' && (!name || name.length > 80 || /[\s\u0000-\u001f\u007f]/u.test(name))) {
+      setActionError('账号名称须为 1–80 个字符，不能包含空格或控制字符。'); return;
+    }
+    setActionBusy(true);
+    setActionError('');
+    try {
+      const result = await adminFetch<{ success: boolean }>(
+        `/admin/accounts/${encodeURIComponent(account.id)}`,
+        type === 'delete' ? { method: 'DELETE' } :
+          { method: 'PUT', body: JSON.stringify({ username: name }) }
+      );
+      if (result?.success !== true) throw new Error('服务器未确认操作成功，请刷新列表核实。');
+      setAccountAction(null);
+      await fetchAccounts();
+    } catch (e: any) {
+      setActionError(e?.message || '操作失败，请稍后重试。');
+    } finally { setActionBusy(false); }
+  };
+
   return (
     <div className="animate-fade-in relative min-h-[600px]">
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -181,6 +220,39 @@ const AccountsManager: React.FC = () => {
           </button>
         </div>
       </div>
+
+
+      {accountAction && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-stone-950/60 p-4">
+          <form onSubmit={handleAccountAction} role="dialog" aria-modal="true" aria-labelledby="account-action-title"
+            className="bg-white w-full max-w-md p-6 shadow-2xl space-y-5">
+            <h4 id="account-action-title" className="text-xl font-bold text-stone-900">
+              {accountAction.type === 'rename' ? '修改账号名称' : '删除账号'}
+            </h4>
+            <p className="text-sm text-stone-600">目标账号：{accountAction.account.username}</p>
+            <p className="text-sm text-stone-600">
+              {accountAction.type === 'rename'
+                ? '修改后请使用新账号名称登录，密码、账号编号和产品归属保持不变。'
+                : '删除后无法恢复，该账号将无法继续登录。有关联业务记录的账号请使用停用功能。'}
+            </p>
+            <label className="block text-sm text-stone-700">
+              {accountAction.type === 'rename' ? '新账号名称' : '输入完整账号名称以确认删除'}
+              <input autoFocus required maxLength={accountAction.type === 'rename' ? 80 : undefined}
+                value={actionName} disabled={actionBusy} onChange={e => setActionName(e.target.value)}
+                autoComplete="off" className="mt-2 w-full border border-stone-300 p-3" />
+            </label>
+            {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" disabled={actionBusy} onClick={() => setAccountAction(null)}
+                className="border border-stone-300 px-4 py-2 disabled:opacity-50">取消</button>
+              <button type="submit" disabled={actionBusy || (accountAction.type === 'delete' && actionName !== accountAction.account.username)}
+                className={`px-4 py-2 text-white disabled:opacity-50 ${accountAction.type === 'delete' ? 'bg-red-700' : 'bg-stone-900'}`}>
+                {actionBusy ? '正在处理…' : accountAction.type === 'rename' ? '保存名称' : '确认删除'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Provision Modal */}
       {isCreating && (
@@ -379,7 +451,17 @@ const AccountsManager: React.FC = () => {
                     </td>
 
                     <td className="px-8 py-5 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2 flex-wrap">
+                        <button onClick={() => openAccountAction('rename', account)}
+                          aria-label={`修改账号名称 ${account.username}`} title="修改账号名称"
+                          className="p-2 border border-stone-200 text-stone-600 hover:border-stone-900 rounded">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => openAccountAction('delete', account)}
+                          aria-label={`删除账号 ${account.username}`} title="删除账号"
+                          className="p-2 border border-red-200 text-red-700 hover:bg-red-50 rounded">
+                          <Trash2 size={14} />
+                        </button>
                         <button
                           onClick={() => handleToggleStatus(account.id, account.status)}
                           title={account.status === 'Active' ? '停用账号' : '恢复账号'}

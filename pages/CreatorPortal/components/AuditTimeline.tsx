@@ -53,7 +53,8 @@ const actionLabels: Record<string, string> = {
   'site_config.rollback': '回滚网站配置',
   'site_config.bootstrap': '初始化网站配置',
   'account.create': '创建账号',
-  'account.update': '更改账号权限',
+  'account.update': '修改账号名称或权限',
+  'account.delete': '删除账号',
   'account.reset_password': '重置账号密码',
   'media.upload_image': '上传图片',
   'media.upload_pdf': '上传产品目录 PDF'
