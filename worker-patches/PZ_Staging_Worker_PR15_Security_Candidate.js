@@ -3876,6 +3876,38 @@ async function handleCategoryChanges({ request, env, pathname, authorize, json, 
 }
 
 
+// Staging-only read-only site configuration version endpoint used by FactoryWorkspace.
+// Keep the KV metadata version if valid; otherwise derive a stable fingerprint
+// from the actual published snapshot. Never mutate published site configuration.
+async function pzStagingSiteConfigMeta(env) {
+  if (String(env.PZ_RUNTIME_ENV || "").trim().toLowerCase() !== "staging") {
+    return json({ error: "Staging-only metadata endpoint" }, 403);
+  }
+  if (!env.SITE_CONFIG_KV) {
+    return json({ error: "Staging site config KV unavailable" }, 503);
+  }
+  const metadataRaw = await env.SITE_CONFIG_KV.get("published:meta");
+  const metadata = safeJsonParse(metadataRaw, null);
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata) &&
+      typeof metadata.version === "string" && metadata.version.trim()) {
+    return json({
+      version: metadata.version,
+      publishedAt: metadata.publishedAt || metadata.rolledAt || null,
+      source: "kv-meta"
+    });
+  }
+
+  const publishedRaw = await env.SITE_CONFIG_KV.get("published:site_config");
+  const published = safeJsonParse(publishedRaw, null);
+  if (!published || typeof published !== "object" || Array.isArray(published) ||
+      !Array.isArray(published.categories)) {
+    return json({ error: "Published Staging site configuration unavailable" }, 503);
+  }
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(publishedRaw));
+  const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  return json({ version: "kv-sha256-" + fingerprint, publishedAt: null, source: "published-fallback" });
+}
+
 var index_default = {
   async fetch(request, env) {
 
@@ -3884,6 +3916,12 @@ var index_default = {
       return corsPreflight();
     }
     try {
+      // Pages proxies /api/site-config/meta to the Worker /site-config/meta.
+      // Do not expose draft configuration or require a login for a public version.
+      if (pathname === "/site-config/meta" || pathname === "/api/site-config/meta") {
+        if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+        return await pzStagingSiteConfigMeta(env);
+      }
 
 const categoryResponse = await handleFactoryCategoryRequests({
   request,
