@@ -72,9 +72,13 @@ const AccountsManager: React.FC = () => {
     setError(null);
 
     const u = username.trim();
-    const p = password.trim();
+    const p = password;
     if (!u || !p) {
-      setError("Username and key required.");
+      setError("请输入账号和密码。");
+      return;
+    }
+    if (p.length < 12 || new TextEncoder().encode(p).length > 72 || p.toLowerCase().includes(u.toLowerCase())) {
+      setError("密码至少 12 个字符、最多 72 字节，且不能包含账号名称。");
       return;
     }
 
@@ -125,8 +129,12 @@ const AccountsManager: React.FC = () => {
     e.preventDefault();
     if (!resettingUser) return;
 
-    const pwd = newPassword.trim();
-    if (!pwd) return;
+    const pwd = newPassword;
+    if (pwd.length < 12 || new TextEncoder().encode(pwd).length > 72 ||
+        (resettingUser.username.length >= 3 && pwd.toLowerCase().includes(resettingUser.username.toLowerCase()))) {
+      alert("新密码至少 12 个字符、最多 72 字节，且不能包含账号名称。");
+      return;
+    }
 
     setIsUpdatingPassword(true);
     try {
@@ -214,10 +222,12 @@ const AccountsManager: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="至少 12 个字符"
+                    minLength={12}
                     className="w-full bg-stone-50 border border-stone-200 pl-12 pr-4 py-4 text-stone-900 text-sm focus:border-safety-700 outline-none transition-colors font-mono"
                   />
                 </div>
+                <p className="mt-2 text-xs text-stone-500">建议使用密码管理器生成独立长密码；不得包含账号名称。密码重置后旧登录会话将失效。</p>
               </div>
 
               <div>
@@ -290,10 +300,12 @@ const AccountsManager: React.FC = () => {
                   required
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder="输入新密码…"
+                  placeholder="输入至少 12 个字符的新密码…"
+                  minLength={12}
                   className="w-full bg-stone-50 border border-stone-200 p-4 text-stone-900 text-sm focus:border-amber-700 outline-none transition-colors font-mono"
                   autoFocus
                 />
+                <p className="mt-2 text-xs text-stone-500">密码至少 12 个字符且不包含账号名；重置后该账号所有旧令牌失效。</p>
               </div>
               <div className="pt-2">
                 <button
