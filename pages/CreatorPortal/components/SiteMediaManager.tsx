@@ -176,7 +176,7 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, o
                   onError={setError}
                   maxImages={1}
                   accept="image/png,image/jpeg,image/webp"
-                  // Avoid silently cropping uploaded source files; preview cropping is visual only.
+
                 />
                 <p className="text-[11px] text-stone-500 mt-2">替换操作只修改当前页面图片引用，不会直接删除 R2 中的旧图片。</p>
               </section>
