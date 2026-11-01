@@ -3238,7 +3238,7 @@ function normalizeRole(role) {
 __name(normalizeRole, "normalizeRole");
 __name2(normalizeRole, "normalizeRole");
 async function signToken(payload, secret) {
-  return new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("7d").sign(new TextEncoder().encode(secret));
+  return new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("12h").sign(new TextEncoder().encode(secret));
 }
 __name(signToken, "signToken");
 __name2(signToken, "signToken");
@@ -3247,6 +3247,48 @@ async function verifyToken(token, secret) {
 }
 __name(verifyToken, "verifyToken");
 __name2(verifyToken, "verifyToken");
+// PR #15: Authentication hardening. Passwords and tokens never enter KV.
+function pzAuthPasswordPolicyError(password, username = "") {
+  if (typeof password !== "string") return "Password must be text";
+  const bytes = new TextEncoder().encode(password).length;
+  if (password.length < 12 || bytes > 72) return "Password must be at least 12 characters and at most 72 UTF-8 bytes";
+  if (!password.trim()) return "Password cannot be blank";
+  if (username && username.length >= 3 && password.toLowerCase().includes(String(username).toLowerCase())) {
+    return "Password must not include the username";
+  }
+  const common = new Set(["password12345", "password123456", "123456789012", "qwerty123456", "admin123456789", "letmein123456"]);
+  if (common.has(password.toLowerCase())) return "Please choose a less common password";
+  return null;
+}
+async function pzAuthDigest(value) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value)));
+  return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, "0")).join("");
+}
+// The fingerprint revokes previously issued JWTs when an account password is reset.
+// Existing 7-day tokens without 'phv' will require a fresh login on deployment.
+async function pzAuthPasswordVersion(passwordHash) {
+  return (await pzAuthDigest(passwordHash)).slice(0, 32);
+}
+// This KV threshold is defense in depth, not an atomic distributed rate limiter.
+// Add Cloudflare WAF rate limiting to /api/login and Worker /login separately.
+async function pzAuthLoginRateKey(request, username) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  return "pz:auth:login:v1:" + await pzAuthDigest(String(username).toLowerCase() + "|" + ip);
+}
+async function pzAuthLoginTooMany(env, key) {
+  const raw = await env.SITE_CONFIG_KV.get(key);
+  if (!raw) return false;
+  const value = safeJsonParse(raw, {});
+  return Number(value.count || 0) >= 7 && Number(value.until || 0) > Date.now();
+}
+async function pzAuthLoginFailure(env, key) {
+  const now = Date.now();
+  const value = safeJsonParse(await env.SITE_CONFIG_KV.get(key), {});
+  const active = Number(value.until || 0) > now;
+  const count = active ? Math.min(100, Number(value.count || 0) + 1) : 1;
+  const until = active ? Number(value.until) : now + 10 * 60 * 1000;
+  await env.SITE_CONFIG_KV.put(key, JSON.stringify({ count, until }), { expirationTtl: Math.max(60, Math.ceil((until - now) / 1000)) });
+}
 async function getUserFromRequest(request, env) {
   const auth = request.headers.get("Authorization");
   if (!auth || !auth.startsWith("Bearer ")) return null;
@@ -3258,7 +3300,8 @@ async function getUserFromRequest(request, env) {
       id: String(payload.sub),
       username: String(payload.username),
       role: normalizeRole(payload.role),
-      org_id: payload.org_id ? String(payload.org_id) : null
+      org_id: payload.org_id ? String(payload.org_id) : null,
+      phv: typeof payload.phv === "string" ? payload.phv : ""
     };
   } catch {
     return null;
@@ -3270,10 +3313,13 @@ async function authorize(request, env, allowedRoles) {
   const user = await getUserFromRequest(request, env);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const current = await env.DB.prepare(
-    "SELECT id, username, role, is_active, org_id FROM users WHERE id = ? LIMIT 1"
+    "SELECT id, username, role, is_active, org_id, password_hash FROM users WHERE id = ? LIMIT 1"
   ).bind(user.id).first();
   if (!current || Number(current.is_active) !== 1) {
     return json({ error: "Account inactive or not found" }, 401);
+  }
+  if (!user.phv || user.phv !== await pzAuthPasswordVersion(current.password_hash)) {
+    return json({ error: "Session expired; sign in again" }, 401);
   }
   const liveUser = {
     id: String(current.id),
@@ -4168,11 +4214,21 @@ var index_default = {
         return json({ success: true, id }, 201);
       }
       if (pathname === "/login" && request.method === "POST") {
-        const body = await request.json();
+        if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) {
+          return json({ error: "Expected JSON" }, 415);
+        }
+        const raw = await request.text();
+        if (new TextEncoder().encode(raw).length > 8192) return json({ error: "Request too large" }, 413);
+        const body = safeJsonParse(raw, null);
+        if (!body || typeof body !== "object" || Array.isArray(body)) return badRequest("Invalid JSON");
         const username = String(body.username ?? "").trim();
-        const password = String(body.password ?? "");
-        if (!username || !password) {
-          return badRequest("Missing credentials");
+        const password = typeof body.password === "string" ? body.password : "";
+        if (!username || !password || username.length > 128 || password.length > 256) {
+          return badRequest("Invalid credentials");
+        }
+        const rateKey = await pzAuthLoginRateKey(request, username);
+        if (await pzAuthLoginTooMany(env, rateKey)) {
+          return json({ error: "Too many login attempts; try again in 10 minutes" }, 429);
         }
         const row = await env.DB.prepare(
           `SELECT id, username, password_hash, role, is_active, org_id
@@ -4180,11 +4236,10 @@ var index_default = {
      WHERE username = ?
      LIMIT 1`
         ).bind(username).first();
-        if (!row || !row.is_active) {
-          return json({ error: "Invalid credentials" }, 401);
-        }
-        const ok = await compare(password, row.password_hash);
+        const ok = row && Number(row.is_active) === 1
+          ? await compare(password, row.password_hash) : false;
         if (!ok) {
+          await pzAuthLoginFailure(env, rateKey);
           return json({ error: "Invalid credentials" }, 401);
         }
         const role = String(row.role).toLowerCase() === "admin" ? "ADMIN" : "FACTORY";
@@ -4193,10 +4248,13 @@ var index_default = {
             sub: row.id,
             username: row.username,
             role,
-            org_id: row.org_id ?? null
+            org_id: row.org_id ?? null,
+            phv: await pzAuthPasswordVersion(row.password_hash)
           },
           env.JWT_SECRET
         );
+        // Successful authentication clears this client's failed-attempt counter.
+        await env.SITE_CONFIG_KV.delete(rateKey);
         return json({
           token,
           user: {
@@ -4897,6 +4955,8 @@ if (
         try {
           const body = await request.json();
           if (!body.username || !body.password) return badRequest("Missing fields");
+          const passwordError = pzAuthPasswordPolicyError(body.password, body.username);
+          if (passwordError) return badRequest(passwordError);
           const role = normalizeRole(body.role ?? "FACTORY");
           const dbRole = role === "ADMIN" ? "admin" : "factory";
           const hash2 = await hash(body.password, 10);
@@ -4942,6 +5002,10 @@ if (
         const body = await request.json();
         const password = String(body.password ?? "").trim();
         if (!password) return badRequest("Missing password");
+        const target = await env.DB.prepare("SELECT username FROM users WHERE id=? LIMIT 1").bind(id).first();
+        if (!target) return json({ error: "Account not found" }, 404);
+        const passwordError = pzAuthPasswordPolicyError(password, target.username);
+        if (passwordError) return badRequest(passwordError);
         const hash2 = await hash(password, 10);
         await env.DB.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).bind(hash2, id).run();
         return json({ success: true });
