@@ -4665,6 +4665,41 @@ if (
           return json({ success: true, id });
         }
       }
+      // Admin-only catalog documents: keep the existing image upload route image-only.
+      // PDF upload creates an R2 object, but never changes the published catalog URL.
+      if (pathname === "/admin/upload-pdf" && request.method === "POST") {
+        const auth = await authorize(request, env, ["ADMIN"]);
+        if (auth instanceof Response) return auth;
+        const fileBase = pzConfiguredImageBase(env);
+        if (!fileBase || !env.PRODUCT_IMAGES) return json({ error: "Catalog storage is not configured" }, 503);
+        const contentType = request.headers.get("content-type") || "";
+        if (!contentType.toLowerCase().includes("multipart/form-data")) {
+          return json({ error: "Expected multipart/form-data" }, 400);
+        }
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File)) return json({ error: "Missing PDF file" }, 400);
+        const MAX_PDF_BYTES = 15 * 1024 * 1024;
+        if (file.size < 8 || file.size > MAX_PDF_BYTES) {
+          return json({ error: "PDF size must be 15 MB or less" }, 413);
+        }
+        if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== "application/pdf")) {
+          return json({ error: "Only PDF files are accepted" }, 415);
+        }
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        // Validate file signature, not merely extension or client-supplied MIME.
+        if (bytes[0] !== 37 || bytes[1] !== 80 || bytes[2] !== 68 || bytes[3] !== 70 || bytes[4] !== 45) {
+          return json({ error: "Invalid PDF signature" }, 415);
+        }
+        const basename = file.name.slice(0, -4).toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "catalog";
+        const key = `catalogs/${Date.now()}-${crypto.randomUUID()}-${basename}.pdf`;
+        await env.PRODUCT_IMAGES.put(key, buffer, {
+          httpMetadata: { contentType: "application/pdf", contentDisposition: "inline" }
+        });
+        return json({ success: true, key, url: `${fileBase}/${encodeURIComponent(key)}` });
+      }
       if (pathname === "/upload-image" && request.method === "POST") {
         const auth = await authorize(request, env, ["ADMIN", "FACTORY"]);
         if (auth instanceof Response) return auth;

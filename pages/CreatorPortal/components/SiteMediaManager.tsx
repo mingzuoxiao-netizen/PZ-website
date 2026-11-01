@@ -7,7 +7,6 @@ import { resolveImage } from '../../../utils/imageResolver';
 
 interface SiteMediaManagerProps {
   config: any;
-  initialGroupIndex?: number;
   onChange: (config: any) => void;
   onSave: () => Promise<void>;
   onPublish: () => Promise<void>;
@@ -17,7 +16,6 @@ interface SiteMediaManagerProps {
 }
 
 const groups = [
-  { title: '产品分类封面', sections: [] },
   { title: '首页图片', sections: ['Home Page / Hero', 'Home Page / Sections', 'Home Page / Global Hubs'] },
   { title: '产品目录及导航横幅', sections: ['Portfolio Page', 'Navigation Menu (Posters)'] },
   { title: '公司与工厂图片', sections: ['About Page', 'Manufacturing Page', 'Capabilities Page', 'Global Capacity / Terminals'] },
@@ -41,12 +39,12 @@ const imageLabels: Record<string, string> = {
   'capacity.card_kh': '柬埔寨生产基地卡片'
 };
 
-const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGroupIndex = 0, onChange, onSave, onPublish, onRefresh, isSaving, onUpload }) => {
+const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, onSave, onPublish, onRefresh, isSaving, onUpload }) => {
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
+  const [groupIndex, setGroupIndex] = useState(0);
   const imageFields = useMemo(() => SITE_SCHEMA.flatMap(s =>
     s.fields.filter(f => f.type === 'image').map(f => ({ ...f, section: s.section }))
   ), []);
@@ -93,8 +91,8 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGrou
     <div className="max-w-[1200px] mx-auto pb-24">
       <header className="bg-white border border-stone-200 p-6 mb-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
-          <div className="text-xs tracking-wide text-[#805036] font-bold flex items-center gap-2"><ImageIcon size={16}/> 网站内容管理</div>
-          <h2 className="font-semibold text-2xl text-stone-900 mt-2">{groupIndex === 0 ? '产品分类封面管理' : '网站图片管理'}</h2>
+          <div className="text-xs tracking-wide text-[#805036] font-bold flex items-center gap-2"><ImageIcon size={16}/> 网站图片管理</div>
+          <h2 className="font-semibold text-2xl text-stone-900 mt-2">网站图片管理</h2>
           <p className="text-sm text-stone-500 mt-2">上传图片后先保存草稿，再通过发布操作更新公开网站。所有图片可以随时替换，不需要重新部署前端代码。</p>
           <p className="text-xs text-amber-800 mt-2">建议使用授权实拍图片；首页主图建议横图，工人背影图建议宽幅构图。新图上传后，请检查电脑端和手机端裁切效果。</p>
         </div>
@@ -112,32 +110,7 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGrou
           {groups.map((g, i) => <button key={g.title} type="button" onClick={() => setGroupIndex(i)} className={'w-full text-left text-sm px-4 py-3 border-l-2 ' + (groupIndex === i ? 'bg-[#f8f1e9] text-[#754831] border-[#754831] font-semibold' : 'text-stone-600 border-transparent hover:bg-stone-50')}>{g.title}</button>)}
         </nav>
         <div className="space-y-4">
-          {groupIndex === 0 && <div className="bg-white border border-stone-200 px-5 py-4 text-sm text-stone-600">这里管理产品中心每个分类的主图。工厂新申请的分类，只有管理员审核批准并发布后才会出现在这里。替换图片后请先保存草稿，再发布网站配置。</div>}
           <div className="grid sm:grid-cols-2 gap-4">
-          {groupIndex === 0 && Array.isArray(config.categories) && config.categories.map((category: any, index: number) => (
-            <section key={'category-' + category.id} className="bg-white border border-stone-200 p-5">
-              <h3 className="font-semibold text-stone-900 text-sm">产品分类：{category.title_zh || category.title_cn || category.title}</h3>
-              <p className="text-xs text-stone-400 mt-1 mb-3">分类封面</p>
-              {!!category.image && <img src={resolveImage(category.image)} alt="分类封面预览" className="h-32 w-full object-cover border border-stone-100 mb-3" loading="lazy"/>}
-              <PZImageManager
-                lang="zh"
-                label="替换分类封面"
-                images={category.image ? [category.image] : []}
-                onUpdate={images => {
-                  const nextCategories = config.categories.map((item: any, idx: number) =>
-                    idx === index ? { ...item, image: images[0] || '' } : item);
-                  onChange({ ...config, categories: nextCategories });
-                  setError('');
-                  setNotice('');
-                }}
-                onUpload={onUpload}
-                onError={setError}
-                maxImages={1}
-                accept="image/png,image/jpeg,image/webp"
-              />
-            </section>
-          ))}
-          {groupIndex === 0 && (!Array.isArray(config.categories) || config.categories.length === 0) && <p className="text-sm text-stone-500">暂无可管理的正式产品分类，请先确认站点配置。</p>}
           {fields.map(field => {
             const image = String(getByPath(config, field.path) || '');
             return (

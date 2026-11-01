@@ -63,6 +63,21 @@ jobs:
       - name: Verify Chinese admin and inherited category entry
         run: python3 worker-patches/test_admin_chinese_category_entry.py
 
+      - name: Validate site settings consolidation and PDF upload isolation
+        run: |
+          python3 worker-patches/test_site_basics_navigation.py
+          node --input-type=module -e "
+            const paths=['staging-worker-category-changes-REVIEW.js','production-worker-category-governance-REVIEW.js'];
+            for(const path of paths) {
+              const mod=await import('./worker-patches/'+path);
+              const req=new Request('https://test.example/admin/upload-pdf',{
+                method:'POST',headers:{'Content-Type':'multipart/form-data; boundary=test'},body:'--test--'
+              });
+              const response=await mod.default.fetch(req,{PZ_RUNTIME_ENV: path.startsWith('staging')?'staging':'production'});
+              if(response.status!==401) throw Error(path+' anonymous PDF upload expected 401, got '+response.status);
+            }
+          "
+
       - name: Test Production category amendments
         run: node --check worker-patches/factoryCategoryChangesProduction.mjs && node --test worker-patches/factoryCategoryChangesProduction.test.mjs
       - name: D1 CAS draft and publish concurrency regression
