@@ -5351,6 +5351,33 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     }
   }
 
+  async function readStorageStats(request, env) {
+    const auth = await authorize(request, env, ["ADMIN"]);
+    if (auth instanceof Response) return auth;
+    if (!env.DB) return json({ error: "Audit D1 unavailable" }, 503);
+    try {
+      const row = await env.DB.prepare(
+        "SELECT COUNT(*) AS total," +
+        " SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending," +
+        " MIN(created_at) AS oldest, MAX(created_at) AS latest," +
+        " COALESCE(SUM(COALESCE(LENGTH(before_json),0)+" +
+        "COALESCE(LENGTH(after_json),0)+COALESCE(LENGTH(changes_json),0)),0) AS payload_bytes" +
+        " FROM audit_logs"
+      ).first();
+      return json({
+        total: Number(row?.total || 0),
+        pending: Number(row?.pending || 0),
+        oldest: row?.oldest || null,
+        latest: row?.latest || null,
+        jsonPayloadBytes: Number(row?.payload_bytes || 0),
+        note: "Approximate JSON text size only, excluding database indexes and overhead. No automatic deletion."
+      });
+    } catch (err) {
+      console.error("Audit storage statistics failed", err);
+      return json({ error: "Audit storage statistics unavailable" }, 503);
+    }
+  }
+
   return async function auditFetch(request, env, ctx) {
     // Preserve each standalone Worker's own environment isolation behavior.
     // In particular Staging-only category routes must keep returning 403 in
@@ -5359,6 +5386,10 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return originalFetch.call(this, request, env, ctx);
     }
     const path = new URL(request.url).pathname;
+    if (path === "/admin/audit-storage") {
+      if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+      return readStorageStats(request, env);
+    }
     if (path === "/admin/audit-logs") {
       if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
       return readLogs(request, env);
