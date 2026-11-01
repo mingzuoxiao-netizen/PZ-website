@@ -10,12 +10,26 @@ This change is **not** a production deployment. Review and test the Pages and st
 - Browser API clients: authenticated helpers reject remote/absolute endpoints, preventing accidental Bearer token forwarding to external URLs.
 - Static Pages and API gateway: baseline nosniff, referrer, frame and permissions headers; sanitized upstream exception messages.
 
+## Staging authentication smoke checks (safe, no business writes)
+
+After deploying the **candidate Worker only to isolated Staging** (with a separate staging D1/KV/R2 binding), run:
+
+```sh
+npm run security:staging
+```
+
+This verifies that anonymous requests to Admin/Factory/Audit are rejected, malformed login payloads fail, and 7 failed login attempts for a **random non-existing synthetic account** trigger a 429 on attempt 8. It never changes products, accounts, site content or published configuration. It only creates a temporary KV counter for its synthetic username. The script strictly refuses any Worker host other than `pz-inquiry-api-staging.mingzuoxiao29.workers.dev`.
+
+Optional additional **read-only** authenticated checks can use non-production test accounts via environment variables: `PZ_STAGING_ADMIN_USER`, `PZ_STAGING_ADMIN_PASSWORD`, `PZ_STAGING_FACTORY_USER`, `PZ_STAGING_FACTORY_PASSWORD`. Never commit test credentials or paste them into screenshots. A successful smoke test **does not** prove the deployed staging Worker source matches this PR, so also verify the deployment revision, Worker bindings, and rollback ID in Cloudflare Dashboard.
+
+If the script fails because Staging is still running the old Worker, **do not change Production**. If the counter fails intermittently under concurrent traffic, that confirms a need for Cloudflare WAF / a stronger transactional rate-limit approach.
+
 ## Production deployment — mandatory order
 1. Back up current live Worker code and record the deployed release ID, Worker binding names and Cloudflare Pages deployment ID.
 2. Verify Preview Pages is bound **only to staging Worker + staging D1/R2/KV**.
 3. Deploy the revised Worker bundle into a dedicated Staging Worker **first**. Ensure it includes exactly the proposed policy and no hard-coded secret values.
 4. Check login success/failure, seven consecutive bad password attempts, 429 responses, 10-minute expiration (test with a staging-only reduced window if needed), admin and factory route authorization, existing accounts, new/reset password acceptance, disabling users, and fresh login after password reset. Confirm normal audit logging and product approval still work.
-5. Configure Cloudflare WAF/rate limiting **for both** `www.peng-zhan.com/api/login` and the direct `pz-inquiry-api.*.workers.dev/login` address. The Worker endpoint must not remain an unprotected bypass. Add IP-aware controls and monitor false positives. MFA/Cloudflare Access for administrators is a separate configuration/change: hash-based SPA routes (`#/creator/admin`) cannot be protected by Cloudflare path rules alone; consider a dedicated admin hostname/path and protect all admin API requests.
+5. Configure Cloudflare WAF/rate limiting for `www.peng-zhan.com/api/login` **AND separately eliminate/protect the direct Worker route**. Important: a zone WAF rule on `peng-zhan.com` does **NOT** automatically cover `*.workers.dev`. Cloudflare recommends production Workers use a Route or Custom Domain instead of `workers.dev`. Migrate the Worker to a custom domain and update/test the Pages proxy **before** disabling its current workers.dev route (disabling prematurely would break the website API). Alternatively assess Worker-level Cloudflare Access and service credentials, but do not enable Access on the whole backend without ensuring the public Pages gateway can authenticate to it. See https://developers.cloudflare.com/workers/configuration/routing/workers-dev/ and https://developers.cloudflare.com/workers/configuration/cloudflare-access/. MFA/Cloudflare Access for the Admin surface is separate: hash-based SPA routes (`#/creator/admin`) cannot be protected by Cloudflare path rules alone; consider a dedicated admin hostname/path and secure all admin API requests.
 6. QA the PR Preview: public homepage now loads without a local passcode; verify navigation, category browsing, API catalog, inquiry Turnstile, Admin/Factory login, responsive layouts.
 7. Separately deploy the audited Worker to Production, ensuring `JWT_SECRET`, `SITE_CONFIG_KV`, `DB`, R2 and runtime environment remain correctly bound. **All previously issued sessions will be rejected and users must log in again.**
 8. Release the Pages frontend only after Worker validation and explicit approval. Verify Pages deployment status and run production smoke tests; do not assume GitHub merge proves Cloudflare deployment.
@@ -28,3 +42,7 @@ This change is **not** a production deployment. Review and test the Pages and st
 - Frontend still uses remote Tailwind/esm importmap and inline config. A strict Content Security Policy is **not applied here** because it would currently break the site; migrate dependencies to local Vite/Tailwind bundles, test Turnstile and preview, then introduce CSP in a separate change.
 - Need separately review production Cloudflare TLS, WAF, Turnstile hostname bindings, R2 public object policy and API direct worker URL restrictions.
 - Security testing is limited to code-level checks and Preview smoke tests; no penetration test or production WAF verification has yet been completed.
+
+## Known environment limitation
+
+The GitHub connection does not provide Cloudflare Dashboard deployment credentials. The staged Worker was not deployed or tested live as part of PR #15. The public read-only URL check could not confirm the staging Worker endpoint from the assistant environment, so treat Staging tests as pending until a real test log is available.
