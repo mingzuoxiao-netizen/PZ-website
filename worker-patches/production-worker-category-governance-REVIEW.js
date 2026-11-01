@@ -4880,21 +4880,97 @@ if (
       __name(publishProductsSnapshot, "publishProductsSnapshot");
       __name2(publishProductsSnapshot, "publishProductsSnapshot");
       {
-        const matchRemoveImage = pathname.match(/^\/admin\/products\/([^/]+)\/remove-image$/);
+
+      // P17: Read-only reference assessment. Deliberately NEVER authorizes an R2 deletion.
+      // Historical R2 snapshots and external links are not exhaustively scanned.
+      if (pathname === "/admin/media/image-usage" && request.method === "GET") {
+        const auth = await authorize(request, env, ["ADMIN"]);
+        if (auth instanceof Response) return auth;
+        const input = new URL(request.url).searchParams.get("url") || "";
+        if (!input || input.length > 2000) return badRequest("Supply one image URL");
+        let key;
+        try {
+          const parsed = new URL(input);
+          if (parsed.origin !== pzConfiguredImageBase(env) || parsed.search || parsed.hash) {
+            return badRequest("Only current-environment PZ CDN URLs are supported");
+          }
+          key = decodeURIComponent(parsed.pathname.slice(1));
+          if (!/^uploads\/[a-zA-Z0-9._-]+\.(?:jpg|png|webp)$/.test(key) || key.includes("..")) {
+            return badRequest("Invalid upload key");
+          }
+        } catch {
+          return badRequest("Invalid image URL");
+        }
+        if (!env.PRODUCT_IMAGES || !env.DB || !env.SITE_CONFIG_KV) {
+          return json({ error: "Required storage binding unavailable" }, 503);
+        }
+        const raw = "%" + key + "%";
+        const encoded = "%" + encodeURIComponent(key) + "%";
+        const references = {};
+        const unchecked = ["R2 historical configuration snapshots", "external websites and caches"];
+        const matches = value => typeof value === "string" &&
+          (value.includes(key) || value.includes(encodeURIComponent(key)));
+        try {
+          const products = await env.DB.prepare(
+            "SELECT COUNT(*) AS count FROM products WHERE images LIKE ? OR images LIKE ?"
+          ).bind(raw, encoded).first();
+          references.products = Number(products?.count || 0);
+        } catch {
+          unchecked.push("D1 products");
+        }
+        try {
+          const categories = await env.DB.prepare(
+            "SELECT COUNT(*) AS count FROM category_requests WHERE image LIKE ? OR image LIKE ?"
+          ).bind(raw, encoded).first();
+          references.categoryRequests = Number(categories?.count || 0);
+        } catch {
+          unchecked.push("D1 category requests");
+        }
+        try {
+          const state = await env.DB.prepare(
+            "SELECT draft_json,published_json FROM site_config_state WHERE id=1"
+          ).first();
+          references.versionedSiteConfig = state
+            ? Number(matches(state.draft_json)) + Number(matches(state.published_json)) : 0;
+          if (!state) unchecked.push("D1 site configuration not initialized");
+        } catch {
+          unchecked.push("D1 site configuration");
+        }
+        try {
+          const configs = await Promise.all([
+            "draft:site_config", "published:site_config", "published:products"
+          ].map(k => env.SITE_CONFIG_KV.get(k)));
+          references.kvSnapshots = configs.filter(matches).length;
+        } catch {
+          unchecked.push("KV site/product snapshots");
+        }
+        let exists = null;
+        try { exists = Boolean(await env.PRODUCT_IMAGES.head(key)); }
+        catch { unchecked.push("R2 object existence"); }
+        const confirmedReferences = Object.values(references).reduce((sum, value) => sum + value, 0);
+        return json({
+          key, exists, references, confirmedReferences, unchecked,
+          safeToDelete: false,
+          message: "Read-only check: absence of detected references does NOT authorize permanent deletion."
+        });
+      }
+        const matchRemoveImage = pathname.match(/^\/(admin|factory)\/products\/([^/]+)\/remove-image$/);
         if (matchRemoveImage && request.method === "POST") {
-          const auth = await authorize(request, env, ["ADMIN"]);
+          const isFactory = matchRemoveImage[1] === "factory";
+          const auth = await authorize(request, env, isFactory ? ["FACTORY", "ADMIN"] : ["ADMIN"]);
           if (auth instanceof Response) return auth;
-          const productId = matchRemoveImage[1].trim();
+          const productId = matchRemoveImage[2].trim();
           const body = await request.json().catch(() => ({}));
-          const key = String(body.key ?? "").trim();
           const url = String(body.url ?? "").trim();
-          const autoPublish = body.autoPublish !== false;
-          const deleteFromCloud = body.deleteFromCloud === true;
-          if (!key && !url) return badRequest("Missing key or url");
+          const autoPublish = !isFactory && body.autoPublish !== false;
+          if (!url || body.key || body.deleteFromCloud) return badRequest("Exact image URL required; R2 deletion is forbidden here");
           const row = await env.DB.prepare(
             `SELECT images, status FROM products WHERE id = ? LIMIT 1`
           ).bind(productId).first();
           if (!row) return json({ error: "Product not found" }, 404);
+          if (isFactory && !["draft", "rejected"].includes(String(row.status).toLowerCase())) {
+            return json({ error: "Only draft or rejected products can be edited" }, 409);
+          }
           let images = [];
           try {
             const raw = row.images;
@@ -4903,23 +4979,13 @@ if (
           } catch {
             images = [];
           }
-          const nextImages = images.filter((img) => {
-            if (!img) return false;
-            if (url && img === url) return false;
-            if (key && img.includes(key)) return false;
-            return true;
-          });
+          if (!images.includes(url)) return json({ error: "Image reference not found; refresh product" }, 409);
+          const nextImages = images.filter((img) => img !== url);
           const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-          await env.DB.prepare(
-            `UPDATE products SET images = ?, updated_at = ? WHERE id = ?`
-          ).bind(JSON.stringify(nextImages), nowIso, productId).run();
-          if (deleteFromCloud && key) {
-            try {
-              await env.PRODUCT_IMAGES.delete(key);
-            } catch (e) {
-              console.warn("[remove-image] cloud delete failed (ignored)", e);
-            }
-          }
+          const updated = await env.DB.prepare(
+            `UPDATE products SET images = ?, updated_at = ? WHERE id = ? AND (? = 0 OR lower(status) IN (\'draft\',\'rejected\'))`
+          ).bind(JSON.stringify(nextImages), nowIso, productId, isFactory ? 1 : 0).run();
+          if (updated.meta?.changes !== 1) return json({ error: "Product was changed; refresh and retry" }, 409);
           const status = String(row.status ?? "").toLowerCase();
           let publishedMeta = null;
           if (autoPublish && status === "published") {
@@ -5285,6 +5351,33 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     }
   }
 
+  async function readStorageStats(request, env) {
+    const auth = await authorize(request, env, ["ADMIN"]);
+    if (auth instanceof Response) return auth;
+    if (!env.DB) return json({ error: "Audit D1 unavailable" }, 503);
+    try {
+      const row = await env.DB.prepare(
+        "SELECT COUNT(*) AS total," +
+        " SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending," +
+        " MIN(created_at) AS oldest, MAX(created_at) AS latest," +
+        " COALESCE(SUM(COALESCE(LENGTH(before_json),0)+" +
+        "COALESCE(LENGTH(after_json),0)+COALESCE(LENGTH(changes_json),0)),0) AS payload_bytes" +
+        " FROM audit_logs"
+      ).first();
+      return json({
+        total: Number(row?.total || 0),
+        pending: Number(row?.pending || 0),
+        oldest: row?.oldest || null,
+        latest: row?.latest || null,
+        jsonPayloadBytes: Number(row?.payload_bytes || 0),
+        note: "Approximate JSON text size only, excluding database indexes and overhead. No automatic deletion."
+      });
+    } catch (err) {
+      console.error("Audit storage statistics failed", err);
+      return json({ error: "Audit storage statistics unavailable" }, 503);
+    }
+  }
+
   return async function auditFetch(request, env, ctx) {
     // Preserve each standalone Worker's own environment isolation behavior.
     // In particular Staging-only category routes must keep returning 403 in
@@ -5293,6 +5386,10 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return originalFetch.call(this, request, env, ctx);
     }
     const path = new URL(request.url).pathname;
+    if (path === "/admin/audit-storage") {
+      if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+      return readStorageStats(request, env);
+    }
     if (path === "/admin/audit-logs") {
       if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
       return readLogs(request, env);

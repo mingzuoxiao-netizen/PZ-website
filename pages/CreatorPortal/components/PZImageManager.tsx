@@ -66,7 +66,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
   const removeImage = async (index: number) => {
     const urlToRemove = images[index];
     if (onDelete) {
-        try { await onDelete(urlToRemove); } catch (e) { console.warn("仅移除图片引用"); }
+        try { await onDelete(urlToRemove); } catch (e: any) { onError(`图片移除未保存，请刷新核对：${e?.message || "网络或权限错误"}`); }
     } else {
         onUpdate(images.filter((_, i) => i !== index));
     }
