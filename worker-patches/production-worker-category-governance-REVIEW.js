@@ -5398,13 +5398,22 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
     // Discover foreign keys, including CASCADE/SET NULL, before deleting. Also
     // preserve ownership in legacy tables whose creator columns lack a FK.
     // Every reference check is part of the DELETE itself, avoiding a check/delete race.
-    const tables = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+    const tables = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*'").all();
     const quote = value => '"' + String(value).replace(/"/g, '""') + '"';
     const guards = [];
     const bindings = [id];
     for (const { name } of tables.results || []) {
-      if (name === "users") continue;
-      const refs = await env.DB.prepare("PRAGMA foreign_key_list(" + quote(name) + ")").all();
+      if (name === "users" || /^(?:sqlite_|_cf_)/i.test(name)) continue;
+      let refs;
+      try {
+        refs = await env.DB.prepare("PRAGMA foreign_key_list(" + quote(name) + ")").all();
+      } catch (error) {
+        console.error("Account deletion foreign-key inspection failed", {
+          table: name, message: String(error?.message || error),
+          cause: String(error?.cause?.message || error?.cause || "")
+        });
+        return json({ error: "暂时无法检查账号关联记录，未执行删除。请联系管理员查看 Worker 日志。" }, 503);
+      }
       const columns = new Set((refs.results || [])
         .filter(ref => ref.table === "users" && (!ref.to || ref.to === "id")).map(ref => ref.from));
       if (["products", "category_requests", "category_change_requests"].includes(name)) {

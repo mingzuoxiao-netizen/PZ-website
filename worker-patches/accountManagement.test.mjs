@@ -121,3 +121,57 @@ test('both deployable bundles contain exactly the tested implementation and enfo
     }
   }
 });
+
+test('D1 reserved tables are never inspected, including defense against unfiltered schema results',async()=>{
+  const {sql,env,deps}=setup();
+  sql.exec("CREATE TABLE _cf_KV(key TEXT PRIMARY KEY,value BLOB); CREATE TABLE _cf_METADATA(key TEXT)");
+  const original=env.DB.prepare;
+  const inspected=[];
+  env.DB.prepare=query=>{
+    if (query.startsWith('PRAGMA')) {
+      inspected.push(query);
+      if (/_cf_/i.test(query)) throw new Error('D1_ERROR: not authorized: SQLITE_AUTH');
+    }
+    // Deliberately bypass SQL filtering to exercise the JS defense too.
+    return original(query.startsWith('SELECT name FROM sqlite_master') ?
+      "SELECT name FROM sqlite_master WHERE type='table'" : query);
+  };
+  const response=await pzHandleAccountMutation(new Request('https://test/admin/accounts/factory',{method:'DELETE'}),env,deps);
+  assert.equal(response.status,200);
+  assert.ok(inspected.some(q=>q.includes('products')),'business foreign-key checks must still run');
+  assert.ok(!inspected.some(q=>/_cf_/i.test(q)));
+  assert.equal(sql.prepare("SELECT * FROM users WHERE id='factory'").get(),undefined);
+  assert.ok(sql.prepare("SELECT name FROM sqlite_master WHERE name='_cf_KV'").get());
+  sql.close();
+});
+test('schema enumeration excludes D1 internal tables using literal-prefix GLOB filters',async()=>{
+  const {sql,env,deps}=setup();
+  sql.exec("CREATE TABLE _cf_KV(key TEXT); CREATE TABLE _cf_OTHER(key TEXT)");
+  const original=env.DB.prepare;
+  let discovered=[];
+  env.DB.prepare=query=>{
+    const statement=original(query);
+    if(query.startsWith('SELECT name FROM sqlite_master')) {
+      const all=statement.all;
+      statement.all=async()=>{const rows=await all();discovered=rows.results.map(r=>r.name);return rows;};
+    }
+    return statement;
+  };
+  assert.equal((await pzHandleAccountMutation(new Request('https://test/admin/accounts/factory',{method:'DELETE'}),env,deps)).status,200);
+  assert.ok(!discovered.some(name=>name.startsWith('_cf_')));
+  assert.ok(discovered.includes('products'));
+  sql.close();
+});
+test('business-table inspection failure blocks deletion and reports a recoverable error',async()=>{
+  const {sql,env,deps}=setup();
+  const original=env.DB.prepare;
+  env.DB.prepare=query=>{
+    if(query.startsWith('PRAGMA foreign_key_list("products")')) throw new Error('simulated D1 inspection failure');
+    return original(query);
+  };
+  const response=await pzHandleAccountMutation(new Request('https://test/admin/accounts/factory',{method:'DELETE'}),env,deps);
+  assert.equal(response.status,503);
+  assert.match((await response.json()).error,/未执行删除/);
+  assert.ok(sql.prepare("SELECT * FROM users WHERE id='factory'").get());
+  sql.close();
+});
