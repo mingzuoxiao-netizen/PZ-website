@@ -13,17 +13,21 @@
 2. Product image editor: wait for server acknowledgement before removing an existing image from the UI; show errors; reorder locally and save the complete product with the form.
 3. Worker: `GET /admin/media/image-usage?url=<encoded>` checks known product/category/site config references, R2 existence and returns `safeToDelete:false` **regardless of counts**. It does not check every historical R2 snapshot, external link or cache. It is for investigation, **not deletion authorization**.
 4. Admin website media tab: show that read-only inspector; no delete button.
-5. Production audit Worker: `GET /admin/audit-storage` returns a count, pending count, dates and approximate JSON payload bytes (excludes database indexes/overhead). The UI displays this under Operation Logs.
+5. Production and assembled PR17 Staging audit Workers: `GET /admin/audit-storage` returns a count, pending count, dates and approximate JSON payload bytes (excludes database indexes/overhead). The UI displays this under Operation Logs.
 6. No audit retention or automatic purging, no R2 deletion, no schema migration.
 
 ## Mandatory release order
 1. Review the diff and PR QA; confirm it merges against current `main`.
-2. **Staging first**: deploy only the Staging candidate Worker to `pz-inquiry-api-staging`. Preserve Staging D1/R2/KV + `PZ_RUNTIME_ENV=staging`. Keep Production Worker unchanged.
-3. On Staging: create a **new test product** with a unique SKU and 2 images; remove 1 via factory; reload to check D1-backed persistence; verify the R2 object still exists. Check unsubmitted/rejected product edit, submitted/published 409, missing image 409, anonymous 401, Admin-only media check 403 for factory and valid result for Admin. Reorder images, click Save, reload; verify all other product fields and SKU survived.
-4. Only after all tests pass: deploy Production Worker candidate to `pz-inquiry-api`. Record active Worker version before/after and keep rollback. Do not change Secrets or environment bindings.
-5. Check administrator and factory products, approval, catalog, category changes, site config and audit log.
-6. Merge PR and manually deploy Pages Production (auto deploy is disabled). Verify current Git commit, API custom domain and the media/log UI.
-7. Keep `workers.dev` until a separate cutover review. Do not claim the entire historical R2 bucket can be safely cleaned.
+2. **Staging first**: compare the currently deployed Staging Worker and check Staging D1 audit table via `SELECT name FROM sqlite_master WHERE type='table' AND name='audit_logs';`. If the table is missing, execute existing reviewed migration `worker-patches/migrations/008_real_audit_logs_REVIEW.sql` **only in Staging**, then verify it exists. Do not deploy a logging-enabled Worker before this step: audited writes would fail closed.
+3. Deploy **`worker-patches/PZ_Staging_Worker_PR17_Media_Audit_Candidate.js`** to `pz-inquiry-api-staging` only after confirming the current active code and D1 prerequisite. This combined candidate retains the PR15 12h-JWT/password/rate-limit security and includes audit from `adminAuditLogCore.mjs` and PR17 media changes. Preserve Staging D1/R2/KV + `PZ_RUNTIME_ENV=staging`. Keep Production Worker unchanged.
+   - Do **not** deploy the older `staging-worker-category-changes-REVIEW.js` in place of this file: that standalone older candidate does not include all PR15 login hardening.
+   - Do **not** use `PZ_Staging_Worker_PR15_Security_Candidate.js` for PR17 media+audit QA; it has no audit wrapper.
+   - If live Staging code has additional features beyond this candidate, reconcile them first instead of overwriting.
+4. On Staging: create a **new test product** with a unique SKU and 2 images; remove 1 via factory; reload to check D1-backed persistence; verify the R2 object still exists. Check unsubmitted/rejected product edit, submitted/published 409, missing image 409, anonymous 401, Admin-only media check 403 for factory and valid result for Admin. Reorder images, click Save, reload; verify all other product fields and SKU survived.
+5. Only after all tests pass: deploy Production Worker candidate to `pz-inquiry-api`. Record active Worker version before/after and keep rollback. Do not change Secrets or environment bindings.
+6. Check administrator and factory products, approval, catalog, category changes, site config and audit log.
+7. Merge PR and manually deploy Pages Production (auto deploy is disabled). Verify current Git commit, API custom domain and the media/log UI.
+8. Keep `workers.dev` until a separate cutover review. Do not claim the entire historical R2 bucket can be safely cleaned.
 
 ## Audit logs and retention
 - Logs are durable entries in D1, not a browser memory cache. The UI paginates 30 per page.
