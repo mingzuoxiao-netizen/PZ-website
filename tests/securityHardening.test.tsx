@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { webcrypto } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
 import { adminFetch } from '../utils/adminFetch';
 import { factoryFetch } from '../utils/factoryFetch';
 
@@ -68,4 +72,43 @@ test('Pages gateway does not leak underlying fetch errors to anonymous clients',
   assert.ok(gateway.includes('Upstream service temporarily unavailable'));
   assert.ok(!gateway.includes('err?.message ?? String(err)'));
   assert.ok(gateway.includes('X-Content-Type-Options'));
+});
+
+test('the standalone Worker security patch is valid ECMAScript module syntax', () => {
+  const url = new URL('../worker-patches/production-worker-category-governance-REVIEW.js', import.meta.url);
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', fileURLToPath(url)], { stdio: 'pipe' }));
+});
+
+test('KV login failure threshold prevents additional attempts without leaking account/IP in the key', async () => {
+  const start = worker.indexOf('function pzAuthPasswordPolicyError(');
+  const end = worker.indexOf('async function getUserFromRequest(', start);
+  assert.ok(start > 0 && end > start);
+  const helpers = new Function('crypto', 'safeJsonParse', worker.slice(start, end) +
+    '\nreturn {pzAuthLoginRateKey,pzAuthLoginTooMany,pzAuthLoginFailure};')(
+      webcrypto,
+      (raw: string | null, fallback: Record<string, unknown>) => {
+        try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+      }
+    ) as {
+      pzAuthLoginRateKey: (req: Request, username: string) => Promise<string>;
+      pzAuthLoginTooMany: (env: any, key: string) => Promise<boolean>;
+      pzAuthLoginFailure: (env: any, key: string) => Promise<void>;
+    };
+  const store = new Map<string, string>();
+  const env = { SITE_CONFIG_KV: {
+    get: async (key: string) => store.get(key) ?? null,
+    put: async (key: string, value: string) => { store.set(key, value); },
+    delete: async (key: string) => { store.delete(key); }
+  }};
+  const req = new Request('https://example.test/login', { headers: {'CF-Connecting-IP': '203.0.113.7'} });
+  const key = await helpers.pzAuthLoginRateKey(req, 'Factory-Test');
+  assert.ok(key.startsWith('pz:auth:login:v1:'));
+  assert.ok(!key.includes('Factory-Test') && !key.includes('203.0.113.7'));
+  for (let n = 0; n < 7; n++) {
+    assert.equal(await helpers.pzAuthLoginTooMany(env, key), false);
+    await helpers.pzAuthLoginFailure(env, key);
+  }
+  assert.equal(await helpers.pzAuthLoginTooMany(env, key), true);
+  await env.SITE_CONFIG_KV.delete(key);
+  assert.equal(await helpers.pzAuthLoginTooMany(env, key), false);
 });
