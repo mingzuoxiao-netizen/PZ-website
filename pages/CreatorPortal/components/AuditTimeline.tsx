@@ -72,8 +72,7 @@ const fields: Record<string, string> = {
   published_revision: '发布修订号', published_version: '发布版本',
   'draft': '草稿', 'published': '已发布',
   title: '英文标题', title_cn: '中文标题', image: '图片链接',
-  hidden: '是否隐藏', category_id: '分类 ID',
-  created_by: '创建人 ID'
+  hidden: '是否隐藏', category_id: '分类 ID'
 };
 function displayDate(value: string) {
   const dt = new Date(value);
