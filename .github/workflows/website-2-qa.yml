@@ -63,6 +63,14 @@ jobs:
       - name: Verify Chinese admin and inherited category entry
         run: python3 worker-patches/test_admin_chinese_category_entry.py
 
+      - name: Verify real audit logs, Worker routing, and D1 migration
+        run: |
+          python3 worker-patches/test_audit_log_migration.py
+          node --check worker-patches/adminAuditLogCore.mjs
+          node --test worker-patches/adminAuditLogCore.test.mjs
+          node --check worker-patches/staging-worker-category-changes-REVIEW.js
+          node --check worker-patches/production-worker-category-governance-REVIEW.js
+
       - name: Validate site settings consolidation and PDF upload isolation
         run: |
           python3 worker-patches/test_site_basics_navigation.py
