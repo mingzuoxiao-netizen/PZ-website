@@ -33,7 +33,7 @@ assert "setBaseline(next)" in basics
 assert "const groups = [" in media
 assert "{ title: '产品分类封面'" not in media
 assert "category.image ?" not in media
-assert "field.type === 'image'" in media
+assert "f.type === 'image'" in media
 assert "分类封面" in category
 assert "onUpload={onUpload}" in category
 
