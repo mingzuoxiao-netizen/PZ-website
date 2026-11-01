@@ -5000,7 +5000,7 @@ if (
         const id = pathname.replace("/admin/accounts/", "").replace("/password", "").trim();
         if (!id) return badRequest("Missing user id");
         const body = await request.json();
-        const password = String(body.password ?? "").trim();
+        const password = typeof body.password === "string" ? body.password : "";
         if (!password) return badRequest("Missing password");
         const target = await env.DB.prepare("SELECT username FROM users WHERE id=? LIMIT 1").bind(id).first();
         if (!target) return json({ error: "Account not found" }, 404);
