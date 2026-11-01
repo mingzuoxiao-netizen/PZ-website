@@ -5,7 +5,7 @@ import { DEFAULT_CONFIG } from '../../utils/siteConfig';
 import PortalLayout from './PortalLayout';
 import {
   RefreshCw, Package, Inbox,
-  LayoutGrid, Settings, Users, Activity,
+  LayoutGrid, Settings, Images, Users, Activity,
   ArrowUpCircle
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -13,7 +13,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import SiteConfigEditor from './components/SiteConfigEditor';
+import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
 import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
@@ -22,7 +22,7 @@ import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'config' | 'accounts' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -112,6 +112,44 @@ const AdminWorkspace: React.FC = () => {
   useEffect(() => { loadProducts(); loadSiteConfig(); }, [loadProducts, loadSiteConfig]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
+  // Update only the two basic fields against the latest D1 draft.
+  // Re-read and compare before saving so concurrent category/image edits cannot be overwritten.
+  const saveSiteBasics = async (values: SiteBasicsValues, baseline: SiteBasicsValues) => {
+    setIsSavingConfig(true);
+    try {
+      const current = await adminFetch<{ draft: any; revision?: number }>('admin/draft/site-config');
+      const live = current?.draft;
+      if (!live?.home?.hero || !live?.catalog) {
+        throw new Error('网站基础信息草稿读取失败，已拒绝覆盖其他网站配置。');
+      }
+      const liveTitle = String(live.home.hero.title ?? '');
+      const liveCatalogUrl = String(live.catalog.url ?? '');
+      if (liveTitle !== baseline.title || liveCatalogUrl !== baseline.catalogUrl) {
+        throw new Error('其他管理员已修改网站基础信息，请刷新后重新编辑。');
+      }
+      const next = {
+        ...live,
+        home: { ...live.home, hero: { ...live.home.hero, title: values.title } },
+        catalog: { ...live.catalog, url: values.catalogUrl }
+      };
+      await saveDraftVersioned(next, typeof current.revision === 'number' ? current.revision : null);
+      setHasPendingDeploy(true);
+      await loadSiteConfig();
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const uploadCatalogPdf = async (file: File): Promise<string> => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await adminFetch<{ url: string }>('admin/upload-pdf', {
+      method: 'POST', body: form
+    });
+    if (!response?.url) throw new Error('PDF 上传失败：服务器未返回文件地址。');
+    return response.url;
+  };
+
   const handleDeployEverything = async () => {
     if (!confirm('确认同步已审核的产品，并发布已经保存的网站配置吗？')) return;
     setIsSyncing(true);
@@ -181,10 +219,10 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: '审核中心', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
-    { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} /> },
-    { id: 'media', label: '其他网站图片', icon: <Settings size={18} /> },
-    { id: 'config', label: '网站内容配置', icon: <Settings size={18} /> },
+    { id: 'media', label: '网站图片管理', icon: <Images size={18} /> },
+    { id: 'basics', label: '网站基础信息', icon: <Settings size={18} /> },
+    { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} /> },
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} /> },
   ];
@@ -294,7 +332,6 @@ const AdminWorkspace: React.FC = () => {
         {activeTab === 'media' && (
           <SiteMediaManager
             key={activeTab}
-            initialGroupIndex={1}
             config={siteConfig}
             onChange={setSiteConfig}
             onSave={async () => {
@@ -331,8 +368,22 @@ const AdminWorkspace: React.FC = () => {
           />
         )}
 
-        {activeTab === 'config' && (
-          <SiteConfigEditor config={siteConfig} onChange={setSiteConfig} onSave={async () => { setIsSavingConfig(true); try { await saveDraftVersioned(siteConfig); setHasPendingDeploy(true); await loadSiteConfig(); } finally { setIsSavingConfig(false); } }} onPublish={handleDeployEverything} isSaving={isSavingConfig} onRefresh={loadSiteConfig} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} />
+        {activeTab === 'basics' && (
+          <SiteBasicsEditor
+            config={siteConfig}
+            isSaving={isSavingConfig}
+            onSave={saveSiteBasics}
+            onPublish={async () => {
+              setIsSavingConfig(true);
+              try {
+                await publishVersioned();
+                setHasPendingDeploy(false);
+                await loadSiteConfig();
+              } finally { setIsSavingConfig(false); }
+            }}
+            onRefresh={loadSiteConfig}
+            onUploadPdf={uploadCatalogPdf}
+          />
         )}
 
         {activeTab === 'inquiries' && <InquiryManager />}
