@@ -39,7 +39,7 @@ for filename in [
     worker = (root / filename).read_text()
     assert worker.count("function pzAuditCreateFetch(") == 1, filename
     assert inlined in worker, filename
-    assert "index_default.fetch = pzAuditCreateFetch(pzAuditOriginalFetch, { authorize, json });" in worker
+    assert "index_default.fetch = pzAuditCreateFetch(pzAuditOriginalFetch, { authorize, json, runtimeExpected:" in worker
     assert worker.index("index_default.fetch = pzAuditCreateFetch") < worker.index(
         "pzCorsOriginalFetch = index_default.fetch"), filename
     assert "audit_logs" in worker and "Audit reservation failed; mutation blocked" in worker
