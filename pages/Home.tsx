@@ -40,6 +40,12 @@ const Home: React.FC = () => {
   const { language } = useLanguage();
   const L = (english: string, chinese: string) => language === "zh" ? chinese : english;
 
+  // The English headline is managed in Admin > 网站基础信息.
+  // Keep a curated Chinese headline until bilingual titles are supported by the schema.
+  const configuredHeadline = site?.home?.hero?.title?.trim();
+  const heroHeadline = language === 'zh'
+    ? '专注实木制造，助力品牌成长。'
+    : (configuredHeadline || 'Solid Wood Furniture. Built for Your Brand.');
   const heroImage = resolveImage(site?.home?.hero?.image) || FALLBACK_HERO;
   const factoryImage = resolveImage(site?.home?.factory?.image) || FALLBACK_FACTORY;
   const chinaImage = resolveImage(site?.home?.hub_cn?.image) || FALLBACK_FACTORY;
@@ -65,27 +71,53 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      {/* 01 — editorial hero, split visual on desktop */}
-      <section className="relative bg-[#f2ece4] lg:min-h-[615px] pt-[70px] md:pt-[76px] overflow-hidden" aria-label="PZ Furniture Studio introduction">
-        <div className="grid lg:grid-cols-[46%_54%] lg:min-h-[615px]">
-          <div className="relative z-10 px-6 sm:px-10 lg:pl-[max(48px,calc((100vw-1330px)/2))] lg:pr-5 py-16 lg:py-20 flex flex-col justify-center bg-[#f2ece4]">
-            <p className={sectionKicker}>{L("Furniture & Wood Component Manufacturing","家具与木制品制造")}</p>
-            <h1 className={editorialHeading + ' text-[clamp(2.7rem,4.3vw,5.2rem)] mt-6 max-w-[690px]'}>
-              {L('Solid Wood Furniture.','实木家具制造。')}<br />{L('Built for Your Brand.','成就您的品牌。')}
-            </h1>
-            <p className="text-[#6a6661] text-[15px] md:text-[16px] leading-[1.75] mt-6 max-w-[495px]">
-              {L('We develop and manufacture furniture and wood components for brands, importers and commercial buyers. From product development to production, our team supports projects across China and Cambodia.','我们为家具品牌、进口商和商业采购商开发及制造家具与木制品，依托中国与柬埔寨的生产基地，提供从产品开发到量产的支持。')}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/collections" className={darkButton}>{L('Explore Products','浏览产品')} <ArrowRight size={15}/></Link>
-              <Link to="/manufacturing" className="inline-flex items-center justify-center gap-3 border border-[#b6a698] px-6 py-3.5 text-[12px] font-semibold hover:bg-white/70 transition-colors">{L('Our Manufacturing','了解制造能力')} <ArrowRight size={15}/></Link>
+      {/* 01 — editorial lead; image and headline remain editable through existing admin fields */}
+      <section className="relative pt-[70px] md:pt-[76px] bg-[#eee8df] overflow-hidden" aria-label={L('PZ Furniture Studio introduction','鹏展家具制造介绍')}>
+        <div className="grid lg:grid-cols-[43%_57%] min-h-[620px] xl:min-h-[700px]">
+          <div className="relative z-10 flex flex-col justify-between px-6 sm:px-10 lg:pl-[max(48px,calc((100vw-1330px)/2))] lg:pr-9 pt-16 pb-12 md:pt-20 lg:pt-20 lg:pb-12 bg-[#eee8df]">
+            <div className="max-w-[610px]">
+              <div className="flex items-center gap-4">
+                <span className="h-px w-9 bg-[#986344]" aria-hidden="true" />
+                <p className={sectionKicker}>{L('Independent Furniture Manufacturing Partner','家具品牌的制造合作伙伴')}</p>
+              </div>
+              <h1 className={editorialHeading + ' mt-8 text-[clamp(2.8rem,5.2vw,5.75rem)] break-words'}>
+                {heroHeadline}
+              </h1>
+              <p className="text-[#5f5952] text-[15px] md:text-[16px] leading-[1.85] mt-7 max-w-[495px]">
+                {L('From solid wood components to finished furniture, we support brands, importers and commercial buyers with development and production across China and Cambodia.','从实木组件到成品家具，我们依托中国与柬埔寨的生产基地，为品牌、进口商及商业采购商提供产品开发与制造支持。')}
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Link to="/collections" className={darkButton}>{L('Explore Our Collections','探索产品系列')} <ArrowRight size={15} aria-hidden="true" /></Link>
+                <Link to="/inquire" className="inline-flex items-center justify-center gap-3 border border-[#a18d7e] px-6 py-3.5 text-[12px] font-semibold text-[#4c392d] hover:bg-white/70 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#754831]">
+                  {L('Start a Project','咨询合作')} <ArrowUpRight size={15} aria-hidden="true" />
+                </Link>
+              </div>
+            </div>
+            <div className="mt-12 pt-5 border-t border-[#cdbfb3] flex items-center gap-5">
+              <span className="font-serif text-[27px] leading-none text-[#674732]">PZ.</span>
+              <p className="text-[11px] tracking-[0.11em] uppercase leading-relaxed text-[#806f61]">
+                {L('Designed for partnership · Made for scale','面向长期合作 · 服务规模化制造')}
+              </p>
             </div>
           </div>
-          <div className="relative min-h-[330px] lg:min-h-full overflow-hidden">
-            <img src={heroImage} alt="Solid wood furniture in a warmly lit interior" className="absolute inset-0 h-full w-full object-cover object-center" fetchPriority="high" />
-            <div className="absolute inset-y-0 left-0 w-20 hidden lg:block bg-gradient-to-r from-[#f2ece4] to-transparent pointer-events-none" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#2b1e16]/40 to-transparent pointer-events-none" />
-            <span className="absolute bottom-7 right-8 text-white/90 text-[10px] uppercase tracking-[0.14em]">{L("Solid Wood · Thoughtful Manufacturing","实木制造 · 注重品质")}</span>
+          <div className="relative min-h-[390px] lg:min-h-full overflow-hidden bg-[#534438]">
+            <img
+              src={heroImage}
+              alt={L('PZ furniture and manufacturing visual','鹏展家具与制造形象图')}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1e1711]/65 via-transparent to-[#1e1711]/10 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-4 p-7 md:p-10 text-white">
+              <div>
+                <p className="text-[10px] tracking-[0.22em] uppercase text-white/75">{L('The PZ Manufacturing Network','鹏展制造网络')}</p>
+                <p className="mt-2 font-serif text-xl md:text-2xl">{L('China / Cambodia','中国 / 柬埔寨')}</p>
+              </div>
+              <Link to="/manufacturing" className="inline-flex items-center gap-2 px-3 py-2 border border-white/60 bg-black/20 text-white text-[11px] font-medium hover:bg-white hover:text-[#30221b] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                {L('Our Process','制造流程')} <ArrowUpRight size={15} aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -114,7 +146,7 @@ const Home: React.FC = () => {
       <section className="py-16 md:py-20 bg-[#fcfaf7]" aria-labelledby="what-we-make">
         <div className="max-w-[1330px] mx-auto px-6 md:px-10 grid lg:grid-cols-[28%_72%] gap-9 lg:gap-0">
           <div className="lg:pr-12 flex flex-col justify-center">
-            <p className={sectionKicker}>{L("Our Product Categories","我们的产品分类")}</p>
+            <p className={sectionKicker}>{L("Curated Wood & Furniture Categories","精选实木与家具系列")}</p>
             <h2 id="what-we-make" className={editorialHeading + ' text-4xl md:text-5xl mt-4'}>{L("What We Make","我们能够制造什么")}</h2>
             <p className="text-[#77716a] text-[14px] leading-[1.8] mt-5 max-w-[340px]">
               {L('Explore our furniture and wood product capabilities, developed for different markets, applications and commercial requirements.','浏览我们面向不同市场与商业项目的家具及木制品系列。')}
@@ -141,7 +173,7 @@ const Home: React.FC = () => {
                     {image && <img src={image} alt={title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />}
                   </div>
                   <div className="px-4 py-4 relative">
-                    <ArrowUpRight size={15} className="absolute right-4 top-5 text-[#91593d]"/>
+                    <ArrowUpRight size={15} aria-hidden="true" className="absolute right-4 top-5 text-[#91593d]"/>
                     <h3 className="font-serif text-[18px] leading-snug pr-5 text-[#30221b]">{title}</h3>
                     <p className="text-[#82786f] text-[11px] leading-relaxed mt-2">{description}</p>
                   </div>

@@ -51,12 +51,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [isSearchOpen]);
 
-  // Reset state on route change
+  // Close any overlay when navigating or pressing Escape.
   useEffect(() => {
     setActiveMenu(null);
     setIsMobileMenuOpen(false);
     setIsSearchOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveMenu(null);
+        setIsMobileMenuOpen(false);
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +79,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-  const isHome = location.pathname === '/';
   const isMegaMenuActive = activeMenu !== null;
   const useWhiteNav = true;
 
@@ -80,18 +91,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (isSearchOpen) return 'bg-white border-b border-stone-100 shadow-sm';
     if (isMobileMenuOpen) return 'bg-[#fcfaf7]'; 
     if (isMegaMenuActive) return 'bg-white border-b border-stone-200';
-    if (useWhiteNav) return 'bg-[#fcfaf7]/95 backdrop-blur-xl border-b border-[#e5dcd2]';
+    if (useWhiteNav) return isScrolled
+      ? 'bg-[#fcfaf7]/95 backdrop-blur-xl border-b border-[#e5dcd2] shadow-[0_8px_24px_rgba(42,30,19,0.07)]'
+      : 'bg-[#fcfaf7]/95 backdrop-blur-xl border-b border-[#e5dcd2]';
     return 'bg-[#fcfaf7] border-b border-[#e5dcd2]';
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-stone-900 font-sans transition-colors duration-500">
       
-      {/* GLOBAL STATUS BAR (Desktop Only) */}
-      <div className={`hidden lg:flex fixed top-0 left-0 right-0 h-1 z-[60] transition-all duration-700 ${isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full'}`}>
-          <div className="h-full bg-safety-700 animate-[progress_3s_ease-in-out_infinite]" style={{ width: '25%' }}></div>
-      </div>
-
       {/* HEADER BAR */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 h-[70px] md:h-[76px] transition-all duration-500 ease-in-out ${getHeaderBackground()}`}
@@ -100,6 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Link
             to="/"
             className="group z-50 flex items-center gap-3"
+            aria-label={language === 'zh' ? '鹏展家具工作室首页' : 'PZ Furniture Studio home'}
             onClick={() => {
               setIsMobileMenuOpen(false);
               setIsSearchOpen(false);
@@ -125,6 +134,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center space-x-3 md:space-x-5 z-50">
             {/* Search Toggle */}
             <button
+              type="button"
+              aria-label={language === 'zh' ? (isSearchOpen ? '关闭搜索' : '打开搜索') : (isSearchOpen ? 'Close search' : 'Open product search')}
+              aria-expanded={isSearchOpen}
+              aria-controls="pz-public-site-search"
               onClick={() => {
                 if (isSearchOpen) setIsSearchOpen(false);
                 else {
@@ -150,6 +163,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Mobile Menu Toggle */}
             <button
+              type="button"
+              aria-label={language === 'zh' ? (isMobileMenuOpen ? '关闭导航菜单' : '打开导航菜单') : (isMobileMenuOpen ? 'Close navigation' : 'Open navigation')}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="pz-mobile-navigation"
               onClick={() => {
                 setIsMobileMenuOpen(!isMobileMenuOpen);
                 setIsSearchOpen(false);
@@ -178,6 +195,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* SEARCH OVERLAY */}
       <div
+        id="pz-public-site-search"
+        aria-hidden={!isSearchOpen}
         className={`fixed inset-0 top-[70px] md:top-[76px] z-30 bg-stone-950/90 backdrop-blur-md transition-opacity duration-700 ${isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
         onClick={() => setIsSearchOpen(false)}
       >
@@ -192,12 +211,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="container mx-auto px-6 md:px-12 py-16 md:py-24">
             <form onSubmit={handleSearchSubmit} className="relative max-w-5xl mx-auto">
               <div className="relative group">
-                <span className="absolute -top-10 left-0 font-mono text-[9px] text-stone-400 uppercase tracking-[0.5em] font-bold">Archive Search Registry</span>
+                <span className="absolute -top-10 left-0 font-mono text-[9px] text-stone-500 uppercase tracking-[0.3em] font-bold">{language === 'zh' ? '搜索产品与型号' : 'Search our products'}</span>
                 <input
                   id="search-input"
                   ref={searchInputRef}
                   type="text"
-                  placeholder="EX: SOLID WALNUT DINING TABLE"
+                  aria-label={language === 'zh' ? '搜索产品名称或 SKU' : 'Search product name or SKU'}
+                  placeholder={language === 'zh' ? '例如：胡桃木餐桌' : 'e.g. Solid walnut dining table'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-transparent text-3xl md:text-7xl font-serif text-stone-900 placeholder-stone-100 border-b border-stone-100 pb-8 focus:border-safety-700 focus:outline-none transition-all duration-700 uppercase"
@@ -205,6 +225,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 />
                 <button
                   type="submit"
+                  aria-label={language === 'zh' ? '提交搜索' : 'Submit search'}
                   className="absolute right-0 bottom-8 text-stone-200 hover:text-safety-700 transition-all p-2"
                 >
                   <ArrowRight size={48} strokeWidth={1} />

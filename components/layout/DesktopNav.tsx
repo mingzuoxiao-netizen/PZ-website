@@ -60,7 +60,12 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
             <div key={item.to} className="h-full flex items-center"
               onMouseEnter={() => { clearTimer(); setActiveMenu(item.menu || null); }}
               onMouseLeave={closeLater}>
-              <Link to={item.to} onClick={() => setActiveMenu(null)}
+              <Link to={item.to}
+                onClick={() => setActiveMenu(null)}
+                onFocus={() => { clearTimer(); setActiveMenu(item.menu || null); }}
+                onKeyDown={(event) => { if (event.key === 'Escape') setActiveMenu(null); }}
+                aria-expanded={item.menu ? activeMenu === item.menu : undefined}
+                aria-controls={item.menu ? 'pz-desktop-navigation-submenu' : undefined}
                 className={'h-full inline-flex gap-1 items-center border-b-2 text-[11px] xl:text-[12px] font-medium whitespace-nowrap transition-colors ' +
                 (selected ? 'text-[#754831] border-[#754831]' : 'text-[#5e5954] border-transparent hover:text-[#754831]')}>
                 {language === 'zh' ? item.zh : item.label}
@@ -71,7 +76,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
         })}
       </nav>
       {activeMenu && (
-        <div className="absolute top-full left-0 right-0 z-40 bg-[#fcfaf7] border-y border-[#e7dcd1] shadow-[0_30px_55px_rgba(31,20,13,0.13)]"
+        <div id="pz-desktop-navigation-submenu" aria-label={L('Navigation submenu','导航子菜单')} className="absolute top-full left-0 right-0 z-40 bg-[#fcfaf7] border-y border-[#e7dcd1] shadow-[0_30px_55px_rgba(31,20,13,0.13)]"
           onMouseEnter={clearTimer} onMouseLeave={closeLater}>
           <div className="max-w-[1260px] mx-auto px-10 py-9 grid grid-cols-[1fr_2fr] gap-12">
             <div>
@@ -82,6 +87,7 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
             <div className="grid grid-cols-2 gap-x-7 gap-y-1">
               {submenu.map(entry => (
                 <Link key={entry.to} to={entry.to} onClick={() => setActiveMenu(null)}
+                  onKeyDown={(event) => { if (event.key === 'Escape') setActiveMenu(null); }}
                   className="group flex items-center justify-between gap-3 py-3 border-b border-[#ebe3db] text-[#49362b] text-sm hover:text-[#754831]">
                   {entry.label} <ArrowUpRight size={16} className="opacity-30 group-hover:opacity-100" />
                 </Link>

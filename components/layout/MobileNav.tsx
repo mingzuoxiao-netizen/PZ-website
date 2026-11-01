@@ -1,151 +1,115 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { NAV_ITEMS } from '../../types';
+import { ArrowRight, ArrowUpRight, ChevronDown, MapPin } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { ArrowRight, Globe, Factory, MapPin, Plus, Minus, ChevronRight } from 'lucide-react';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { publishedSiteCategories } from '../../utils/catalogCategories';
 
 interface MobileNavProps {
   isOpen: boolean;
   onClose: () => void;
-  textColor: string; 
+  textColor: string;
 }
 
+/**
+ * Mobile counterpart to DesktopNav. Only approved site categories appear here;
+ * the links reuse the existing public routes and do not alter backend access.
+ */
 const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onClose }) => {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const { config } = usePublishedSiteConfig();
-  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState<'products' | 'manufacturing' | null>(null);
+  const L = (en: string, zh: string) => language === 'zh' ? zh : en;
+  const categories = publishedSiteCategories(config?.categories);
 
-  const dynamicCategories = publishedSiteCategories(config?.categories);
+  const nav = [
+    { to: '/', en: 'Home', zh: '首页' },
+    { to: '/collections', en: 'Products', zh: '产品中心', submenu: 'products' as const },
+    { to: '/capabilities', en: 'Custom Manufacturing', zh: '定制制造', submenu: 'manufacturing' as const },
+    { to: '/capacity', en: 'Our Facilities', zh: '生产基地' },
+    { to: '/materials', en: 'Materials & Quality', zh: '材料与品质' },
+    { to: '/about', en: 'About PZ', zh: '关于我们' }
+  ];
 
-  const toggleExpand = (key: string) => {
-    setExpandedItems(prev => 
-      prev.includes(key) ? prev.filter(i => i !== key) : [...prev, key]
-    );
-  };
-
-  const menuDetails: Record<string, { label: string; href: string }[]> = {
-    collections: dynamicCategories.map(cat => ({
-      label: language === 'zh' ? (cat.title_zh || cat.title) : cat.title,
-      href: `/collections?category=${cat.id}`
-    })),
-    manufacturing: [
-      { label: t.nav.mega.lumberPrep, href: "/manufacturing#lumber" },
-      { label: t.nav.mega.cnc5Axis, href: "/manufacturing#cnc" },
-      { label: t.nav.mega.autoFinishing, href: "/manufacturing#finishing" },
-      { label: t.nav.mega.incomingQC, href: "/manufacturing#iqc" },
-      { label: t.nav.mega.inProcessQC, href: "/manufacturing#ipqc" },
-      { label: t.nav.mega.finalInspection, href: "/manufacturing#fqc" },
+  const details = {
+    products: [
+      { to: '/collections', en: 'All Products', zh: '全部产品' },
+      ...categories.map(category => ({
+        to: '/collections?category=' + encodeURIComponent(category.id),
+        en: category.title,
+        zh: category.title_zh || category.title
+      }))
     ],
-    capabilities: [
-      { label: t.nav.mega.oemProduction, href: "/capabilities#oem" },
-      { label: t.nav.mega.odmDesign, href: "/capabilities#odm" },
-      { label: t.nav.mega.valueEngineering, href: "/capabilities#ve" },
-      { label: t.nav.mega.tscaTitleVI, href: "/capabilities#tsca" },
-      { label: t.nav.mega.fscCertification, href: "/capabilities#fsc" },
-      { label: t.nav.mega.istaPackaging, href: "/capabilities#packaging" },
+    manufacturing: [
+      { to: '/capabilities', en: 'OEM / ODM Capabilities', zh: 'OEM / ODM 定制能力' },
+      { to: '/manufacturing', en: 'Manufacturing Process', zh: '制造流程' },
+      { to: '/capacity', en: 'Our Facilities', zh: '生产基地' },
+      { to: '/materials', en: 'Materials & Finishes', zh: '材料与涂装' }
     ]
   };
 
   return (
-    <div 
-      className={`
-        fixed inset-0 z-40 bg-stone-900 transition-all duration-700 ease-in-out
-        flex flex-col
-        ${isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-full pointer-events-none'}
-      `}
+    <div
+      id="pz-mobile-navigation"
+      aria-hidden={!isOpen}
+      className={`fixed inset-0 z-40 flex flex-col bg-[#30221b] transition-opacity duration-300 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
     >
-      {/* Background Graphic */}
-      <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-          <Factory size={400} />
-      </div>
-
-      <nav className="flex flex-col flex-grow pt-[100px] pb-12 px-6 relative z-10 overflow-y-auto custom-scrollbar">
-        <div className="space-y-4 mb-12">
-          {NAV_ITEMS.map((item, idx) => {
-            if (item.path === '/inquire') return null;
-            const hasSubItems = !!menuDetails[item.key];
-            const isExpanded = expandedItems.includes(item.key);
-
-            return (
-              <div 
-                key={item.path} 
-                className={`border-b border-white/5 pb-4 transition-all duration-500 ${isOpen ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}
-                style={{ transitionDelay: `${idx * 50}ms` }}
-              >
-                <div className="flex items-center justify-between group">
-                  <Link
-                    to={item.path}
-                    onClick={onClose}
-                    className="flex items-center gap-4 flex-grow"
+      <nav aria-label={L('Mobile navigation','移动导航')} className="flex-1 overflow-y-auto px-6 sm:px-10 pt-[92px] md:pt-[104px] pb-10">
+        <p className="mb-7 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#c4a68f]">
+          {L('Explore PZ Furniture Studio','探索鹏展家具制造')}
+        </p>
+        <div className="border-t border-white/15">
+          {nav.map((item, index) => (
+            <div key={item.to} className="border-b border-white/15">
+              <div className="flex items-center gap-3 py-2 min-h-[66px]">
+                <span className="w-5 text-[10px] font-mono text-white/45">{String(index + 1).padStart(2, '0')}</span>
+                <Link
+                  to={item.to}
+                  onClick={onClose}
+                  className="flex-1 py-3 font-serif text-[clamp(1.4rem,5.4vw,2rem)] leading-tight text-[#f8f3ec] hover:text-[#ddb99b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ddb99b]"
+                >
+                  {L(item.en, item.zh)}
+                </Link>
+                {item.submenu && (
+                  <button
+                    type="button"
+                    aria-label={L('Show '+ item.en + ' categories','展开' + item.zh + '子菜单')}
+                    aria-expanded={expanded === item.submenu}
+                    aria-controls={'pz-mobile-submenu-' + item.submenu}
+                    onClick={() => setExpanded(expanded === item.submenu ? null : item.submenu)}
+                    className="p-3 text-[#f8f3ec] hover:text-[#ddb99b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ddb99b]"
                   >
-                    <span className="font-mono text-[9px] text-stone-600 font-bold">0{idx + 1}</span>
-                    <span className="font-serif text-3xl text-stone-100 group-hover:text-safety-700 transition-colors">
-                        {t.nav.header[item.key]}
-                    </span>
-                  </Link>
-                  
-                  {hasSubItems && (
-                    <button 
-                      onClick={() => toggleExpand(item.key)}
-                      className="p-4 -mr-4 text-stone-500 hover:text-white transition-colors"
-                    >
-                      {isExpanded ? <Minus size={20} /> : <Plus size={20} />}
-                    </button>
-                  )}
-                </div>
-
-                {/* Sub-menu items */}
-                {hasSubItems && (
-                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[500px] mt-4 opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <div className="pl-10 space-y-4 py-2 border-l border-white/5 ml-2">
-                      {menuDetails[item.key].map((sub, sIdx) => (
-                        <Link 
-                          key={sIdx}
-                          to={sub.href}
-                          onClick={onClose}
-                          className="flex items-center justify-between text-stone-400 text-sm font-bold uppercase tracking-widest hover:text-safety-700 transition-colors"
-                        >
-                          {sub.label}
-                          <ChevronRight size={14} className="opacity-30" />
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
+                    <ChevronDown size={20} aria-hidden="true" className={`transition-transform ${expanded === item.submenu ? 'rotate-180' : ''}`} />
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
-
-        <div className={`mt-auto space-y-6 transition-all duration-700 delay-500 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
-          <Link
-            to="/inquire"
-            onClick={onClose}
-            className="w-full flex items-center justify-between bg-safety-700 text-white p-6 font-bold uppercase tracking-[0.2em] text-[10px] shadow-2xl group"
-          >
-            Start New Project Run 
-            <div className="bg-white/20 p-2 rounded-full group-hover:translate-x-2 transition-transform">
-              <ArrowRight size={16} />
+              {item.submenu && (
+                <div id={'pz-mobile-submenu-' + item.submenu} hidden={expanded !== item.submenu} className="pb-5 pl-8">
+                  {details[item.submenu].map(link => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      onClick={onClose}
+                      className="flex items-center justify-between py-2.5 text-sm text-[#d3c4b7] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ddb99b]"
+                    >
+                      {L(link.en, link.zh)} <ArrowUpRight size={15} aria-hidden="true" />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          </Link>
-
-          <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-6 pb-4">
-              <div className="space-y-1">
-                  <span className="flex items-center gap-2 text-[9px] font-mono text-stone-500 uppercase tracking-widest">
-                      <MapPin size={10} className="text-safety-700" /> HQ / RD
-                  </span>
-                  <p className="text-stone-300 text-[10px] font-bold">Zhaoqing, China</p>
-              </div>
-              <div className="space-y-1 text-right">
-                  <span className="flex items-center gap-2 justify-end text-[9px] font-mono text-stone-500 uppercase tracking-widest">
-                      <Globe size={10} className="text-safety-700" /> STATUS
-                  </span>
-                  <p className="text-green-500 text-[10px] font-bold">Systems Online</p>
-              </div>
-          </div>
+          ))}
         </div>
+        <Link
+          to="/inquire"
+          onClick={onClose}
+          className="mt-8 flex items-center justify-between bg-[#9a6848] px-5 py-4 text-white font-semibold text-sm hover:bg-[#a97854] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+        >
+          {L('Request a Quote','获取报价')} <ArrowRight size={18} aria-hidden="true" />
+        </Link>
+        <p className="mt-8 flex items-center gap-2 text-[11px] tracking-wide text-[#c8b3a2]">
+          <MapPin size={14} aria-hidden="true" /> {L('Manufacturing in China & Cambodia','中国与柬埔寨生产基地')}
+        </p>
       </nav>
     </div>
   );
