@@ -1,0 +1,9 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Content-Security-Policy must be introduced separately after local-bundling
+# the current inline Tailwind configuration and third-party script dependencies.
+# Avoid an untested CSP that breaks the existing site or Turnstile.
