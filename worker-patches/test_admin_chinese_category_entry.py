@@ -33,5 +33,5 @@ assert "lang=\"zh\"" in media and "lang=\"zh\"" in read("pages/CreatorPortal/com
 assert "网站基础信息" in basics and "首页主标题" in basics and "产品目录 PDF" in basics
 assert "网站图片管理" in media and "fields.map(field" in media
 assert 'label: "产品目录 PDF"' in schema
-assert "暂无法读取真实操作日志" in read("pages/CreatorPortal/components/AuditTimeline.tsx")
+assert "adminFetch<AuditPage>" in read("pages/CreatorPortal/components/AuditTimeline.tsx")
 print("PASS: nested category creation, admin Chinese labels, and UI guardrails")
