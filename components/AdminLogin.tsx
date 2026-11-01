@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { ShieldCheck, ArrowRight, Lock, Loader2, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, adminFetch } from "../utils/adminFetch";
 
-const AdminLogin: React.FC = () => {
+interface AdminLoginProps {
+  onLoginSuccess?: (role: 'ADMIN' | 'FACTORY') => void;
+}
+
+const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -30,12 +34,18 @@ const AdminLogin: React.FC = () => {
         body: JSON.stringify({ username, password }),
       });
 
-      if (!data.token || !data.user) throw new Error("Invalid login response");
+      if (!data.token || !data.user || !['ADMIN', 'FACTORY'].includes(data.user.role)) {
+        throw new Error("Invalid login response");
+      }
 
       sessionStorage.setItem(ADMIN_SESSION_KEY, data.token);
       sessionStorage.setItem("pz_user_role", data.user.role);
       sessionStorage.setItem("pz_user_name", data.user.username);
-      navigate("/creator", { replace: true });
+      // Notify the current guard immediately: navigating to the *same* login
+      // path must not leave its stale unauthorized state on screen.
+      onLoginSuccess?.(data.user.role);
+      // Go straight to the role-specific workspace; no intermediate /creator.
+      navigate(data.user.role === 'ADMIN' ? '/creator/admin' : '/creator/factory', { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError(true);
