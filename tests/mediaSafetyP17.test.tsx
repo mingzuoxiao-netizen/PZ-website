@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const read = (path: string) =>
   readFileSync(new URL('../' + path, import.meta.url), 'utf8');
@@ -8,6 +10,7 @@ const read = (path: string) =>
 for (const name of [
   'worker-patches/production-worker-category-governance-REVIEW.js',
   'worker-patches/PZ_Staging_Worker_PR15_Security_Candidate.js',
+  'worker-patches/PZ_Staging_Worker_PR17_Media_Audit_Candidate.js',
 ]) {
   test(name + ': factory image removal never deletes R2', () => {
     const source = read(name);
@@ -57,4 +60,19 @@ test('audit log stats never purges the log table', () => {
   assert.ok(worker.includes('path === "/admin/audit-storage"'));
   const ui = read('pages/CreatorPortal/components/AuditTimeline.tsx');
   assert.ok(ui.includes('日志存储概况'));
+});
+
+test('combined PR17 staging Worker is syntactically valid and retains PR15 security and audit', () => {
+  const file = 'worker-patches/PZ_Staging_Worker_PR17_Media_Audit_Candidate.js';
+  const source = read(file);
+  assert.equal(source.split('async function handleFactoryCategoryRequests').length - 1, 1);
+  assert.equal(source.split('function pzAuditCreateFetch').length - 1, 1);
+  assert.equal(source.split('const pzCorsOriginalFetch').length - 1, 1);
+  assert.ok(source.includes('index_default.fetch = pzAuditCreateFetch'));
+  assert.ok(source.includes("runtimeExpected: 'staging'"));
+  assert.ok(source.includes('setExpirationTime("12h")'));
+  assert.ok(source.includes('async function readStorageStats'));
+  assert.ok(source.includes('safeToDelete: false'));
+  const check = spawnSync(process.execPath, ['--check', fileURLToPath(new URL('../' + file, import.meta.url))], {encoding: 'utf8'});
+  assert.equal(check.status, 0, check.stderr);
 });
