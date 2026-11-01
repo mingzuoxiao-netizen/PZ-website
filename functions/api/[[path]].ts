@@ -227,6 +227,11 @@ export async function onRequest(context: any) {
     const resHeaders = new Headers(
       backendResponse.headers
     );
+    // API responses receive the same baseline security headers as static Pages.
+    resHeaders.set("X-Content-Type-Options", "nosniff");
+    resHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    resHeaders.set("X-Frame-Options", "SAMEORIGIN");
+    resHeaders.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
     // The Pages gateway owns the browser-facing response.
     // Do not forward upstream CORS headers.
@@ -276,10 +281,11 @@ export async function onRequest(context: any) {
       }
     );
   } catch (err: any) {
+    console.error("PZ gateway upstream error", err);
     return jsonError(
       502,
       "Gateway error",
-      err?.message ?? String(err)
+      "Upstream service temporarily unavailable"
     );
   }
 }

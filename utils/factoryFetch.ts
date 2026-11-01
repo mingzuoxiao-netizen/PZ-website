@@ -26,10 +26,12 @@ export async function factoryFetch<T = any>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // The Bearer token must never be forwarded to caller-supplied remote hosts.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(endpoint.trim()) || endpoint.startsWith("//") || endpoint.includes("\\")) {
+    throw new Error("Absolute and external API destinations are not allowed.");
+  }
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
-  let url = endpoint.startsWith("http")
-    ? endpoint
-    : `${FACTORY_API_BASE}/${cleanEndpoint}`;
+  let url = `${FACTORY_API_BASE}/${cleanEndpoint}`;
 
   if (params) {
     const search = new URLSearchParams(params).toString();

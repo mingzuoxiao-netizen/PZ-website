@@ -10,7 +10,10 @@ interface FetchOptions extends RequestInit {
 
 function normalizeEndpoint(endpoint: string) {
   let ep = endpoint.trim();
-  if (ep.startsWith("http://") || ep.startsWith("https://")) return ep;
+  // Never send the admin JWT to an absolute or protocol-relative URL.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(ep) || ep.startsWith("//") || ep.includes("\\")) {
+    throw new Error("Absolute and external API destinations are not allowed.");
+  }
   if (!ep.startsWith("/")) ep = `/${ep}`;
   if (ep.startsWith("/api/")) ep = ep.replace(/^\/api/, "");
   return ep;
@@ -23,10 +26,7 @@ export async function adminFetch<T = any>(
   const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
   const normalized = normalizeEndpoint(endpoint);
 
-  let url =
-    normalized.startsWith("http://") || normalized.startsWith("https://")
-      ? normalized
-      : `${ADMIN_API_BASE}${normalized}`;
+  let url = `${ADMIN_API_BASE}${normalized}`;
 
   if (params) {
     const search = new URLSearchParams(params).toString();
