@@ -1,8 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Shield, Factory, LogOut, Globe, 
-} from 'lucide-react';
+import { Shield, Factory, LogOut, Globe, Menu } from 'lucide-react';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -13,93 +11,89 @@ interface PortalLayoutProps {
   onTabChange: (id: any) => void;
 }
 
-const PortalLayout: React.FC<PortalLayoutProps> = ({ 
-  children, role, userName, navItems, activeTab, onTabChange 
+const PortalLayout: React.FC<PortalLayoutProps> = ({
+  children, role, userName, navItems, activeTab, onTabChange
 }) => {
-  
   const handleLogout = () => {
-    if (confirm("确认退出当前登录账号吗？")) {
-        sessionStorage.clear();
-        window.location.href = '#/admin-pzf-2025';
+    if (confirm('确认退出当前登录账号吗？')) {
+      sessionStorage.clear();
+      window.location.href = '#/admin-pzf-2025';
     }
   };
 
+  const navList = (mobile: boolean) => navItems.map(item => (
+    <button
+      type="button"
+      key={item.id}
+      onClick={() => onTabChange(item.id)}
+      aria-current={activeTab === item.id ? 'page' : undefined}
+      className={mobile
+        ? 'flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8b5c43] ' +
+          (activeTab === item.id ? 'border-[#805036] text-[#754831]' : 'border-transparent text-stone-600 hover:text-stone-900')
+        : 'flex w-full items-center gap-3 rounded-sm px-4 py-3 text-left text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-white ' +
+          (activeTab === item.id ? 'bg-white/15 text-white shadow-[inset_3px_0_0_0_#c79b7b]' : 'text-[#c5cbd1] hover:bg-white/10 hover:text-white')
+      }
+    >
+      <span className={mobile ? 'shrink-0' : 'text-[#d6c0b0]'}>{item.icon}</span>
+      <span className="whitespace-nowrap">{item.label}</span>
+    </button>
+  ));
+
   return (
-    <div className="min-h-screen bg-stone-50 flex overflow-hidden">
-       <aside className="w-64 bg-[#1e3045] text-white flex flex-col flex-shrink-0 z-50">
-          <div className="p-8 border-b border-white/5 flex items-center gap-3">
-              <div className="bg-[#476b9a] w-8 h-8 rounded flex items-center justify-center font-serif font-bold text-white shadow-lg">P</div>
-              <div className="font-mono text-[10px] font-bold tracking-[0.2em] uppercase opacity-60">PZ 管理后台</div>
+    <div className="flex min-h-screen flex-col bg-stone-50 lg:flex-row">
+      <aside className="hidden lg:sticky lg:top-0 lg:z-20 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col bg-[#1e3045] text-white">
+        <div className="flex items-center gap-3 border-b border-white/10 p-7">
+          <div className="flex h-9 w-9 items-center justify-center rounded bg-[#476b9a] font-serif font-bold text-white">P</div>
+          <div className="text-[11px] font-bold tracking-[0.1em]">PZ 中文管理后台</div>
+        </div>
+        <nav aria-label="后台功能" className="flex-grow space-y-1 overflow-y-auto p-4">
+          {navList(false)}
+        </nav>
+        <div className="border-t border-white/10 p-4">
+          <div className="mb-3 rounded-sm bg-[#152335] p-4">
+            <div className="mb-1 flex items-center gap-2">
+              {role === 'ADMIN' ? <Shield size={15} className="text-[#d7af90]" /> : <Factory size={15} className="text-[#d7af90]" />}
+              <span className="truncate text-xs font-semibold">{userName}</span>
+            </div>
+            <p className="text-[11px] text-[#b8c4d0]">{role === 'ADMIN' ? '网站管理员' : '工厂操作员'}</p>
           </div>
+          <button type="button" onClick={handleLogout}
+            className="flex w-full items-center justify-between px-4 py-2 text-xs font-semibold text-[#ccd3db] hover:text-white">
+            安全退出 <LogOut size={15} aria-hidden="true" />
+          </button>
+        </div>
+      </aside>
 
-          <nav className="flex-grow p-4 space-y-1">
-             {navItems.map((item) => (
-                <button
-                   key={item.id}
-                   onClick={() => onTabChange(item.id)}
-                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-sm transition-all group font-sans text-[13px] font-medium
-                    ${activeTab === item.id 
-                        ? 'bg-white/10 text-white shadow-[inset_3px_0_0_0_#8fb3e0]' 
-                        : 'text-stone-500 hover:bg-white/5 hover:text-stone-300'}
-                   `}
-                >
-                   <span className={activeTab === item.id ? 'text-blue-200' : 'text-stone-400 group-hover:text-stone-200'}>
-                       {item.icon}
-                   </span>
-                   {item.label}
-                </button>
-             ))}
-          </nav>
-
-          <div className="p-4 border-t border-white/5">
-             <div className="bg-stone-950 p-4 rounded-sm mb-4">
-                 <div className="flex items-center gap-3 mb-1">
-                    {role === 'ADMIN' ? <Shield size={14} className="text-safety-700" /> : <Factory size={14} className="text-blue-400" />}
-                    <span className="text-xs font-bold text-white truncate">{userName}</span>
-                 </div>
-                 <p className="text-[10px] text-stone-600 uppercase tracking-widest font-mono">
-                    {role === 'ADMIN' ? '网站管理员' : '工厂操作员'}
-                 </p>
-             </div>
-             
-             <button 
-                onClick={handleLogout}
-                className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-stone-500 hover:text-red-500 transition-colors"
-             >
-                安全退出 <LogOut size={14} />
-             </button>
+      <div className="flex min-w-0 flex-1 flex-col lg:h-screen">
+        <header className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-4 md:px-8 lg:min-h-20 lg:py-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#1e3045] text-white"><Menu size={19} aria-hidden="true" /></div>
+            <h1 className="min-w-0 truncate font-serif text-xl text-stone-900">
+              {navItems.find(i => i.id === activeTab)?.label || '管理后台'}
+            </h1>
+            <span className="hidden sm:inline-flex rounded bg-stone-100 px-2 py-1 text-[11px] text-stone-600">
+              {role === 'ADMIN' ? '管理员' : '工厂账号'} · {userName}
+            </span>
           </div>
-       </aside>
+          <div className="flex items-center gap-3">
+            <Link to="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-[#754831] hover:text-stone-900">
+              查看网站 <Globe size={15} aria-hidden="true" />
+            </Link>
+            <button type="button" onClick={handleLogout}
+              className="flex items-center gap-1 text-xs font-semibold text-stone-600 hover:text-stone-900 lg:hidden">
+              退出 <LogOut size={15} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
 
-       <div className="flex-grow flex flex-col h-screen overflow-hidden">
-          <header className="bg-white border-b border-stone-200 px-8 h-20 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-4">
-                  <h2 className="font-serif text-xl text-stone-900">
-                    {navItems.find(i => i.id === activeTab)?.label}
-                  </h2>
-                  <div className="flex items-center gap-2 px-2 py-1 bg-stone-100 rounded text-[9px] font-mono text-stone-500 uppercase tracking-widest">
-                    管理系统 / 已连接
-                  </div>
-              </div>
+        <nav aria-label="手机端后台功能" className="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-2 sm:px-4 lg:hidden">
+          {navList(true)}
+        </nav>
 
-              <div className="flex items-center gap-6">
-                  <Link to="/" target="_blank" className="flex items-center gap-2 text-xs font-bold text-stone-400 hover:text-stone-900 transition-colors">
-                      查看网站 <Globe size={14} />
-                  </Link>
-                  <div className="h-6 w-px bg-stone-200"></div>
-                  <div className="flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                     <span className="text-[10px] font-mono font-bold text-stone-400 uppercase">已同步</span>
-                  </div>
-              </div>
-          </header>
-
-          <main className="flex-grow overflow-y-auto bg-stone-50 p-8">
-             <div className="max-w-[1600px] mx-auto">
-                {children}
-             </div>
-          </main>
-       </div>
+        <main className="min-w-0 flex-1 bg-stone-50 p-4 md:p-8 lg:overflow-y-auto">
+          <div className="mx-auto max-w-[1600px] min-w-0">{children}</div>
+        </main>
+      </div>
     </div>
   );
 };
