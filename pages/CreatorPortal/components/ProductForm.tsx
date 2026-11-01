@@ -59,6 +59,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
     e.preventDefault();
     if (submitting) return;
     const code = String(formData.code || '').trim().toUpperCase();
+    const categoryId = fixedCategoryId || formData.category || '';
+    if (!formData.id && (!categoryId || !categories.some(c => c.id === categoryId))) {
+      alert(T('Select a valid product category.', '请选择有效的产品分类。'));
+      return;
+    }
     if (!String(formData.name || '').trim()) {
       alert(T('Product name is required.','请输入产品名称。'));
       return;
@@ -76,6 +81,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       const finalStatus = formData.status || 'draft';
       await onSave({
         ...formData,
+        category: categoryId,
         code,
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
@@ -107,7 +113,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">{T("Product Induction Protocol","产品资料录入")}</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-[9px] font-mono opacity-40 uppercase">{T("Revision v1.2","表单版本 1.2")}</span>
+                   <span className="text-[9px] font-mono opacity-40 uppercase">{T("Revision v1.3","表单版本 1.3")}</span>
                 </div>
              </div>
 
@@ -120,15 +126,26 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Production Series","产品系列")}</label>
-                            <select 
-                                value={formData.category || ''} 
-                                onChange={e => handleChange('category', e.target.value)} 
-                                disabled={!!fixedCategoryId} 
-                                className="w-full bg-stone-50 border border-stone-200 p-4 text-sm font-bold focus:border-stone-900 outline-none transition-colors appearance-none"
-                            >
-                                <option value="">{T("Select Target Category...","请选择产品分类…")}</option>
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
+                            {fixedCategoryId ? (
+                                <div className="w-full bg-stone-100 border border-stone-200 p-4 text-sm font-bold text-stone-800" aria-label={T('Selected product category','当前产品分类')}>
+                                    {(() => {
+                                      const selected = categories.find(c => c.id === fixedCategoryId);
+                                      return selected
+                                        ? (lang === 'zh' ? (selected.title_cn || selected.title_zh || selected.title) : selected.title)
+                                        : T('Category unavailable','分类不存在');
+                                    })()}
+                                    <span className="ml-3 text-xs font-normal text-stone-500">{T('Inherited from the current category','已自动关联当前分类')}</span>
+                                </div>
+                            ) : (
+                                <select
+                                    value={formData.category || ''}
+                                    onChange={e => handleChange('category', e.target.value)}
+                                    className="w-full bg-stone-50 border border-stone-200 p-4 text-sm font-bold focus:border-stone-900 outline-none transition-colors appearance-none"
+                                >
+                                    <option value="">{T("Select Target Category...","请选择产品分类…")}</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{lang === 'zh' ? (c.title_cn || c.title_zh || c.title) : c.title}</option>)}
+                                </select>
+                            )}
                         </div>
                         <div>
                             <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Sub-Collection (Optional)","子分类（选填）")}</label>
@@ -165,24 +182,44 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Display Name","产品名称")}</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Display Name (English)","产品名称（英文）")}</label>
                             <input 
                                 type="text" 
                                 required
                                 value={formData.name || ''} 
                                 onChange={e => handleChange('name', e.target.value)} 
                                 className="w-full border-b-2 border-stone-100 p-4 font-serif text-2xl outline-none focus:border-safety-700 transition-colors" 
-                                placeholder={T("Formal Product Title","输入产品名称")} 
+                                placeholder={T("English product name","请输入英文产品名称")} 
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Technical Description","产品说明")}</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Display Name (Chinese)","产品名称（中文）")}</label>
+                            <input
+                                type="text"
+                                value={formData.name_cn || ''}
+                                onChange={e => handleChange('name_cn', e.target.value)}
+                                className="w-full border-b-2 border-stone-100 p-4 font-serif text-xl outline-none focus:border-safety-700 transition-colors"
+                                placeholder={T("Chinese product name (optional)","请输入中文产品名称（选填）")}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Product Description (English)","产品说明（英文）")}</label>
                             <textarea 
                                 rows={4} 
                                 value={formData.description || ''} 
                                 onChange={e => handleChange('description', e.target.value)} 
                                 className="w-full bg-stone-50 border border-stone-200 p-4 text-sm outline-none focus:border-stone-900 resize-none leading-relaxed" 
-                                placeholder={T("Detail the structural characteristics and design intent...","填写产品结构、尺寸与设计要求…")} 
+                                placeholder={T("Describe product construction, design and features...","用英文填写结构、设计及产品特点…")} 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Product Description (Chinese)","产品说明（中文）")}</label>
+                            <textarea
+                                rows={4}
+                                value={formData.description_cn || ''}
+                                onChange={e => handleChange('description_cn', e.target.value)}
+                                className="w-full bg-stone-50 border border-stone-200 p-4 text-sm outline-none focus:border-stone-900 resize-none leading-relaxed"
+                                placeholder={T("Chinese description (optional)","填写中文产品说明（选填）")}
                             />
                         </div>
                     </div>
@@ -193,7 +230,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             <input type="text" value={formData.material || ''} onChange={e => handleChange('material', e.target.value)} className="w-full border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none" placeholder={T("e.g. Solid North American Oak","例如：北美白橡木")} />
                         </div>
                         <div>
-                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Registry SKU Code","产品 SKU 编号")}</label>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Dimensions (L × W × T)","产品尺寸（长 × 宽 × 厚）")}</label>
+                            <input type="text" value={formData.size || ''} onChange={e => handleChange('size', e.target.value)} className="w-full border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none" placeholder={T("e.g. 72 × 25 × 1.5 in","例如：72 × 25 × 1.5 英寸")} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("Surface Finish","表面处理")}</label>
+                            <input type="text" value={formData.finish || ''} onChange={e => handleChange('finish', e.target.value)} className="w-full border border-stone-200 p-4 text-sm focus:border-stone-900 outline-none" placeholder={T("e.g. Unfinished / PU / UV","例如：未涂装 / PU / UV")} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] uppercase font-bold text-stone-400 mb-2">{T("SKU suffix (PZ- added automatically)","SKU 后缀（系统自动加 PZ-）")}</label>
                             <div className="flex">
                                 <span className="bg-stone-100 border border-r-0 border-stone-200 px-4 flex items-center text-stone-400 font-mono text-xs font-bold">PZ-</span>
                                 <input 
@@ -201,7 +246,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                                     value={(formData.code || '').replace(/^PZ-/, '')} 
                                     onChange={e => handleChange('code', `PZ-${e.target.value.toUpperCase()}`)} 
                                     className="w-full border border-stone-200 p-4 text-sm font-mono focus:border-stone-900 outline-none uppercase" 
-                                    placeholder="PZ-XXX-000" 
+                                    placeholder="BIRCH-001" 
                                 />
                             </div>
                         </div>
@@ -214,6 +259,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">{T("Digital Asset Management","产品图片管理")}</h4>
                     </div>
                     <PZImageManager 
+                        lang={lang}
                         images={formData.images || []}
                         onUpdate={reorderImages}
                         onDelete={removeImage}
@@ -225,12 +271,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-12 border-t border-stone-100">
                     <button type="button" onClick={onCancel} className="px-10 py-5 border border-stone-200 text-[10px] font-bold uppercase tracking-widest hover:bg-stone-50 transition-colors flex items-center justify-center gap-3 group">
-                        <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Discard
+                        <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> {T("Discard","取消返回")}
                     </button>
                     
                     <button type="submit" disabled={submitting || isPromoting} className="flex-grow bg-white border-2 border-stone-900 text-stone-900 font-bold uppercase tracking-[0.2em] py-5 hover:bg-stone-900 hover:text-white transition-all flex items-center justify-center gap-3 shadow-lg">
                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Store Draft
+                        {T("Store Draft","保存草稿")}
                     </button>
 
                     {canPromote && (
@@ -241,7 +287,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                             className="flex-grow bg-safety-700 text-white font-bold uppercase tracking-[0.2em] py-5 hover:bg-safety-600 transition-all flex items-center justify-center gap-3 shadow-xl"
                         >
                             {isPromoting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                            Submit for Review
+                            {T("Submit for Review","提交审核")}
                         </button>
                     )}
                 </div>
@@ -256,14 +302,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
                   <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{T("Registry Insight Preview","产品预览")}</span>
               </div>
               <div className="border border-t-0 border-stone-200 p-1 bg-stone-50 shadow-2xl">
-                 <LivePreview formData={formData} />
+                 <LivePreview formData={formData} lang={lang} />
               </div>
               <div className="mt-8 p-6 bg-amber-50 border border-amber-200 rounded-sm">
                   <div className="flex items-start gap-3">
                       <Info size={18} className="text-amber-700 flex-shrink-0 mt-0.5" />
                       <div className="text-[10px] text-amber-800 leading-relaxed uppercase tracking-widest font-bold">
                           <p className="mb-2">{T("Induction Note:","录入提示：")}</p>
-                          <p className="font-normal normal-case text-amber-600">This form adheres to Version-A Safety Protocols. Physical deletion of cloud assets is restricted to prevent library corruption.</p>
+                          <p className="font-normal normal-case text-amber-600">{T("Image deletion removes references; cloud files are retained to protect shared assets.","删除图片仅移除产品引用，云端原始文件会保留，以免影响其他产品。")}</p>
                       </div>
                   </div>
               </div>

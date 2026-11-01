@@ -68,6 +68,7 @@ export function normalizeProduct(input: any): ProductVariant {
     description_cn: input.description_cn || input.description_zh || '',
     size: input.size || input.dimensions || '',
     material: input.material || '',
+    finish: input.finish || '',
     code: input.code || '',
     production_sites: productionSites,
     status: status,

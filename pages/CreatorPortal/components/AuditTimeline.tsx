@@ -1,54 +1,24 @@
 import React from 'react';
-import { Activity, Clock, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Activity, ShieldAlert } from 'lucide-react';
 
-const AuditTimeline: React.FC = () => {
-    const logs = [
-        { id: 1, type: 'APPROVE', user: 'Admin', target: 'PZ-9021 Dining Table', date: '2024-10-24 14:20', icon: <CheckCircle className="text-green-500"/> },
-        { id: 2, type: 'LOGIN', user: 'Factory_Kandal', target: 'Secure Session', date: '2024-10-24 13:05', icon: <Clock className="text-stone-400"/> },
-        { id: 3, type: 'PUBLISH', user: 'Admin', target: 'Registry Logic v2.1', date: '2024-10-24 11:45', icon: <Shield className="text-amber-500"/> },
-        { id: 4, type: 'REJECT', user: 'Admin', target: 'PZ-8801 Side Chair', date: '2024-10-24 10:30', icon: <XCircle className="text-red-500"/> },
-        { id: 5, type: 'CREATE', user: 'Factory_Zhaoqing', target: 'Initial Record Load', date: '2024-10-24 09:15', icon: <AlertCircle className="text-blue-500"/> },
-    ];
-
-    return (
-        <div className="animate-fade-in max-w-4xl mx-auto">
-            <div className="bg-white border border-stone-200 p-8 mb-8 shadow-sm">
-                <h3 className="font-serif text-2xl text-stone-900 mb-2 flex items-center">
-                    <Activity className="mr-3 text-amber-700" size={24} />
-                    System Audit Logs
-                </h3>
-                <p className="text-stone-500 text-sm">产品更改、审批及安全事件的操作记录。</p>
-            </div>
-
-            <div className="space-y-4">
-                {logs.map(log => (
-                    <div key={log.id} className="bg-white border border-stone-200 p-4 flex items-center gap-6 hover:bg-stone-50 transition-colors">
-                        <div className="w-10 h-10 bg-stone-100 flex items-center justify-center rounded-sm">
-                            {log.icon}
-                        </div>
-                        <div className="flex-grow font-mono">
-                            <div className="flex justify-between items-start">
-                                <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
-                                    {log.type}: <span className="text-stone-500 normal-case font-medium">{log.target}</span>
-                                </h4>
-                                <span className="text-[10px] text-stone-400">{log.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">操作人：</span>
-                                <span className="text-[10px] font-bold text-safety-700 bg-safety-50 px-1.5 py-0.5 rounded">{log.user}</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-8 text-center">
-                <button className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors font-mono">
-                    Load Sequential Logs
-                </button>
-            </div>
-        </div>
-    );
-};
+/**
+ * The current Production API has no verified audit-log read endpoint.
+ * Do not show made-up events or an inert "load logs" button to administrators.
+ */
+const AuditTimeline: React.FC = () => (
+  <div className="animate-fade-in max-w-4xl mx-auto">
+    <div className="bg-white border border-stone-200 p-8 mb-8 shadow-sm">
+      <h3 className="font-serif text-2xl text-stone-900 mb-2 flex items-center">
+        <Activity className="mr-3 text-amber-700" size={24} /> 操作日志
+      </h3>
+      <p className="text-stone-500 text-sm">用于查看后台操作及审批记录。</p>
+    </div>
+    <div className="bg-white border border-stone-200 p-12 text-center text-stone-500">
+      <ShieldAlert className="mx-auto mb-4 text-amber-700" size={30} />
+      <h4 className="text-base font-semibold text-stone-900">暂无法读取真实操作日志</h4>
+      <p className="mt-2 text-sm">当前后台尚未接入经过验证的操作日志接口，因此不会显示模拟记录。</p>
+    </div>
+  </div>
+);
 
 export default AuditTimeline;

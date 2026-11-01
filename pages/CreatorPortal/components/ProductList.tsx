@@ -63,7 +63,7 @@ const ProductList: React.FC<ProductListProps> = ({
       try {
           await onSubmit(id);
       } catch (e: any) {
-          alert(`Submission failed: ${e.message}`);
+          alert(T(`Submission failed: ${e.message}`, `提交审核失败：${e.message}`));
       } finally {
           setSubmittingIds(prev => prev.filter(i => i !== id));
       }
@@ -80,7 +80,7 @@ const ProductList: React.FC<ProductListProps> = ({
           if (onRefresh) onRefresh();
           alert(T("Bulk submission successful.","批量提交成功。"));
       } catch (e: any) {
-          alert("Bulk processing error: " + e.message);
+          alert(T("Bulk processing error: ", "批量操作失败：") + e.message);
       } finally {
           setIsBulkProcessing(false);
       }
@@ -96,7 +96,7 @@ const ProductList: React.FC<ProductListProps> = ({
         setSelectedIds([]);
         alert(T("Bulk deletion completed.","批量删除完成。"));
     } catch (e: any) {
-        alert("Deletion failed: " + e.message);
+        alert(T("Deletion failed: ", "删除失败：") + e.message);
     } finally {
         setIsBulkProcessing(false);
     }
@@ -143,7 +143,7 @@ const ProductList: React.FC<ProductListProps> = ({
           </div>
           
           <div className="text-[10px] font-mono text-stone-400 font-bold uppercase tracking-widest">
-            {isLoading ? 'Syncing...' : `${filteredItems.length} records detected`}
+            {isLoading ? T('Syncing...','正在同步…') : T(`${filteredItems.length} records detected`, `共 ${filteredItems.length} 条产品`)}
           </div>
        </div>
 
@@ -177,28 +177,28 @@ const ProductList: React.FC<ProductListProps> = ({
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 text-[8px] bg-stone-50">
                                    <AlertTriangle size={14} className="mb-1 text-amber-500 opacity-50" />
-                                   NO ASSET
+                                   {T("NO ASSET","无图片")}
                                 </div>
                             )}
                         </div>
                         <div className="flex-grow min-w-0">
                             <div className="flex items-center gap-3 mb-1">
-                                <h4 className="font-bold text-stone-900 text-sm truncate font-serif">{item.name}</h4>
+                                <h4 className="font-bold text-stone-900 text-sm truncate font-serif">{lang === "zh" ? (item.name_cn || item.name) : item.name}</h4>
                                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border-none uppercase tracking-tighter ${statusInfo.color}`}>
                                     {statusInfo.label}
                                 </span>
                                 {isPublished && hasNoImages && (
                                     <div className="flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title={T("Due to lack of valid assets, this product is automatically suppressed on the public site.","缺少有效图片，该产品不会在公开网站展示。")}>
-                                        <AlertTriangle size={10} /> Hidden (Missing Assets)
+                                        <AlertTriangle size={10} /> {T("Hidden (Missing Assets)","因缺少图片未公开")}
                                     </div>
                                 )}
                             </div>
                             <div className="flex items-center gap-4 font-mono text-[9px]">
-                                <span className="text-stone-400 font-bold uppercase">{item.code || "NO_SKU"}</span>
-                                <span className="text-stone-500 uppercase tracking-tight">{item.category || 'GENERAL'}</span>
+                                <span className="text-stone-400 font-bold uppercase">{item.code || T("NO SKU","无 SKU")}</span>
+                                <span className="text-stone-500 uppercase tracking-tight">{(categories.find(c => c.id === item.category)?.[lang === 'zh' ? 'title_cn' : 'title'] || categories.find(c => c.id === item.category)?.title || item.category) || T('General','未分类')}</span>
                                 {(item.production_sites || []).map(site => (
                                     <span key={site} className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600 uppercase">
-                                        {site === 'zhaoqing' ? 'Zhaoqing' : 'Cambodia'}
+                                        {site === 'zhaoqing' ? T('Zhaoqing','肇庆') : T('Cambodia','柬埔寨')}
                                     </span>
                                 ))}
                             </div>
@@ -211,7 +211,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                     className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 text-[10px] font-bold uppercase hover:bg-safety-700 transition-colors rounded-sm"
                                 >
                                     {isSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                    Submit Review
+                                    {T("Submit Review","提交审核")}
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -246,15 +246,15 @@ const ProductList: React.FC<ProductListProps> = ({
                    </div>
                    {isFactory ? (
                        <button onClick={handleBulkSubmit} disabled={isBulkProcessing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">
-                           {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} Transmit to Audit
+                           {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} {T("Transmit to Audit","批量提交审核")}
                        </button>
                    ) : (
                        <div className="flex items-center gap-6">
                            <button onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors">
-                               <CheckCircle size={14} /> Bulk Publish
+                               <CheckCircle size={14} /> {T("Bulk Publish","批量发布")}
                            </button>
                            <button onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors">
-                               <Ban size={14} /> Move to Draft
+                               <Ban size={14} /> {T("Move to Draft","移至草稿")}
                            </button>
                            <div className="w-px h-4 bg-white/10 mx-2"></div>
                            <button 
@@ -262,7 +262,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                 disabled={isBulkProcessing}
                                 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
                            >
-                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14} />} Bulk Delete
+                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14} />} {T("Bulk Delete","批量删除")}
                            </button>
                        </div>
                    )}

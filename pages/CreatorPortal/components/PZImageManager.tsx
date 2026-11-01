@@ -5,6 +5,7 @@ import { resolveImage } from '../../../utils/imageResolver';
 
 interface PZImageManagerProps {
   images: string[];
+  lang?: 'en' | 'zh';
   onUpdate: (images: string[]) => void;
   onError: (msg: string) => void;
   onUpload: (file: File) => Promise<string>;
@@ -18,8 +19,9 @@ interface PZImageManagerProps {
 }
 
 const PZImageManager: React.FC<PZImageManagerProps> = ({
-  images = [], onUpdate, onError, onUpload, onDelete, onSetMain, label, maxImages = Infinity, className, aspectRatio, accept = "image/*"
+  images = [], lang = 'en', onUpdate, onError, onUpload, onDelete, onSetMain, label, maxImages = Infinity, className, aspectRatio, accept = "image/*"
 }) => {
+  const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -81,7 +83,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
       {label && (
         <div className="flex justify-between items-end mb-3">
           <label className="text-[10px] uppercase font-bold text-stone-400 tracking-widest">{label}</label>
-          {!isSingleMode && <span className="text-[10px] font-mono text-stone-300">{images.length} / {maxImages === Infinity ? '∞' : maxImages} Units</span>}
+          {!isSingleMode && <span className="text-[10px] font-mono text-stone-300">{images.length} / {maxImages === Infinity ? '∞' : maxImages} {T('Images','张')}</span>}
         </div>
       )}
 
@@ -101,7 +103,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         {isUploading ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 size={32} className="animate-spin text-safety-700" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Indexing Assets...</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">{T('Uploading images...','正在上传图片…')}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
@@ -121,29 +123,29 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
               <div className="absolute top-2 left-2 flex gap-1">
                 {idx === 0 && (
                   <span className="bg-safety-700 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                    <Star size={8} fill="currentColor" /> Primary
+                    <Star size={8} fill="currentColor" /> {T('Primary','主图')}
                   </span>
                 )}
               </div>
               <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
                 <div className="flex justify-between items-start">
                    {onSetMain && idx !== 0 ? (
-                       <button onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
+                       <button type="button" onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
                          <Star size={12} />
                        </button>
                    ) : <div></div>}
-                   <button onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
+                   <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
                      <X size={12} />
                    </button>
                 </div>
                 <div className="flex justify-center gap-2">
                   {idx > 0 && (
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); moveImage(idx, 'left'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
                       <ArrowLeft size={14} />
                     </button>
                   )}
                   {idx < images.length - 1 && (
-                    <button onClick={(e) => { e.stopPropagation(); moveImage(idx, 'right'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); moveImage(idx, 'right'); }} className="p-2 bg-white/20 hover:bg-white text-white hover:text-stone-900 rounded-sm backdrop-blur-md transition-colors">
                       <ArrowRight size={14} />
                     </button>
                   )}
@@ -152,12 +154,13 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             </div>
           ))}
           {!isSingleMode && images.length < maxImages && (
-             <button 
+             <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="aspect-square border-2 border-dashed border-stone-200 rounded-sm flex flex-col items-center justify-center text-stone-300 hover:border-stone-400 hover:text-stone-500 transition-all"
              >
                 <Plus size={24} />
-                <span className="text-[9px] font-bold uppercase mt-2">Add More</span>
+                <span className="text-[9px] font-bold uppercase mt-2">{T('Add More','继续添加')}</span>
              </button>
           )}
         </div>

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { 
   Shield, Factory, LogOut, Globe, 
 } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -17,7 +16,6 @@ interface PortalLayoutProps {
 const PortalLayout: React.FC<PortalLayoutProps> = ({ 
   children, role, userName, navItems, activeTab, onTabChange 
 }) => {
-  const { t } = useLanguage();
   
   const handleLogout = () => {
     if (confirm("确认退出当前登录账号吗？")) {
@@ -68,7 +66,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
                 onClick={handleLogout}
                 className="w-full flex items-center justify-between px-4 py-2 text-xs font-bold text-stone-500 hover:text-red-500 transition-colors"
              >
-                {t.admin.logout} <LogOut size={14} />
+                安全退出 <LogOut size={14} />
              </button>
           </div>
        </aside>

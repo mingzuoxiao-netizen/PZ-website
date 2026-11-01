@@ -3348,6 +3348,7 @@ function normalizeProductRows(rows) {
       sub_category: r.sub_category ?? "",
       material: r.material ?? "",
       size: r.size ?? "",
+      finish: r.finish ?? "",
       code: r.code ?? "",
       description: r.description ?? "",
       description_cn: r.description_cn ?? "",
@@ -3386,6 +3387,7 @@ function coerceProductForDb(input) {
     sub_category: String(p.sub_category ?? ""),
     material: String(p.material ?? ""),
     size: String(p.size ?? ""),
+    finish: String(p.finish ?? "").slice(0, 240),
     code: String(p.code ?? "").trim().toUpperCase(),
     description: String(p.description ?? ""),
     description_cn: String(p.description_cn ?? ""),
@@ -3411,7 +3413,7 @@ function pzIsSkuConflict(error) {
   return /UNIQUE constraint failed|SQLITE_CONSTRAINT_UNIQUE|ux_products_sku_normalized/i.test(message2);
 }
 __name(pzIsSkuConflict, "pzIsSkuConflict");
-var PZ_PUBLIC_COLUMNS = "id,name,name_cn,category,sub_category,material,size,code,description,description_cn,images,production_sites,status,created_at,updated_at";
+var PZ_PUBLIC_COLUMNS = "id,name,name_cn,category,sub_category,material,size,finish,code,description,description_cn,images,production_sites,status,created_at,updated_at";
 var PZ_PUBLIC_FILTER = "status = 'published' AND length(trim(coalesce(json_extract(CASE WHEN json_valid(images) THEN images ELSE '[]' END, '$[0]'), ''))) > 0";
 function pzPublicJson(payload, request, status = 200) {
   const origin = request.headers.get("Origin") || "";
@@ -4286,7 +4288,7 @@ var index_default = {
         const auth = await authorize(request, env, ["ADMIN"]);
         if (auth instanceof Response) return auth;
         const rows = await env.DB.prepare(`
-    SELECT id, name, name_cn, category, sub_category, material, size, code,
+    SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
            description, description_cn, images, production_sites, status, created_at, updated_at
     FROM products
     WHERE lower(status) = 'published'
@@ -4318,7 +4320,7 @@ var index_default = {
         const limit = Math.min(Number(url.searchParams.get("limit") ?? "500") || 500, 1e3);
         const status = (url.searchParams.get("status") ?? "").trim().toLowerCase();
         let sql = `
-    SELECT id, name, name_cn, category, sub_category, material, size, code,
+    SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
            description, description_cn, images, production_sites, created_by, status, created_at, updated_at
     FROM products
   `;
@@ -4345,10 +4347,10 @@ var index_default = {
         const now = (/* @__PURE__ */ new Date()).toISOString();
         await env.DB.prepare(
           `INSERT INTO products
-      (id, name, name_cn, category, sub_category, material, size, code,
+      (id, name, name_cn, category, sub_category, material, size, finish, code,
        description, description_cn, images, status, created_at, updated_at,
        production_sites, org_id, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           id,
           db.name,
@@ -4357,6 +4359,7 @@ var index_default = {
           db.sub_category,
           db.material,
           db.size,
+          db.finish,
           db.code,
           db.description,
           db.description_cn,
@@ -4389,6 +4392,7 @@ var index_default = {
         sub_category = ?,
         material = ?,
         size = ?,
+        finish = ?,
         code = ?,
         description = ?,
         description_cn = ?,
@@ -4404,6 +4408,7 @@ var index_default = {
           db.sub_category,
           db.material,
           db.size,
+          db.finish,
           db.code,
           db.description,
           db.description_cn,
@@ -4542,7 +4547,7 @@ if (
         const url = new URL(request.url);
         const limit = Math.min(Number(url.searchParams.get("limit") ?? "500") || 500, 1e3);
         const rows = await env.DB.prepare(
-          `SELECT id, name, name_cn, category, sub_category, material, size, code,
+          `SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
             description, description_cn, images, production_sites, created_by, status, created_at, updated_at
      FROM products
      ORDER BY updated_at DESC
@@ -4564,10 +4569,10 @@ if (
         const status = "draft";
         await env.DB.prepare(
           `INSERT INTO products
-      (id, name, name_cn, category, sub_category, material, size, code,
+      (id, name, name_cn, category, sub_category, material, size, finish, code,
        description, description_cn, images, status, created_at, updated_at,
        production_sites, org_id, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           id,
           db.name,
@@ -4576,6 +4581,7 @@ if (
           db.sub_category,
           db.material,
           db.size,
+          db.finish,
           db.code,
           db.description,
           db.description_cn,
@@ -4629,6 +4635,7 @@ if (
           sub_category = ?,
           material = ?,
           size = ?,
+        finish = ?,
           code = ?,
           description = ?,
           description_cn = ?,
@@ -4643,6 +4650,7 @@ if (
             db.sub_category,
             db.material,
             db.size,
+          db.finish,
             db.code,
             db.description,
             db.description_cn,
@@ -4757,7 +4765,7 @@ if (
       }
       async function publishProductsSnapshot(env2) {
         const rows = await env2.DB.prepare(`
-    SELECT id, name, name_cn, category, sub_category, material, size, code,
+    SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
            description, description_cn, images, production_sites, status, created_at, updated_at
     FROM products
     WHERE lower(status) = 'published'

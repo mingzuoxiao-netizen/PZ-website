@@ -16,6 +16,7 @@ export interface ProductVariant {
   images: string[]; // Primary Source of Truth
   material?: string;
   size?: string;
+  finish?: string;
   code?: string;
   status?: string;
   production_sites?: ProductionSite[];

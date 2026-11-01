@@ -117,9 +117,10 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGrou
           {groupIndex === 0 && Array.isArray(config.categories) && config.categories.map((category: any, index: number) => (
             <section key={'category-' + category.id} className="bg-white border border-stone-200 p-5">
               <h3 className="font-semibold text-stone-900 text-sm">产品分类：{category.title_zh || category.title_cn || category.title}</h3>
-              <p className="text-xs text-stone-400 mt-1 mb-3">分类封面 · {category.id}</p>
+              <p className="text-xs text-stone-400 mt-1 mb-3">分类封面</p>
               {!!category.image && <img src={resolveImage(category.image)} alt="分类封面预览" className="h-32 w-full object-cover border border-stone-100 mb-3" loading="lazy"/>}
               <PZImageManager
+                lang="zh"
                 label="替换分类封面"
                 images={category.image ? [category.image] : []}
                 onUpdate={images => {
@@ -142,9 +143,10 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, initialGrou
             return (
               <section key={field.path} className="bg-white border border-stone-200 p-5">
                 <h3 className="font-semibold text-stone-900 text-sm">{imageLabels[field.path] || field.label}</h3>
-                <p className="text-xs text-stone-400 mt-1 mb-3">{field.path}</p>
+                <p className="text-xs text-stone-400 mt-1 mb-3">网站图片配置</p>
                 {image && <img src={resolveImage(image)} alt="当前图片预览" className="h-32 w-full object-cover bg-stone-100 mb-3 border border-stone-100" loading="lazy" />}
                 <PZImageManager
+                  lang="zh"
                   label="上传或替换图片"
                   images={image ? [image] : []}
                   onUpdate={next => { onChange(setByPath(config, field.path, next[0] || '')); setError(''); setNotice(''); }}
