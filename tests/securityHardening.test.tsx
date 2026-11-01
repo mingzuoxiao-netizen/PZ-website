@@ -112,3 +112,13 @@ test('KV login failure threshold prevents additional attempts without leaking ac
   await env.SITE_CONFIG_KV.delete(key);
   assert.equal(await helpers.pzAuthLoginTooMany(env, key), false);
 });
+
+test('staging verification is pinned to isolated Worker and valid Node syntax', () => {
+  const url = new URL('../scripts/staging-security-smoke.mjs', import.meta.url);
+  const source = readFileSync(url, 'utf8');
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', fileURLToPath(url)], { stdio: 'pipe' }));
+  assert.ok(source.includes('pz-inquiry-api-staging.mingzuoxiao29.workers.dev'));
+  assert.ok(source.includes('target.origin !== STAGING_WORKER'));
+  assert.ok(source.includes('pz-security-probe-'));
+  assert.ok(!source.includes('admin/accounts') && !source.includes('admin/publish'));
+});
