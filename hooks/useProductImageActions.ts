@@ -14,14 +14,11 @@ export function useProductImageActions({
   const autoPublish = role === 'ADMIN';
 
   const removeImage = async (url: string) => {
-    // 1. Update UI immediately
+    // Keep the visible image until the server confirms reference removal.
     const next = images.filter(i => i !== url);
-    setImages(next);
+    if (!productId) { setImages(next); return; }
 
-    // 2. Drafts don't touch the backend
-    if (!productId) return;
-
-    // 3. Notify backend for reference removal (Side effects handled by backend)
+    // Stored products are changed via an audited, role-aware endpoint.
     const prefix = role === 'ADMIN' ? 'admin' : 'factory';
     await adminFetch(`${prefix}/products/${productId}/remove-image`, {
       method: 'POST',
@@ -30,24 +27,13 @@ export function useProductImageActions({
         autoPublish,
       }),
     });
+    setImages(next);
   };
 
+  // Reordering is local until the user clicks Save; never send a partial PUT
+  // because the product update endpoint requires the complete product payload.
   const reorderImages = async (next: string[]) => {
-    // 1. Update UI immediately
     setImages(next);
-
-    // 2. Drafts don't touch the backend
-    if (!productId) return;
-
-    // 3. Notify backend for order update
-    const prefix = role === 'ADMIN' ? 'admin' : 'factory';
-    await adminFetch(`${prefix}/products/${productId}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        images: next,
-        autoPublish,
-      }),
-    });
   };
 
   const setMainImage = (index: number) => {
