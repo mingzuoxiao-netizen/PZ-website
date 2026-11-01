@@ -13,6 +13,9 @@ interface ProductDetailModalProps {
 /** Public product details use only the existing approved catalog data. */
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, language, onClose }) => {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const title = language === 'zh' ? (product.name_cn || product.name) : product.name;
 
@@ -22,7 +25,25 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
     document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+      }
+      if (event.key === 'Tab') {
+        const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'
+        ) || []);
+        if (!controls.length) return;
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
@@ -30,7 +51,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
       document.body.style.overflow = previousOverflow;
       priorFocus?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   const detailFields = [
     [L('Material', '材质'), product.material],
@@ -45,6 +66,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
       onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pz-product-detail-title"
