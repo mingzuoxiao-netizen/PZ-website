@@ -44,12 +44,14 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
             return await onUpload(file);
         }));
 
-        const successfulUrls = results.filter(Boolean);
+        const successfulUrls = results.filter((url): url is string => typeof url === 'string' && url.trim().length > 0);
+        if (!successfulUrls.length) throw new Error('上传未返回可用的图片地址。');
         onUpdate(isSingleMode ? [successfulUrls[0]] : [...images, ...successfulUrls]);
     } catch (err: any) {
         onError(`图片上传失败：${err.message}`);
     } finally {
         setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -87,18 +89,28 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         </div>
       )}
 
-      <div 
+      <div
+        role="button"
+        tabIndex={isUploading ? -1 : 0}
+        aria-label={T('Upload product or website images','上传产品或网站图片')}
+        aria-disabled={isUploading}
+        onKeyDown={(event) => {
+          if (!isUploading && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={`
           relative border-2 border-dashed rounded-sm transition-all duration-300 flex flex-col items-center justify-center p-8
           ${isDragging ? 'border-safety-700 bg-safety-50/50' : 'border-stone-200 bg-stone-50 hover:border-stone-400'}
-          ${isUploading ? 'pointer-events-none' : 'cursor-pointer'}
+          ${isUploading ? 'pointer-events-none' : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#805036]'}
         `}
         onClick={() => !isUploading && fileInputRef.current?.click()}
       >
-        <input type="file" accept={accept} multiple={!isSingleMode} ref={fileInputRef} onChange={(e) => handleFiles(e.target.files)} className="hidden" />
+        <input type="file" accept={accept} multiple={!isSingleMode} ref={fileInputRef} onChange={e => { void handleFiles(e.target.files); }} className="hidden" />
         
         {isUploading ? (
           <div className="flex flex-col items-center gap-3">
@@ -109,7 +121,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
           <div className="flex flex-col items-center gap-2">
             <Upload size={24} className={isDragging ? 'text-safety-700' : 'text-stone-300'} />
             <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500">
-              {isDragging ? '松开即可上传' : '拖拽图片到此处，或点击选择文件'}
+              {isDragging ? T('Release to upload','松开即可上传') : T('Drop an image here or choose a file','拖拽图片到此处，或点击选择文件')}
             </p>
           </div>
         )}
@@ -119,7 +131,7 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
           {images.map((url, idx) => (
             <div key={url + idx} className="relative aspect-square bg-white border border-stone-200 group overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <img src={resolveImage(url)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
+              <img src={resolveImage(url)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={T('Uploaded image ', '已上传图片 ') + (idx + 1)} />
               <div className="absolute top-2 left-2 flex gap-1">
                 {idx === 0 && (
                   <span className="bg-safety-700 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
@@ -127,14 +139,14 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
                   </span>
                 )}
               </div>
-              <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+              <div className="absolute inset-0 bg-stone-900/60 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col justify-between p-2">
                 <div className="flex justify-between items-start">
                    {onSetMain && idx !== 0 ? (
                        <button type="button" onClick={(e) => { e.stopPropagation(); onSetMain(idx); }} className="p-1.5 bg-safety-700 text-white rounded-sm hover:bg-safety-600 shadow-sm" title="设为主图">
                          <Star size={12} />
                        </button>
                    ) : <div></div>}
-                   <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title="移除图片">
+                   <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="p-1.5 bg-red-600 text-white rounded-sm hover:bg-red-700 shadow-sm" title={T('Remove image','移除图片')} aria-label={T('Remove image','移除图片')}>
                      <X size={12} />
                    </button>
                 </div>
