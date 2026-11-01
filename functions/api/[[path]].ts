@@ -14,8 +14,14 @@ export async function onRequest(context: any) {
   // Missing or invalid configuration fails closed.
   // ============================================================
 
-  const PRODUCTION_WORKER =
+  // Production stays on the proven legacy origin until Pages Production
+  // PZ_BACKEND_WORKER is explicitly switched to the custom domain.
+  // This allows a reversible cutover without changing Staging behaviour.
+  const LEGACY_PRODUCTION_WORKER =
     "https://pz-inquiry-api.mingzuoxiao29.workers.dev";
+
+  const CUSTOM_DOMAIN_PRODUCTION_WORKER =
+    "https://api.peng-zhan.com";
 
   const STAGING_WORKER =
     "https://pz-inquiry-api-staging.mingzuoxiao29.workers.dev";
@@ -55,12 +61,14 @@ export async function onRequest(context: any) {
       }
     );
 
-  // Production may omit PZ_BACKEND_WORKER.
-  // If explicitly configured, it must match Production.
+  // Production accepts only the original Worker or its verified Custom Domain.
+  // Never accept arbitrary origins in an authenticated API gateway.
+  // An omitted value retains the original backend until the operator opts in.
   if (isProductionHost) {
     if (
       configuredBackend &&
-      configuredBackend !== PRODUCTION_WORKER
+      configuredBackend !== LEGACY_PRODUCTION_WORKER &&
+      configuredBackend !== CUSTOM_DOMAIN_PRODUCTION_WORKER
     ) {
       return jsonError(
         503,
@@ -81,7 +89,7 @@ export async function onRequest(context: any) {
   }
 
   const BACKEND_WORKER = isProductionHost
-    ? PRODUCTION_WORKER
+    ? (configuredBackend || LEGACY_PRODUCTION_WORKER)
     : STAGING_WORKER;
 
   // ============================================================
