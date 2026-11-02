@@ -15,6 +15,7 @@ import SearchResults from './pages/SearchResults';
 import CreatorPortal from './pages/CreatorPortal';
 import AdminWorkspace from './pages/CreatorPortal/AdminWorkspace';
 import FactoryWorkspace from './pages/CreatorPortal/FactoryWorkspace';
+import SupervisorWorkspace from './pages/CreatorPortal/SupervisorWorkspace';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import AuthGuard from './components/AuthGuard';
@@ -80,6 +81,7 @@ return (
 
             {/* FACTORY WORKSPACE */}
             <Route path="/creator/factory" element={<AdminGuard requiredRole="FACTORY"><FactoryWorkspace /></AdminGuard>} />
+            <Route path="/creator/supervisor" element={<AdminGuard requiredRole="SUPERVISOR"><SupervisorWorkspace /></AdminGuard>} />
 
             {/* Dispatcher */}
             <Route path="/creator" element={<AdminGuard><CreatorPortal /></AdminGuard>} />
