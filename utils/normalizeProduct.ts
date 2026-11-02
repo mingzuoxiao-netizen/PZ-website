@@ -1,14 +1,7 @@
 import { ProductVariant, ProductionSite } from '../types';
 import { isPublishedProduct } from './extractProducts';
 
-/**
- * SINGLE SOURCE OF TRUTH FOR PRODUCT DATA NORMALIZATION.
- * Maps any backend status variation to the canonical frontend enum:
- * - published
- * - awaiting_review
- * - draft
- * - rejected
- */
+/** Canonical product status normalization for legacy and V2 two-stage reviews. */
 export function normalizeProduct(input: any): ProductVariant {
   if (!input || typeof input !== 'object') {
     return {
@@ -45,6 +38,9 @@ export function normalizeProduct(input: any): ProductVariant {
   if (isPublishedVal === '1' || isPublishedVal === 'true' || input.is_published === true || ['published', 'public', 'live'].includes(rawStatus)) {
       status = 'published';
   } 
+  else if (['pending_supervisor','pending_admin','returned_to_supervisor','returned_to_uploader','approved_pending_publish'].includes(rawStatus)) {
+      status = rawStatus;
+  }
   else if (['awaiting_review', 'pending', 'review', 'submitted'].includes(rawStatus)) {
       status = 'awaiting_review';
   } 
