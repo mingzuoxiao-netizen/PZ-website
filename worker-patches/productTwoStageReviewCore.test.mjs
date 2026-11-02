@@ -138,6 +138,35 @@ test('submission requires at least one product image and cannot skip required da
  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_reviews").get().n,0);
 });
 
+test('supervisor-directed correction may be edited only by original uploader',async()=>{
+ const {call,legacy}=setup();
+ const start=await call('/factory/products/p1/submit','worker','POST');
+ const rid=start.data.id;
+ assert.equal((await call('/factory/products/p1','worker','PUT',{name:'tamper'})).status,409);
+ assert.equal((await call('/supervisor/reviews/'+rid+'/approve','lead','POST')).status,200);
+ assert.equal((await call('/admin/reviews/'+rid+'/return','admin','POST',{note:'Please revise the product description'})).status,200);
+ assert.equal((await call('/factory/products/p1','worker','PUT',{name:'tamper'})).status,409);
+ assert.equal((await call('/supervisor/reviews/'+rid+'/request-correction','lead','POST',{note:'Update product description'})).status,200);
+ assert.equal((await call('/factory/products/p1','outsider','PUT',{name:'intruder'})).status,403);
+ assert.equal((await call('/factory/products/p1','admin','PUT',{name:'administrator'})).status,403);
+ assert.equal((await call('/factory/products/p1','worker','PUT',{name:'corrected'})).status,200);
+ assert.equal(legacy.includes('/factory/products/p1'),true);
+ assert.equal((await call('/factory/products/p1/submit','worker','POST')).data.version,2);
+ assert.equal((await call('/factory/products/p1','worker','PUT',{name:'stale'})).status,409);
+});
+
+test('review-candidate Worker limits corrections to active Phase 2 feature flag',()=>{
+ for(const file of [
+  './staging-worker-category-changes-REVIEW.js',
+  './production-worker-category-governance-REVIEW.js'
+ ]){
+  const source=readFileSync(new URL(file,import.meta.url),'utf8');
+  assert.match(source,/lower\(status\) = 'returned_to_uploader' AND \? = 'true'/);
+  assert.match(source,/String\(env\.PZ_TWO_STAGE_REVIEW_ENABLED \|\| ''\)/);
+  assert.match(source,/const factoryEdit=path\.match/);
+ }
+});
+
 test('flag off retains phase-one routing without altering database',async()=>{
  const {call,env,legacy,sql}=setup();
  env.PZ_TWO_STAGE_REVIEW_ENABLED='false';
