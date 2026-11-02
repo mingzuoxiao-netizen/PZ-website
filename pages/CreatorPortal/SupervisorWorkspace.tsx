@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Users } from 'lucide-react';
+import { Users, ClipboardCheck } from 'lucide-react';
+import TwoStageProductReviews from './components/TwoStageProductReviews';
 import PortalLayout from './PortalLayout';
 import { adminFetch } from '../../utils/adminFetch';
 
@@ -7,6 +8,7 @@ type TeamAccount={id:string;username:string;is_active:number;job_type:string};
 type Job='secretary'|'staff'|'data_entry';
 const labels:Record<Job,string>={secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
 const SupervisorWorkspace:React.FC=()=>{
+  const [tab,setTab]=useState<'team'|'reviews'>('reviews');
   const [users,setUsers]=useState<TeamAccount[]>([]);
   const [username,setUsername]=useState('');
   const [password,setPassword]=useState('');
@@ -41,9 +43,9 @@ const SupervisorWorkspace:React.FC=()=>{
     }),'密码已重置；账号需要重新登录');
   };
   return <PortalLayout role="SUPERVISOR" userName={sessionStorage.getItem('pz_user_name')||'部门主管'}
-    navItems={[{id:'team',label:'团队账号管理',icon:<Users size={18}/>}]}
-    activeTab="team" onTabChange={()=>{}}>
-    <div className="space-y-6 p-4 md:p-8">
+    navItems={[{id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},{id:'team',label:'团队账号管理',icon:<Users size={18}/>}]}
+    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews')}>
+    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR"/>:<div className="space-y-6 p-4 md:p-8">
       <div><h1 className="font-serif text-2xl text-stone-900">团队成员管理</h1><p className="mt-2 text-sm text-stone-500">创建秘书、业务人员或资料录入员账户。所有账号自动归属于你的部门，不能授予主管或管理员权限。</p></div>
       {error&&<div role="alert" className="border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
       {notice&&<div role="status" className="border border-green-300 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
@@ -70,8 +72,8 @@ const SupervisorWorkspace:React.FC=()=>{
         </table></div>
         {!users.length&&<p className="mt-3 text-sm text-stone-500">尚未创建团队账号。</p>}
       </section>
-      <p className="text-sm text-stone-500">主管产品初审将于 V2.0 第二阶段接入，本阶段只启用团队账号管理。</p>
-    </div>
+
+    </div>}
   </PortalLayout>;
 };
 export default SupervisorWorkspace;
