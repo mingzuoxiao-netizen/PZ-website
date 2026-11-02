@@ -16,6 +16,7 @@ export interface ProductSpecifications {
   assembly?:{required?:boolean;minutes?:number;instructions_file?:string};
   care_en?:string;
   warnings_en?:string;
+  media_roles?:Record<string,'main'|'lifestyle'|'detail'|'dimension'|'material'|'packaging'>;
   attachments?:Array<{file_name:string;type:'dimension'|'assembly'|'certificate'|'other';visibility:'public'|'internal'}>;
   verification?:Array<{claim:string;evidence_file?:string;status:'unverified'|'verified'|'not_applicable'}>;
   provenance?:{provider?:string;reviewer?:string;source_factory?:string};
