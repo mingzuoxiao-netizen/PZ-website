@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS pz_product_review_events (
 );
 CREATE INDEX IF NOT EXISTS idx_pz_review_events
   ON pz_product_review_events(review_id,created_at,id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pz_review_event_once
+  ON pz_product_review_events(review_id,action,review_version);
 
 -- Audit history must be append-only. Never silently modify the original version.
 CREATE TRIGGER IF NOT EXISTS pz_versions_no_update
