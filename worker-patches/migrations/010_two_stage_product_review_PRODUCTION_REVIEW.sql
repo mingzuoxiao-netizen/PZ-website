@@ -1,7 +1,8 @@
 -- PZ V2 Phase 2 / Production D1 review candidate.
 -- ADDITIVE ONLY. Execute manually in the verified Production D1 AFTER
 -- 009_department_accounts_REVIEW.sql, recovery point, schema preflight,
--- production Worker review, and operator go/no-go.
+-- and operator go/no-go. This creates schema only and does NOT activate features.
+-- Review live Production Worker/bindings before deploying code or enabling flags.
 -- Never enable PZ_ORG_RBAC_ENABLED or PZ_TWO_STAGE_REVIEW_ENABLED here.
 -- Existing users, products, audit rows, KV site config, and R2 objects stay unchanged.
 -- Source: 010_two_stage_product_review_REVIEW.sql (same executable SQL).
