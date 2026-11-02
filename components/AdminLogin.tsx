@@ -4,7 +4,7 @@ import { ShieldCheck, ArrowRight, Lock, Loader2, Factory } from "lucide-react";
 import { ADMIN_SESSION_KEY, adminFetch } from "../utils/adminFetch";
 
 interface AdminLoginProps {
-  onLoginSuccess?: (role: 'ADMIN' | 'FACTORY') => void;
+  onLoginSuccess?: (role: 'ADMIN' | 'FACTORY' | 'SUPERVISOR') => void;
 }
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
@@ -25,7 +25,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         user: {
           id: string;
           username: string;
-          role: "ADMIN" | "FACTORY";
+          role: "ADMIN" | "FACTORY" | "SUPERVISOR";
           org_id: string | null;
         };
       }>("login", {
@@ -34,7 +34,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         body: JSON.stringify({ username, password }),
       });
 
-      if (!data.token || !data.user || !['ADMIN', 'FACTORY'].includes(data.user.role)) {
+      if (!data.token || !data.user || !['ADMIN', 'FACTORY', 'SUPERVISOR'].includes(data.user.role)) {
         throw new Error("Invalid login response");
       }
 
@@ -45,7 +45,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       // path must not leave its stale unauthorized state on screen.
       onLoginSuccess?.(data.user.role);
       // Go straight to the role-specific workspace; no intermediate /creator.
-      navigate(data.user.role === 'ADMIN' ? '/creator/admin' : '/creator/factory', { replace: true });
+      navigate(data.user.role === 'ADMIN' ? '/creator/admin' : data.user.role === 'SUPERVISOR' ? '/creator/supervisor' : '/creator/factory', { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError(true);
