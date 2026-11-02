@@ -3508,6 +3508,36 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       (/^\/(?:admin|factory)\/products\/[^/]+\/remove-image$/.test(path)&&method==='POST'))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
 
+    // Limit legacy factory save routes to assigned staff, never ADMIN or a
+    // different employee; preserve the original Worker field validation.
+    // For correction drafts the original Worker SQL additionally allows the
+    // returned_to_uploader status only when this feature is enabled.
+    const factoryEdit=path.match(/^\/factory\/products\/([^/]+)$/);
+    const factoryCreate=path==='/factory/products'&&method==='POST';
+    if(factoryCreate||(factoryEdit&&method==='PUT')){
+      const auth=await authorize(request,env,['FACTORY']);
+      if(auth instanceof Response)return auth;
+      const actor=auth.user.id;
+      if(!(await staff(env,actor)))return fail('Assigned staff account required',403);
+      if(factoryEdit){
+        const product=await env.DB.prepare(
+          "SELECT id,created_by,status FROM products WHERE id=? LIMIT 1"
+        ).bind(decodeURIComponent(factoryEdit[1])).first();
+        if(!product||product.created_by!==actor)return fail('Not your product',403);
+        const status=String(product.status||'').toLowerCase();
+        if(!['draft','rejected','returned_to_uploader'].includes(status))
+          return fail('Product cannot be edited while awaiting review',409);
+        if(status==='returned_to_uploader'){
+          const pending=await env.DB.prepare(
+            "SELECT id FROM pz_product_reviews WHERE product_id=? AND submitter_id=? "+
+            "AND status='returned_to_uploader' LIMIT 1"
+          ).bind(product.id,actor).first();
+          if(!pending)return fail('Product is not assigned for correction',409);
+        }
+      }
+      return originalFetch.call(this,request,env,ctx);
+    }
+
     const submit=path.match(/^\/factory\/products\/([^/]+)\/submit$/);
     if(submit&&method==='POST'){
       const auth=await authorize(request,env,['FACTORY']);
@@ -5104,7 +5134,7 @@ if (
           images = ?,
           production_sites = COALESCE(?, production_sites),
           updated_at = ?
-       WHERE id = ? AND lower(status) IN ('draft','rejected')`
+       WHERE id = ? AND (lower(status) IN ('draft','rejected') OR (lower(status) = 'returned_to_uploader' AND ? = 'true'))`
           ).bind(
             db.name,
             db.name_cn,
@@ -5119,7 +5149,8 @@ if (
             db.images_json,
             db.production_sites_json,
             now,
-            id
+            id,
+            String(env.PZ_TWO_STAGE_REVIEW_ENABLED || '')
           ).run();
           if (!result.meta || result.meta.changes !== 1) {
             return json({ error: "Only draft or rejected products are editable by factory" }, 409);
