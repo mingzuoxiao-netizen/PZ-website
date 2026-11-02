@@ -4,7 +4,7 @@ import { Shield, Factory, LogOut, Globe, Menu } from 'lucide-react';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
-  role: 'ADMIN' | 'FACTORY';
+  role: 'ADMIN' | 'FACTORY' | 'SUPERVISOR';
   userName: string;
   navItems: { id: string; label: string; icon: React.ReactNode }[];
   activeTab: string;
@@ -55,7 +55,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
               {role === 'ADMIN' ? <Shield size={15} className="text-[#d7af90]" /> : <Factory size={15} className="text-[#d7af90]" />}
               <span className="truncate text-xs font-semibold">{userName}</span>
             </div>
-            <p className="text-[11px] text-[#b8c4d0]">{role === 'ADMIN' ? '网站管理员' : '工厂操作员'}</p>
+            <p className="text-[11px] text-[#b8c4d0]">{role === 'ADMIN' ? '网站管理员' : role === 'SUPERVISOR' ? '部门主管' : '工厂操作员'}</p>
           </div>
           <button type="button" onClick={handleLogout}
             className="flex w-full items-center justify-between px-4 py-2 text-xs font-semibold text-[#ccd3db] hover:text-white">
@@ -72,7 +72,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
               {navItems.find(i => i.id === activeTab)?.label || '管理后台'}
             </h1>
             <span className="hidden sm:inline-flex rounded bg-stone-100 px-2 py-1 text-[11px] text-stone-600">
-              {role === 'ADMIN' ? '管理员' : '工厂账号'} · {userName}
+              {role === 'ADMIN' ? '管理员' : role === 'SUPERVISOR' ? '主管' : '工厂账号'} · {userName}
             </span>
           </div>
           <div className="flex items-center gap-3">
