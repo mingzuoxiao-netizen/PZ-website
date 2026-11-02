@@ -3486,8 +3486,9 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
         (target==='approved_pending_publish'?"latest_version":"approved_version")+
         ",updated_at=? WHERE id=? AND status=? AND latest_version=?")
         .bind(target,note,stamp,review.id,review.status,review.latest_version),
-      env.DB.prepare("UPDATE products SET status=?,updated_at=? WHERE id=? AND lower(status)=?")
-        .bind(target,stamp,review.product_id,String(review.status).toLowerCase()),
+      env.DB.prepare("UPDATE products SET status=?,updated_at=? WHERE id=? AND lower(status)=? "+
+        "AND EXISTS (SELECT 1 FROM pz_product_reviews WHERE id=? AND status=? AND latest_version=?)")
+        .bind(target,stamp,review.product_id,String(review.status).toLowerCase(),review.id,target,review.latest_version),
       env.DB.prepare("INSERT INTO pz_product_review_events"+
         "(id,review_id,action,actor_id,actor_role,review_version,note,created_at) "+
         "SELECT ?,id,?,?,?,?,?,? FROM pz_product_reviews WHERE id=? AND status=? AND latest_version=?")
@@ -3503,7 +3504,8 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true')return originalFetch.call(this,request,env,ctx);
     if(env.PZ_ORG_RBAC_ENABLED!=='true')return fail('Organization management must be enabled first',503);
     // Existing direct admin mutations can bypass the new approval state machine.
-    if(/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method))
+    if((/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method)) ||
+      (/^\/(?:admin|factory)\/products\/[^/]+\/remove-image$/.test(path)&&method==='POST'))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
 
     const submit=path.match(/^\/factory\/products\/([^/]+)\/submit$/);
@@ -3535,19 +3537,22 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       ).bind(version,stamp,rid,previous.latest_version));
       else writes.push(env.DB.prepare(
         "INSERT INTO pz_product_reviews(id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,created_at,updated_at) "+
-        "VALUES (?,?,?,?,?,'pending_supervisor',1,?,?)"
-      ).bind(rid,id,actor,assignment.supervisor_id,assignment.department_id,stamp,stamp));
+        "SELECT ?,p.id,?,?,?,'pending_supervisor',1,?,? FROM products p "+
+        "WHERE p.id=? AND p.created_by=? AND lower(p.status) IN ('draft','rejected')"
+      ).bind(rid,actor,assignment.supervisor_id,assignment.department_id,stamp,stamp,id,actor));
       writes.push(env.DB.prepare(
         "UPDATE products SET status='pending_supervisor',updated_at=? WHERE id=? AND created_by=? "+
-        "AND lower(status) IN ('draft','rejected','returned_to_uploader')"
-      ).bind(stamp,id,actor));
+        "AND lower(status) IN ('draft','rejected','returned_to_uploader') "+
+        "AND EXISTS (SELECT 1 FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?)"
+      ).bind(stamp,id,actor,rid,version));
       writes.push(env.DB.prepare(
-        "INSERT INTO pz_product_review_versions(review_id,version,snapshot_json,submitted_by,created_at) VALUES (?,?,?,?,?)"
-      ).bind(rid,version,copy,actor,stamp));
+        "INSERT INTO pz_product_review_versions(review_id,version,snapshot_json,submitted_by,created_at) "+
+        "SELECT ?,?,?,?,? FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?"
+      ).bind(rid,version,copy,actor,stamp,rid,version));
       writes.push(env.DB.prepare(
         "INSERT INTO pz_product_review_events(id,review_id,action,actor_id,actor_role,review_version,note,created_at) "+
-        "VALUES (?,?,?,?,?,?,NULL,?)"
-      ).bind(crypto.randomUUID(),rid,'submitted',actor,'FACTORY',version,stamp));
+        "SELECT ?,?,?,?,?,?,NULL,? FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?"
+      ).bind(crypto.randomUUID(),rid,'submitted',actor,'FACTORY',version,stamp,rid,version));
       try {
         const outcome=await env.DB.batch(writes);
         if(outcome.some(x=>Number(x.meta?.changes)!==1))return fail('Concurrent product change; check record',409);
