@@ -20,15 +20,16 @@ import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
+import TwoStageProductReviews from './components/TwoStageProductReviews';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
+type AdminTab = 'product-reviews' | 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<AdminTab>('review');
+  const [activeTab, setActiveTab] = useState<AdminTab>('product-reviews');
 
   const [products, setProducts] = useState<any[]>([]);
   const [reviewProducts, setReviewProducts] = useState<any[]>([]);
@@ -222,6 +223,7 @@ const AdminWorkspace: React.FC = () => {
   const reviewTotalCount = reviewProducts.length + categoryRequests.length;
 
   const navItems = [
+    { id: 'product-reviews', label: '产品终审与发布', icon: <Activity size={18} /> },
     { id: 'review', label: '审核中心', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} /> },
@@ -250,6 +252,7 @@ const AdminWorkspace: React.FC = () => {
       )}
 
       <div className="pb-32">
+        {activeTab === 'product-reviews' && <TwoStageProductReviews role="ADMIN"/>}
         {activeTab === 'review' && (
           <>
           <CategoryChangeReview onApproved={loadSiteConfig} />
