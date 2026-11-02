@@ -5623,7 +5623,9 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return safeSummary(row, ["category_id", "status", "created_by"]);
     }
     if (entityType === "site_config") {
-      if (pzD1SiteEnabled(env)) {
+      if (String(env.PZ_D1_SITE_CONFIG_ENABLED || "").toLowerCase() === "true" &&
+          (String(env.PZ_RUNTIME_ENV || "").toLowerCase() !== "production" ||
+           String(env.PZ_SITE_CONFIG_D1_CUTOVER_ENABLED || "").toLowerCase() === "true")) {
         const row = await env.DB.prepare(
           "SELECT draft_revision,published_revision,published_version,draft_json,published_json FROM site_config_state WHERE id=1"
         ).first();
