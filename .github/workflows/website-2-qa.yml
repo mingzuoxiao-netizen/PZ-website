@@ -1,8 +1,10 @@
 name: Website 2.0 QA
 
 on:
+  push:
+    branches: [feature/pz-v2-two-stage-product-approvals]
   pull_request:
-    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval]
+    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,8 @@ jobs:
         run: npm ci
       - name: Organization RBAC and delegated account tests
         run: node --test worker-patches/organizationAccessCore.test.mjs
+      - name: Two-stage product approval state-machine tests
+        run: node --check worker-patches/productTwoStageReviewCore.mjs && node --test worker-patches/productTwoStageReviewCore.test.mjs
       - name: TypeScript check
         run: npm run typecheck
       - name: Automated tests
