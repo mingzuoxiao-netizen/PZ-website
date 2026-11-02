@@ -3450,7 +3450,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
   const join="SELECT r.*,p.name,p.name_cn,p.code,p.category,p.images FROM pz_product_reviews r "+
     "JOIN products p ON p.id=r.product_id";
   const productSql="SELECT id,name,name_cn,category,sub_category,material,size,finish,code,"+
-    "description,description_cn,images,production_sites,created_by,status,created_at,updated_at "+
+    "description,description_cn,images,production_sites,specs_json,created_by,status,created_at,updated_at "+
     "FROM products WHERE id=? LIMIT 1";
   const staff=async(env,id)=>env.DB.prepare(
     "SELECT a.department_id,a.supervisor_id FROM pz_staff_assignments a "+
@@ -3463,10 +3463,11 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
   ).bind(id).first();
   const snapshot=product=>{
     const {id,name,name_cn,category,sub_category,material,size,finish,code,
-      description,description_cn,images,production_sites,created_by,created_at}=product;
+      description,description_cn,images,production_sites,specs_json,created_by,created_at}=product;
     return JSON.stringify({id,name,name_cn,category,sub_category,material,size,finish,
       code,description,description_cn,images:typeof images==='string'?JSON.parse(images||'[]'):images,
       production_sites:typeof production_sites==='string'?JSON.parse(production_sites||'[]'):production_sites,
+      specifications:typeof specs_json==='string'?JSON.parse(specs_json||'{}'):(specs_json||{}),
       created_by,created_at});
   };
   const hydrate=async(env,review)=>{
