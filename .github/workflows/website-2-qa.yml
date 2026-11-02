@@ -102,6 +102,8 @@ jobs:
         run: python3 worker-patches/test_site_config_d1_migration.py
       - name: Production Worker safe KV cutover and review guards
         run: node --test worker-patches/productionWorkerCutoverSafety.test.mjs
+      - name: Live Production read-only smoke (GET only)
+        run: node scripts/production-v2-readonly-smoke.mjs
       - name: Production Worker candidate syntax and auth-isolation
         run: |
           node --check worker-patches/production-worker-category-governance-REVIEW.js
