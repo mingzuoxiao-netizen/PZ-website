@@ -8,7 +8,7 @@ test('production site config keeps current KV authority until explicit opt-in to
   assert.match(code,/const pzD1SiteEnabled = env =>[\s\S]{0,200}PZ_D1_SITE_CONFIG_ENABLED[\s\S]{0,200}PZ_SITE_CONFIG_D1_CUTOVER_ENABLED/);
   assert.match(code,/if\(!pzD1SiteEnabled\(env\)\) \{[\s\S]{0,200}SITE_CONFIG_KV\.get\('published:site_config'\)/);
   assert.match(code,/if\(!pzD1SiteEnabled\(env\)\) \{[\s\S]{0,200}SITE_CONFIG_KV\.get\('draft:site_config'\)/);
-  assert.match(code,/if \(pzD1SiteEnabled\(env\)\) \{[\s\S]{0,200}site_config_state/);
+  assert.match(code,/PZ_D1_SITE_CONFIG_ENABLED[\s\S]{0,200}PZ_RUNTIME_ENV[\s\S]{0,200}PZ_SITE_CONFIG_D1_CUTOVER_ENABLED/);
 });
 
 test('production bundle has both review stages, production auditing, and fail-closed route guards',()=>{
