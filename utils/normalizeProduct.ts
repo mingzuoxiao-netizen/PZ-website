@@ -1,4 +1,5 @@
 import { ProductVariant, ProductionSite } from '../types';
+import {readProductSpecifications} from './productSpecifications';
 import { isPublishedProduct } from './extractProducts';
 
 /** Canonical product status normalization for legacy and V2 two-stage reviews. */
@@ -65,6 +66,7 @@ export function normalizeProduct(input: any): ProductVariant {
     size: input.size || input.dimensions || '',
     material: input.material || '',
     finish: input.finish || '',
+    specifications:readProductSpecifications(input.specifications ?? input.specs_json),
     code: input.code || '',
     production_sites: productionSites,
     status: status,
