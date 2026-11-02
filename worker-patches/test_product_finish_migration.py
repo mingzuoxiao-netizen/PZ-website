@@ -39,7 +39,9 @@ for name in ("production-worker-category-governance-REVIEW.js", "staging-worker-
     for cols, values in inserts:
         columns = [x.strip() for x in cols.split(",")]
         placeholders = re.findall(r"\?", values)
-        assert len(columns) == len(placeholders) == 18, (name, columns, values)
+        # Schema 011 adds a private JSON field to the product insert.
+        assert len(columns) == len(placeholders) == 19, (name, columns, values)
+        assert "specs_json" in columns and columns[-1] == "specs_json", (name, columns)
         assert "finish" in columns and columns.index("finish") == columns.index("size") + 1
     assert code.count("finish = ?,") == 2, name
     assert code.count("db.finish,") == 4, name
