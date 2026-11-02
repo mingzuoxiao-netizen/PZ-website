@@ -47,8 +47,9 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
         (target==='approved_pending_publish'?"latest_version":"approved_version")+
         ",updated_at=? WHERE id=? AND status=? AND latest_version=?")
         .bind(target,note,stamp,review.id,review.status,review.latest_version),
-      env.DB.prepare("UPDATE products SET status=?,updated_at=? WHERE id=? AND lower(status)=?")
-        .bind(target,stamp,review.product_id,String(review.status).toLowerCase()),
+      env.DB.prepare("UPDATE products SET status=?,updated_at=? WHERE id=? AND lower(status)=? "+
+        "AND EXISTS (SELECT 1 FROM pz_product_reviews WHERE id=? AND status=? AND latest_version=?)")
+        .bind(target,stamp,review.product_id,String(review.status).toLowerCase(),review.id,target,review.latest_version),
       env.DB.prepare("INSERT INTO pz_product_review_events"+
         "(id,review_id,action,actor_id,actor_role,review_version,note,created_at) "+
         "SELECT ?,id,?,?,?,?,?,? FROM pz_product_reviews WHERE id=? AND status=? AND latest_version=?")
@@ -64,7 +65,8 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true')return originalFetch.call(this,request,env,ctx);
     if(env.PZ_ORG_RBAC_ENABLED!=='true')return fail('Organization management must be enabled first',503);
     // Existing direct admin mutations can bypass the new approval state machine.
-    if(/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method))
+    if((/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method)) ||
+      (/^\/(?:admin|factory)\/products\/[^/]+\/remove-image$/.test(path)&&method==='POST'))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
 
     const submit=path.match(/^\/factory\/products\/([^/]+)\/submit$/);
