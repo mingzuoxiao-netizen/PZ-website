@@ -28,6 +28,8 @@ jobs:
         run: node --test worker-patches/organizationAccessCore.test.mjs
       - name: Two-stage product approval state-machine tests
         run: node --check worker-patches/productTwoStageReviewCore.mjs && node --test worker-patches/productTwoStageReviewCore.test.mjs
+      - name: Verify Production 010 migration in memory (no remote D1)
+        run: python3 worker-patches/test_two_stage_production_migration.py
       - name: TypeScript check
         run: npm run typecheck
       - name: Automated tests
