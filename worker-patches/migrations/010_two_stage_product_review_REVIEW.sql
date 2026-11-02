@@ -63,3 +63,20 @@ CREATE TRIGGER IF NOT EXISTS pz_events_no_delete
 
 -- Review snapshots include original image keys/URLs. R2 cleanup code must check
 -- snapshot references before physical deletion (stage 2 R2 integration gate).
+
+-- Fail closed on out-of-sync product statuses and invalid review transitions.
+-- This also protects optimistic Worker batches from accidentally advancing
+-- the request when a product was changed concurrently.
+CREATE TRIGGER IF NOT EXISTS pz_review_transition_guard
+ BEFORE UPDATE OF status ON pz_product_reviews
+ WHEN NEW.status <> OLD.status AND (
+   COALESCE((SELECT lower(status) FROM products WHERE id=OLD.product_id),'') <> OLD.status
+   OR NOT (
+     (OLD.status='pending_supervisor' AND NEW.status IN ('pending_admin','returned_to_uploader'))
+     OR (OLD.status='pending_admin' AND NEW.status IN ('approved_pending_publish','returned_to_supervisor'))
+     OR (OLD.status='returned_to_supervisor' AND NEW.status='returned_to_uploader')
+     OR (OLD.status='returned_to_uploader' AND NEW.status='pending_supervisor')
+     OR (OLD.status='approved_pending_publish' AND NEW.status='published')
+   )
+ )
+ BEGIN SELECT RAISE(ABORT,'Invalid or stale product review transition'); END;
