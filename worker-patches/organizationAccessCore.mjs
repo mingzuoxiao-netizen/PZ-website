@@ -12,6 +12,20 @@ export async function pzOrgEffectiveRole(env, userId, baseRole) {
   return assignment?.job_type === 'supervisor' ? 'SUPERVISOR' : 'FACTORY';
 }
 
+export async function pzOrgCanManageProduct(env, userId, productId=null) {
+  if (env.PZ_ORG_RBAC_ENABLED !== 'true') return true;
+  const assigned = await env.DB.prepare(
+    "SELECT a.user_id FROM pz_staff_assignments a JOIN pz_departments d ON d.id=a.department_id " +
+    "WHERE a.user_id=? AND a.job_type IN ('secretary','staff','data_entry') AND d.is_active=1 LIMIT 1"
+  ).bind(userId).first();
+  if (!assigned) return false;
+  if (!productId) return true;
+  const owned = await env.DB.prepare(
+    "SELECT id FROM products WHERE id=? AND created_by=? LIMIT 1"
+  ).bind(productId,userId).first();
+  return Boolean(owned);
+}
+
 export function pzOrgPasswordPolicy(password,username='') {
   if (typeof password!=='string' || password.length<12 ||
       new TextEncoder().encode(password).length>72 || !password.trim()) return 'Password must be 12-72 UTF-8 bytes';
