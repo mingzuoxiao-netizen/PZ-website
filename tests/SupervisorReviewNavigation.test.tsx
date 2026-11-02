@@ -21,8 +21,9 @@ test('supervisors land in product first-review, can reach team accounts and retu
     await act(async()=>{view=create(<MemoryRouter><SupervisorWorkspace/></MemoryRouter>);});
     const root=()=>view!.root;
     const buttons=()=>root().findAllByType('button');
-    const nav=(label:string)=>buttons().find(x=>x.children.some(child=>typeof child!=='string'?
-      false:child===label));
+    const nav=(label:string)=>buttons().find(x=>x.findAllByType('span').some(
+      span=>span.children.some(child=>typeof child==='string'&&child===label)
+    ));
     const heading=()=>root().findAllByType('h2').map(x=>x.children.join(' ')).join(' ');
     assert.match(heading(),/产品初审队列/);
     assert.ok(paths.some(p=>p.endsWith('/supervisor/reviews')),'review list loads by default');
