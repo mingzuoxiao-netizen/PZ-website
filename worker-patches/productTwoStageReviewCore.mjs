@@ -98,19 +98,22 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       ).bind(version,stamp,rid,previous.latest_version));
       else writes.push(env.DB.prepare(
         "INSERT INTO pz_product_reviews(id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,created_at,updated_at) "+
-        "VALUES (?,?,?,?,?,'pending_supervisor',1,?,?)"
-      ).bind(rid,id,actor,assignment.supervisor_id,assignment.department_id,stamp,stamp));
+        "SELECT ?,p.id,?,?,?,'pending_supervisor',1,?,? FROM products p "+
+        "WHERE p.id=? AND p.created_by=? AND lower(p.status) IN ('draft','rejected')"
+      ).bind(rid,actor,assignment.supervisor_id,assignment.department_id,stamp,stamp,id,actor));
       writes.push(env.DB.prepare(
         "UPDATE products SET status='pending_supervisor',updated_at=? WHERE id=? AND created_by=? "+
-        "AND lower(status) IN ('draft','rejected','returned_to_uploader')"
-      ).bind(stamp,id,actor));
+        "AND lower(status) IN ('draft','rejected','returned_to_uploader') "+
+        "AND EXISTS (SELECT 1 FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?)"
+      ).bind(stamp,id,actor,rid,version));
       writes.push(env.DB.prepare(
-        "INSERT INTO pz_product_review_versions(review_id,version,snapshot_json,submitted_by,created_at) VALUES (?,?,?,?,?)"
-      ).bind(rid,version,copy,actor,stamp));
+        "INSERT INTO pz_product_review_versions(review_id,version,snapshot_json,submitted_by,created_at) "+
+        "SELECT ?,?,?,?,? FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?"
+      ).bind(rid,version,copy,actor,stamp,rid,version));
       writes.push(env.DB.prepare(
         "INSERT INTO pz_product_review_events(id,review_id,action,actor_id,actor_role,review_version,note,created_at) "+
-        "VALUES (?,?,?,?,?,?,NULL,?)"
-      ).bind(crypto.randomUUID(),rid,'submitted',actor,'FACTORY',version,stamp));
+        "SELECT ?,?,?,?,?,?,NULL,? FROM pz_product_reviews WHERE id=? AND status='pending_supervisor' AND latest_version=?"
+      ).bind(crypto.randomUUID(),rid,'submitted',actor,'FACTORY',version,stamp,rid,version));
       try {
         const outcome=await env.DB.batch(writes);
         if(outcome.some(x=>Number(x.meta?.changes)!==1))return fail('Concurrent product change; check record',409);
