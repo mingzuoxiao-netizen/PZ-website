@@ -29,7 +29,7 @@ type AdminTab = 'product-reviews' | 'review' | 'inventory' | 'inquiries' | 'cate
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<AdminTab>('product-reviews');
+  const [activeTab, setActiveTab] = useState<AdminTab>('review');
 
   const [products, setProducts] = useState<any[]>([]);
   const [reviewProducts, setReviewProducts] = useState<any[]>([]);
