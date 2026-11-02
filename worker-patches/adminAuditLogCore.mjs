@@ -61,6 +61,18 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
     m = path.match(/^\/admin\/category-change-requests\/([^/]+)\/(approve|reject|reconcile)$/);
     if (m && method === "POST")
       return { action: `category_change.${m[2]}`, entity_type: "category_change", entity_id: decodeURIComponent(m[1]) };
+    if (path === "/admin/org/departments" && method === "POST")
+      return { action: "department.create", entity_type: "department", entity_id: "" };
+    if ((path === "/admin/org/accounts" || path === "/supervisor/accounts") && method === "POST")
+      return { action: "account.delegated_create", entity_type: "account", entity_id: "" };
+    if (path === "/admin/org/assignments" && method === "POST")
+      return { action: "account.assign", entity_type: "account", entity_id: "" };
+    let orgMatch = path.match(/^\/supervisor\/accounts\/([^/]+)$/);
+    if (orgMatch && method === "PATCH")
+      return { action: "account.delegated_status", entity_type: "account", entity_id: decodeURIComponent(orgMatch[1]) };
+    orgMatch = path.match(/^\/supervisor\/accounts\/([^/]+)\/password$/);
+    if (orgMatch && method === "POST")
+      return { action: "account.delegated_reset_password", entity_type: "account", entity_id: decodeURIComponent(orgMatch[1]) };
     return null;
   }
 
@@ -270,7 +282,7 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
     if (!event) return originalFetch.call(this, request, env, ctx);
 
     const roles = path.startsWith("/admin/") || path === "/site-config"
-      ? ["ADMIN"] : ["FACTORY", "ADMIN"];
+      ? ["ADMIN"] : path.startsWith("/supervisor/") ? ["SUPERVISOR"] : ["FACTORY", "ADMIN"];
     const auth = await authorize(request, env, roles);
     if (auth instanceof Response) return auth;
     if (!env.DB) return json({ error: "Audit storage unavailable" }, 503);
