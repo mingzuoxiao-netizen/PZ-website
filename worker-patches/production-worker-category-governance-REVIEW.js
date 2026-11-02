@@ -3237,10 +3237,17 @@ async function pzOrgEffectiveRole(env, userId, baseRole) {
   const role = String(baseRole || '').toLowerCase();
   if (role === 'admin') return 'ADMIN';
   if (role !== 'factory') return null; // never turn an unknown role into FACTORY
-  if (env.PZ_ORG_RBAC_ENABLED !== 'true') return 'FACTORY';
+  // Before migration, preserve existing factory accounts.
+  const schema = await env.DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='pz_staff_assignments' LIMIT 1"
+  ).first();
+  if (!schema) return 'FACTORY';
   const assignment = await env.DB.prepare(
     "SELECT job_type FROM pz_staff_assignments WHERE user_id=? LIMIT 1"
   ).bind(userId).first();
+  // Rollback safety: disabling the feature cannot turn newly delegated
+  // supervisors/secretaries into unrestricted legacy factory accounts.
+  if (env.PZ_ORG_RBAC_ENABLED !== 'true') return assignment ? null : 'FACTORY';
   return assignment?.job_type === 'supervisor' ? 'SUPERVISOR' : 'FACTORY';
 }
 
@@ -5166,6 +5173,7 @@ if (
           const passwordError = pzAuthPasswordPolicyError(body.password, body.username);
           if (passwordError) return badRequest(passwordError);
           const role = normalizeRole(body.role ?? "FACTORY");
+          if (!["ADMIN","FACTORY"].includes(role)) return badRequest("Invalid role; use organization management for supervisors");
           const dbRole = role === "ADMIN" ? "admin" : "factory";
           const hash2 = await hash(body.password, 10);
           const id = crypto.randomUUID();
