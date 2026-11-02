@@ -8,7 +8,7 @@ type TeamAccount={id:string;username:string;is_active:number;job_type:string};
 type Job='secretary'|'staff'|'data_entry';
 const labels:Record<Job,string>={secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
 const SupervisorWorkspace:React.FC=()=>{
-  const [tab,setTab]=useState<'team'|'reviews'>('reviews');
+  const [tab,setTab]=useState<'team'|'reviews'>('team');
   const [users,setUsers]=useState<TeamAccount[]>([]);
   const [username,setUsername]=useState('');
   const [password,setPassword]=useState('');
