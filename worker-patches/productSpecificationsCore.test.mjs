@@ -23,7 +23,7 @@ test('accept valid template-based technical record and preserve legacy omission'
 });
 test('reject financial fields at every level and unknown data',()=>{
   const rejected=[
-    {price:100},{cost:4},{factory_price:'10'},{attributes:{purchase_price:'20'}},
+    {price:100},{cost:4},{factory_price:'10'},{attributes:{purchase_price:'20'}},{attributes:{fabric_cost:'20'}},
     {materials:[{part:'tabletop',material:'oak',unit_cost:5}]},
     {packaging:[{carton_no:1,cost:1}]},{technical_marketing:false}
   ];
