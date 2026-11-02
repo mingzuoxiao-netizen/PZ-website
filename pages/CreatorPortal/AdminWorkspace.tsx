@@ -19,11 +19,12 @@ import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
+import OrganizationManagement from './components/OrganizationManagement';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -228,6 +229,7 @@ const AdminWorkspace: React.FC = () => {
     { id: 'basics', label: '网站基础信息', icon: <Settings size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} /> },
+    { id: 'organization', label: '部门与主管管理', icon: <Users size={18} /> },
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} /> },
   ];
 
@@ -396,6 +398,7 @@ const AdminWorkspace: React.FC = () => {
 
         {activeTab === 'inquiries' && <InquiryManager />}
         {activeTab === 'accounts' && <AccountsManager />}
+        {activeTab === 'organization' && <OrganizationManagement />}
         {activeTab === 'audit' && <AuditTimeline />}
       </div>
     </PortalLayout>
