@@ -85,6 +85,9 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
         return fail('Name, category and valid SKU are required');
       let copy;
       try{copy=snapshot(product);}catch{return fail('Invalid product image or site JSON');}
+      const assets=JSON.parse(copy).images;
+      if(!Array.isArray(assets)||!assets.some(x=>typeof x==='string'&&x.trim()))
+        return fail('At least one product image is required before review');
       const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();
       if(previous&&previous.status!=='returned_to_uploader')return fail('Review cannot be resubmitted in this state',409);
       if(previous&&(previous.submitter_id!==actor||previous.supervisor_id!==assignment.supervisor_id||
