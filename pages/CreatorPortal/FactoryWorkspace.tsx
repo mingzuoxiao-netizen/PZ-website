@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { factoryFetch } from '../../utils/factoryFetch';
+import { productReviewSubmissionHint } from '../../utils/productReviewSubmission';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categoryMatches } from '../../utils/categoryMatching';
@@ -151,24 +152,45 @@ const FactoryWorkspace: React.FC = () => {
   }), [products]);
 
   const handleSaveDraft = async (product: ProductVariant) => {
-    try {
-      const method = product.id ? 'PUT' : 'POST';
-      const url = product.id ? `factory/products/${product.id}` : 'factory/products';
-      const payload = { ...product, status: 'draft' };
-      await factoryFetch(url, { method, body: JSON.stringify(payload) });
-      setEditingItem(null);
-      setIsCreating(false);
-      await loadData();
-    } catch (e: any) { alert(e.message); }
+    const method = product.id ? 'PUT' : 'POST';
+    const url = product.id ? `factory/products/${product.id}` : 'factory/products';
+    const payload = { ...product, status: 'draft' };
+    // Let ProductForm show failures instead of silently closing/resetting.
+    const saved = await factoryFetch<{success?:boolean}>(url, {method, body: JSON.stringify(payload)});
+    if (saved.success !== true) throw new Error('草稿保存状态未确认，请先刷新产品列表核对。');
+    setEditingItem(null);
+    setIsCreating(false);
+    await loadData();
   };
 
   const handleSubmitForReview = async (productId: string) => {
-      try {
-          await factoryFetch(`factory/products/${productId}/submit`, { method: 'POST' });
-          await loadData();
+    try {
+      // The editor may contain a stale status (e.g. a submission succeeded
+      // in another tab). Check fresh server data before attempting a write.
+      const latest = await factoryFetch<{products?:Array<{id:string;status?:string}>}>('factory/products?limit=500');
+      if (!Array.isArray(latest.products)) throw new Error('无法确认最新产品状态，请刷新后重试。');
+      const current = latest.products.find(product => product.id === productId);
+      if (current) {
+        const hint = productReviewSubmissionHint(current.status);
+        if (hint) {
           setEditingItem(null);
           setIsCreating(false);
-      } catch (e: any) { alert(`操作失败：${e.message}`); }
+          throw new Error(hint);
+        }
+      }
+      const result = await factoryFetch<{success?:boolean;status?:string}>(`factory/products/${encodeURIComponent(productId)}/submit`, {method:'POST'});
+      if (result.success !== true || result.status !== 'pending_supervisor') {
+        throw new Error('提交结果未确认，请刷新产品列表，避免重复提交。');
+      }
+      setEditingItem(null);
+      setIsCreating(false);
+    } catch (e: any) {
+      // A 409 can mean that another request already submitted this product.
+      // Refresh before showing the failure, never retry the POST blindly.
+      await loadData(true);
+      throw e;
+    }
+    await loadData(true);
   };
 
   // O(batch size) indexed SKU lookup, rather than downloading the entire catalog.
