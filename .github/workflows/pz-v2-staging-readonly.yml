@@ -1,0 +1,22 @@
+name: PZ V2 Staging Read-Only Probe
+
+on:
+  push:
+    branches:
+      - feature/pz-v2-organization-rbac
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only Preview gateway and organization route verification
+        run: node scripts/staging-org-readonly-probe.mjs

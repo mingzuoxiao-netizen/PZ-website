@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 
 interface AdminGuardProps {
   children: React.ReactNode;
-  requiredRole?: 'ADMIN' | 'FACTORY';
+  requiredRole?: 'ADMIN' | 'FACTORY' | 'SUPERVISOR';
 }
 
 const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
@@ -18,9 +18,9 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
   useEffect(() => {
     const validateToken = () => {
       const token = sessionStorage.getItem(ADMIN_SESSION_KEY);
-      const role = sessionStorage.getItem("pz_user_role") as 'ADMIN' | 'FACTORY' | null;
+      const role = sessionStorage.getItem("pz_user_role") as 'ADMIN' | 'FACTORY' | 'SUPERVISOR' | null;
       
-      if (!token || (role !== 'ADMIN' && role !== 'FACTORY')) {
+      if (!token || (role !== 'ADMIN' && role !== 'FACTORY' && role !== 'SUPERVISOR')) {
         setAuthorized(false);
         setChecking(false);
         return;
@@ -35,7 +35,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
       if (requiredRole && role !== requiredRole) {
           setAuthorized(false);
           setChecking(false);
-          const target = role === 'ADMIN' ? '/creator/admin' : '/creator/factory';
+          const target = role === 'ADMIN' ? '/creator/admin' : role === 'SUPERVISOR' ? '/creator/supervisor' : '/creator/factory';
           navigate(target, { replace: true });
           return;
       }
@@ -47,7 +47,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children, requiredRole }) => {
     validateToken();
   }, [navigate, requiredRole, location.pathname]);
 
-  const handleLoginSuccess = (role: 'ADMIN' | 'FACTORY') => {
+  const handleLoginSuccess = (role: 'ADMIN' | 'FACTORY' | 'SUPERVISOR') => {
     // sessionStorage writes do not trigger React renders. Explicitly refresh
     // this guard even when the user logs in from an unchanged URL.
     setAuthorized(!requiredRole || requiredRole === role);
