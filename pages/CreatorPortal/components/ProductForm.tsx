@@ -270,6 +270,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     lang={lang}
                     category={[formData.category || fixedCategoryId || '',categories.find(c=>c.id===(formData.category||fixedCategoryId))?.title||''].join(' ')}
                     value={formData.specifications}
+                    images={formData.images||[]}
                     onChange={next=>handleChange('specifications',next)}
                 />
 
