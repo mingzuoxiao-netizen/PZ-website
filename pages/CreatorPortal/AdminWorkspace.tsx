@@ -20,6 +20,7 @@ import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
+import TwoStageProductReviews from './components/TwoStageProductReviews';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
@@ -29,9 +30,9 @@ type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
+  const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes'>('products');
 
   const [products, setProducts] = useState<any[]>([]);
-  const [reviewProducts, setReviewProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
   const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
 
@@ -71,16 +72,13 @@ const AdminWorkspace: React.FC = () => {
 
   const loadReviewQueue = useCallback(async () => {
     try {
-      const res = await adminFetch<{ products?: any[]; items?: any[] }>('admin/products?status=awaiting_review&limit=1000');
-      const raw = res.products ?? res.items ?? [];
-      setReviewProducts(normalizeProducts(raw));
-      // Legacy D1 category_requests defaults to "pending"; newer client
-      // workflows may use "awaiting_review". Load both, not just one status.
+      // Phase 2 product approvals use /admin/reviews and supervisor first review.
+      // Only category applications remain on the legacy category-request endpoint.
       const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
       setAllCategoryRequests(catRes.items ?? []);
       setCategoryRequests((catRes.items ?? []).filter(item =>
         item.status === 'pending' || item.status === 'awaiting_review'));
-    } catch (e) { console.error('Queue sync error', e); }
+    } catch (e) { console.error('Category queue sync error', e); }
   }, []);
 
   const loadSiteConfig = useCallback(async () => {
@@ -219,10 +217,8 @@ const AdminWorkspace: React.FC = () => {
     finally { setIsSyncing(false); }
   };
 
-  const reviewTotalCount = reviewProducts.length + categoryRequests.length;
-
   const navItems = [
-    { id: 'review', label: '审核中心', icon: <div className="relative"><Activity size={18} />{reviewTotalCount > 0 && <span className="absolute -top-2 -right-2 bg-safety-700 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-pulse">{reviewTotalCount}</span>}</div> },
+    { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} /> },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} /> },
@@ -251,45 +247,66 @@ const AdminWorkspace: React.FC = () => {
 
       <div className="pb-32">
         {activeTab === 'review' && (
-          <>
-          <CategoryChangeReview onApproved={loadSiteConfig} />
-          <ReviewQueue products={reviewProducts} categoryRequests={categoryRequests} onProcessProduct={async (id, action) => {
-              try {
-                const original = products.find(p => p.id === id) || reviewProducts.find(p => p.id === id);
-                if (!original) throw new Error("未找到产品记录");
-                const nextStatus = action === 'approve' ? 'published' : 'rejected';
-                const isPublished = nextStatus === 'published' ? 1 : 0;
-                await adminFetch(`admin/products/${id}`, { 
-                  method: 'PUT', 
-                  body: JSON.stringify({ 
-                    ...original, 
-                    status: nextStatus, 
-                    is_published: isPublished,
-                    autoPublish: action === 'approve' 
-                  }) 
-                });
-                await loadReviewQueue(); await loadProducts();
-              } catch (e: any) { alert(e.message); }
-            }}
-            onProcessCategory={async (id, action) => {
-              const endpoint = action === 'approve' ? 'approve' : 'reject';
-              const result = await adminFetch<any>(
-                `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
-                { method: 'POST', body: JSON.stringify(action === 'approve' ? { autoPublish: false } : {}) }
-              );
-              if (result?.success !== true || result.status !== (action === 'approve' ? 'approved' : 'rejected')) {
-                throw new Error('分类审核结果未确认，请刷新后核对状态。');
-              }
-              await Promise.all([loadReviewQueue(), loadSiteConfig()]);
-              // Approval writes to draft only. Publishing is always a separate admin action.
-              // Never verify public visibility until an explicit publish.
-              if (action === 'approve' && result.needsPublish !== true) {
-                throw new Error('分类审核完成，但草稿状态未确认；请检查网站配置。');
-              }
-            }}
-            reloadQueue={async () => { await loadReviewQueue(); }}
-          />
-          </>
+          <section className="space-y-6" aria-label="统一审核中心">
+            <div className="rounded border border-stone-200 bg-white p-5">
+              <h2 className="font-serif text-2xl text-stone-900">审核中心</h2>
+              <p className="mt-2 text-sm text-stone-500">
+                产品必须经过主管初审和管理员终审，终审批准后仍需独立发布。新品类及分类修改使用各自的审核流程。
+              </p>
+              <div role="tablist" aria-label="审核类型" className="mt-5 grid gap-2 sm:grid-cols-3">
+                {([
+                  ['products', '产品终审与发布'],
+                  ['new-categories', '新品类申请审核'],
+                  ['category-changes', '已有分类修改审核'],
+                ] as const).map(([id, label]) => (
+                  <button key={id} type="button" role="tab"
+                    aria-selected={reviewSection === id}
+                    onClick={() => setReviewSection(id)}
+                    className={`rounded border px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 ${
+                      reviewSection === id
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-500'
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div role="tabpanel" aria-label={
+              reviewSection === 'products' ? '产品终审与发布' :
+              reviewSection === 'new-categories' ? '新品类申请审核' : '已有分类修改审核'
+            }>
+              {reviewSection === 'products' && <TwoStageProductReviews role="ADMIN" />}
+              {reviewSection === 'new-categories' && (
+                <ReviewQueue
+                  categoryOnly
+                  products={[]}
+                  categoryRequests={categoryRequests}
+                  onProcessProduct={async () => {
+                    throw new Error('旧产品审核已关闭，必须通过主管初审和管理员终审。');
+                  }}
+                  onProcessCategory={async (id, action) => {
+                    const endpoint = action === 'approve' ? 'approve' : 'reject';
+                    const result = await adminFetch<any>(
+                      `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
+                      { method: 'POST', body: JSON.stringify(action === 'approve' ? {autoPublish:false} : {}) }
+                    );
+                    if (result?.success !== true || result.status !== (action === 'approve' ? 'approved' : 'rejected')) {
+                      throw new Error('分类审核结果未确认，请刷新后核对状态。');
+                    }
+                    await Promise.all([loadReviewQueue(), loadSiteConfig()]);
+                    if (action === 'approve' && result.needsPublish !== true) {
+                      throw new Error('分类已批准，但草稿状态未确认，请检查网站配置。');
+                    }
+                  }}
+                  reloadQueue={loadReviewQueue}
+                />
+              )}
+              {reviewSection === 'category-changes' && (
+                <CategoryChangeReview onApproved={loadSiteConfig} />
+              )}
+            </div>
+          </section>
         )}
 
         {activeTab === 'inventory' && (

@@ -40,7 +40,12 @@ const ProductList: React.FC<ProductListProps> = ({
     published: { label: T('Published','已发布'), color: 'bg-green-100 text-green-700' },
     awaiting_review: { label: T('Awaiting Audit','待审核'), color: 'bg-amber-100 text-amber-700' },
     draft: { label: T('Draft','草稿'), color: 'bg-stone-100 text-stone-500' },
-    rejected: { label: T('Correction Req','已退回'), color: 'bg-red-100 text-red-700' }
+    rejected: { label: T('Correction Req','已退回'), color: 'bg-red-100 text-red-700' },
+    returned_to_uploader: { label: '待修改', color: 'bg-red-100 text-red-700' },
+    pending_supervisor: { label: '待主管初审', color: 'bg-amber-100 text-amber-700' },
+    pending_admin: { label: '待管理员终审', color: 'bg-amber-100 text-amber-700' },
+    returned_to_supervisor: { label: '已退回主管', color: 'bg-orange-100 text-orange-700' },
+    approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' }
   };
 
   const filteredItems = Array.isArray(items) ? items.filter(i => {
@@ -128,6 +133,10 @@ const ProductList: React.FC<ProductListProps> = ({
                 <option value="draft">{T("Draft","草稿")}</option>
                 <option value="awaiting_review">{T("Awaiting Audit","待审核")}</option>
                 <option value="rejected">{T("Correction Req","已退回")}</option>
+                <option value="returned_to_uploader">待员工修改</option>
+                <option value="pending_supervisor">待主管初审</option>
+                <option value="pending_admin">待管理员终审</option>
+                <option value="approved_pending_publish">待发布</option>
              </select>
              <select
                 aria-label={T("Filter production site","筛选生产基地")}
@@ -204,7 +213,7 @@ const ProductList: React.FC<ProductListProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                            {isFactory && (item.status === 'draft' || item.status === 'rejected') && (
+                            {isFactory && (['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                 <button 
                                     onClick={() => item.id && handleSubmitForReview(item.id)}
                                     disabled={isSubmitting}
@@ -215,7 +224,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                                {(!isFactory || item.status === 'draft' || item.status === 'rejected') && (
+                                {(!isFactory || ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                     <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
                                 )}
                                 {isAdmin && onDelete && (

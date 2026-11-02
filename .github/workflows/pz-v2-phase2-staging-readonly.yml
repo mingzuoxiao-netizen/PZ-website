@@ -1,0 +1,21 @@
+name: PZ V2 Phase 2 Staging API Gate
+
+on:
+  push:
+    branches: [feature/pz-v2-two-stage-product-approvals]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  phase2-staging-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check live Staging API routes without changing data
+        run: node scripts/staging-phase2-readonly-probe.mjs

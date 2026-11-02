@@ -1,8 +1,10 @@
 name: Website 2.0 QA
 
 on:
+  push:
+    branches: [feature/pz-v2-two-stage-product-approvals]
   pull_request:
-    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval]
+    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,10 @@ jobs:
         run: npm ci
       - name: Organization RBAC and delegated account tests
         run: node --test worker-patches/organizationAccessCore.test.mjs
+      - name: Two-stage product approval state-machine tests
+        run: node --check worker-patches/productTwoStageReviewCore.mjs && node --test worker-patches/productTwoStageReviewCore.test.mjs
+      - name: Verify Production 010 migration in memory (no remote D1)
+        run: python3 worker-patches/test_two_stage_production_migration.py
       - name: TypeScript check
         run: npm run typecheck
       - name: Automated tests
@@ -94,6 +100,10 @@ jobs:
         run: node --check worker-patches/siteConfigD1Production.mjs && node --test worker-patches/siteConfigD1Production.test.mjs
       - name: Check D1 site config schema in SQLite
         run: python3 worker-patches/test_site_config_d1_migration.py
+      - name: Production Worker safe KV cutover and review guards
+        run: node --test worker-patches/productionWorkerCutoverSafety.test.mjs
+      - name: Live Production read-only smoke (GET only)
+        run: node scripts/production-v2-readonly-smoke.mjs
       - name: Production Worker candidate syntax and auth-isolation
         run: |
           node --check worker-patches/production-worker-category-governance-REVIEW.js
