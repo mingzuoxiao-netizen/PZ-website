@@ -3624,8 +3624,10 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       if(!assignment)return fail('Active supervisor assignment required',403);
       const product=await env.DB.prepare(productSql).bind(id).first();
       if(!product||product.created_by!==actor)return fail('Not your product',403);
-      if(!['draft','rejected','returned_to_uploader'].includes(String(product.status).toLowerCase()))
-        return fail('Product is not ready for submission',409);
+      const currentStatus=String(product.status||'').toLowerCase();
+      if(!['draft','rejected','returned_to_uploader'].includes(currentStatus))
+        return json({error:'Product is not ready for submission',current_status:currentStatus,
+          code:'PRODUCT_REVIEW_STATE_CONFLICT'},409);
       if(!String(product.name||'').trim()||!String(product.category||'').trim()||
         !/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(String(product.code||'').trim().toUpperCase()))
         return fail('Name, category and valid SKU are required');
