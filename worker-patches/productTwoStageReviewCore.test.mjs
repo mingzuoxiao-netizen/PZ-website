@@ -67,6 +67,10 @@ test('factory submit => supervisor approve => admin approve => explicit publish'
  const rid=s.data.id;
  assert.equal(sql.prepare('SELECT status FROM products WHERE id=?').get('p1').status,'pending_supervisor');
  assert.equal((await call('/admin/products/p1','admin','PUT',{status:'published'})).status,409);
+ assert.equal((await call('/admin/products/p1/remove-image','admin','POST',{key:'a.jpg',deleteFromCloud:true})).status,409);
+ assert.equal((await call('/admin/products','admin','POST',{name:'bypass',status:'published'})).status,409);
+ assert.throws(()=>sql.prepare("UPDATE pz_product_reviews SET status='published' WHERE id=?").run(rid),/Invalid or stale product review transition/);
+
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','otherlead','POST')).status,403);
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','worker','POST')).status,403);
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','lead','POST')).status,200);
