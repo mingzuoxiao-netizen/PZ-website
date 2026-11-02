@@ -9,7 +9,7 @@ export function pzValidateTechnicalSpecs(input) {
     top:['schema_version','series_id','color','dimensions_cm','net_weight_kg','selling_points_en','construction_en','materials','attributes','packaging','assembly','care_en','warnings_en','media_roles','attachments','verification','provenance'],
     dimension:['length','width','height','thickness'],
     material:['part','material','construction','finish'],
-    pack:['carton_no','length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units'],
+    pack:['carton_no','length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units','packing_method','protection_notes'],
     assembly:['required','minutes','instructions_file'],
     attachment:['file_name','type','visibility'],
     verification:['claim','evidence_file','status'],
@@ -63,7 +63,10 @@ export function pzValidateTechnicalSpecs(input) {
     }
     array(input.packaging,'packaging',15).forEach((v,i)=>{
       object(v,allowed.pack,'packaging.'+i);
-      for(const [k,n] of Object.entries(v))positive(n,'packaging.'+i+'.'+k);
+      for(const [k,n] of Object.entries(v)){
+        if(k==='packing_method'||k==='protection_notes')word(n,'packaging.'+i+'.'+k,500);
+        else positive(n,'packaging.'+i+'.'+k);
+      }
       if(!Number.isInteger(v.carton_no)||v.carton_no<1||v.carton_no>15)fail('Carton number must be 1-15');
       if(v.units!==undefined&&!Number.isInteger(v.units))fail('Carton units must be integer');
     });
