@@ -15,7 +15,8 @@ test('accept valid template-based technical record and preserve legacy omission'
     assembly:{required:true,minutes:30,instructions_file:'MARLOW_ASSEMBLY.pdf'},
     verification:[{claim:'Weight capacity test',status:'verified',evidence_file:'lab-report.pdf'}],
     provenance:{provider:'Factory coordinator',source_factory:'zhaoqing'},
-    attachments:[{file_name:'dimension.pdf',type:'dimension',visibility:'internal'}]
+    attachments:[{file_name:'dimension.pdf',type:'dimension',visibility:'internal'}],
+    media_roles:{'https://cdn.peng-zhan.com/uploads/product1.jpg':'lifestyle'}
   };
   const out=pzValidateTechnicalSpecs(source);
   assert.equal(out.error,null);
@@ -25,7 +26,8 @@ test('reject financial fields at every level and unknown data',()=>{
   const rejected=[
     {price:100},{cost:4},{factory_price:'10'},{attributes:{purchase_price:'20'}},{attributes:{fabric_cost:'20'}},
     {materials:[{part:'tabletop',material:'oak',unit_cost:5}]},
-    {packaging:[{carton_no:1,cost:1}]},{technical_marketing:false}
+    {packaging:[{carton_no:1,cost:1}]},{technical_marketing:false},
+    {media_roles:{'https://cdn.peng-zhan.com/a.jpg':'pricing'}}
   ];
   for(const val of rejected)assert.ok(pzValidateTechnicalSpecs(val).error,JSON.stringify(val));
 });
