@@ -12,6 +12,14 @@ export async function pzOrgEffectiveRole(env, userId, baseRole) {
   return assignment?.job_type === 'supervisor' ? 'SUPERVISOR' : 'FACTORY';
 }
 
+export function pzOrgPasswordPolicy(password,username='') {
+  if (typeof password!=='string' || password.length<12 ||
+      new TextEncoder().encode(password).length>72 || !password.trim()) return 'Password must be 12-72 UTF-8 bytes';
+  if (username.length>=3 && password.toLowerCase().includes(username.toLowerCase()))
+    return 'Password must not contain account name';
+  return null;
+}
+
 export function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passwordPolicy }) {
   const fail = (message, status=400) => json({ error: message }, status);
   const safeName = value => typeof value === 'string' &&
