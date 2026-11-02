@@ -11,6 +11,8 @@ const CreatorPortal: React.FC = () => {
 
         if (role === 'ADMIN') {
             navigate('/creator/admin', { replace: true });
+        } else if (role === 'SUPERVISOR') {
+            navigate('/creator/supervisor', { replace: true });
         } else if (role === 'FACTORY') {
             navigate('/creator/factory', { replace: true });
         } else {
