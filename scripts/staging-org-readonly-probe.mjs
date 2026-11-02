@@ -33,6 +33,28 @@ for(const [path,expected,label] of cases){
   }catch(error){failures++;detail=String(error).slice(0,180);}
   console.log((status===expected?'PASS':'FAIL')+' '+label+' '+path+' expected='+expected+' actual='+status+(detail?' detail='+detail:''));
 }
+// Isolate Cloudflare Pages routing from the dedicated Staging Worker deployment.
+const stagingWorker='https://pz-inquiry-api-staging.mingzuoxiao29.workers.dev';
+for(const [path,label] of [
+  ['/admin/org/departments','Direct Staging Worker organization route'],
+  ['/supervisor/accounts','Direct Staging Worker supervisor route']
+]){
+  let status=0,detail='';
+  try{
+    const response=await fetch(stagingWorker+path,{
+      method:'GET',redirect:'manual',
+      headers:{'Accept':'application/json','Cache-Control':'no-store'},
+      signal:AbortSignal.timeout(12000)
+    });
+    status=response.status;
+    if(status!==401){
+      const raw=await response.text().catch(()=>'');
+      detail=raw.replace(/\s+/g,' ').slice(0,220);
+      failures++;
+    }
+  }catch(error){failures++;detail=String(error).slice(0,180);}
+  console.log((status===401?'PASS':'FAIL')+' '+label+' '+path+' expected=401 actual='+status+(detail?' detail='+detail:''));
+}
 if(failures){
   console.error(
     'Staging smoke check is NOT ready. Verify Pages Preview PZ_BACKEND_WORKER uses the dedicated Staging Worker;'+
