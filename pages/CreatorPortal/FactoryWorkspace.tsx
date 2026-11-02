@@ -145,8 +145,8 @@ const FactoryWorkspace: React.FC = () => {
   }, [loadData, loadSiteConfig, siteVersion, isCreating, editingItem, isBatchCreating]);
 
   const stats = useMemo(() => ({
-      pending: products.filter(p => p.status === 'awaiting_review').length,
-      rejected: products.filter(p => p.status === 'rejected').length,
+      pending: products.filter(p => ['awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish'].includes(p.status||'')).length,
+      rejected: products.filter(p => ['rejected','returned_to_uploader'].includes(p.status||'')).length,
       total: products.length
   }), [products]);
 
