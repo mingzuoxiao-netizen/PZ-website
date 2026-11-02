@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import PZImageManager from './PZImageManager';
+import ProductSpecificationsEditor from './ProductSpecificationsEditor';
+import {readProductSpecifications,specificationIssues} from '../../../utils/productSpecifications';
 import LivePreview from './LivePreview';
 import { useProductImageActions } from '../../../hooks/useProductImageActions';
 import { Save, ArrowLeft, Info, Send, Loader2, Database, ClipboardList } from 'lucide-react';
@@ -76,6 +78,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
       alert(T('Invalid SKU. Use PZ- followed by 2–40 letters, numbers, hyphens or underscores.','SKU 格式错误，请使用 PZ- 开头，后面输入 2–40 位字母、数字或连接符。'));
       return;
     }
+    const issues=specificationIssues(readProductSpecifications(formData.specifications));
+    if(issues.length){
+      alert(T('Please correct technical data: ','请先修正技术参数：')+issues.join('；'));
+      return;
+    }
     setSubmitting(true);
     try {
       const finalStatus = formData.status || 'draft';
@@ -83,6 +90,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         ...formData,
         category: categoryId,
         code,
+        specifications: readProductSpecifications(formData.specifications),
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
       });
@@ -118,7 +126,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em]">{T("Product Induction Protocol","产品资料录入")}</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-[9px] font-mono opacity-40 uppercase">{T("Revision v1.3","表单版本 1.3")}</span>
+                   <span className="text-[9px] font-mono opacity-40 uppercase">{T("Technical Editor v2.0","技术资料编辑器 2.0")}</span>
                 </div>
              </div>
 
@@ -258,9 +266,16 @@ const ProductForm: React.FC<ProductFormProps> = ({
                     </div>
                 </section>
 
+                <ProductSpecificationsEditor
+                    lang={lang}
+                    category={[formData.category || fixedCategoryId || '',categories.find(c=>c.id===(formData.category||fixedCategoryId))?.title||''].join(' ')}
+                    value={formData.specifications}
+                    onChange={next=>handleChange('specifications',next)}
+                />
+
                 <section>
                     <div className="flex items-center gap-4 mb-6">
-                        <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">03</div>
+                        <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-900 text-xs font-bold font-mono">08</div>
                         <h4 className="text-[11px] font-bold uppercase tracking-widest text-stone-900">{T("Digital Asset Management","产品图片管理")}</h4>
                     </div>
                     <PZImageManager 
