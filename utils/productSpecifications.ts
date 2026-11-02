@@ -12,7 +12,7 @@ export interface ProductSpecifications {
   construction_en?:string;
   materials?:Array<{part:string;material:string;construction?:string;finish?:string}>;
   attributes?:Record<string,string>;
-  packaging?:Array<{carton_no:number;length_cm?:number;width_cm?:number;height_cm?:number;gross_weight_kg?:number;net_weight_kg?:number;units?:number}>;
+  packaging?:Array<{carton_no:number;length_cm?:number;width_cm?:number;height_cm?:number;gross_weight_kg?:number;net_weight_kg?:number;units?:number;packing_method?:string;protection_notes?:string}>;
   assembly?:{required?:boolean;minutes?:number;instructions_file?:string};
   care_en?:string;
   warnings_en?:string;
