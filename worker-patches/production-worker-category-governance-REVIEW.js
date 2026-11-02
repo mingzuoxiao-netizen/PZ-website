@@ -3244,6 +3244,20 @@ async function pzOrgEffectiveRole(env, userId, baseRole) {
   return assignment?.job_type === 'supervisor' ? 'SUPERVISOR' : 'FACTORY';
 }
 
+async function pzOrgCanManageProduct(env, userId, productId=null) {
+  if (env.PZ_ORG_RBAC_ENABLED !== 'true') return true;
+  const assigned = await env.DB.prepare(
+    "SELECT a.user_id FROM pz_staff_assignments a JOIN pz_departments d ON d.id=a.department_id " +
+    "WHERE a.user_id=? AND a.job_type IN ('secretary','staff','data_entry') AND d.is_active=1 LIMIT 1"
+  ).bind(userId).first();
+  if (!assigned) return false;
+  if (!productId) return true;
+  const owned = await env.DB.prepare(
+    "SELECT id FROM products WHERE id=? AND created_by=? LIMIT 1"
+  ).bind(productId,userId).first();
+  return Boolean(owned);
+}
+
 function pzOrgPasswordPolicy(password,username='') {
   if (typeof password!=='string' || password.length<12 ||
       new TextEncoder().encode(password).length>72 || !password.trim()) return 'Password must be 12-72 UTF-8 bytes';
@@ -4790,21 +4804,25 @@ if (
       if (pathname === "/factory/products" && request.method === "GET") {
         const auth = await authorize(request, env, ["FACTORY", "ADMIN"]);
         if (auth instanceof Response) return auth;
+        const scoped = env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY";
+        if (scoped && !(await pzOrgCanManageProduct(env, auth.user.id))) return json({error:"Team assignment required"},403);
         const url = new URL(request.url);
         const limit = Math.min(Number(url.searchParams.get("limit") ?? "500") || 500, 1e3);
         const rows = await env.DB.prepare(
           `SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
             description, description_cn, images, production_sites, created_by, status, created_at, updated_at
      FROM products
+     ${scoped ? 'WHERE created_by = ?' : ''}
      ORDER BY updated_at DESC
      LIMIT ?`
-        ).bind(limit).all();
+        ).bind(...(scoped ? [auth.user.id,limit] : [limit])).all();
         const items = normalizeProductRows(rows.results);
         return json({ items, products: items });
       }
       if (pathname === "/factory/products" && request.method === "POST") {
         const auth = await authorize(request, env, ["FACTORY", "ADMIN"]);
         if (auth instanceof Response) return auth;
+        if (env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY" && !(await pzOrgCanManageProduct(env, auth.user.id, null))) return json({error:"Product ownership or assignment required"},403);
         const body = await request.json();
         const db = coerceProductForDb(body);
         if (db.production_sites_error) return badRequest(db.production_sites_error);
@@ -4847,6 +4865,7 @@ if (
           const auth = await authorize(request, env, ["FACTORY", "ADMIN"]);
           if (auth instanceof Response) return auth;
           const id = m[1].trim();
+          if (env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY" && !(await pzOrgCanManageProduct(env, auth.user.id, id))) return json({error:"Product ownership or assignment required"},403);
           if (!id) return badRequest("Missing product id");
           const now = (/* @__PURE__ */ new Date()).toISOString();
           const result = await env.DB.prepare(
@@ -4866,6 +4885,7 @@ if (
           const auth = await authorize(request, env, ["FACTORY", "ADMIN"]);
           if (auth instanceof Response) return auth;
           const id = m[1].trim();
+          if (env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY" && !(await pzOrgCanManageProduct(env, auth.user.id, id))) return json({error:"Product ownership or assignment required"},403);
           if (!id) return badRequest("Missing product id");
           const body = await request.json();
           const db = coerceProductForDb(body);
