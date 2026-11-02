@@ -1,5 +1,6 @@
 import { API_BASE } from './siteConfig';
 import { ADMIN_SESSION_KEY } from './adminFetch';
+import { productReviewSubmissionHint } from './productReviewSubmission';
 
 export const FACTORY_API_BASE = API_BASE;
 
@@ -48,7 +49,21 @@ export async function factoryFetch<T = any>(
 
     if (!response.ok) {
       let errorDetail = "";
-      try { errorDetail = await response.text(); } catch (e) {}
+      try {
+        const raw = await response.text();
+        if ((response.headers.get('content-type') || '').includes('application/json')) {
+          const data = JSON.parse(raw);
+          if (data?.code === 'PRODUCT_REVIEW_STATE_CONFLICT') {
+            errorDetail = productReviewSubmissionHint(data.current_status) || data.error || '产品状态已经改变，请刷新后重试。';
+          } else {
+            errorDetail = data?.message || data?.error || raw;
+          }
+        } else {
+          errorDetail = raw;
+        }
+      } catch (e) {
+        errorDetail = '服务器返回了无法解析的错误响应';
+      }
 
       if (response.status === 401 || response.status === 403) {
         throw new Error("Unauthorized: Your session may have expired.");

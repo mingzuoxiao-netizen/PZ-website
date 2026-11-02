@@ -86,6 +86,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
         status: finalStatus,
         is_published: finalStatus === 'published' ? 1 : 0
       });
+    } catch (e: any) {
+      alert(T('Draft was not saved: ', '草稿保存失败：') + (e?.message || '未知错误'));
     } finally {
       setSubmitting(false);
     }
@@ -97,11 +99,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setIsPromoting(true);
       try {
           await onSubmit(formData.id);
-      } catch (e) { /* Error reported by parent */ }
+      } catch (e: any) {
+          alert(T('Review submission failed: ', '提交审核未成功：') + (e?.message || '请刷新产品状态后重试'));
+      }
       finally { setIsPromoting(false); }
   };
 
-  const canPromote = userRole === 'FACTORY' && !!formData.id && (formData.status === 'draft' || formData.status === 'rejected');
+  const canPromote = userRole === 'FACTORY' && !!formData.id &&
+    ['draft','rejected','returned_to_uploader'].includes(formData.status || '');
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 animate-fade-in pb-20">
@@ -279,6 +284,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
                         {T("Store Draft","保存草稿")}
                     </button>
 
+                    {userRole === 'FACTORY' && !formData.id && (
+                        <p className="w-full text-xs text-stone-600">首次录入请先保存草稿，再从产品列表进入编辑并提交审核。</p>
+                    )}
                     {canPromote && (
                         <button 
                             type="button" 

@@ -9,9 +9,11 @@ interface ReviewQueueProps {
   onProcessProduct: (id: string, action: 'approve' | 'reject', note?: string) => Promise<void>;
   onProcessCategory: (id: string, action: 'approve' | 'reject', note?: string) => Promise<void>;
   reloadQueue: () => Promise<void>;
+  /** Phase 2: show new-category approval only, never the obsolete single-stage product approval. */
+  categoryOnly?: boolean;
 }
 
-const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, onProcessProduct, onProcessCategory, reloadQueue }) => {
+const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, onProcessProduct, onProcessCategory, reloadQueue, categoryOnly = false }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
@@ -20,7 +22,8 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   const [isManualLoading, setIsManualLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const currentItems = view === 'products' ? products : categoryRequests;
+  const activeView = categoryOnly ? 'categories' : view;
+  const currentItems = activeView === 'products' ? products : categoryRequests;
 
   const handleManualRefresh = async () => {
       setIsManualLoading(true);
@@ -40,7 +43,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
     setMessage('');
     setIsProcessing(true);
     try {
-      if (view === 'categories') await onProcessCategory(id, action, note);
+      if (activeView === 'categories') await onProcessCategory(id, action, note);
       else await onProcessProduct(id, action, note);
       setSelectedIds(prev => prev.filter(value => value !== id));
       setRejectId(null);
@@ -55,13 +58,13 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0 || isProcessing) return;
     const count = selectedIds.length;
-    if (!confirm(view === 'categories' ? `确认批准 ${count} 条分类申请并存入草稿吗？不会自动发布。` : `确认批准 ${count} 条产品吗？`)) return;
+    if (!confirm(activeView === 'categories' ? `确认批准 ${count} 条分类申请并存入草稿吗？不会自动发布。` : `确认批准 ${count} 条产品吗？`)) return;
     setMessage('');
     setIsProcessing(true);
     try {
       // Category approvals each read and replace the complete draft KV value.
       // Sequential processing prevents lost updates across concurrent approvals.
-      if (view === 'categories') {
+      if (activeView === 'categories') {
         for (const id of selectedIds) await onProcessCategory(id, 'approve');
       } else {
         await Promise.all(selectedIds.map(id => onProcessProduct(id, 'approve')));
@@ -77,22 +80,24 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   return (
     <div className="animate-fade-in relative">
         <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <button 
+            {!categoryOnly && <button
                 onClick={() => { setView('products'); setSelectedIds([]); }}
                 className={`flex-1 py-4 flex items-center justify-center gap-3 border rounded-sm transition-all font-bold text-[10px] uppercase tracking-widest
-                    ${view === 'products' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
+                    ${activeView === 'products' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
                 <Package size={16} /> 待审核产品 ({products.length})
-            </button>
-            <button 
+            </button>}
+            {categoryOnly ? (
+                <h3 className="flex-1 py-3 font-serif text-xl text-stone-900">新品类申请审核（{categoryRequests.length}）</h3>
+            ) : <button 
                 onClick={() => { setView('categories'); setSelectedIds([]); }}
                 className={`flex-1 py-4 flex items-center justify-center gap-3 border rounded-sm transition-all font-bold text-[10px] uppercase tracking-widest
-                    ${view === 'categories' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
+                    ${activeView === 'categories' ? 'bg-stone-900 text-white border-stone-900 shadow-lg' : 'bg-white text-stone-400 border-stone-200 hover:border-stone-900'}
                 `}
             >
                 <LayoutGrid size={16} /> 待审核新品类 ({categoryRequests.length})
-            </button>
+            </button>}
             <button onClick={handleManualRefresh} disabled={isManualLoading} className="bg-white border border-stone-200 text-stone-400 hover:text-stone-900 px-6 py-4 rounded-sm transition-all">
                 <RefreshCw size={16} className={isManualLoading ? 'animate-spin' : ''} />
             </button>
@@ -108,7 +113,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 {selectedIds.length > 0 && (
                     <button disabled={isProcessing} onClick={handleBulkApprove} className="bg-stone-900 text-white px-6 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all flex items-center gap-2 rounded-sm">
                         {isProcessing ? <RefreshCw className="animate-spin" size={14}/> : <CheckCircle size={14}/>}
-                        {view === 'categories' ? '批准并保存草稿' : '批准产品'}
+                        {activeView === 'categories' ? '批准并保存草稿' : '批准产品'}
                     </button>
                 )}
             </div>
@@ -161,7 +166,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                 ) : (
                                     <div className="flex gap-4 pt-4 border-t border-stone-50 opacity-100 transition-opacity">
                                         <button disabled={isProcessing} onClick={() => { void processItem(item.id!, 'approve'); }} className="flex items-center bg-stone-900 text-white px-5 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-green-700 transition-all">
-                                            <CheckCircle size={12} className="mr-2" /> {view === 'categories' ? '批准并保存草稿' : '批准产品'}
+                                            <CheckCircle size={12} className="mr-2" /> {activeView === 'categories' ? '批准并保存草稿' : '批准产品'}
                                         </button>
                                         <button disabled={isProcessing} onClick={() => setRejectId(item.id || null)} className="flex items-center bg-white text-red-600 border border-red-200 px-5 py-2 text-[10px] font-bold uppercase tracking-widest">
                                             <XCircle size={12} className="mr-2" /> 驳回申请
