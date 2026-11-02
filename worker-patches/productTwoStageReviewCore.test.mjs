@@ -64,6 +64,10 @@ test('factory submit => supervisor approve => admin approve => explicit publish'
  const s=await call('/factory/products/p1/submit','worker','POST');
  assert.equal(s.status,200);
  assert.equal(s.data.status,'pending_supervisor');
+ const repeated=await call('/factory/products/p1/submit','worker','POST');
+ assert.equal(repeated.status,409);
+ assert.equal(repeated.data.code,'PRODUCT_REVIEW_STATE_CONFLICT');
+ assert.equal(repeated.data.current_status,'pending_supervisor');
  const rid=s.data.id;
  assert.equal(sql.prepare('SELECT status FROM products WHERE id=?').get('p1').status,'pending_supervisor');
  assert.equal((await call('/admin/products/p1','admin','PUT',{status:'published'})).status,409);
