@@ -6,7 +6,7 @@ export function pzValidateTechnicalSpecs(input) {
     return {json:null,error:'specifications must be a JSON object'};
   const forbidden=/(?:^|_)(?:price|cost|quote|margin|profit|fob|exw|msrp|retail|purchase|currency)(?:_|$)/i;
   const allowed={
-    top:['schema_version','series_id','color','dimensions_cm','net_weight_kg','selling_points_en','construction_en','materials','attributes','packaging','assembly','care_en','warnings_en','attachments','verification','provenance'],
+    top:['schema_version','series_id','color','dimensions_cm','net_weight_kg','selling_points_en','construction_en','materials','attributes','packaging','assembly','care_en','warnings_en','media_roles','attachments','verification','provenance'],
     dimension:['length','width','height','thickness'],
     material:['part','material','construction','finish'],
     pack:['carton_no','length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units'],
@@ -72,6 +72,14 @@ export function pzValidateTechnicalSpecs(input) {
       if(a.required!==undefined&&typeof a.required!=='boolean')fail('assembly.required must be boolean');
       positive(a.minutes,'assembly.minutes');
       word(a.instructions_file,'assembly.instructions_file',240);
+    }
+    if(input.media_roles!==undefined){
+      const m=input.media_roles;
+      if(!m || typeof m!=='object'||Array.isArray(m)||Object.keys(m).length>40)fail('media_roles must be a limited object');
+      for(const [url,role] of Object.entries(m)){
+        if(!/^https:\/\//.test(url)||url.length>800)fail('Image role requires a valid HTTPS image URL');
+        if(!['main','lifestyle','detail','dimension','material','packaging'].includes(role))fail('Invalid image role');
+      }
     }
     array(input.attachments,'attachments',25).forEach((v,i)=>{
       object(v,allowed.attachment,'attachments.'+i);
