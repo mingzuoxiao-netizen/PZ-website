@@ -4246,8 +4246,13 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
  * explicit ADMIN bootstrap of current KV draft and published config.
  * No Worker deployment or migration implied by adding this file.
  */
+// Compatibility with the actual live Production Worker: its site config
+// still uses KV even when PZ_D1_SITE_CONFIG_ENABLED was set. A separate,
+// explicit activation is required to switch the source of truth to D1.
+// Until then keep legacy KV reads/writes intact during the review rollout.
 const pzD1SiteEnabled = env =>
-  String(env.PZ_D1_SITE_CONFIG_ENABLED || '').toLowerCase() === 'true';
+  String(env.PZ_D1_SITE_CONFIG_ENABLED || '').toLowerCase() === 'true' &&
+  String(env.PZ_SITE_CONFIG_D1_CUTOVER_ENABLED || '').toLowerCase() === 'true';
 
 const JSON_MAX_BYTES = 512 * 1024;
 const parse = raw => { try { return JSON.parse(raw || 'null'); } catch { return null; } };
@@ -5618,7 +5623,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return safeSummary(row, ["category_id", "status", "created_by"]);
     }
     if (entityType === "site_config") {
-      if (String(env.PZ_D1_SITE_CONFIG_ENABLED || "").toLowerCase() === "true") {
+      if (pzD1SiteEnabled(env)) {
         const row = await env.DB.prepare(
           "SELECT draft_revision,published_revision,published_version,draft_json,published_json FROM site_config_state WHERE id=1"
         ).first();
