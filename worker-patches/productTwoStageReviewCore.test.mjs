@@ -129,6 +129,15 @@ test('unknown and cross-team users cannot read private review history',async()=>
  assert.equal((await call('/admin/reviews','anonymous')).status,401);
 });
 
+test('submission requires at least one product image and cannot skip required data',async()=>{
+ const {sql,call}=setup();
+ sql.prepare("UPDATE products SET images=? WHERE id='p1'").run('[]');
+ const missing=await call('/factory/products/p1/submit','worker','POST');
+ assert.equal(missing.status,400);
+ assert.match(missing.data.error,/image/i);
+ assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_reviews").get().n,0);
+});
+
 test('flag off retains phase-one routing without altering database',async()=>{
  const {call,env,legacy,sql}=setup();
  env.PZ_TWO_STAGE_REVIEW_ENABLED='false';
