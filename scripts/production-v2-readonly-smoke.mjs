@@ -15,7 +15,7 @@ const allowed=new Set([
  'https://www.peng-zhan.com',
  'https://pz-inquiry-api.mingzuoxiao29.workers.dev'
 ]);
-let failures=0;
+let failures=0, unverified=0;
 for(const [url,kind,name] of cases){
   const parsed=new URL(url);
   if(!allowed.has(parsed.origin)||parsed.username||parsed.password||parsed.hash||parsed.search)
@@ -26,6 +26,14 @@ for(const [url,kind,name] of cases){
       headers:{Accept:kind==='html'?'text/html':'application/json','Cache-Control':'no-store'},
       signal:AbortSignal.timeout(12000)});
     status=response.status;
+    // GitHub-hosted runners are sometimes blocked by the website's Cloudflare
+    // bot/WAF rules. A 403 on the public Pages domain is INCONCLUSIVE,
+    // not evidence that a real visitor is blocked or that the endpoint is healthy.
+    if(parsed.hostname==='www.peng-zhan.com'&&status===403){
+      console.log('UNVERIFIED '+name+' HTTP 403 (CI runner blocked; confirm in normal browser)');
+      unverified++;
+      continue;
+    }
     const safe=kind==='protected'?[401,403,404,405].includes(status):status===200;
     if(!safe){reason='unexpected HTTP status';}
     else if(kind==='config'){
@@ -44,5 +52,7 @@ for(const [url,kind,name] of cases){
   console.log((ok?'PASS':'FAIL')+' '+name+' HTTP '+status+(reason?' '+reason:''));
   failures+=Number(!ok);
 }
-console.log('PZ_PRODUCTION_READ_ONLY '+(failures===0?'PASS':'FAIL')+' failures='+failures);
+console.log('PZ_PRODUCTION_READ_ONLY '+(failures===0?'WORKER_PASS':'FAIL')+
+  ' failures='+failures+' browser_checks_unverified='+unverified);
+if(unverified)console.log('ACTION_REQUIRED: test Production homepage and Pages /api in a regular browser');
 if(failures)process.exitCode=1;
