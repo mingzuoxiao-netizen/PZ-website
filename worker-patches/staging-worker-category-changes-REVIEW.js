@@ -3841,7 +3841,7 @@ function pzValidateTechnicalSpecs(input) {
   if (input === undefined) return { json:null, error:null }; // old clients preserve existing column
   if (!input || typeof input !== 'object' || Array.isArray(input))
     return {json:null,error:'specifications must be a JSON object'};
-  const forbidden=/^(?:price|cost|quote|margin|profit|fob|exw|msrp|retail_price|purchase_price|factory_price|currency)$/i;
+  const forbidden=/(?:^|_)(?:price|cost|quote|margin|profit|fob|exw|msrp|retail|purchase|currency)(?:_|$)/i;
   const allowed={
     top:['schema_version','series_id','color','dimensions_cm','net_weight_kg','selling_points_en','construction_en','materials','attributes','packaging','assembly','care_en','warnings_en','attachments','verification','provenance'],
     dimension:['length','width','height','thickness'],
