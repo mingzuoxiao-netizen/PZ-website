@@ -1,6 +1,8 @@
 name: Website 2.0 QA
 
 on:
+  push:
+    branches: [feature/pz-v2-two-stage-product-approvals]
   pull_request:
     branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac]
   workflow_dispatch:
