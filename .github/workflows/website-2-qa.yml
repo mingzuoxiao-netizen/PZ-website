@@ -100,6 +100,8 @@ jobs:
         run: node --check worker-patches/siteConfigD1Production.mjs && node --test worker-patches/siteConfigD1Production.test.mjs
       - name: Check D1 site config schema in SQLite
         run: python3 worker-patches/test_site_config_d1_migration.py
+      - name: Production Worker safe KV cutover and review guards
+        run: node --test worker-patches/productionWorkerCutoverSafety.test.mjs
       - name: Production Worker candidate syntax and auth-isolation
         run: |
           node --check worker-patches/production-worker-category-governance-REVIEW.js
