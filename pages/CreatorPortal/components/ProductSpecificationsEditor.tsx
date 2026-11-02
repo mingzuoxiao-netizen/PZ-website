@@ -124,6 +124,12 @@ const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,imag
             ] as const).map(([key,zh,en,unit])=><React.Fragment key={key}>
               {numeric(en,zh,box[key],x=>update({packaging:(specs.packaging||[]).map((c,j)=>j===i?{...c,[key]:x}:c)}),unit)}
             </React.Fragment>)}
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {([['packing_method','包装方式','Packing method'],['protection_notes','包装保护要点','Protection notes']] as const).map(([key,zh,en])=>
+              <label key={key}><span className={titleClass}>{T(en,zh)}</span>
+                <input className={inputClass} value={box[key]||''} onChange={e=>
+                  update({packaging:(specs.packaging||[]).map((c,j)=>j===i?{...c,[key]:e.target.value}:c)})}/></label>)}
           </div></div>)}
       </div>
       <div className="grid md:grid-cols-2 gap-3">
