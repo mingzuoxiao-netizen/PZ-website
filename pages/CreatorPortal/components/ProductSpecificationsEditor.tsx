@@ -2,7 +2,7 @@ import React from 'react';
 import type { ProductSpecifications } from '../../../utils/productSpecifications';
 import {attributesForCategory, readProductSpecifications} from '../../../utils/productSpecifications';
 
-type Props={value?:ProductSpecifications;onChange:(next:ProductSpecifications)=>void;category:string;lang:'zh'|'en'};
+type Props={value?:ProductSpecifications;onChange:(next:ProductSpecifications)=>void;category:string;images?:string[];lang:'zh'|'en'};
 const inputClass='w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm focus:border-stone-900 outline-none';
 const titleClass='block mb-1 text-xs font-semibold text-stone-700';
 const groupClass='rounded border border-stone-200 bg-stone-50 px-4 py-4 space-y-4';
@@ -11,7 +11,7 @@ const blankPackage=(carton_no:number)=>({carton_no,length_cm:undefined,width_cm:
 const numberInput=(v:number|undefined)=>v===undefined?'':String(v);
 const optionalNumber=(v:string):number|undefined=>v.trim()===''?undefined:Number(v);
 
-const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang})=>{
+const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,images=[],lang})=>{
   const specs=readProductSpecifications(value);
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const update=(patch:Partial<ProductSpecifications>)=>onChange({...specs,...patch,schema_version:1});
@@ -143,6 +143,26 @@ const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang
 
     <details className={groupClass}>
       {detailsHeader('06','Attachments & supporting evidence','附件与技术验证证据','文件名 ≠ 已上传')}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold">{T('Usage of uploaded product photos','已上传图片的用途分类')}</p>
+        {!images.length&&<p className="text-xs text-stone-500">{T('Upload images in the manager below first.','请先在下方图片管理器上传产品图片。')}</p>}
+        {images.map((url,i)=><div key={url+'-'+i} className="grid grid-cols-[64px_1fr] items-center gap-3 rounded border bg-white p-2">
+          <img src={url} alt="" className="h-14 w-14 rounded object-cover" />
+          <label className="block"><span className={titleClass}>{T('Photo role','图片用途')} {i+1}{i===0?' · '+T('Main image','主图'):''}</span>
+            <select className={inputClass} disabled={i===0} value={i===0?'main':(specs.media_roles?.[url]||'detail')}
+              onChange={e=>update({media_roles:{...specs.media_roles,[url]:e.target.value as 'lifestyle'|'detail'|'dimension'|'material'|'packaging'}})}>
+              <option value="main">{T('Main image','主图')}</option>
+              <option value="lifestyle">{T('Lifestyle','场景图')}</option>
+              <option value="detail">{T('Detail','细节图')}</option>
+              <option value="dimension">{T('Dimension diagram','尺寸图')}</option>
+              <option value="material">{T('Material closeup','材质特写')}</option>
+              <option value="packaging">{T('Packaging','包装图')}</option>
+            </select>
+          </label>
+        </div>)}
+        <p className="text-xs text-stone-500">{T('Image #1 remains the official main image. Reorder photos in the existing image manager.',
+          '第 1 张图仍是官方主图。需要更换主图，请在下方图片管理器调整顺序。')}</p>
+      </div>
       <p className="text-xs text-stone-500">{T('Register a filename first. The current image manager below still performs actual R2 image uploads; these records do not upload documents automatically.',
         '先登记文件名。下方原图片管理器仍负责 R2 图片上传；这里登记的文件不会自动上传。')}</p>
       <div className="space-y-2">
