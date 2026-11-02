@@ -44,7 +44,7 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
   const [notice,setNotice]=useState('');
   const [reason,setReason]=useState('');
   const refresh=useCallback(async()=>{
-    const result=await adminFetch<{items:Review[]}('/'+base+'/reviews');
+    const result=await adminFetch<{items:Review[]}>('/'+base+'/reviews');
     setReviews(result.items||[]);
   },[base]);
   useEffect(()=>{void refresh().catch(e=>setError(e?.message||'读取审核列表失败')).finally(()=>setLoading(false));},[refresh]);
