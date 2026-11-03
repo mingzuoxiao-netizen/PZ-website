@@ -230,7 +230,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               onUpdate={reorderImages} onDelete={removeImage}
               onUpload={uploadImage} onSetMain={setMainImage} onError={alert}/>
             {(formData.images||[]).length>0&&<div className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
-              <h5 className="mb-2 text-sm font-semibold">{T('Optional image labels','图片用途标记（选填）')}</h5>
+              <h5 className="mb-2 text-sm font-semibold">{T('Image labels','图片用途')}</h5>
               <p className="mb-4 text-xs text-stone-500">{T(
                 'The first image is always the main image; change its order above.',
                 '第 1 张图自动是主图；想换主图请在上方图片管理器调整顺序。')}</p>
