@@ -90,9 +90,10 @@ export function formatDimensionsForDisplay(specs:ProductSpecifications,category:
   if(!dimensions)return null;
   const fields=dimensionFieldsForCategory(category);
   const values=fields.map(f=>dimensions[f.key]);
-  if(values.every(v=>v===undefined||v===null))return null;
-  const parts=values.map(v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—');
-  return parts.join(' × ')+' cm';
+  // Do not render misleading partial sizes such as "180 × — × — cm".
+  // Keep the existing legacy size label until every required dimension is entered.
+  if(values.some(v=>typeof v!=='number'||!Number.isFinite(v)))return null;
+  return values.map(v=>String(v)).join(' × ')+' cm';
 }
 export function readProductSpecifications(value:unknown):ProductSpecifications{
   let result:unknown=value;
