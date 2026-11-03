@@ -33,6 +33,7 @@ jobs:
           node --check worker-patches/productSpecificationsCore.mjs
           node --test worker-patches/productSpecificationsCore.test.mjs
           python3 worker-patches/test_structured_product_migration.py
+          python3 worker-patches/test_product_editor_no_duplicates.py
           node --check worker-patches/staging-worker-category-changes-REVIEW.js
           node --check worker-patches/production-worker-category-governance-REVIEW.js
       - name: Verify Production 010 migration in memory (no remote D1)
