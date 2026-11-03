@@ -20,8 +20,8 @@ schema = read("utils/siteSchema.ts")
 
 assert factory.count("fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all'") == 1, "Batch category not inherited"
 assert factory.count("fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all'") == 1, "Single-product category not inherited"
-assert "category: categoryId" in form and "const categoryId = fixedCategoryId || formData.category" in form
-assert "{fixedCategoryId ? (" in form, "Single-product selector must become a read-only category"
+assert "category:categoryId" in form and "const categoryId=currentCategory" in form and "const currentCategory=fixedCategoryId||formData.category" in form
+assert "{fixedCategoryId" in form and "?<div className={field" in form, "Single-product selector must become a read-only category"
 assert "category: fixedCategoryId || selectedCategory" in batch, "Batch creation must enforce parent category"
 assert "{fixedCategoryId ? (" in batch, "Batch selector must become a read-only category"
 assert 'lang="zh"' in factory and 'lang="en"' not in factory, "Factory UI must use Chinese"
