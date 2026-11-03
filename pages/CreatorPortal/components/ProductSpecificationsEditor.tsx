@@ -10,13 +10,14 @@ type Props={
   onChange:(value:ProductSpecifications)=>void;
   category:string;
   lang:'zh'|'en';
+  mode?:'technical'|'factory';
 };
 const input='w-full min-w-0 rounded-sm border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-stone-900';
 const fieldLabel='mb-1.5 block text-xs font-semibold text-stone-700';
 const blankCarton=(carton_no:number)=>({carton_no});
 const parseNumber=(text:string):number|undefined=>text.trim()===''?undefined:Number(text);
 
-const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang})=>{
+const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang,mode='technical'})=>{
   const specs=readProductSpecifications(value);
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const update=(patch:Partial<ProductSpecifications>)=>onChange({...specs,...patch,schema_version:1});
@@ -36,6 +37,77 @@ const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang
       <span className="text-xs text-stone-500">{helper}</span>
     </div>;
 
+  return mode==='factory' ? <section className="space-y-4" aria-label={T('Factory delivery information','工厂交付资料')}>
+    <h3 className="text-base font-semibold text-stone-900">{T('04 · Factory delivery information','04 · 工厂交付资料（选填）')}</h3>
+    <details className="rounded border border-stone-200 bg-white p-5">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-stone-900">
+        <span>{T('Packing, assembly and care','包装、组装与保养')}</span>
+        <span className="text-xs font-normal text-stone-500">{T('Optional • Internal','选填 · 后台内部')}</span>
+      </summary>
+      <div className="mt-5 space-y-5">
+        <p className="text-xs text-stone-500">{T(
+          'Carton dimensions and weights are for logistics reference. They are different from the product dimensions above.',
+          '包装箱尺寸和毛重仅作物流资料，跟上方产品尺寸不同。无需重复填写产品净重。')}</p>
+        <div className="flex items-center justify-between gap-2">
+          <strong className="text-xs text-stone-800">{T('Cartons','包装箱')}</strong>
+          <button type="button" className="rounded border px-3 py-2 text-xs"
+            onClick={()=>update({packaging:[...(specs.packaging||[]),blankCarton((specs.packaging||[]).length+1)]})}>
+            + {T('Add carton','添加包装箱')}
+          </button>
+        </div>
+        {(specs.packaging||[]).map((carton,i)=>
+          <div key={i} className="space-y-3 rounded border border-stone-200 bg-stone-50 p-3">
+            <div className="flex justify-between gap-2">
+              <strong className="text-xs text-stone-700">{T('Carton','包装箱')} {i+1}</strong>
+              <button type="button" className="text-xs text-red-700"
+                onClick={()=>update({packaging:(specs.packaging||[]).filter((_,j)=>j!==i).map((c,j)=>({...c,carton_no:j+1}))})}>
+                {T('Remove','删除')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {([
+                ['length_cm','Carton length','箱长','cm'],
+                ['width_cm','Carton width','箱宽','cm'],
+                ['height_cm','Carton height','箱高','cm'],
+                ['gross_weight_kg','Gross weight','包装毛重','kg'],
+                ['units','Units / carton','每箱件数','pcs']
+              ] as const).map(([key,en,zh,unit])=>
+                <React.Fragment key={key}>
+                  {numeric(en,zh,carton[key],n=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,[key]:n}:x)}),unit)}
+                </React.Fragment>)}
+            </div>
+            <label className="block"><span className={fieldLabel}>{T('Packing method / protection','包装方式与保护要求')}</span>
+              <input className={input} value={carton.packing_method||''}
+                onChange={e=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,packing_method:e.target.value}:x)})}/>
+            </label>
+          </div>)}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block"><span className={fieldLabel}>{T('Assembly required','是否需要组装')}</span>
+            <select className={input} value={specs.assembly?.required===undefined?'':String(specs.assembly.required)}
+              onChange={e=>update({assembly:{...specs.assembly,required:e.target.value===''?undefined:e.target.value==='true'}})}>
+              <option value="">{T('Not provided','未填写')}</option>
+              <option value="true">{T('Yes','需要')}</option>
+              <option value="false">{T('No','不需要')}</option>
+            </select></label>
+          {numeric('Estimated assembly time','预计组装时间',specs.assembly?.minutes,
+            n=>update({assembly:{...specs.assembly,minutes:n}}),'min')}
+        </div>
+        <label className="block"><span className={fieldLabel}>{T('Care instructions (English)','保养说明（英文）')}</span>
+          <textarea className={input} rows={2} value={specs.care_en||''}
+            onChange={e=>update({care_en:e.target.value})}/>
+        </label>
+        <label className="block"><span className={fieldLabel}>{T('Important usage warnings','必要的使用警示')}</span>
+          <textarea className={input} rows={2} value={specs.warnings_en||''}
+            onChange={e=>update({warnings_en:e.target.value})}/>
+        </label>
+        <p className="rounded bg-stone-100 p-3 text-xs leading-5 text-stone-600">
+          {T('Certificates, lab reports and assembly PDFs require a real, permission-controlled document upload workflow. Until then, filenames are no longer requested and nothing is marked public or verified by this form.',
+            '检测报告、认证文件、安装 PDF 等资料需要真正的附件上传与审核功能。目前不再要求填写空文件名，也不能在此表单将文件标记为“已认证”或“公开”。')}
+        </p>
+      </div>
+    </details>
+
+  </section> : <>
   return <section className="space-y-5" aria-label={T('Product technical specification','产品技术规格')}>
     <div className="space-y-2">
       <h3 className="text-base font-semibold text-stone-900">{T('Product specifications','02 · 规格与结构')}</h3>
@@ -121,73 +193,8 @@ const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang
       </div>
     </details>
 
-    <details className="rounded border border-stone-200 bg-white p-5">
-      <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-stone-900">
-        <span>{T('Factory packing & assembly information','04 · 包装、安装与保养')}</span>
-        <span className="text-xs font-normal text-stone-500">{T('Optional • Internal','选填 · 后台内部')}</span>
-      </summary>
-      <div className="mt-5 space-y-5">
-        <p className="text-xs text-stone-500">{T(
-          'Carton dimensions and weights are for logistics reference. They are different from the product dimensions above.',
-          '包装箱尺寸和毛重仅作物流资料，跟上方产品尺寸不同。无需重复填写产品净重。')}</p>
-        <div className="flex items-center justify-between gap-2">
-          <strong className="text-xs text-stone-800">{T('Cartons','包装箱')}</strong>
-          <button type="button" className="rounded border px-3 py-2 text-xs"
-            onClick={()=>update({packaging:[...(specs.packaging||[]),blankCarton((specs.packaging||[]).length+1)]})}>
-            + {T('Add carton','添加包装箱')}
-          </button>
-        </div>
-        {(specs.packaging||[]).map((carton,i)=>
-          <div key={i} className="space-y-3 rounded border border-stone-200 bg-stone-50 p-3">
-            <div className="flex justify-between gap-2">
-              <strong className="text-xs text-stone-700">{T('Carton','包装箱')} {i+1}</strong>
-              <button type="button" className="text-xs text-red-700"
-                onClick={()=>update({packaging:(specs.packaging||[]).filter((_,j)=>j!==i).map((c,j)=>({...c,carton_no:j+1}))})}>
-                {T('Remove','删除')}
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {([
-                ['length_cm','Carton length','箱长','cm'],
-                ['width_cm','Carton width','箱宽','cm'],
-                ['height_cm','Carton height','箱高','cm'],
-                ['gross_weight_kg','Gross weight','包装毛重','kg'],
-                ['units','Units / carton','每箱件数','pcs']
-              ] as const).map(([key,en,zh,unit])=>
-                <React.Fragment key={key}>
-                  {numeric(en,zh,carton[key],n=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,[key]:n}:x)}),unit)}
-                </React.Fragment>)}
-            </div>
-            <label className="block"><span className={fieldLabel}>{T('Packing method / protection','包装方式与保护要求')}</span>
-              <input className={input} value={carton.packing_method||''}
-                onChange={e=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,packing_method:e.target.value}:x)})}/>
-            </label>
-          </div>)}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block"><span className={fieldLabel}>{T('Assembly required','是否需要组装')}</span>
-            <select className={input} value={specs.assembly?.required===undefined?'':String(specs.assembly.required)}
-              onChange={e=>update({assembly:{...specs.assembly,required:e.target.value===''?undefined:e.target.value==='true'}})}>
-              <option value="">{T('Not provided','未填写')}</option>
-              <option value="true">{T('Yes','需要')}</option>
-              <option value="false">{T('No','不需要')}</option>
-            </select></label>
-          {numeric('Estimated assembly time','预计组装时间',specs.assembly?.minutes,
-            n=>update({assembly:{...specs.assembly,minutes:n}}),'min')}
-        </div>
-        <label className="block"><span className={fieldLabel}>{T('Care instructions (English)','保养说明（英文）')}</span>
-          <textarea className={input} rows={2} value={specs.care_en||''}
-            onChange={e=>update({care_en:e.target.value})}/>
-        </label>
-        <label className="block"><span className={fieldLabel}>{T('Important usage warnings','必要的使用警示')}</span>
-          <textarea className={input} rows={2} value={specs.warnings_en||''}
-            onChange={e=>update({warnings_en:e.target.value})}/>
-        </label>
-        <p className="rounded bg-stone-100 p-3 text-xs leading-5 text-stone-600">
-          {T('Certificates, lab reports and assembly PDFs require a real, permission-controlled document upload workflow. Until then, filenames are no longer requested and nothing is marked public or verified by this form.',
-            '检测报告、认证文件、安装 PDF 等资料需要真正的附件上传与审核功能。目前不再要求填写空文件名，也不能在此表单将文件标记为“已认证”或“公开”。')}
-        </p>
-      </div>
-    </details>
-  </section>;
+  </section>
+  </>;
+
 };
 export default ProductSpecificationsEditor;
