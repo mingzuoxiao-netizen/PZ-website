@@ -62,6 +62,38 @@ export function attributesForCategory(label:string):AttributeDefinition[]{
   if(/bedroom|(^|[^a-z])bed([^a-z]|$)/.test(value))return bed;
   return [];
 }
+export type DimensionKey='length'|'width'|'height'|'thickness';
+export type DimensionField={key:DimensionKey;en:string;zh:string};
+export function isSurfacePanelCategory(category:string):boolean {
+  return /butcher|work.surface|countertop|panel|wood.top|cutting.board/i.test(category||'');
+}
+export function dimensionFieldsForCategory(category:string):DimensionField[] {
+  if(isSurfacePanelCategory(category))return [
+    {key:'length',en:'Length (cm)',zh:'长度 (cm)'},
+    {key:'width',en:'Width (cm)',zh:'宽度 (cm)'},
+    {key:'thickness',en:'Thickness (cm)',zh:'厚度 (cm)'}
+  ];
+  if(/chair|bench|stool|seating/i.test(category||''))return [
+    {key:'width',en:'Width (cm)',zh:'宽度 (cm)'},
+    {key:'length',en:'Depth (cm)',zh:'深度 (cm)'},
+    {key:'height',en:'Height (cm)',zh:'高度 (cm)'}
+  ];
+  return [
+    {key:'length',en:'Length (cm)',zh:'长度 (cm)'},
+    {key:'width',en:'Width (cm)',zh:'宽度 (cm)'},
+    {key:'height',en:'Height (cm)',zh:'高度 (cm)'}
+  ];
+}
+/** One dimension source: structured cm values. The old public size string is derived on save. */
+export function formatDimensionsForDisplay(specs:ProductSpecifications,category:string):string|null {
+  const dimensions=specs.dimensions_cm;
+  if(!dimensions)return null;
+  const fields=dimensionFieldsForCategory(category);
+  const values=fields.map(f=>dimensions[f.key]);
+  if(values.every(v=>v===undefined||v===null))return null;
+  const parts=values.map(v=>typeof v==='number'&&Number.isFinite(v)?String(v):'—');
+  return parts.join(' × ')+' cm';
+}
 export function readProductSpecifications(value:unknown):ProductSpecifications{
   let result:unknown=value;
   if(typeof result==='string'){try{result=JSON.parse(result);}catch{return {schema_version:1};}}
