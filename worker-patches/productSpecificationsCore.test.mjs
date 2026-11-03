@@ -13,7 +13,7 @@ test('accept valid template-based technical record and preserve legacy omission'
     attributes:{seating_capacity:'6',distance_between_legs:'145'},
     packaging:[{carton_no:1,length_cm:190,width_cm:99,height_cm:15,gross_weight_kg:49,units:1}],
     assembly:{required:true,minutes:30,instructions_file:'MARLOW_ASSEMBLY.pdf'},
-    verification:[{claim:'Weight capacity test',status:'verified',evidence_file:'lab-report.pdf'}],
+    verification:[{claim:'Weight capacity test',status:'unverified',evidence_file:'lab-report.pdf'}],
     provenance:{provider:'Factory coordinator',source_factory:'zhaoqing'},
     attachments:[{file_name:'dimension.pdf',type:'dimension',visibility:'internal'}],
     media_roles:{'https://cdn.peng-zhan.com/uploads/product1.jpg':'lifestyle'}
@@ -33,7 +33,9 @@ test('reject financial fields at every level and unknown data',()=>{
 });
 test('reject unsafe numeric, unsupported claims and oversize data',()=>{
   assert.match(pzValidateTechnicalSpecs({dimensions_cm:{length:-2}}).error,/nonnegative/);
-  assert.match(pzValidateTechnicalSpecs({verification:[{claim:'FSC',status:'verified'}]}).error,/evidence/);
+  assert.match(pzValidateTechnicalSpecs({verification:[{claim:'FSC',status:'verified'}]}).error,/unavailable/);
+  assert.match(pzValidateTechnicalSpecs({verification:[{claim:'FSC',status:'verified',evidence_file:'unreviewed.pdf'}]}).error,/unavailable/);
+  assert.match(pzValidateTechnicalSpecs({attachments:[{file_name:'certificate.pdf',type:'certificate',visibility:'public'}]}).error,/remain internal/);
   assert.match(pzValidateTechnicalSpecs({materials:Array.from({length:16},()=>({part:'x',material:'y'}))}).error,/at most/);
   assert.match(pzValidateTechnicalSpecs({description:'x'}).error,/Unsupported/);
   assert.match(pzValidateTechnicalSpecs({construction_en:'a'.repeat(4000)}).error,/3000/);
