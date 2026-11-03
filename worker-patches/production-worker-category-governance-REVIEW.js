@@ -3902,13 +3902,13 @@ function pzValidateTechnicalSpecs(input) {
       object(v,allowed.attachment,'attachments.'+i);
       word(v.file_name,'attachments.file_name',240);
       if(!['dimension','assembly','certificate','other'].includes(v.type))fail('Unknown attachment type');
-      if(!['public','internal'].includes(v.visibility))fail('Unknown attachment visibility');
+      if(v.visibility!=='internal')fail('Document visibility must remain internal until an authorized upload and approval workflow exists');
     });
     array(input.verification,'verification',15).forEach((v,i)=>{
       object(v,allowed.verification,'verification.'+i);
       word(v.claim,'verification.claim',500);word(v.evidence_file,'verification.evidence_file',240);
       if(!['unverified','verified','not_applicable'].includes(v.status))fail('Unknown verification status');
-      if(v.status==='verified'&&!v.evidence_file?.trim())fail('Verified claim requires evidence file');
+      if(v.status==='verified')fail('Verified claims are unavailable until evidence is uploaded and approved');
     });
     if(input.provenance!==undefined){
       const p=object(input.provenance,allowed.provenance,'provenance');
