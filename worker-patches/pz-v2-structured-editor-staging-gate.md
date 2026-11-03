@@ -5,11 +5,11 @@
 
 ## What changed
 - ProductForm retains existing SKU, category, bilingual descriptions, factory sites, image upload and save/submit controls.
-- New expandable sections collect: family/color, structured dimensions and net weight, three English highlights, parts/materials/process, category-specific attributes, multi-carton packaging, packing/protection, assembly, care, warnings, evidence-verified claims, source/provider/reviewer, registered attachments and photo roles.
-- Fields are optional except established core validations; numeric values must be non-negative; a claim cannot be marked verified without a supporting evidence filename.
+- Four sections: core information (SKU/category/series/name/primary material/finish/color/description), single-entry numeric dimensions and category-specific attributes, existing uploaded images with adjacent role tags, and optional internal packaging/assembly/care. Component materials are optional when parts differ.
+- Fields are optional except existing SKU/name/category checks. Numeric values must be non-negative. The public size display is derived from the structured cm dimensions; old free-text sizes are shown as legacy read-only values until replaced.
 - No pricing, costs, margins, quotes, FOB, EXW or finance keys allowed in the schema/API.
-- Image manager continues to perform actual R2 uploads. Registering an attachment filename does not upload a PDF. Images are grouped by existing URL and can be tagged, but the first image remains the main picture.
-- New info is only available in authenticated product lists and stored in V1/V2 immutable snapshots. The public D1 catalog is intentionally unchanged.
+- Image manager continues to perform actual R2 uploads. Image role tags appear alongside actual uploads; the first image remains the main picture. Filename-only attachment registration and the misleading 'suggest public' selector are removed from the UI.
+- Document/certificate PDF upload and approvals are not yet implemented, so the UI does not pretend to upload or verify evidence. Server rejects new 'public' attachment visibility and unaudited 'verified' claims. New data remains authenticated and is captured in V1/V2 immutable snapshots; public D1 catalog is unchanged.
 
 ## Staging deployment (one controlled cycle)
 1. In the correct Staging D1, apply the **complete** `worker-patches/migrations/011_structured_product_specifications_STAGING_REVIEW.sql` exactly once. This adds `products.specs_json TEXT NOT NULL DEFAULT '{}'`. Never apply it to Production in this cycle.
