@@ -1,224 +1,193 @@
 import React from 'react';
-import type { ProductSpecifications } from '../../../utils/productSpecifications';
-import {attributesForCategory, readProductSpecifications} from '../../../utils/productSpecifications';
+import type {ProductSpecifications} from '../../../utils/productSpecifications';
+import {
+  attributesForCategory, dimensionFieldsForCategory,
+  isSurfacePanelCategory, readProductSpecifications
+} from '../../../utils/productSpecifications';
 
-type Props={value?:ProductSpecifications;onChange:(next:ProductSpecifications)=>void;category:string;images?:string[];lang:'zh'|'en'};
-const inputClass='w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm focus:border-stone-900 outline-none';
-const titleClass='block mb-1 text-xs font-semibold text-stone-700';
-const groupClass='rounded border border-stone-200 bg-stone-50 px-4 py-4 space-y-4';
-const blankMaterial=()=>({part:'',material:'',construction:'',finish:''});
-const blankPackage=(carton_no:number)=>({carton_no,length_cm:undefined,width_cm:undefined,height_cm:undefined,gross_weight_kg:undefined,net_weight_kg:undefined,units:undefined});
-const numberInput=(v:number|undefined)=>v===undefined?'':String(v);
-const optionalNumber=(v:string):number|undefined=>v.trim()===''?undefined:Number(v);
+type Props={
+  value?:ProductSpecifications;
+  onChange:(value:ProductSpecifications)=>void;
+  category:string;
+  lang:'zh'|'en';
+};
+const input='w-full min-w-0 rounded-sm border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-stone-900';
+const fieldLabel='mb-1.5 block text-xs font-semibold text-stone-700';
+const blankCarton=(carton_no:number)=>({carton_no});
+const parseNumber=(text:string):number|undefined=>text.trim()===''?undefined:Number(text);
 
-const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,images=[],lang})=>{
+const ProductSpecificationsEditor:React.FC<Props>=({value,onChange,category,lang})=>{
   const specs=readProductSpecifications(value);
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const update=(patch:Partial<ProductSpecifications>)=>onChange({...specs,...patch,schema_version:1});
-  const textField=(key:'series_id'|'color'|'construction_en'|'care_en'|'warnings_en',en:string,zh:string,placeholder='',large=false)=>
-    <label className="block" key={key}><span className={titleClass}>{T(en,zh)}</span>
-      {large?<textarea className={inputClass} rows={3} value={specs[key]||''} placeholder={placeholder}
-        onChange={e=>update({[key]:e.target.value})}/>:
-      <input className={inputClass} value={specs[key]||''} placeholder={placeholder}
-        onChange={e=>update({[key]:e.target.value})}/>}</label>;
-  const numeric=(labelEn:string,labelZh:string,v:number|undefined,onValue:(v:number|undefined)=>void,unit='cm')=>
-    <label className="block"><span className={titleClass}>{T(labelEn,labelZh)} ({unit})</span>
-      <input className={inputClass} type="number" min="0" max="100000" step="any" value={numberInput(v)}
-        onChange={e=>onValue(optionalNumber(e.target.value))}/></label>;
-  const attributes=attributesForCategory(category);
-  const detailsHeader=(index:string,en:string,zh:string,subtitle:string)=>
-    <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-stone-900">
-      <span>{index} · {T(en,zh)}</span><span className="text-xs font-normal text-stone-500">{subtitle}</span>
-    </summary>;
+  const panel=isSurfacePanelCategory(category);
+  const attrList=attributesForCategory(category).filter(a=>
+    !a.needsEvidence&&
+    !['top_thickness','tabletop_thickness','wood_species','finish_type'].includes(a.key));
+  const numeric=(en:string,zh:string,v:number|undefined,onValue:(n:number|undefined)=>void,unit:string)=>
+    <label className="block min-w-0">
+      <span className={fieldLabel}>{T(en,zh)} ({unit})</span>
+      <input className={input} type="number" step="any" min="0" max="100000"
+        value={v??''} onChange={e=>onValue(parseNumber(e.target.value))}/>
+    </label>;
+  const sectionTitle=(number:string,en:string,zh:string,helper:string)=>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h4 className="text-sm font-bold text-stone-900">{number} · {T(en,zh)}</h4>
+      <span className="text-xs text-stone-500">{helper}</span>
+    </div>;
 
-  return <section className="space-y-5" aria-label={T('Structured technical information','结构化产品技术资料')}>
-    <div>
-      <h4 className="text-sm font-semibold tracking-wider text-stone-900">{T('Technical data, matching the PZ workbook','产品技术资料 · 对照统一 Excel 模板')}</h4>
-      <p className="mt-2 text-xs leading-6 text-stone-500">
-        {T('Only fill verified, applicable fields. Values are saved with the draft and captured in V1/V2 review history. They are not automatically published on the website.',
-        '只填适用且核实的数据；保存到草稿，提交审核时进入 V1/V2 历史。新增字段不会自动公开到网站。')}
-      </p>
+  return <section className="space-y-5" aria-label={T('Product technical specification','产品技术规格')}>
+    <div className="space-y-2">
+      <h3 className="text-base font-semibold text-stone-900">{T('Product specifications','02 · 规格与结构')}</h3>
+      <p className="text-xs leading-5 text-stone-500">{T(
+        'Enter dimensions once in cm. The public size text is generated when the draft is saved. Fill only attributes relevant to the selected category.',
+        '尺寸只填一次（cm），保存草稿时自动生成网站使用的尺寸文字；只需填写当前品类适用的参数。'
+      )}</p>
     </div>
 
-    <details open className={groupClass}>
-      {detailsHeader('03', 'Model, dimensions & key features', '型号、尺寸与产品卖点', 'cm / kg')}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {textField('series_id','Product family ID','产品系列 / 产品族 ID','PZ-MARLOW')}
-        {textField('color','Color / finish color','颜色 / 色号','Natural Oak')}
-        {(['length','width','height','thickness'] as const).map(key=>
-          <React.Fragment key={key}>{numeric(
-            ({length:'Length',width:'Width',height:'Height',thickness:'Thickness'})[key],
-            ({length:'产品长',width:'产品宽',height:'厚度',thickness:'台面厚度'})[key],
-            specs.dimensions_cm?.[key],x=>update({dimensions_cm:{...specs.dimensions_cm,[key]:x}})
-          )}</React.Fragment>)}
-        {numeric('Net product weight','产品净重',specs.net_weight_kg,
-          x=>update({net_weight_kg:x}),'kg')}
+    <div className="rounded border border-stone-200 bg-stone-50 p-5 space-y-5">
+      {sectionTitle('A','Product dimensions','产品尺寸','cm')}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {dimensionFieldsForCategory(category).map(f=>
+          <React.Fragment key={f.key}>
+            {numeric(f.en.replace(/ \(cm\)$/,''),f.zh.replace(/ \(cm\)$/,''),
+              specs.dimensions_cm?.[f.key],
+              n=>update({dimensions_cm:{...specs.dimensions_cm,[f.key]:n}}),'cm')}
+          </React.Fragment>)}
+        {!panel&&/table/i.test(category)&&
+          numeric('Top thickness','台面厚度',specs.dimensions_cm?.thickness,
+            n=>update({dimensions_cm:{...specs.dimensions_cm,thickness:n}}),'cm')}
+        {numeric('Product net weight','产品净重',specs.net_weight_kg,
+          n=>update({net_weight_kg:n}),'kg')}
       </div>
-      <p className="text-xs text-stone-500">{T('The original size field remains available for the existing website display; structured dimensions are the technical record.',
-        '现有「产品尺寸」文字栏仍用于网站展示；这里的长宽高用于结构化技术档案。')}</p>
-      <div className="grid gap-3">
-        {[0,1,2].map(i=><label key={i} className="block"><span className={titleClass}>{T('Product highlight','英文产品卖点')} {i+1}</span>
-          <input className={inputClass} value={specs.selling_points_en?.[i]||''}
-            onChange={e=>{const next=[...(specs.selling_points_en||['','',''])];next[i]=e.target.value;update({selling_points_en:next});}}
-            placeholder="e.g. Solid white oak frame with a durable water-based finish"/></label>)}
+      {panel&&<p className="text-xs text-stone-500">{T(
+        'Panels use length × width × thickness. Other furniture uses height or depth as appropriate.',
+        '面板类使用长 × 宽 × 厚；其他家具按品类使用高度或深度。')}</p>}
+      {attrList.length>0&&<>
+        <div className="border-t border-stone-200 pt-4">
+          {sectionTitle('B','Category-specific details','品类专属参数',T('Optional','选填'))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {attrList.map(attr=>
+            <label key={attr.key} className="block min-w-0">
+              <span className={fieldLabel}>{T(attr.labelEn,attr.labelZh)}{attr.unit?' ('+attr.unit+')':''}</span>
+              <input className={input}
+                value={specs.attributes?.[attr.key]||''}
+                onChange={e=>update({attributes:{...specs.attributes,[attr.key]:e.target.value}})}/>
+            </label>)}
+        </div>
+      </>}
+    </div>
+
+    <details className="rounded border border-stone-200 bg-white p-5">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-stone-900">
+        <span>{T('Additional construction details','补充材料与结构工艺')}</span>
+        <span className="text-xs font-normal text-stone-500">{T('Optional • Complex furniture only','选填 · 仅复杂结构产品')}</span>
+      </summary>
+      <div className="mt-5 space-y-4">
+        <p className="text-xs leading-5 text-stone-500">{T(
+          'Primary material and surface finish are already entered in Basic information. Only add different components here (e.g., tabletop vs. legs); do not repeat the same material.',
+          '主要材料、表面处理已在基本信息填写。仅当不同部件的材质不同（例如台面与桌腿）时再补充，不必重复填写。')}</p>
+        <label className="block">
+          <span className={fieldLabel}>{T('Construction details (English)','结构工艺说明（英文，选填）')}</span>
+          <textarea className={input} rows={3} value={specs.construction_en||''}
+            onChange={e=>update({construction_en:e.target.value})}
+            placeholder={T('e.g. Mortise-and-tenon frame','例如：榫卯框架结构')}/>
+        </label>
+        {(specs.materials||[]).map((m,i)=>
+          <div key={i} className="rounded border border-stone-200 bg-stone-50 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold">{T('Component','部件')} {i+1}</span>
+              <button type="button" className="text-xs text-red-700"
+                onClick={()=>update({materials:(specs.materials||[]).filter((_,j)=>j!==i)})}>{T('Remove','删除')}</button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ['part','Part','部件部位'],
+                ['material','Component material','部件材质'],
+                ['construction','Joinery / construction','连接工艺'],
+                ['finish','Component finish','部件涂装']
+              ] as const).map(([key,en,zh])=>
+                <label key={key}><span className={fieldLabel}>{T(en,zh)}</span>
+                  <input className={input} value={m[key]||''}
+                    onChange={e=>update({materials:(specs.materials||[]).map((x,j)=>j===i?{...x,[key]:e.target.value}:x)})}/>
+                </label>)}
+            </div>
+          </div>)}
+        <button type="button" className="rounded border border-stone-300 px-3 py-2 text-xs font-medium"
+          onClick={()=>update({materials:[...(specs.materials||[]),{part:'',material:'',construction:'',finish:''}]})}>
+          + {T('Add different component','添加不同材质的部件')}
+        </button>
       </div>
     </details>
 
-    <details open className={groupClass}>
-      {detailsHeader('04','Materials & category-specific details','部件材料、工艺与品类参数','按产品类型')}
-      {textField('construction_en','Construction / craftsmanship (English)','产品结构与制作工艺（英文）',
-        'e.g. Solid wood frame with mortise-and-tenon joints',true)}
-      <div className="space-y-3">
+    <details className="rounded border border-stone-200 bg-white p-5">
+      <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-bold text-stone-900">
+        <span>{T('Factory packing & assembly information','04 · 包装、安装与保养')}</span>
+        <span className="text-xs font-normal text-stone-500">{T('Optional • Internal','选填 · 后台内部')}</span>
+      </summary>
+      <div className="mt-5 space-y-5">
+        <p className="text-xs text-stone-500">{T(
+          'Carton dimensions and weights are for logistics reference. They are different from the product dimensions above.',
+          '包装箱尺寸和毛重仅作物流资料，跟上方产品尺寸不同。无需重复填写产品净重。')}</p>
         <div className="flex items-center justify-between gap-2">
-          <strong className="text-sm">{T('Component materials','部件材料明细')}</strong>
-          <button type="button" className="rounded border border-stone-300 px-3 py-1 text-xs"
-            onClick={()=>update({materials:[...(specs.materials||[]),blankMaterial()]})}>
-            + {T('Add component','添加部件')}
+          <strong className="text-xs text-stone-800">{T('Cartons','包装箱')}</strong>
+          <button type="button" className="rounded border px-3 py-2 text-xs"
+            onClick={()=>update({packaging:[...(specs.packaging||[]),blankCarton((specs.packaging||[]).length+1)]})}>
+            + {T('Add carton','添加包装箱')}
           </button>
         </div>
-        {(specs.materials||[]).map((m,i)=><div className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded border bg-white p-3" key={i}>
-          {([['part','部件位置 / Part'],['material','主要材质 / Material'],
-             ['construction','拼接 / 连接工艺 / Construction'],['finish','涂装 / Finish']] as const).map(([key,label])=>
-            <label key={key}><span className={titleClass}>{label}</span>
-              <input className={inputClass} value={m[key]||''}
-                onChange={e=>update({materials:(specs.materials||[]).map((row,j)=>j===i?{...row,[key]:e.target.value}:row)})}/></label>)}
-          <button type="button" className="text-left text-xs text-red-700" onClick={()=>update({materials:(specs.materials||[]).filter((_,j)=>j!==i)})}>
-            {T('Remove component','删除部件')}
-          </button>
-        </div>)}
+        {(specs.packaging||[]).map((carton,i)=>
+          <div key={i} className="space-y-3 rounded border border-stone-200 bg-stone-50 p-3">
+            <div className="flex justify-between gap-2">
+              <strong className="text-xs text-stone-700">{T('Carton','包装箱')} {i+1}</strong>
+              <button type="button" className="text-xs text-red-700"
+                onClick={()=>update({packaging:(specs.packaging||[]).filter((_,j)=>j!==i).map((c,j)=>({...c,carton_no:j+1}))})}>
+                {T('Remove','删除')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {([
+                ['length_cm','Carton length','箱长','cm'],
+                ['width_cm','Carton width','箱宽','cm'],
+                ['height_cm','Carton height','箱高','cm'],
+                ['gross_weight_kg','Gross weight','包装毛重','kg'],
+                ['units','Units / carton','每箱件数','pcs']
+              ] as const).map(([key,en,zh,unit])=>
+                <React.Fragment key={key}>
+                  {numeric(en,zh,carton[key],n=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,[key]:n}:x)}),unit)}
+                </React.Fragment>)}
+            </div>
+            <label className="block"><span className={fieldLabel}>{T('Packing method / protection','包装方式与保护要求')}</span>
+              <input className={input} value={carton.packing_method||''}
+                onChange={e=>update({packaging:(specs.packaging||[]).map((x,j)=>j===i?{...x,packing_method:e.target.value}:x)})}/>
+            </label>
+          </div>)}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block"><span className={fieldLabel}>{T('Assembly required','是否需要组装')}</span>
+            <select className={input} value={specs.assembly?.required===undefined?'':String(specs.assembly.required)}
+              onChange={e=>update({assembly:{...specs.assembly,required:e.target.value===''?undefined:e.target.value==='true'}})}>
+              <option value="">{T('Not provided','未填写')}</option>
+              <option value="true">{T('Yes','需要')}</option>
+              <option value="false">{T('No','不需要')}</option>
+            </select></label>
+          {numeric('Estimated assembly time','预计组装时间',specs.assembly?.minutes,
+            n=>update({assembly:{...specs.assembly,minutes:n}}),'min')}
+        </div>
+        <label className="block"><span className={fieldLabel}>{T('Care instructions (English)','保养说明（英文）')}</span>
+          <textarea className={input} rows={2} value={specs.care_en||''}
+            onChange={e=>update({care_en:e.target.value})}/>
+        </label>
+        <label className="block"><span className={fieldLabel}>{T('Important usage warnings','必要的使用警示')}</span>
+          <textarea className={input} rows={2} value={specs.warnings_en||''}
+            onChange={e=>update({warnings_en:e.target.value})}/>
+        </label>
+        <p className="rounded bg-stone-100 p-3 text-xs leading-5 text-stone-600">
+          {T('Certificates, lab reports and assembly PDFs require a real, permission-controlled document upload workflow. Until then, filenames are no longer requested and nothing is marked public or verified by this form.',
+            '检测报告、认证文件、安装 PDF 等资料需要真正的附件上传与审核功能。目前不再要求填写空文件名，也不能在此表单将文件标记为“已认证”或“公开”。')}
+        </p>
       </div>
-      <div className="space-y-3 border-t border-stone-200 pt-4">
-        <p className="text-sm font-semibold">{T('Relevant attributes for selected category','当前品类对应的技术参数')}</p>
-        {attributes.length===0?<p className="text-xs text-stone-500">
-          {T('No standard category fields for this product yet; component materials above can still be entered.',
-            '此分类暂未定义专属参数，可以先填写上面的材料结构。')}</p>:
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{attributes.map(attr=>
-            <label key={attr.key}><span className={titleClass}>
-              {T(attr.labelEn,attr.labelZh)}{attr.unit?' ('+attr.unit+')':''}
-              {attr.needsEvidence?' · '+T('Evidence required','需要检测证据'):''}
-            </span>
-              <input className={inputClass} value={specs.attributes?.[attr.key]||''}
-                onChange={e=>update({attributes:{...specs.attributes,[attr.key]:e.target.value}})}/></label>)}</div>}
-        <p className="text-xs text-amber-700">{T('Do not claim certified load limits or environmental ratings without a report.',
-          '承重、认证、环保等级等项目没有证据时不要填写已通过或已认证。')}</p>
-      </div>
-    </details>
-
-    <details className={groupClass}>
-      {detailsHeader('05','Packaging, assembly & care','包装、组装、保养与警示','内部 / 可选公开')}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2"><strong className="text-sm">{T('Cartons','包装箱数据')}</strong>
-          <button type="button" className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={()=>
-            update({packaging:[...(specs.packaging||[]),blankPackage((specs.packaging||[]).length+1)]})}>
-            + {T('Add carton','添加包装箱')}
-          </button></div>
-        {(specs.packaging||[]).map((box,i)=><div className="rounded border bg-white p-3 space-y-3" key={i}>
-          <div className="flex justify-between"><span className="text-xs font-semibold">{T('Carton','包装箱')} {box.carton_no||i+1}</span>
-            <button type="button" className="text-xs text-red-700" onClick={()=>
-              update({packaging:(specs.packaging||[]).filter((_,j)=>j!==i).map((c,j)=>({...c,carton_no:j+1}))})}>{T('Remove','删除')}</button></div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {([
-              ['length_cm','箱长','Length','cm'],['width_cm','箱宽','Width','cm'],
-              ['height_cm','箱高','Height','cm'],['gross_weight_kg','毛重','Gross','kg'],
-              ['net_weight_kg','箱净重','Net','kg'],['units','每箱件数','Units','件']
-            ] as const).map(([key,zh,en,unit])=><React.Fragment key={key}>
-              {numeric(en,zh,box[key],x=>update({packaging:(specs.packaging||[]).map((c,j)=>j===i?{...c,[key]:x}:c)}),unit)}
-            </React.Fragment>)}
-          </div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {([['packing_method','包装方式','Packing method'],['protection_notes','包装保护要点','Protection notes']] as const).map(([key,zh,en])=>
-              <label key={key}><span className={titleClass}>{T(en,zh)}</span>
-                <input className={inputClass} value={box[key]||''} onChange={e=>
-                  update({packaging:(specs.packaging||[]).map((c,j)=>j===i?{...c,[key]:e.target.value}:c)})}/></label>)}
-          </div></div>)}
-      </div>
-      <div className="grid md:grid-cols-2 gap-3">
-        <label><span className={titleClass}>{T('Assembly needed','是否需要组装')}</span>
-          <select className={inputClass} value={specs.assembly?.required===undefined?'':String(specs.assembly.required)}
-            onChange={e=>update({assembly:{...specs.assembly,required:e.target.value===''?undefined:e.target.value==='true'}})}>
-            <option value="">{T('Not supplied','未填写')}</option><option value="true">{T('Yes','需要')}</option><option value="false">{T('No','不需要')}</option></select></label>
-        {numeric('Assembly time','预计组装时间',specs.assembly?.minutes,
-          x=>update({assembly:{...specs.assembly,minutes:x}}),'min')}
-        <label className="md:col-span-2"><span className={titleClass}>{T('Instructions PDF file name','安装说明文件名 / PDF')}</span>
-          <input className={inputClass} value={specs.assembly?.instructions_file||''}
-            onChange={e=>update({assembly:{...specs.assembly,instructions_file:e.target.value}})}/></label>
-        {textField('care_en','Care instructions (English)','保养说明（英文）','Wipe with a soft damp cloth',true)}
-        {textField('warnings_en','Warnings / usage limits','安全警示 / 使用限制','',true)}
-      </div>
-    </details>
-
-    <details className={groupClass}>
-      {detailsHeader('06','Attachments & supporting evidence','附件与技术验证证据','文件名 ≠ 已上传')}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">{T('Usage of uploaded product photos','已上传图片的用途分类')}</p>
-        {!images.length&&<p className="text-xs text-stone-500">{T('Upload images in the manager below first.','请先在下方图片管理器上传产品图片。')}</p>}
-        {images.map((url,i)=><div key={url+'-'+i} className="grid grid-cols-[64px_1fr] items-center gap-3 rounded border bg-white p-2">
-          <img src={url} alt="" className="h-14 w-14 rounded object-cover" />
-          <label className="block"><span className={titleClass}>{T('Photo role','图片用途')} {i+1}{i===0?' · '+T('Main image','主图'):''}</span>
-            <select className={inputClass} disabled={i===0} value={i===0?'main':(specs.media_roles?.[url]||'detail')}
-              onChange={e=>update({media_roles:{...specs.media_roles,[url]:e.target.value as 'lifestyle'|'detail'|'dimension'|'material'|'packaging'}})}>
-              <option value="main">{T('Main image','主图')}</option>
-              <option value="lifestyle">{T('Lifestyle','场景图')}</option>
-              <option value="detail">{T('Detail','细节图')}</option>
-              <option value="dimension">{T('Dimension diagram','尺寸图')}</option>
-              <option value="material">{T('Material closeup','材质特写')}</option>
-              <option value="packaging">{T('Packaging','包装图')}</option>
-            </select>
-          </label>
-        </div>)}
-        <p className="text-xs text-stone-500">{T('Image #1 remains the official main image. Reorder photos in the existing image manager.',
-          '第 1 张图仍是官方主图。需要更换主图，请在下方图片管理器调整顺序。')}</p>
-      </div>
-      <p className="text-xs text-stone-500">{T('Register a filename first. The current image manager below still performs actual R2 image uploads; these records do not upload documents automatically.',
-        '先登记文件名。下方原图片管理器仍负责 R2 图片上传；这里登记的文件不会自动上传。')}</p>
-      <div className="space-y-2">
-        {(specs.attachments||[]).map((a,i)=><div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_130px_120px_auto] gap-2 items-end">
-          <label><span className={titleClass}>{T('File name','文件名')}</span><input className={inputClass} value={a.file_name}
-            onChange={e=>update({attachments:(specs.attachments||[]).map((x,j)=>j===i?{...x,file_name:e.target.value}:x)})}/></label>
-          <label><span className={titleClass}>{T('File type','用途')}</span>
-            <select className={inputClass} value={a.type} onChange={e=>update({attachments:(specs.attachments||[]).map((x,j)=>j===i?{...x,type:e.target.value as typeof x.type}:x)})}>
-              <option value="dimension">{T('Dimension','尺寸图')}</option><option value="assembly">{T('Assembly','安装文件')}</option>
-              <option value="certificate">{T('Certificate','证明文件')}</option><option value="other">{T('Other','其他')}</option></select></label>
-          <label><span className={titleClass}>{T('Visibility','可见范围')}</span>
-            <select className={inputClass} value={a.visibility} onChange={e=>update({attachments:(specs.attachments||[]).map((x,j)=>j===i?{...x,visibility:e.target.value as typeof x.visibility}:x)})}>
-              <option value="internal">{T('Internal','内部')}</option><option value="public">{T('Public candidate','建议公开')}</option></select></label>
-          <button type="button" className="p-2 text-xs text-red-700" onClick={()=>update({attachments:(specs.attachments||[]).filter((_,j)=>j!==i)})}>{T('Remove','删除')}</button>
-        </div>)}
-        <button type="button" className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={()=>update({attachments:[...(specs.attachments||[]),{file_name:'',type:'dimension',visibility:'internal'}]})}>
-          + {T('Add attachment','添加附件')}
-        </button>
-      </div>
-      <div className="space-y-3 border-t border-stone-200 pt-4">
-        <p className="text-sm font-semibold">{T('Verified technical claims','技术性能与认证核实')}</p>
-        {(specs.verification||[]).map((v,i)=><div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_140px_auto] gap-2 items-end">
-          <label><span className={titleClass}>{T('Claim','验证项目')}</span><input className={inputClass} value={v.claim}
-            onChange={e=>update({verification:(specs.verification||[]).map((x,j)=>j===i?{...x,claim:e.target.value}:x)})}/></label>
-          <label><span className={titleClass}>{T('Evidence file','证据文件名')}</span><input className={inputClass} value={v.evidence_file||''}
-            onChange={e=>update({verification:(specs.verification||[]).map((x,j)=>j===i?{...x,evidence_file:e.target.value}:x)})}/></label>
-          <label><span className={titleClass}>{T('Verification','核实状态')}</span>
-            <select className={inputClass} value={v.status} onChange={e=>update({verification:(specs.verification||[]).map((x,j)=>j===i?{...x,status:e.target.value as typeof x.status}:x)})}>
-              <option value="unverified">{T('Unverified','待核实')}</option><option value="verified">{T('Verified','有证据')}</option>
-              <option value="not_applicable">{T('N/A','不适用')}</option></select></label>
-          <button type="button" className="p-2 text-xs text-red-700" onClick={()=>update({verification:(specs.verification||[]).filter((_,j)=>j!==i)})}>{T('Remove','删除')}</button>
-        </div>)}
-        <button type="button" className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={()=>update({verification:[...(specs.verification||[]),{claim:'',status:'unverified'}]})}>
-          + {T('Add verification','添加验证项目')}
-        </button>
-      </div>
-    </details>
-
-    <details className={groupClass}>
-      {detailsHeader('07','Source & review ownership','资料来源与复核人','仅后台')}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {([['source_factory','来源工厂','Source factory'],['provider','资料提供人','Data provider'],['reviewer','工厂复核人','Factory reviewer']] as const).map(([key,zh,en])=>
-          <label key={key}><span className={titleClass}>{T(en,zh)}</span><input className={inputClass}
-            value={specs.provenance?.[key]||''}
-            onChange={e=>update({provenance:{...specs.provenance,[key]:e.target.value}})}/></label>)}
-      </div>
-      <p className="text-xs text-stone-500">{T('Uploader identity and approval actions are logged by the system. These optional source fields do not grant permissions.',
-        '上传账号及审批人由系统自动记录，以上仅用于填写原始资料来源，不代表账号权限。')}</p>
     </details>
   </section>;
 };
-
 export default ProductSpecificationsEditor;
