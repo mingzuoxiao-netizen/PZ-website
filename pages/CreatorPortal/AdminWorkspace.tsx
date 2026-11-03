@@ -166,27 +166,27 @@ const AdminWorkspace: React.FC = () => {
   };
 
   const handleSaveProduct = async (product: any) => {
-    try {
-      const nextStatus = product.status || 'draft';
-      const isPublished = nextStatus === 'published' ? 1 : 0;
-      
-      if (product.id) {
-        await adminFetch(`admin/products/${product.id}`, { 
-          method: 'PUT', 
-          body: JSON.stringify({ ...product, is_published: isPublished, autoPublish: isPublished === 1 }) 
-        });
-      } else {
-        await adminFetch('admin/products', { 
-          method: 'POST', 
-          body: JSON.stringify({ ...product, is_published: isPublished }) 
-        });
-      }
-      
-      setEditingProduct(null);
-      setIsCreating(false);
-      await loadProducts();
-      await loadReviewQueue(); 
-    } catch (e: any) { alert(e.message); }
+    // The two-stage review workflow forbids direct admin product writes.
+    // Admin may maintain an unpublished draft through the guarded factory
+    // draft endpoint, never rewrite approved/published or in-review records.
+    const status = String(product.status || 'draft').toLowerCase();
+    if (!['draft', 'rejected'].includes(status)) {
+      throw new Error('该产品已进入审核或发布流程，不能直接覆盖。请走产品变更审核流程。');
+    }
+    const url = product.id
+      ? `factory/products/${encodeURIComponent(product.id)}`
+      : 'factory/products';
+    const response = await adminFetch<{ success?: boolean }>(url, {
+      method: product.id ? 'PUT' : 'POST',
+      body: JSON.stringify({ ...product, status: 'draft', is_published: 0 })
+    });
+    if (response.success !== true) {
+      throw new Error('服务器未确认草稿保存，请刷新列表核对后再试。');
+    }
+    setEditingProduct(null);
+    setIsCreating(false);
+    await loadProducts();
+    await loadReviewQueue();
   };
 
   const handleDeleteProduct = async (id: string) => {
