@@ -27,7 +27,7 @@ assert "{fixedCategoryId ? (" in batch, "Batch selector must become a read-only 
 assert 'lang="zh"' in factory and 'lang="en"' not in factory, "Factory UI must use Chinese"
 assert 'lang="zh"' in admin, "Admin product form/list must use Chinese"
 assert "保存草稿" in form and "提交审核" in form
-assert "BIRCH-001" in form and 'placeholder="PZ-XXX-000"' not in form
+assert "DINING-001" in form and 'placeholder="PZ-XXX-000"' not in form
 assert "批量发布" in product_list and "批量删除" in product_list
 assert "lang=\"zh\"" in media and "lang=\"zh\"" in read("pages/CreatorPortal/components/FieldInput.tsx")
 assert "网站基础信息" in basics and "首页主标题" in basics and "产品目录 PDF" in basics
