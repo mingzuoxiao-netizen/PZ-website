@@ -256,6 +256,10 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>}
           </section>
 
+          <div className="border-t border-stone-200 pt-7">
+            <ProductSpecificationsEditor mode="factory"
+              category={categoryLabel} value={specs} onChange={changeSpecs} lang={lang}/>
+          </div>
           <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
             <button type="button" onClick={onCancel}
               className="flex items-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
