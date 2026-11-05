@@ -8,10 +8,13 @@ interface ProductDetailModalProps {
   product: ProductVariant;
   language: 'en' | 'zh';
   onClose: () => void;
+  /** Render public detail safely inside the editor, without modal side effects. */
+  displayMode?: 'modal' | 'inline';
 }
 
 /** Public product details use only the existing approved catalog data. */
-const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, language, onClose }) => {
+const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, language, onClose, displayMode = 'modal' }) => {
+  const inline = displayMode === 'inline';
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -20,6 +23,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
   const title = language === 'zh' ? (product.name_cn || product.name) : product.name;
 
   useEffect(() => {
+    if (inline) return; // Inline preview never locks scrolling, focus or keyboard.
     const priorFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -51,7 +55,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
       document.body.style.overflow = previousOverflow;
       priorFocus?.focus();
     };
-  }, []);
+  }, [inline]);
 
   const detailFields = [
     [L('Material', '材质'), product.material],
@@ -62,26 +66,30 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1b120e]/85 p-3 backdrop-blur-sm sm:p-6"
-      onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
+      className={inline
+        ? "w-full overflow-hidden border border-[#e6dcd2] bg-[#fdfbf8]"
+        : "fixed inset-0 z-[100] flex items-center justify-center bg-[#1b120e]/85 p-3 backdrop-blur-sm sm:p-6"}
+      onMouseDown={event => { if (!inline && event.currentTarget === event.target) onClose(); }}
     >
       <div
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+        role={inline ? 'region' : 'dialog'}
+        aria-modal={inline ? undefined : true}
         aria-labelledby="pz-product-detail-title"
-        className="relative grid w-full max-w-6xl max-h-[92vh] overflow-y-auto bg-[#fdfbf8] shadow-[0_30px_90px_rgba(0,0,0,.35)] lg:max-h-[88vh] lg:grid-cols-[56%_44%]"
+        className={inline
+          ? "relative grid w-full bg-[#fdfbf8]"
+          : "relative grid w-full max-w-6xl max-h-[92vh] overflow-y-auto bg-[#fdfbf8] shadow-[0_30px_90px_rgba(0,0,0,.35)] lg:max-h-[88vh] lg:grid-cols-[56%_44%]"}
       >
-        <div className="min-h-[320px] lg:min-h-[570px]">
+        <div className={inline ? "min-h-[300px]" : "min-h-[320px] lg:min-h-[570px]"}>
           <ProductGallery key={product.id || product.code || product.name}
-            images={product.images} name={title} language={language}/>
+            images={product.images || []} name={title || L('Product', '产品')} language={language}/>
         </div>
         <div className="relative flex flex-col px-6 py-10 sm:px-10 lg:px-12 lg:py-16">
-          <button type="button" ref={closeRef} onClick={onClose}
+          {!inline && <button type="button" ref={closeRef} onClick={onClose}
             aria-label={L('Close product details', '关闭产品详情')}
             className="absolute right-5 top-5 rounded-full border border-[#e6dcd2] bg-white p-2.5 text-[#594438] hover:bg-[#f3ebe3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#754831]">
             <X size={20} aria-hidden="true" />
-          </button>
+          </button>}
           <span className="mb-5 pr-10 font-mono text-[11px] uppercase tracking-[0.14em] text-[#8c644d]">
             {L('Product / SKU', '产品编号')} {product.code || '—'}
           </span>
@@ -114,10 +122,15 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
               </p>
             </div>
           )}
-          <Link to="/inquire" onClick={onClose}
-            className="mt-10 inline-flex items-center justify-center gap-3 bg-[#754831] px-6 py-4 text-[12px] font-semibold text-white hover:bg-[#573521] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#754831]">
-            {L('Request Product Details', '咨询此产品')} <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
+          {inline
+            ? <div className="mt-10 inline-flex items-center justify-center gap-3 bg-[#754831] px-6 py-4 text-[12px] font-semibold text-white"
+                aria-label={L('Request Product Details (preview only)', '咨询此产品（仅预览）')}>
+                {L('Request Product Details', '咨询此产品')} <ArrowUpRight size={16} aria-hidden="true" />
+              </div>
+            : <Link to="/inquire" onClick={onClose}
+                className="mt-10 inline-flex items-center justify-center gap-3 bg-[#754831] px-6 py-4 text-[12px] font-semibold text-white hover:bg-[#573521] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#754831]">
+                {L('Request Product Details', '咨询此产品')} <ArrowUpRight size={16} aria-hidden="true" />
+              </Link>}
           <p className="mt-3 text-center text-[11px] text-[#94847a]">
             {L('OEM / ODM and bulk manufacturing inquiries welcome', '欢迎 OEM / ODM 与批量采购咨询')}
           </p>
