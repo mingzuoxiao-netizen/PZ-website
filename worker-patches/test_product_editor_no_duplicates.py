@@ -36,7 +36,10 @@ assert "包装毛重" in spec and "使用警告 / 使用限制" in spec
 assert "附件上传" not in spec and "lab reports" not in spec
 assert 'role="tablist"' in preview and "mode==='factory'" in preview
 assert "specs.packaging" in preview and "specs.warnings_en" in preview
-assert "Image as ImageIcon" in preview
-assert "not the current public website" in preview
+# Public customer preview must use the exact website component, not a duplicated mock layout.
+assert 'ProductDetailModal' in preview and 'displayMode="inline"' in preview
+assert "not the current public website" not in preview
+assert "ProductDetailModal" in (root/'components/catalog/ProductDetailModal.tsx').read_text()
+assert 'specs.packaging' in preview and "mode==='factory'" in preview, "Packing remains internal only"
 
 print("PASS: editor is four-stage, no duplicate size/series/marketing inputs, no fake public documents, safe API")
