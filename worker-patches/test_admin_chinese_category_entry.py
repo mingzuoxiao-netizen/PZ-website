@@ -28,7 +28,13 @@ assert 'lang="zh"' in factory and 'lang="en"' not in factory, "Factory UI must u
 assert 'lang="zh"' in admin, "Admin product form/list must use Chinese"
 assert "保存草稿" in form and "提交审核" in form
 assert "DINING-001" in form and 'placeholder="PZ-XXX-000"' not in form
-assert "批量发布" in product_list and "批量删除" in product_list
+# The old direct admin batch publish/delete UI would bypass the two-stage review process.
+assert "批量发布" not in product_list and "批量删除" not in product_list
+assert "移至草稿" not in product_list
+assert "onBulkStatusChange" not in product_list and "onBulkDelete" not in product_list
+assert "onBulkStatusChange" not in admin and "onBulkDelete" not in admin
+assert "批量提交审核" in product_list, "Factory review bulk submit must remain available"
+assert "审核中心" in admin, "Publishing must remain available in the review center"
 assert "lang=\"zh\"" in media and "lang=\"zh\"" in read("pages/CreatorPortal/components/FieldInput.tsx")
 assert "网站基础信息" in basics and "首页主标题" in basics and "产品目录 PDF" in basics
 assert "网站图片管理" in media and "fields.map(field" in media
