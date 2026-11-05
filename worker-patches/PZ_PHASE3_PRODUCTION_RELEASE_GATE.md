@@ -33,6 +33,12 @@
 - Before the authorized SQL execution: capture the exact pre-migration UTC recovery point/bookmark (and its retention window), read-only baseline and active Worker version. Never press Restore as part of preparation.
 - No Production migration, Worker deployment or flag activation has occurred in this check.
 
+## Active Production Worker release baseline (2026-11-05)
+
+- Production Cloudflare Worker `pz-inquiry-api`: operator's Deployments screenshot identifies **active version prefix `e7e47e18`**, 100% traffic, manual deployment, Ready; screenshot error rate 0%. This is an observed deployment identifier, **not** proof of source-code parity.
+- A prior exported Production Worker snippet begins with `REVIEW CANDIDATE; NOT DEPLOYED` and lacks Phase 3. The GitHub Production Worker candidate includes Phase 3. Neither source can be assumed to equal the active `e7e47e18` until a verified active-version code export/diff is examined.
+- Record the full deployment/version identity and rollback reference, and compare the actual deployed source to the new candidate before any Worker cutover. **Do not replace Production Worker or enable the revision flag based on this screenshot alone.**
+
 ## Mandatory before an authorized Production deployment
 
 1. **Bind identity:** read the actual live Production Worker's D1 binding, verify database UUID exactly `b263701b-012b-4d3b-b24d-d250b4e582f9`, and verify separate Production R2/KV bindings.
