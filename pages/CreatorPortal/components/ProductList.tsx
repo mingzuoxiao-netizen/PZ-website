@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Search, PackageX, X, CheckSquare, Square, CheckCircle, Ban, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
+import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
@@ -9,9 +9,6 @@ interface ProductListProps {
   categories: Category[];
   categoryTitle?: string;
   onEdit: (item: ProductVariant) => void;
-  onDelete?: (id: string) => void;
-  onBulkStatusChange?: (ids: string[], newStatus: string) => void;
-  onBulkDelete?: (ids: string[]) => void;
   onRefresh?: () => void;
   onSubmit?: (id: string) => Promise<void>; 
   onCreate: () => void;
@@ -22,7 +19,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onDelete, onBulkStatusChange, onBulkDelete, onRefresh, onSubmit, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -80,10 +77,21 @@ const ProductList: React.FC<ProductListProps> = ({
 
       setIsBulkProcessing(true);
       try {
-          await Promise.all(selectedIds.map(id => onSubmit(id)));
-          setSelectedIds([]);
-          if (onRefresh) onRefresh();
-          alert(T("Bulk submission successful.","批量提交成功。"));
+          // Some submissions can succeed while others fail (e.g. a stale status).
+          // Keep failed IDs selected; never claim the entire batch succeeded.
+          const ids = [...selectedIds];
+          const results = await Promise.allSettled(ids.map(id => onSubmit(id)));
+          const failedIds = ids.filter((_, i) => results[i].status === 'rejected');
+          setSelectedIds(failedIds);
+          await onRefresh?.();
+          if (failedIds.length) {
+              alert(T(
+                  `${ids.length - failedIds.length} submitted, ${failedIds.length} failed. Failed items remain selected; refresh and inspect their status before retrying.`,
+                  `成功提交 ${ids.length - failedIds.length} 个，失败 ${failedIds.length} 个。失败的产品仍保持选中，请刷新核对状态后再决定是否重试。`
+              ));
+          } else {
+              alert(T("Bulk submission successful.","批量提交成功。"));
+          }
       } catch (e: any) {
           alert(T("Bulk processing error: ", "批量操作失败：") + e.message);
       } finally {
@@ -91,24 +99,13 @@ const ProductList: React.FC<ProductListProps> = ({
       }
   };
 
-  const handleBulkDeleteAction = async () => {
-    if (selectedIds.length === 0 || !onBulkDelete) return;
-    if (!confirm(T(`PERMANENTLY delete ${selectedIds.length} selected records? This action is IRREVERSIBLE.`,`确认永久删除 ${selectedIds.length} 个产品吗？此操作不可撤销。`))) return;
-
-    setIsBulkProcessing(true);
-    try {
-        await onBulkDelete(selectedIds);
-        setSelectedIds([]);
-        alert(T("Bulk deletion completed.","批量删除完成。"));
-    } catch (e: any) {
-        alert(T("Deletion failed: ", "删除失败：") + e.message);
-    } finally {
-        setIsBulkProcessing(false);
-    }
-  };
 
   return (
     <div className="animate-fade-in relative">
+       {isAdmin && <p role="note" className="mb-4 rounded border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">
+         {T('Product approvals and publishing must go through the Review Center. Approved and published products cannot be directly edited here.',
+           '产品审核与发布请在“审核中心”操作；已批准或已发布的产品不能在此直接修改。')}
+       </p>}
        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
              <div className="relative group max-w-sm w-full">
@@ -177,9 +174,10 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
-                        <button onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
+                        {isFactory && !!onSubmit && ['draft','rejected','returned_to_uploader'].includes(item.status||'') && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
+                            onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
                             {isSelected ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
-                        </button>
+                        </button>}
                         <div className="w-14 h-14 bg-stone-100 flex-shrink-0 border border-stone-200 overflow-hidden relative rounded-sm">
                             {imageUrl ? (
                                 <img src={imageUrl} loading="lazy" alt="" className="w-full h-full object-cover mix-blend-multiply" />
@@ -224,18 +222,10 @@ const ProductList: React.FC<ProductListProps> = ({
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                                {(!isFactory || ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
+                                {(isAdmin ? ['draft','rejected'].includes(item.status||'') : ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                     <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
                                 )}
-                                {isAdmin && onDelete && (
-                                    <button 
-                                        onClick={() => item.id && onDelete(item.id)} 
-                                        className="p-2 text-stone-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm"
-                                        title={T("Delete","删除")}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                )}
+
                             </div>
                         </div>
                     </div>
@@ -246,35 +236,18 @@ const ProductList: React.FC<ProductListProps> = ({
        </div>
 
        {/* Bulk Action Bar */}
-       {selectedIds.length > 0 && (
+       {isFactory && !!onSubmit && selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
                        <span className="text-xs font-mono font-bold text-safety-700 bg-safety-700/10 px-2 py-1 rounded">{selectedIds.length}</span>
                        <span className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">{T("Selected","已选择")}</span>
                    </div>
-                   {isFactory ? (
-                       <button onClick={handleBulkSubmit} disabled={isBulkProcessing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">
-                           {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />} {T("Transmit to Audit","批量提交审核")}
-                       </button>
-                   ) : (
-                       <div className="flex items-center gap-6">
-                           <button onClick={() => { onBulkStatusChange?.(selectedIds, 'published'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400 hover:text-green-300 transition-colors">
-                               <CheckCircle size={14} /> {T("Bulk Publish","批量发布")}
-                           </button>
-                           <button onClick={() => { onBulkStatusChange?.(selectedIds, 'draft'); setSelectedIds([]); }} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-white transition-colors">
-                               <Ban size={14} /> {T("Move to Draft","移至草稿")}
-                           </button>
-                           <div className="w-px h-4 bg-white/10 mx-2"></div>
-                           <button 
-                                onClick={handleBulkDeleteAction}
-                                disabled={isBulkProcessing}
-                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-colors"
-                           >
-                               {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <Trash2 size={14} />} {T("Bulk Delete","批量删除")}
-                           </button>
-                       </div>
-                   )}
+                   <button type="button" onClick={() => void handleBulkSubmit()} disabled={isBulkProcessing}
+                       className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-safety-700 hover:text-safety-600 transition-colors">
+                       {isBulkProcessing ? <Loader2 size={14} className="animate-spin"/> : <FileUp size={14} />}
+                       {T('Submit for review','批量提交审核')}
+                   </button>
                    <button onClick={() => setSelectedIds([])} className="text-white/40 hover:text-white ml-4"><X size={16} /></button>
                </div>
            </div>

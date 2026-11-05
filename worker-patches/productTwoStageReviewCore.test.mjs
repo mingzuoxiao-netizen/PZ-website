@@ -158,7 +158,7 @@ test('supervisor-directed correction may be edited only by original uploader',as
  assert.equal((await call('/factory/products/p1','worker','PUT',{name:'tamper'})).status,409);
  assert.equal((await call('/supervisor/reviews/'+rid+'/request-correction','lead','POST',{note:'Update product description'})).status,200);
  assert.equal((await call('/factory/products/p1','outsider','PUT',{name:'intruder'})).status,403);
- assert.equal((await call('/factory/products/p1','admin','PUT',{name:'administrator'})).status,403);
+ assert.equal((await call('/factory/products/p1','admin','PUT',{name:'administrator'})).status,409);
  assert.equal((await call('/factory/products/p1','worker','PUT',{name:'corrected'})).status,200);
  assert.equal(legacy.includes('/factory/products/p1'),true);
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).data.version,2);
@@ -183,4 +183,28 @@ test('flag off retains phase-one routing without altering database',async()=>{
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).status,200);
  assert.equal(legacy[0],'/factory/products/p1/submit');
  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_reviews").get().n,0);
+});
+
+
+test('admin can maintain unpublished drafts, but cannot bypass review or overwrite published records',async()=>{
+ const {sql,call,legacy}=setup();
+ // The admin drafts through the guarded factory endpoint, not the blocked admin write path.
+ assert.equal((await call('/factory/products','admin','POST',{name:'Admin draft',status:'draft'})).status,200);
+ assert.equal((await call('/factory/products/p1','admin','PUT',{name:'Admin draft edit'})).status,200);
+ assert.ok(legacy.includes('/factory/products/p1'));
+ assert.equal((await call('/admin/products/p1','admin','PUT',{status:'published'})).status,409);
+ assert.equal((await call('/factory/products/p1/submit','admin','POST')).status,403);
+
+ sql.prepare("UPDATE products SET status='rejected' WHERE id='p1'").run();
+ assert.equal((await call('/factory/products/p1','admin','PUT',{name:'Fix rejection'})).status,200);
+
+ for (const status of ['returned_to_uploader','pending_supervisor','pending_admin',
+   'approved_pending_publish','published']) {
+   sql.prepare("UPDATE products SET status=? WHERE id='p1'").run(status);
+   const response=await call('/factory/products/p1','admin','PUT',{name:'Disallowed overwrite'});
+   assert.equal(response.status,409,status);
+ }
+ // Ownership boundaries remain intact for factory staff.
+ sql.prepare("UPDATE products SET status='draft' WHERE id='p1'").run();
+ assert.equal((await call('/factory/products/p1','outsider','PUT',{name:'Cross-team attempt'})).status,403);
 });
