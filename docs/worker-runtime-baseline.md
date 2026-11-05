@@ -92,6 +92,13 @@
 - **Production migration 012 has NOT been executed**. PR #30 is a Draft SQL candidate.
 - Official D1 Time Travel is automatic for supported D1 databases; before a write, record a current bookmark or UTC timestamp and a read-only baseline, rather than triggering an unneeded restore. Never use **Restore** as a backup step because it overwrites live data.
 
+### Production D1 Time Travel access (operator confirmation: 2026-11-05)
+
+- Operator reports that the Production D1 Time Travel page is accessible and recovery history can be viewed.
+- This confirms **UI visibility only**; no specific restore bookmark/timestamp, retention limit, successful restore, or verified restore plan has been provided.
+- No restore was initiated. Before Migration 012, record the exact recovery timestamp or bookmark and active Production Worker deployment version, reconfirm database UUID and operator go/no-go.
+- Production schema 012 remains **not applied**.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
