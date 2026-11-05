@@ -174,7 +174,7 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
-                        {isFactory && !!onSubmit && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
+                        {isFactory && !!onSubmit && ['draft','rejected','returned_to_uploader'].includes(item.status||'') && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
                             onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
                             {isSelected ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
                         </button>}
