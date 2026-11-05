@@ -11,6 +11,9 @@ for which in ('staging-worker-category-changes-REVIEW.js',
     assert "validateSpecs:pzValidateTechnicalSpecs" in candidate
     assert 'imageBase:pzConfiguredImageBase' in candidate
     assert "PZ_PRODUCT_REVISIONS_ENABLED" in candidate
+    assert "Revision route restricted to its configured runtime" in candidate
+    expected="'staging'" if which.startswith('staging') else "'production'"
+    assert "expectedRuntime:"+expected in candidate
     assert "pz_published_product_revisions" in candidate
     assert "until a separately authorized publish" in candidate
     for critical in (
