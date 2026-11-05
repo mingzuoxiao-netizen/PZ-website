@@ -83,6 +83,15 @@
 - Documentation for the Production 012 gate was corrected in PR #30 to avoid repeating the unsupported check.
 - This observation made **no change** to Production data or Worker configuration.
 
+### Production D1 supported integrity checks (operator screenshot: 2026-11-05)
+
+- `PRAGMA quick_check;` returned a single `ok` value, indicating that D1's supported quick consistency check passed.
+- `PRAGMA foreign_key_check;` completed and showed no violation rows in the Console screenshot.
+- Earlier `PRAGMA integrity_check;` returned `SQLITE_AUTH` because D1 does not authorize that statement; it was replaced with the supported quick check.
+- These checks are evidence of current integrity, **not** proof that a schema migration is already applied or that the deployed Worker matches GitHub.
+- **Production migration 012 has NOT been executed**. PR #30 is a Draft SQL candidate.
+- Official D1 Time Travel is automatic for supported D1 databases; before a write, record a current bookmark or UTC timestamp and a read-only baseline, rather than triggering an unneeded restore. Never use **Restore** as a backup step because it overwrites live data.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
