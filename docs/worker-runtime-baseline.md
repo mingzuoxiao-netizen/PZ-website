@@ -99,6 +99,14 @@
 - No restore was initiated. Before Migration 012, record the exact recovery timestamp or bookmark and active Production Worker deployment version, reconfirm database UUID and operator go/no-go.
 - Production schema 012 remains **not applied**.
 
+### Production Worker active deployment (operator Deployments screenshot: 2026-11-05)
+
+- Worker: `pz-inquiry-api`. Cloudflare active deployment **version ID prefix `e7e47e18`**, marked **Manually deployed**, receiving **100%** of traffic, with deployment history showing **Ready**. Screenshot showed **0%** error rate, **2.65 ms** median CPU and a relative deployment age of approximately **14 hours** (all metrics are a screenshot-time observation, not ongoing guarantees).
+- This is a **short displayed version ID**, not the full Cloudflare deployment ID and not a Git commit SHA or a source checksum.
+- The active deployment **source code has not been compared line-by-line** with the uploaded Production export or the GitHub Production candidate. The uploaded export was explicitly labeled `REVIEW CANDIDATE; NOT DEPLOYED`; do not assume it represents `e7e47e18`.
+- Before deploying the Phase 3 Worker: inspect/download the active `e7e47e18` version source or verified version metadata, compare to the repo's Production candidate, record source checksum and any differences, and preserve the exact prior version as the rollback target.
+- No Production database or Worker mutation occurred in this check.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
