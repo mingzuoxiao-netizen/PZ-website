@@ -39,6 +39,15 @@
 - A prior exported Production Worker snippet begins with `REVIEW CANDIDATE; NOT DEPLOYED` and lacks Phase 3. The GitHub Production Worker candidate includes Phase 3. Neither source can be assumed to equal the active `e7e47e18` until a verified active-version code export/diff is examined.
 - Record the full deployment/version identity and rollback reference, and compare the actual deployed source to the new candidate before any Worker cutover. **Do not replace Production Worker or enable the revision flag based on this screenshot alone.**
 
+## Precise Production Worker source diff (2026-11-05 operator export)
+
+- Operator provided full Production Worker Edit-code export at 19:46, matching the 19:19 export exactly (SHA-256 `2a47829b726e03347b30d32231fd51600f527f745c41a77c1bb333a03754582f`, 228,497 bytes, 5,944 CRLF lines).
+- After newline normalization, Git blob `ca4572b1139e9ec350144b0b8e78ab1919b6bd82` matches `production-worker-category-governance-REVIEW.js` at historical repo commit `4267d98f9a04`. This identifies an **exact source-code baseline**.
+- GitHub compare `4267d98f9a04...main` shows **538 additions and 13 deletions** affecting that Worker; not a pure Phase 3 insertion. It also includes technical specifications persistence/validation and permission fixes, so do not splice only the revision middleware into the old Worker or assume `main` is identical.
+- Current `main` candidate blob is `be546392e96842d78a71d5988b484dbb6e761834` (~6470 lines). Its title still identifies a **review candidate**, not a deployed build.
+- Current active Worker version prefix from Cloudflare deployment screenshot: `e7e47e18`. Operator says export came from Edit code, but there is no verified Cloudflare deployment-source attestation tying this exact export to that version. Use active version metadata/rollback history before cutover.
+- No Production schema, Worker or feature flag was changed in this comparison. Before a Worker cutover first apply 012 under explicit authorization after recovery-point verification, deploy reviewed candidate with `PZ_PRODUCT_REVISIONS_ENABLED` OFF, then smoke test and enable only after acceptance.
+
 ## Mandatory before an authorized Production deployment
 
 1. **Bind identity:** read the actual live Production Worker's D1 binding, verify database UUID exactly `b263701b-012b-4d3b-b24d-d250b4e582f9`, and verify separate Production R2/KV bindings.
