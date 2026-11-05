@@ -46,10 +46,11 @@ test('factory can open a revision and edit only an isolated draft',async()=>{
   let view:ReactTestRenderer|undefined;
   try{
     await act(async()=>{view=create(<PublishedRevisionQueue role="FACTORY" onEdit={r=>edit.push(r)}/>);});
-    assert.ok(view!.root.findAllByType('button').some(x=>x.children.includes('Oak Table')||
-      JSON.stringify(x.children).includes('橡木餐桌')));
+    const labels=(node:any):string=>typeof node==='string'?node:
+      node?.children?node.children.map(labels).join(''):'';
+    assert.ok(view!.root.findAllByType('button').some(x=>labels(x).includes('橡木餐桌')));
     const choose=view!.root.findAllByType('button')
-      .find(x=>JSON.stringify(x.children).includes('橡木餐桌'))!;
+      .find(x=>labels(x).includes('橡木餐桌'))!;
     await act(async()=>{await choose.props.onClick();});
     assert.ok(view!.root.findAllByType('button').some(x=>x.children.includes('编辑草稿')));
     const editButton=view!.root.findAllByType('button').find(x=>x.children.includes('编辑草稿'))!;
