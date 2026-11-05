@@ -56,6 +56,15 @@
 - Next verification: **read-only** D1 Console queries to list relevant tables, inspect `products` columns, and check review/departments schema before designing a Production migration.
 - Dashboard D1 identification is screenshot-confirmed; active Worker binding is consistent by database name, but independently confirming its UUID in Worker Settings remains prudent.
 
+### Production D1 read-only table inventory (operator Console screenshots: 2026-11-05)
+
+- A read-only `sqlite_master` table-name query was executed on database `1` (UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`).
+- **17** entries are visible from the two screenshots, including the system tables `_cf_KV` and `sqlite_sequence`; this is consistent with the dashboard's **15 user tables**.
+- Table names observed: `_cf_KV`, `audit_logs`, `auth_tokens`, `category_change_requests`, `category_requests`, `inquiries`, `organizations`, `products`, `pz_departments`, `pz_product_review_events`, `pz_product_review_versions`, `pz_product_reviews`, `pz_staff_assignments`, `rate_limits`, `site_config_state`, `sqlite_sequence`, `users`.
+- Confirmed: department/assignment and original two-stage review tables exist. The three Phase 3 revision tables (`pz_published_product_revisions`, `pz_published_revision_versions`, `pz_published_revision_events`) are **absent** from the listing, so Production migration 012 has **not been confirmed as applied**.
+- Table names **do not verify** schema migration 011 or the `products.specs_json` column; next read-only check: `PRAGMA table_info(products);`, then assess other column/constraint compatibility.
+- No Production write, D1 migration, flag activation, or Worker deployment was done in this inventory check.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
