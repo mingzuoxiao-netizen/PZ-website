@@ -109,7 +109,7 @@ const ProductForm:React.FC<ProductFormProps>=({
     catch(error:any){alert(T('Submission failed: ','提交失败：')+(error?.message||''));}
     finally{setIsPromoting(false);}
   };
-  const canPromote=userRole==='FACTORY'&&!!formData.id&&
+  const canPromote=userRole==='FACTORY'&&!!onSubmit&&!!formData.id&&
     ['draft','rejected','returned_to_uploader'].includes(formData.status||'');
   const mediaRoles=specs.media_roles||{};
   const changeRole=(url:string,role:string)=>changeSpecs({
