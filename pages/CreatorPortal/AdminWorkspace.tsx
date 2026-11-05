@@ -154,7 +154,7 @@ const AdminWorkspace: React.FC = () => {
   };
 
   const handleDeployEverything = async () => {
-    if (!confirm('确认同步已审核的产品，并发布已经保存的网站配置吗？')) return;
+    if (!confirm('确认同时发布已审核的产品和已保存的网站配置吗？')) return;
     setIsSyncing(true);
     try {
       await adminFetch('admin/publish/products', { method: 'POST' });
@@ -189,16 +189,18 @@ const AdminWorkspace: React.FC = () => {
     await loadReviewQueue();
   };
 
+  // Frequently-used work is visible; less-used settings are grouped without
+  // removing any existing route, permissions, audit view or publish actions.
   const navItems = [
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
-    { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} /> },
-    { id: 'media', label: '网站图片管理', icon: <Images size={18} /> },
-    { id: 'basics', label: '网站基础信息', icon: <Settings size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
-    { id: 'accounts', label: '账号权限管理', icon: <Users size={18} /> },
-    { id: 'organization', label: '部门与主管管理', icon: <Users size={18} /> },
-    { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} /> },
+    { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
+    { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
+    { id: 'basics', label: '网站基础信息', icon: <Settings size={18} />, group: '网站内容' },
+    { id: 'organization', label: '部门与主管管理', icon: <Users size={18} />, group: '系统管理' },
+    { id: 'accounts', label: '账号权限管理', icon: <Users size={18} />, group: '系统管理' },
+    { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} />, group: '系统管理' },
   ];
 
   return (
@@ -211,7 +213,7 @@ const AdminWorkspace: React.FC = () => {
               <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] whitespace-nowrap">有尚未发布的更改</span>
             </div>
             <button onClick={handleDeployEverything} disabled={isSyncing} className="bg-white text-stone-900 px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 hover:text-white transition-all flex items-center gap-2">
-              {isSyncing ? <RefreshCw className="animate-spin" size={14} /> : <ArrowUpCircle size={14} />} 保存并发布
+              {isSyncing ? <RefreshCw className="animate-spin" size={14} /> : <ArrowUpCircle size={14} />} 发布待上线更改
             </button>
           </div>
         </div>
@@ -223,13 +225,13 @@ const AdminWorkspace: React.FC = () => {
             <div className="rounded border border-stone-200 bg-white p-5">
               <h2 className="font-serif text-2xl text-stone-900">审核中心</h2>
               <p className="mt-2 text-sm text-stone-500">
-                产品必须经过主管初审和管理员终审，终审批准后仍需独立发布。新品类及分类修改使用各自的审核流程。
+                在这里处理产品和分类申请。产品通过终审后仍需单独发布。
               </p>
               <div role="tablist" aria-label="审核类型" className="mt-5 grid gap-2 sm:grid-cols-3">
                 {([
-                  ['products', '产品终审与发布'],
-                  ['new-categories', '新品类申请审核'],
-                  ['category-changes', '已有分类修改审核'],
+                  ['products', '产品审核与发布'],
+                  ['new-categories', '新增分类申请'],
+                  ['category-changes', '分类修改申请'],
                 ] as const).map(([id, label]) => (
                   <button key={id} type="button" role="tab"
                     aria-selected={reviewSection === id}
