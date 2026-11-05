@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
+import {createHash,createHmac} from 'node:crypto';
 import {pzProductResponsibilityFetch} from './productResponsibilityCore.mjs';
 
 function setup(){
@@ -157,4 +158,46 @@ test('stale version and unknown request fields are rejected without mutation',as
   assert.equal((await call(base+'/legacy','admin','PUT',grant('worker',2))).status,409);
   assert.equal((await call(base+'/legacy','admin','PUT',{...grant('worker',0),created_by:'worker'})).status,400);
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM pz_product_responsibilities').get().n,0);
+});
+
+
+test('both assembled Workers expose only current custodian published SKUs to factory accounts',async()=>{
+  const secret='synthetic-test-secret-for-local-jwt-signing';
+  const passwordHash='synthetic-password-hash-for-test';
+  const phv=createHash('sha256').update(passwordHash).digest('hex').slice(0,32);
+  const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+  const jwt=(id)=>{
+    const now=Math.floor(Date.now()/1000);
+    const header=b64({alg:'HS256',typ:'JWT'});
+    const payload=b64({sub:id,username:id,role:'FACTORY',org_id:'org-main',phv,
+      iat:now,exp:now+3600});
+    return header+'.'+payload+'.'+createHmac('sha256',secret)
+      .update(header+'.'+payload).digest('base64url');
+  };
+  for(const [runtime,file] of [
+    ['staging','staging-worker-category-changes-REVIEW.js'],
+    ['production','production-worker-category-governance-REVIEW.js']
+  ]){
+    const {default:worker}=await import('./'+file);
+    const {sql,env,call}=setup();
+    sql.exec("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT '"+passwordHash+"';");
+    // A former creator loses delegated access without altering the original upload record.
+    sql.prepare("UPDATE products SET created_by='worker2' WHERE id='legacy'").run();
+    assert.equal((await call(base+'/legacy','admin','PUT',grant('worker',0))).status,200);
+    Object.assign(env,{JWT_SECRET:secret,PZ_RUNTIME_ENV:runtime,
+      PZ_IMAGE_BASE_URL:'https://cdn.peng-zhan.com'});
+    async function catalog(id){
+      const res=await worker.fetch(new Request('https://workers.example/factory/products?limit=50',{
+        method:'GET',headers:{Authorization:'Bearer '+jwt(id)}
+      }),env,{});
+      const data=await res.json();
+      assert.equal(res.status,200,JSON.stringify(data));
+      return (data.products||data.items||[]).map(p=>p.id);
+    }
+    assert.ok((await catalog('worker')).includes('legacy'),runtime+' new custodian');
+    assert.ok(!(await catalog('worker2')).includes('legacy'),runtime+' former uploader');
+    env.PZ_PRODUCT_RESPONSIBILITY_ENABLED='false';
+    assert.ok(!(await catalog('worker')).includes('legacy'),runtime+' flag off fallback');
+    assert.ok((await catalog('worker2')).includes('legacy'),runtime+' flag off original owner');
+  }
 });
