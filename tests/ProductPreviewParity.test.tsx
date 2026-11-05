@@ -31,7 +31,7 @@ test('customer preview uses the actual public detail renderer and never shows pr
     await act(async()=>{view=create(<LivePreview formData={draft} lang="zh"/>);});
     const preview=view!.root.findByType(ProductDetailModal);
     assert.equal(preview.props.displayMode,'inline');
-    assert.equal(preview.root.findAllByType(ProductGallery).length,1);
+    assert.equal(view!.root.findAllByType(ProductGallery).length,1);
     const rendered=JSON.stringify(view!.toJSON());
     assert.match(rendered,/白橡木餐桌/);
     assert.match(rendered,/客户可见描述/);
