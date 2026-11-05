@@ -45,7 +45,7 @@ function setup(){
     }
   };
   const env={
-    DB:db,PZ_PRODUCT_REVISIONS_ENABLED:'true',
+    DB:db,PZ_RUNTIME_ENV:'staging',PZ_PRODUCT_REVISIONS_ENABLED:'true',
     PZ_TWO_STAGE_REVIEW_ENABLED:'true',PZ_ORG_RBAC_ENABLED:'true',
     PRODUCT_IMAGES:{async head(key){return key==='uploads/new.webp'?{size:32}:null;}}
   };
@@ -67,7 +67,8 @@ function setup(){
   };
   const api=pzPublishedProductRevisionsFetch(originalFetch,{
     authorize,json:(payload,status=200)=>Response.json(payload,{status}),
-    validateSpecs:pzValidateTechnicalSpecs,imageBase:()=>'https://cdn.peng-zhan.com'
+    validateSpecs:pzValidateTechnicalSpecs,imageBase:()=>'https://cdn.peng-zhan.com',
+    expectedRuntime:'staging'
   });
   async function call(path,actor='worker',method='GET',body){
     const response=await api(new Request('https://staging.example'+path,{
@@ -218,4 +219,15 @@ test('catalog refresh failure is explicit and retry does not reapply a revision'
   assert.equal(retry.status,200);
   assert.equal(publish.calls,2);
   assert.equal(product().name,'Refresh retry');
+});
+
+
+test('revision API refuses the wrong runtime even with a valid account and enabled flag',async()=>{
+  const {call,env,product}=setup();
+  env.PZ_RUNTIME_ENV='production';
+  const denied=await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Cross-env'}});
+  assert.equal(denied.status,403);
+  assert.equal(product().name,'Old Table');
+  env.PZ_RUNTIME_ENV='staging';
+  assert.equal((await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Staging only'}})).status,201);
 });
