@@ -15,7 +15,6 @@ import {
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import CategoryGrid from './components/CategoryGrid';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
 import BatchCreator from './components/BatchCreator';
@@ -44,7 +43,6 @@ const FactoryWorkspace: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [siteVersion, setSiteVersion] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [newCategoryIds, setNewCategoryIds] = useState<string[]>([]);
 
   // Refs for state comparison
   const productsRef = useRef<ProductVariant[]>([]);
@@ -78,8 +76,7 @@ const FactoryWorkspace: React.FC = () => {
           const added = incomingCats.filter((c: any) => !currentIds.has(c.id));
           
           if (added.length > 0) {
-              setNewCategoryIds(prev => [...prev, ...added.map((c: any) => c.id)]);
-              added.forEach((c: any) => addNotification('category', `新增产品系列：${c.title}`));
+                  added.forEach((c: any) => addNotification('category', `新增产品系列：${c.title}`));
           }
           
           setCategories(publishedSiteCategories(incomingCats));
@@ -418,42 +415,50 @@ const FactoryWorkspace: React.FC = () => {
                 userRole="FACTORY" 
                 lang="zh" 
             />
-          ) : selectedCategoryId ? (
-            <div className="space-y-6">
-                <div className="flex justify-end gap-3">
-                    <button onClick={() => setIsBatchCreating(true)} className="bg-white border border-stone-200 text-stone-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:border-stone-900 transition-colors shadow-sm flex items-center gap-2"><Layers size={16} /> 批量录入</button>
-                    <button onClick={() => setIsCreating(true)} className="bg-stone-900 text-white px-6 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors shadow-lg flex items-center gap-2"><ClipboardList size={16} /> 新建产品</button>
-                </div>
-                <ProductList 
-                    lang="zh" 
-                    items={selectedCategoryId === 'all' ? products : products.filter(item => {
-                        const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
-                        return selectedCategory ? categoryMatches(item.category, selectedCategory) : false;
-                    })} 
-                    categories={categories} 
-                    onEdit={setEditingItem} 
-                    onCreate={() => setIsCreating(true)} 
-                    onRefresh={() => loadData(true)} 
-                    onBack={handleBack}
-                    onSubmit={handleSubmitForReview}
-                    onStartRevision={revisionEnabled?beginRevision:undefined}
-                    userRole="FACTORY"
-                />
-            </div>
           ) : (
-            <div className="space-y-8">
-                <div className="bg-stone-900 rounded-sm p-12 text-white relative overflow-hidden mb-8 shadow-2xl">
-                    <div className="relative z-10"><h2 className="text-3xl font-serif mb-4">欢迎，{userName}</h2><p className="text-stone-400 text-sm max-w-lg leading-relaxed font-light">在此管理产品系列、录入新产品并查看审核状态。</p></div>
-                    <LayoutGrid className="absolute right-[-20px] bottom-[-20px] text-white opacity-5 w-72 h-72 rotate-12" />
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-end justify-between gap-3 rounded border border-stone-200 bg-white p-4">
+                <label className="min-w-[190px] flex-1 text-xs font-semibold text-stone-700">
+                  产品分类
+                  <select aria-label="筛选产品分类" value={selectedCategoryId || 'all'}
+                    onChange={e=>setSelectedCategoryId(e.target.value==='all'?null:e.target.value)}
+                    className="mt-2 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900">
+                    <option value="all">全部分类 · 我的产品</option>
+                    {categories.map(c=><option value={c.id} key={c.id}>
+                      {c.title_cn || c.title_zh || c.title}
+                    </option>)}
+                  </select>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={()=>setIsRequestingCategory(true)}
+                    className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                    申请新品类
+                  </button>
+                  <button type="button" onClick={()=>setIsBatchCreating(true)}
+                    className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                    批量录入
+                  </button>
+                  <button type="button" onClick={()=>setIsCreating(true)}
+                    className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800">
+                    + 新建产品
+                  </button>
                 </div>
-                <CategoryGrid 
-                    categories={categories} 
-                    products={products} 
-                    onSelectCategory={setSelectedCategoryId} 
-                    onSelectAll={() => setSelectedCategoryId('all')} 
-                    onCreateCategory={() => setIsRequestingCategory(true)}
-                    newCategoryIds={newCategoryIds}
-                />
+              </div>
+              <ProductList
+                lang="zh"
+                items={!selectedCategoryId || selectedCategoryId==='all' ? products : products.filter(item => {
+                  const selectedCategory=categories.find(cat=>cat.id===selectedCategoryId);
+                  return selectedCategory ? categoryMatches(item.category,selectedCategory) : false;
+                })}
+                categories={categories}
+                onEdit={setEditingItem}
+                onCreate={()=>setIsCreating(true)}
+                onRefresh={()=>loadData(true)}
+                onBack={handleBack}
+                onSubmit={handleSubmitForReview}
+                onStartRevision={revisionEnabled?beginRevision:undefined}
+                userRole="FACTORY"
+              />
             </div>
           )}
           {!revisionEditing&&!editingItem&&!isCreating&&!isBatchCreating&&
