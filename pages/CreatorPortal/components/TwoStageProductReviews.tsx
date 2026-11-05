@@ -44,13 +44,15 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [reason,setReason]=useState('');
+  const [showAllFields,setShowAllFields]=useState(false);
+  const [returnAction,setReturnAction]=useState<'return'|'request-correction'|null>(null);
   const refresh=useCallback(async()=>{
     const result=await adminFetch<{items:Review[]}>('/'+base+'/reviews');
     setReviews(result.items||[]);
   },[base]);
   useEffect(()=>{void refresh().catch(e=>setError(e?.message||'读取审核列表失败')).finally(()=>setLoading(false));},[refresh]);
   const inspect=async(id:string)=>{
-    setBusy(true);setError('');setReason('');
+    setBusy(true);setError('');setReason('');setShowAllFields(false);setReturnAction(null);
     try{setSelected(await adminFetch<ReviewDetail>('/'+base+'/reviews/'+encodeURIComponent(id)));}
     catch(e:any){setError(e?.message||'无法读取审核详情');}
     finally{setBusy(false);}
@@ -68,7 +70,7 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
       });
       if(!result.success)throw Error('审核状态未确认');
       setNotice(name==='publish'?'产品已发布':name==='approve'?'审核已通过':'已退回并记录原因');
-      setReason('');
+      setReason('');setReturnAction(null);
       const [detail]=await Promise.all([
         adminFetch<ReviewDetail>('/'+base+'/reviews/'+encodeURIComponent(selected.id)),
         refresh()
@@ -83,52 +85,94 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
   const canReturn=canApprove;
   const canCorrection=role==='SUPERVISOR'&&selected?.status==='returned_to_supervisor';
   const canPublish=role==='ADMIN'&&selected?.status==='approved_pending_publish';
+  const changedFields=fields.filter(([key])=>JSON.stringify(original[key])!==JSON.stringify(latest[key]));
+  const visibleFields=showAllFields?fields:changedFields;
+  const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
+  const renderValue=(key:string,value:unknown):React.ReactNode=>{
+    if(key==='images'&&Array.isArray(value)){
+      const images=value.filter((url):url is string=>typeof url==='string'&&!!url);
+      return <div className="space-y-2">
+        <span className="text-xs text-stone-600">{images.length} 张图片</span>
+        {images.length>0&&<div className="flex flex-wrap gap-2">
+          {images.map((url,i)=><a key={i} href={url} target="_blank" rel="noopener noreferrer"
+            aria-label={'查看图片 '+(i+1)} title="查看原图"
+            className="block h-14 w-14 shrink-0 overflow-hidden rounded border border-stone-200 bg-stone-100">
+            <img src={url} alt={'图片 '+(i+1)} loading="lazy" className="h-full w-full object-cover"/>
+          </a>)}
+        </div>}
+      </div>;
+    }
+    return <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{present(value)}</span>;
+  };
 
-  return <div className="space-y-5 p-4 md:p-8">
-    <div>
-      <h2 className="font-serif text-2xl text-stone-900">{role==='ADMIN'?'产品终审与发布':'产品初审队列'}</h2>
-      <p className="mt-2 text-sm text-stone-500">
-        {role==='ADMIN'?'核对原始提交与最新版本；终审退回会返回直属主管，不会直接返回员工。':
-          '仅可审核本部门提交的产品；管理员退回后由主管安排员工修改。'}
-      </p>
+  return <div className="space-y-4 p-3 sm:p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="font-serif text-xl text-stone-900">{role==='ADMIN'?'产品终审与发布':'产品初审队列'}</h2>
+        <p className="mt-1 text-xs leading-5 text-stone-500">
+          {role==='ADMIN'?'核对变更后决定批准或退回；批准后仍须单独发布。':'核对本部门产品变更，批准或退回给上传员工。'}
+        </p>
+      </div>
+      <button type="button" onClick={()=>void refresh().catch(e=>setError(e?.message||'刷新失败'))}
+        className="rounded border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-white">刷新列表</button>
     </div>
-    {error&&<div role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {notice&&<div role="status" className="border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
-    <button type="button" onClick={()=>void refresh().catch(e=>setError(e?.message||'刷新失败'))}
-      className="border px-4 py-2 text-sm hover:bg-stone-50">刷新审核列表</button>
-    <div className="grid gap-4 lg:grid-cols-[minmax(270px,1fr)_minmax(0,2fr)]">
-      <section className="space-y-2 rounded border bg-white p-3">
+    {error&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+    {notice&&<div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
+    <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">
+      <section className="space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto" aria-label="审核申请列表">
         <h3 className="px-2 py-2 text-sm font-semibold">产品申请（{reviews.length}）</h3>
         {loading&&<p className="p-3 text-sm text-stone-500">加载中…</p>}
         {!loading&&!reviews.length&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
         {reviews.map(item=><button key={item.id} type="button" onClick={()=>void inspect(item.id)}
           aria-current={selected?.id===item.id?'true':undefined}
-          className={'w-full border p-3 text-left hover:bg-stone-50 '+(selected?.id===item.id?'border-stone-900':'border-stone-100')}>
+          className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id?'border-stone-900 bg-stone-50':'border-stone-100')}>
           <div className="flex justify-between gap-2"><strong className="text-sm">{item.name_cn||item.name}</strong>
             <span className="text-[11px] text-stone-500">V{item.latest_version}</span></div>
           <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'}</p>
           <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
         </button>)}
       </section>
-      <section className="space-y-4 rounded border bg-white p-5">
-        {!selected?<p className="py-16 text-center text-sm text-stone-500">点击左侧产品，查看初始资料、修改版本与审核记录。</p>:<>
-          <div className="flex flex-wrap justify-between gap-3">
-            <div><h3 className="font-serif text-xl">{selected.name_cn||selected.name}</h3>
-              <p className="text-xs text-stone-500">{selected.code} · {statusLabels[selected.status]||selected.status}</p>
+      <section className="min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5" aria-label="审核详情">
+        {!selected?<p className="py-12 text-center text-sm text-stone-500">选择一条审核申请，先查看变更，再进行操作。</p>:<>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0"><h3 className="font-serif text-lg font-semibold">{selected.name_cn||selected.name}</h3>
+              <p className="mt-1 text-xs text-stone-500">{selected.code} · {statusLabels[selected.status]||selected.status}</p>
             </div>
-            <span className="text-sm text-stone-500">最初 V1 / 当前 V{selected.latest_version}</span>
+            <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">V1 → V{selected.latest_version}</span>
           </div>
-          {selected.return_reason&&<p className="border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
-          <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs">
-            <thead><tr className="border-b"><th className="p-2">项目</th><th className="p-2">最初提交 V1</th><th className="p-2">最新提交 V{selected.latest_version}</th></tr></thead>
-            <tbody>{fields.map(([field,label])=>{
-              const before=present(original[field]),after=present(latest[field]);
-              return <tr key={field} className={'border-b align-top '+(before!==after?'bg-amber-50':'')}>
-                <th className="w-28 p-2 font-medium">{label}</th><td className="max-w-[250px] break-words p-2">{before}</td>
-                <td className="max-w-[250px] break-words p-2">{after}</td>
-              </tr>;
-            })}</tbody>
-          </table></div>
+          {selected.return_reason&&<p className="rounded border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-stone-900">
+              {showAllFields?'全部公开字段':'本次变更'} · {changedFields.length} 项变化
+              {technicalChanged?' · 技术资料有更新':''}
+            </h4>
+            <button type="button" aria-pressed={showAllFields}
+              onClick={()=>setShowAllFields(value=>!value)}
+              className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-50">
+              {showAllFields?'只看变更':'查看全部字段'}
+            </button>
+          </div>
+          {visibleFields.length===0?<p className="rounded bg-stone-50 p-4 text-sm text-stone-600">
+            公开字段没有变化。{technicalChanged?'请展开下方技术资料核对内部信息。':'请核对版本记录后再决定审核。'}
+          </p>:<div className="space-y-3" aria-label="初始与提交版本字段比较">
+            {visibleFields.map(([field,label])=>{
+              const changed=JSON.stringify(original[field])!==JSON.stringify(latest[field]);
+              return <article key={field} className={'rounded border p-3 sm:p-4 '+
+                (changed?'border-amber-200 bg-amber-50/30':'border-stone-200 bg-stone-50')}>
+                <h5 className="mb-2 text-xs font-semibold text-stone-800">{label}{changed?' · 已修改':''}</h5>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="mb-1 text-[11px] font-semibold text-stone-500">初始版本 V1</p>
+                    <div className="text-xs leading-5 text-stone-700">{renderValue(field,original[field])}</div>
+                  </div>
+                  <div className="min-w-0 sm:border-l sm:border-stone-200 sm:pl-3">
+                    <p className="mb-1 text-[11px] font-semibold text-stone-500">本次提交 V{selected.latest_version}</p>
+                    <div className="text-xs leading-5 text-stone-900">{renderValue(field,latest[field])}</div>
+                  </div>
+                </div>
+              </article>;
+            })}
+          </div>}
           <details className="rounded border border-stone-200 p-3">
             <summary className="cursor-pointer text-sm font-semibold">技术资料与包装附件 · V1 / V{selected.latest_version}</summary>
             <p className="my-2 text-xs text-stone-500">以下为审核时的内部技术数据快照，不代表已公开或上传附件文件。</p>
@@ -154,23 +198,47 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
               {ev.note&&<p className="mt-1 text-stone-700">原因：{ev.note}</p>}
             </li>)}</ol>
           </details>
-          {(canReturn||canCorrection)&&<label className="block space-y-1 text-sm">
-            <span>退回 / 修改说明（必填，不少于 5 字）</span>
-            <textarea value={reason} onChange={e=>setReason(e.target.value)}
-              className="w-full border p-3 text-sm" rows={3} maxLength={2000} placeholder="写明需要修改的字段、问题和要求…" />
-          </label>}
-          <div className="flex flex-wrap gap-2">
-            {canApprove&&<button disabled={busy} onClick={()=>void action('approve')} className="bg-stone-900 px-5 py-2 text-sm text-white disabled:opacity-50">
-              {role==='ADMIN'?'终审批准（待发布）':'初审通过'}
-            </button>}
-            {canReturn&&<button disabled={busy||reason.trim().length<5} onClick={()=>void action('return')} className="border border-red-300 px-5 py-2 text-sm text-red-700 disabled:opacity-50">
-              {role==='ADMIN'?'退回主管':'退回员工'}
-            </button>}
-            {canCorrection&&<button disabled={busy||reason.trim().length<5} onClick={()=>void action('request-correction')} className="border border-amber-400 px-5 py-2 text-sm text-amber-800 disabled:opacity-50">
-              安排员工修改
-            </button>}
-            {canPublish&&<button disabled={busy} onClick={()=>void action('publish')} className="bg-green-800 px-5 py-2 text-sm text-white disabled:opacity-50">确认正式发布</button>}
-          </div>
+          {(canApprove||canCorrection||canPublish)&&<div className="rounded border border-stone-200 bg-stone-50 p-3 sm:p-4" aria-label="当前审核操作">
+            <div className="flex flex-wrap items-center gap-2">
+              {canApprove&&<button type="button" disabled={busy} onClick={()=>void action('approve')}
+                className="w-full rounded bg-stone-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
+                {role==='ADMIN'?'终审批准（待发布）':'初审通过'}
+              </button>}
+              {canPublish&&<button type="button" disabled={busy} onClick={()=>void action('publish')}
+                className="w-full rounded bg-green-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
+                确认正式发布
+              </button>}
+              {canReturn&&<button type="button" disabled={busy} aria-expanded={returnAction==='return'}
+                onClick={()=>{setReturnAction(current=>current==='return'?null:'return');setReason('');}}
+                className="w-full rounded border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-800 sm:w-auto">
+                {role==='ADMIN'?'退回主管':'退回员工'}
+              </button>}
+              {canCorrection&&<button type="button" disabled={busy} aria-expanded={returnAction==='request-correction'}
+                onClick={()=>{setReturnAction(current=>current==='request-correction'?null:'request-correction');setReason('');}}
+                className="w-full rounded border border-amber-400 bg-white px-4 py-3 text-sm font-medium text-amber-900 sm:w-auto">
+                安排员工修改
+              </button>}
+            </div>
+            {canPublish&&<p className="mt-2 text-xs text-stone-600">发布会更新公开网站，和终审批准是两个独立步骤。</p>}
+            {returnAction&&(canReturn||canCorrection)&&<div className="mt-4 space-y-3 rounded border border-amber-200 bg-white p-3">
+              <label className="block text-sm font-semibold text-stone-800">
+                修改说明（不少于 5 个字符）
+                <textarea value={reason} onChange={e=>setReason(e.target.value)}
+                  className="mt-2 w-full rounded border border-stone-300 p-3 text-sm font-normal"
+                  rows={3} maxLength={2000} placeholder="说明需要调整的字段和具体要求"/>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy||reason.trim().length<5}
+                  onClick={()=>void action(returnAction)}
+                  className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
+                  确认{role==='ADMIN'?'退回主管':returnAction==='return'?'退回员工':'安排修改'}
+                </button>
+                <button type="button" onClick={()=>{setReturnAction(null);setReason('');}}
+                  className="rounded border border-stone-300 px-4 py-2.5 text-sm">取消</button>
+              </div>
+            </div>}
+          </div>}
+
         </>}
       </section>
     </div>
