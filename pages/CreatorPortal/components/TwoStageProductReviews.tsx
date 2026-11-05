@@ -128,6 +128,18 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
               </tr>;
             })}</tbody>
           </table></div>
+          <details className="rounded border border-stone-200 p-3">
+            <summary className="cursor-pointer text-sm font-semibold">技术资料与包装附件 · V1 / V{selected.latest_version}</summary>
+            <p className="my-2 text-xs text-stone-500">以下为审核时的内部技术数据快照，不代表已公开或上传附件文件。</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div><h4 className="mb-2 text-xs font-semibold">最初提交 V1</h4>
+                <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all bg-stone-50 p-3 text-xs">{JSON.stringify(original.specifications||{},null,2)}</pre>
+              </div>
+              <div><h4 className="mb-2 text-xs font-semibold">最新 V{selected.latest_version}</h4>
+                <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all bg-stone-50 p-3 text-xs">{JSON.stringify(latest.specifications||{},null,2)}</pre>
+              </div>
+            </div>
+          </details>
           <details><summary className="cursor-pointer text-sm font-semibold">所有版本（{selected.versions.length}）</summary>
             <div className="space-y-2 pt-2">{selected.versions.map(v=><details key={v.version} className="rounded border p-2 text-xs">
               <summary className="cursor-pointer font-semibold">V{v.version} · {v.created_at}</summary>

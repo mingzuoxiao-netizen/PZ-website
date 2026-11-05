@@ -21,6 +21,7 @@ function setup() {
   "('worker','dept1','lead','staff','admin','2026-01-01','2026-01-01'),"+
   "('outsider','dept2','otherlead','staff','admin','2026-01-01','2026-01-01');");
  sql.exec(readFileSync(new URL('./migrations/010_two_stage_product_review_REVIEW.sql',import.meta.url),'utf8'));
+ sql.exec(readFileSync(new URL('./migrations/011_structured_product_specifications_STAGING_REVIEW.sql',import.meta.url),'utf8'));
  sql.exec("INSERT INTO products(id,name,name_cn,category,sub_category,material,size,finish,code,description,description_cn,images,production_sites,created_by,status,created_at,updated_at)"+
  " VALUES('p1','Oak Counter','橡木台面','countertop','','oak','6ft','matte','PZ-OAK-01','desc','描述','[\"a.jpg\"]','[\"zhaoqing\"]','worker','draft','2026-01-01','2026-01-01')");
  const db={
@@ -91,19 +92,24 @@ test('factory submit => supervisor approve => admin approve => explicit publish'
 
 test('scheme A: admin returns to supervisor, who directs corrections, then repeat first-level review',async()=>{
  const {sql,call}=setup();
+ sql.prepare("UPDATE products SET specs_json=? WHERE id='p1'").run(
+   JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:182}}));
  const s=await call('/factory/products/p1/submit','worker','POST');
  const rid=s.data.id;
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','lead','POST')).status,200);
  assert.equal((await call('/admin/reviews/'+rid+'/return','admin','POST',{note:'Please correct material specification'})).data.status,'returned_to_supervisor');
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).status,409);
  assert.equal((await call('/supervisor/reviews/'+rid+'/request-correction','lead','POST',{note:'Please correct product description'})).data.status,'returned_to_uploader');
- sql.prepare("UPDATE products SET description=? WHERE id='p1'").run('updated description');
+ sql.prepare("UPDATE products SET description=?, specs_json=? WHERE id='p1'").run(
+   'updated description', JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:190}}));
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).data.version,2);
  const detail=await call('/admin/reviews/'+rid,'admin');
  assert.equal(detail.status,200);
  assert.equal(detail.data.versions.length,2);
  assert.equal(detail.data.versions[0].snapshot.description,'desc');
  assert.equal(detail.data.versions[1].snapshot.description,'updated description');
+ assert.equal(detail.data.versions[0].snapshot.specifications.dimensions_cm.length,182);
+ assert.equal(detail.data.versions[1].snapshot.specifications.dimensions_cm.length,190);
  assert.equal(detail.data.events.length,5);
  assert.throws(()=>sql.prepare("UPDATE pz_product_review_versions SET snapshot_json='{}' WHERE review_id=? AND version=1").run(rid),/immutable/i);
  assert.equal((await call('/admin/reviews/'+rid+'/approve','admin','POST')).status,409);

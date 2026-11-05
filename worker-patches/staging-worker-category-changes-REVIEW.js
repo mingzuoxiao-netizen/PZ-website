@@ -3527,7 +3527,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
   const join="SELECT r.*,p.name,p.name_cn,p.code,p.category,p.images FROM pz_product_reviews r "+
     "JOIN products p ON p.id=r.product_id";
   const productSql="SELECT id,name,name_cn,category,sub_category,material,size,finish,code,"+
-    "description,description_cn,images,production_sites,created_by,status,created_at,updated_at "+
+    "description,description_cn,images,production_sites,specs_json,created_by,status,created_at,updated_at "+
     "FROM products WHERE id=? LIMIT 1";
   const staff=async(env,id)=>env.DB.prepare(
     "SELECT a.department_id,a.supervisor_id FROM pz_staff_assignments a "+
@@ -3540,10 +3540,11 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
   ).bind(id).first();
   const snapshot=product=>{
     const {id,name,name_cn,category,sub_category,material,size,finish,code,
-      description,description_cn,images,production_sites,created_by,created_at}=product;
+      description,description_cn,images,production_sites,specs_json,created_by,created_at}=product;
     return JSON.stringify({id,name,name_cn,category,sub_category,material,size,finish,
       code,description,description_cn,images:typeof images==='string'?JSON.parse(images||'[]'):images,
       production_sites:typeof production_sites==='string'?JSON.parse(production_sites||'[]'):production_sites,
+      specifications:typeof specs_json==='string'?JSON.parse(specs_json||'{}'):(specs_json||{}),
       created_by,created_at});
   };
   const hydrate=async(env,review)=>{
@@ -3592,16 +3593,22 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     const factoryEdit=path.match(/^\/factory\/products\/([^/]+)$/);
     const factoryCreate=path==='/factory/products'&&method==='POST';
     if(factoryCreate||(factoryEdit&&method==='PUT')){
-      const auth=await authorize(request,env,['FACTORY']);
+      const auth=await authorize(request,env,['FACTORY','ADMIN']);
       if(auth instanceof Response)return auth;
       const actor=auth.user.id;
-      if(!(await staff(env,actor)))return fail('Assigned staff account required',403);
+      const isAdmin=auth.user.role==='ADMIN';
+      if(!isAdmin&&!(await staff(env,actor)))return fail('Assigned staff account required',403);
       if(factoryEdit){
         const product=await env.DB.prepare(
           "SELECT id,created_by,status FROM products WHERE id=? LIMIT 1"
         ).bind(decodeURIComponent(factoryEdit[1])).first();
-        if(!product||product.created_by!==actor)return fail('Not your product',403);
+        if(!product)return fail('Product not found',404);
+        if(!isAdmin&&product.created_by!==actor)return fail('Not your product',403);
         const status=String(product.status||'').toLowerCase();
+        // Admins can maintain unpublished drafts, never mutate pending,
+        // approved or published products via this route.
+        if(isAdmin&&!['draft','rejected'].includes(status))
+          return fail('Admin edits require product revision approval',409);
         if(!['draft','rejected','returned_to_uploader'].includes(status))
           return fail('Product cannot be edited while awaiting review',409);
         if(status==='returned_to_uploader'){
@@ -3834,6 +3841,117 @@ function safeJsonParseArray(raw) {
   }
 }
 __name(safeJsonParseArray, "safeJsonParseArray");
+// Server-side validator for internal technical specs. This is embedded into
+// BOTH review Worker candidates. Never put this JSON in public catalog reads.
+function pzValidateTechnicalSpecs(input) {
+  if (input === undefined) return { json:null, error:null }; // old clients preserve existing column
+  if (!input || typeof input !== 'object' || Array.isArray(input))
+    return {json:null,error:'specifications must be a JSON object'};
+  const forbidden=/(?:^|_)(?:price|cost|quote|margin|profit|fob|exw|msrp|retail|purchase|currency)(?:_|$)/i;
+  const allowed={
+    top:['schema_version','series_id','color','dimensions_cm','net_weight_kg','selling_points_en','construction_en','materials','attributes','packaging','assembly','care_en','warnings_en','media_roles','attachments','verification','provenance'],
+    dimension:['length','width','height','thickness'],
+    material:['part','material','construction','finish'],
+    pack:['carton_no','length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units','packing_method','protection_notes'],
+    assembly:['required','minutes','instructions_file'],
+    attachment:['file_name','type','visibility'],
+    verification:['claim','evidence_file','status'],
+    provenance:['provider','reviewer','source_factory']
+  };
+  const fail=msg=>{throw Error(msg);};
+  const object=(value,fields,path)=>{
+    if(!value || typeof value!=='object' || Array.isArray(value)) fail(path+' must be an object');
+    for(const k of Object.keys(value)){
+      if(forbidden.test(k))fail('Financial field not allowed: '+k);
+      if(!fields.includes(k))fail('Unsupported '+path+' field: '+k);
+    }
+    return value;
+  };
+  const word=(value,path,max=1000)=>{
+    if(value===undefined||value===null) return;
+    if(typeof value!=='string'||value.length>max)fail(path+' must be text within '+max+' chars');
+  };
+  const positive=(value,path)=>{
+    if(value===undefined||value===null)return;
+    if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>100000)fail(path+' must be a nonnegative number');
+  };
+  const array=(value,path,max)=>{
+    if(value===undefined)return [];
+    if(!Array.isArray(value)||value.length>max)fail(path+' must be an array with at most '+max+' items');
+    return value;
+  };
+  try{
+    object(input,allowed.top,'specifications');
+    if(input.schema_version!==undefined&&input.schema_version!==1)fail('Unsupported technical schema version');
+    word(input.series_id,'series_id',120);word(input.color,'color',120);
+    word(input.construction_en,'construction_en',3000);
+    word(input.care_en,'care_en',2500);word(input.warnings_en,'warnings_en',2500);
+    positive(input.net_weight_kg,'net_weight_kg');
+    if(input.dimensions_cm!==undefined){
+      const d=object(input.dimensions_cm,allowed.dimension,'dimensions_cm');
+      for(const [k,v] of Object.entries(d))positive(v,'dimensions_cm.'+k);
+    }
+    array(input.selling_points_en,'selling_points_en',3).forEach((v,i)=>word(v,'selling_points_en.'+i,250));
+    array(input.materials,'materials',15).forEach((v,i)=>{
+      object(v,allowed.material,'materials.'+i);
+      for(const [k,t] of Object.entries(v))word(t,'materials.'+i+'.'+k,300);
+    });
+    if(input.attributes!==undefined){
+      const a=input.attributes;
+      if(!a || typeof a!=='object'||Array.isArray(a)||Object.keys(a).length>30)fail('attributes must be a limited object');
+      for(const [k,v] of Object.entries(a)){
+        if(!/^[a-z][a-z0-9_]{0,50}$/.test(k)||forbidden.test(k))fail('Unsupported technical attribute: '+k);
+        word(v,'attributes.'+k,200);
+      }
+    }
+    array(input.packaging,'packaging',15).forEach((v,i)=>{
+      object(v,allowed.pack,'packaging.'+i);
+      for(const [k,n] of Object.entries(v)){
+        if(k==='packing_method'||k==='protection_notes')word(n,'packaging.'+i+'.'+k,500);
+        else positive(n,'packaging.'+i+'.'+k);
+      }
+      if(!Number.isInteger(v.carton_no)||v.carton_no<1||v.carton_no>15)fail('Carton number must be 1-15');
+      if(v.units!==undefined&&!Number.isInteger(v.units))fail('Carton units must be integer');
+    });
+    if(input.assembly!==undefined){
+      const a=object(input.assembly,allowed.assembly,'assembly');
+      if(a.required!==undefined&&typeof a.required!=='boolean')fail('assembly.required must be boolean');
+      positive(a.minutes,'assembly.minutes');
+      word(a.instructions_file,'assembly.instructions_file',240);
+    }
+    if(input.media_roles!==undefined){
+      const m=input.media_roles;
+      if(!m || typeof m!=='object'||Array.isArray(m)||Object.keys(m).length>40)fail('media_roles must be a limited object');
+      for(const [url,role] of Object.entries(m)){
+        if(!/^https:\/\//.test(url)||url.length>800)fail('Image role requires a valid HTTPS image URL');
+        if(!['main','lifestyle','detail','dimension','material','packaging'].includes(role))fail('Invalid image role');
+      }
+    }
+    array(input.attachments,'attachments',25).forEach((v,i)=>{
+      object(v,allowed.attachment,'attachments.'+i);
+      word(v.file_name,'attachments.file_name',240);
+      if(!['dimension','assembly','certificate','other'].includes(v.type))fail('Unknown attachment type');
+      if(v.visibility!=='internal')fail('Document visibility must remain internal until an authorized upload and approval workflow exists');
+    });
+    array(input.verification,'verification',15).forEach((v,i)=>{
+      object(v,allowed.verification,'verification.'+i);
+      word(v.claim,'verification.claim',500);word(v.evidence_file,'verification.evidence_file',240);
+      if(!['unverified','verified','not_applicable'].includes(v.status))fail('Unknown verification status');
+      if(v.status==='verified')fail('Verified claims are unavailable until evidence is uploaded and approved');
+    });
+    if(input.provenance!==undefined){
+      const p=object(input.provenance,allowed.provenance,'provenance');
+      for(const [k,v] of Object.entries(p))word(v,'provenance.'+k,120);
+    }
+    const json=JSON.stringify({...input,schema_version:1});
+    if(new TextEncoder().encode(json).length>32768)fail('Technical product data exceeds 32KB');
+    return {json,error:null};
+  }catch(error){
+    return {json:null,error:String(error.message||error)};
+  }
+}
+
+
 function normalizeProductRows(rows) {
   const list = Array.isArray(rows) ? rows : [];
   return list.map((r) => {
@@ -3852,6 +3970,7 @@ function normalizeProductRows(rows) {
       description_cn: r.description_cn ?? "",
       images,
       production_sites: safeJsonParseArray(r.production_sites),
+      ...(r.specs_json !== undefined ? { specifications: safeJsonParse(r.specs_json, {}) } : {}),
       ...(r.created_by !== undefined ? { created_by: r.created_by } : {}),
       status: (r.status ?? "draft").toLowerCase(),
       created_at: r.created_at ?? null,
@@ -3881,6 +4000,7 @@ function coerceProductForDb(input) {
       sitesJson = JSON.stringify(sitesInput);
     }
   }
+  const specs = pzValidateTechnicalSpecs(p.specifications);
   const statusRaw = typeof p.status === "string" ? p.status : "draft";
   const status = statusRaw.toLowerCase();
   return {
@@ -3897,6 +4017,8 @@ function coerceProductForDb(input) {
     images_json: JSON.stringify(images),
     production_sites_json: sitesJson,
     production_sites_error: sitesError,
+    specs_json: specs.json,
+    specs_error: specs.error,
     status
   };
 }
@@ -4484,7 +4606,7 @@ if (categoryResponse) return categoryResponse;
         const status = (url.searchParams.get("status") ?? "").trim().toLowerCase();
         let sql = `
     SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
-           description, description_cn, images, production_sites, created_by, status, created_at, updated_at
+           description, description_cn, images, production_sites, specs_json, created_by, status, created_at, updated_at
     FROM products
   `;
         const binds = [];
@@ -4504,6 +4626,7 @@ if (categoryResponse) return categoryResponse;
         const body = await request.json();
         const db = coerceProductForDb(body);
         if (db.production_sites_error) return badRequest(db.production_sites_error);
+        if (db.specs_error) return badRequest(db.specs_error);
         const skuError = pzSkuValidationError(db.code, true);
         if (skuError) return badRequest(skuError);
         const id = crypto.randomUUID();
@@ -4512,8 +4635,8 @@ if (categoryResponse) return categoryResponse;
           `INSERT INTO products
       (id, name, name_cn, category, sub_category, material, size, finish, code,
        description, description_cn, images, status, created_at, updated_at,
-       production_sites, org_id, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       production_sites, org_id, created_by, specs_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           id,
           db.name,
@@ -4532,7 +4655,8 @@ if (categoryResponse) return categoryResponse;
           now,
           db.production_sites_json ?? "[]",
           "org-main",
-          auth.user.id
+          auth.user.id,
+          db.specs_json ?? '{}'
         ).run();
         return json({ success: true, id });
       }
@@ -4544,6 +4668,7 @@ if (categoryResponse) return categoryResponse;
         const body = await request.json();
         const db = coerceProductForDb(body);
         if (db.production_sites_error) return badRequest(db.production_sites_error);
+        if (db.specs_error) return badRequest(db.specs_error);
         const skuError = pzSkuValidationError(db.code);
         if (skuError) return badRequest(skuError);
         const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -4561,6 +4686,7 @@ if (categoryResponse) return categoryResponse;
         description_cn = ?,
         images = ?,
         production_sites = COALESCE(?, production_sites),
+           specs_json = COALESCE(?, specs_json),
         status = ?,
         updated_at = ?
      WHERE id = ?`
@@ -4577,6 +4703,7 @@ if (categoryResponse) return categoryResponse;
           db.description_cn,
           db.images_json,
           db.production_sites_json,
+          db.specs_json,
           db.status,
           now,
           id
@@ -4635,7 +4762,7 @@ if (categoryResponse) return categoryResponse;
         const limit = Math.min(Number(url.searchParams.get("limit") ?? "500") || 500, 1e3);
         const rows = await env.DB.prepare(
           `SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
-            description, description_cn, images, production_sites, created_by, status, created_at, updated_at
+            description, description_cn, images, production_sites, specs_json, created_by, status, created_at, updated_at
      FROM products
      ${scoped ? 'WHERE created_by = ?' : ''}
      ORDER BY updated_at DESC
@@ -4651,6 +4778,7 @@ if (categoryResponse) return categoryResponse;
         const body = await request.json();
         const db = coerceProductForDb(body);
         if (db.production_sites_error) return badRequest(db.production_sites_error);
+        if (db.specs_error) return badRequest(db.specs_error);
         const skuError = pzSkuValidationError(db.code, true);
         if (skuError) return badRequest(skuError);
         const id = crypto.randomUUID();
@@ -4660,8 +4788,8 @@ if (categoryResponse) return categoryResponse;
           `INSERT INTO products
       (id, name, name_cn, category, sub_category, material, size, finish, code,
        description, description_cn, images, status, created_at, updated_at,
-       production_sites, org_id, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       production_sites, org_id, created_by, specs_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           id,
           db.name,
@@ -4680,7 +4808,8 @@ if (categoryResponse) return categoryResponse;
           now,
           db.production_sites_json ?? "[]",
           "org-main",
-          auth.user.id
+          auth.user.id,
+          db.specs_json ?? '{}'
         ).run();
         return json({ success: true, id, status });
       }
@@ -4715,6 +4844,7 @@ if (categoryResponse) return categoryResponse;
           const body = await request.json();
           const db = coerceProductForDb(body);
           if (db.production_sites_error) return badRequest(db.production_sites_error);
+        if (db.specs_error) return badRequest(db.specs_error);
           const skuError = pzSkuValidationError(db.code);
           if (skuError) return badRequest(skuError);
           const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -4732,6 +4862,7 @@ if (categoryResponse) return categoryResponse;
           description_cn = ?,
           images = ?,
           production_sites = COALESCE(?, production_sites),
+           specs_json = COALESCE(?, specs_json),
           updated_at = ?
        WHERE id = ? AND (lower(status) IN ('draft','rejected') OR (lower(status) = 'returned_to_uploader' AND ? = 'true'))`
           ).bind(
@@ -4747,6 +4878,7 @@ if (categoryResponse) return categoryResponse;
             db.description_cn,
             db.images_json,
             db.production_sites_json,
+            db.specs_json,
             now,
             id,
             String(env.PZ_TWO_STAGE_REVIEW_ENABLED || '')

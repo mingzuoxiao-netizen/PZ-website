@@ -1,3 +1,4 @@
+import type { ProductSpecifications } from './utils/productSpecifications';
 export type ProductionSite = 'zhaoqing' | 'cambodia';
 
 export interface NavItem {
@@ -23,6 +24,7 @@ export interface ProductVariant {
   created_by?: string | null;
   sub_category?: string;
   category?: string;
+  specifications?: ProductSpecifications; // Internal structured technical data (not public by default)
   colors?: {
     name: string;
     image: string;
