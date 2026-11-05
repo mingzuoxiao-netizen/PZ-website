@@ -66,6 +66,15 @@
 - Next preflight: inspect schema compatibility for `users`, `pz_departments`, `pz_staff_assignments`, and published product review paths before drafting a **Production-specific** Phase 3 migration 012; the repository file named `012_published_product_revisions_STAGING_REVIEW.sql` is Staging-review only.
 - No Production write, D1 migration, flag activation, or Worker deployment was done in this inventory check.
 
+### Production D1 organization schema preflight (operator Console screenshot: 2026-11-05)
+
+- Read-only `SELECT name, sql FROM sqlite_master WHERE type='table' AND name IN ('users','pz_departments','pz_staff_assignments')` returned all three CREATE TABLE statements.
+- `users` has `id TEXT PRIMARY KEY`, `org_id`, `username`, `password_hash`, `role`, `is_active`, `created_at`, `last_login_at`; `org_id` references `organizations(id)`.
+- `pz_departments` has `id TEXT PRIMARY KEY`, `name`, `factory_site` (restricted to `zhaoqing`, `kandal`, `shared`), `is_active`, `created_by` and `created_at`.
+- `pz_staff_assignments` has `user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE RESTRICT`, `department_id TEXT NOT NULL REFERENCES pz_departments(id)`, `supervisor_id REFERENCES users(id) ON DELETE RESTRICT`, `job_type` restricted to supervisor/secretary/staff/data_entry, creator/timestamp fields and supervisor/self-reference constraints.
+- **Assessment:** the three foreign key target tables and columns for migration 012 exist and align with the proposed revision workflow. This is a **schema shape check only**: it does not establish that all live assignments are valid or that the full products column set is complete.
+- **Production remains unchanged.** Next: confirm all Phase 3 products columns with a read-only missing-columns query; perform a Production-specific 012 rehearsal and recovery-point approval prior to any live migration.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
