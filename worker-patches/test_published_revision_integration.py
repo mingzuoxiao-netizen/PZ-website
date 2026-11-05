@@ -12,7 +12,7 @@ for which in ('staging-worker-category-changes-REVIEW.js',
     assert 'imageBase:pzConfiguredImageBase' in candidate
     assert "PZ_PRODUCT_REVISIONS_ENABLED" in candidate
     assert "pz_published_product_revisions" in candidate
-    assert "only after a separately authorized publish" in candidate
+    assert "until a separately authorized publish" in candidate
     for critical in (
         "Only the product owner can request revisions",
         "Cannot revise protected or unknown field",
