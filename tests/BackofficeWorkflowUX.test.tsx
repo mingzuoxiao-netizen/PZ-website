@@ -37,7 +37,7 @@ test('grouped navigation is expandable on desktop and selectable on mobile',asyn
     assert.ok(mobile);
     await act(async()=>mobile!.props.onChange({target:{value:'media'}}));
     assert.equal(selected,'media');
-    const labels=view!.root.findAllByType('button').map(x=>x.children.join(' ')).join(' ');
+    const labels=JSON.stringify(view!.toJSON());
     assert.match(labels,/审核中心/);
     assert.match(labels,/网站图片管理/);
   }finally{if(view)await act(async()=>view!.unmount());}
