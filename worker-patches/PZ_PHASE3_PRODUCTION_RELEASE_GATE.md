@@ -21,7 +21,7 @@
 ## Mandatory before an authorized Production deployment
 
 1. **Bind identity:** read the actual live Production Worker's D1 binding, verify database UUID exactly `b263701b-012b-4d3b-b24d-d250b4e582f9`, and verify separate Production R2/KV bindings.
-2. **Read-only verification:** inspect Product `sqlite_master.sql`, `PRAGMA table_info(products)`, `PRAGMA foreign_key_check`, and `PRAGMA integrity_check` (or a scheduled/limited maintenance read if large). Verify prerequisites and that no `pz_published_*revision*` tables or partially installed triggers remain. Any partial prior install is a STOP.
+2. **Read-only verification:** inspect Product `sqlite_master.sql`, `PRAGMA table_info(products)`, `PRAGMA foreign_key_check`, and Cloudflare-D1-supported `PRAGMA quick_check`. (`PRAGMA integrity_check` is rejected by D1 with `SQLITE_AUTH`; do not retry it.) Verify prerequisites and that no `pz_published_*revision*` tables or partially installed triggers remain. Any partial prior install is a STOP.
 3. **Recovery point:** document the D1 Time Travel recovery timestamp/bookmark plus current active Worker deployment version. Record published product counts and a safe read-only product snapshot; don't expose secrets.
 4. **Approval:** operator explicitly approves the Production D1 migration. The SQL must not be executed simply because the GitHub PR merged or CI passed.
 5. **Schema migration only:** execute the **complete** reviewed Production 012 SQL in the confirmed Production D1 console. Leave `PZ_PRODUCT_REVISIONS_ENABLED` unset/false; do not change old product statuses or rows. If any query fails, stop and inspect; don't blindly retry partial SQL.
@@ -38,6 +38,13 @@
 - If D1 product publication succeeded but KV catalog refresh failed, keep the published revision state and use the reviewed **catalog refresh retry**, never reapply product edits directly.
 - Do not reset JWT secrets, change R2/KV bindings, overwrite Production Worker with a Staging bundle, or use a Staging database UUID in Production.
 - Any row-level inconsistency, schema drift, unknown deployment hash, or lost audit data: **STOP and inspect**. Protect existing approved customer-facing data.
+
+## D1 command compatibility note (2026-11-05)
+
+- Production D1 operator received `not authorized: SQLITE_AUTH` for `PRAGMA integrity_check;`. This denotes a D1 unsupported/unauthorized SQL pragma, **not evidence of database corruption**.
+- Use officially documented `PRAGMA quick_check;` and `PRAGMA foreign_key_check;` in D1 Console. `quick_check` is a lighter integrity check, **not equivalent to full** `integrity_check`.
+- Record the result before applying the Production migration; don't equate an unsupported-command error with a failed integrity test.
+- Reference: https://developers.cloudflare.com/d1/sql-api/sql-statements/
 
 ## Verification queries (read-only)
 
@@ -56,6 +63,10 @@ UNION ALL SELECT 'events',count(*) FROM pz_published_revision_events;
 
 ```sql
 PRAGMA foreign_key_check;
+```
+
+```sql
+PRAGMA quick_check;
 ```
 
 > The last two queries are **post-migration only**, because the tables do not exist before 012. Never run a write in a preflight query.
