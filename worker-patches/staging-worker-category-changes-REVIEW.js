@@ -5562,8 +5562,11 @@ index_default.fetch = pzAuditCreateFetch(pzAuditOriginalFetch, { authorize, json
 // PZ Phase 3 published-product revisions — add-on for Staging Worker candidates.
 // This module NEVER changes live products until a separately authorized publish.
 // Migration 012 and PZ_PRODUCT_REVISIONS_ENABLED=true are mandatory.
+// PZ Phase 3 published-product revisions — add-on for Staging Worker candidates.
+// This module NEVER changes live products until a separately authorized publish.
+// Migration 012 and PZ_PRODUCT_REVISIONS_ENABLED=true are mandatory.
 function pzPublishedProductRevisionsFetch(originalFetch,{
-  authorize,json,validateSpecs,imageBase
+  authorize,json,validateSpecs,imageBase,expectedRuntime
 }) {
   const fail=(error,status=400)=>json({error},status);
   const stamp=()=>new Date().toISOString();
@@ -5726,6 +5729,9 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
     const collection=/^\/(factory|supervisor|admin)\/revisions$/.exec(path);
     const item=/^\/(factory|supervisor|admin)\/revisions\/([^/]+)(?:\/(submit|approve|return|request-correction|publish|cancel))?$/.exec(path);
     if(!create&&!collection&&!item)return originalFetch.call(this,request,env,ctx);
+    if(!['staging','production'].includes(expectedRuntime) ||
+      String(env.PZ_RUNTIME_ENV||'').toLowerCase()!==expectedRuntime)
+      return fail('Revision route restricted to its configured runtime',403);
     if(env.PZ_PRODUCT_REVISIONS_ENABLED!=='true')return fail('Published revision workflow is not enabled',404);
     if(env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true'||env.PZ_ORG_RBAC_ENABLED!=='true')
       return fail('Two-stage review and organization permissions must be enabled',503);
@@ -5929,11 +5935,13 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
   };
 }
 
+
 const pzReviewOriginalFetch = index_default.fetch;
 index_default.fetch = pzTwoStageReviewFetch(pzReviewOriginalFetch, {authorize, json});
 const pzPublishedRevisionsOriginalFetch = index_default.fetch;
 index_default.fetch = pzPublishedProductRevisionsFetch(pzPublishedRevisionsOriginalFetch, {
-  authorize, json, validateSpecs:pzValidateTechnicalSpecs, imageBase:pzConfiguredImageBase
+  authorize, json, validateSpecs:pzValidateTechnicalSpecs, imageBase:pzConfiguredImageBase,
+  expectedRuntime:'staging'
 });
 const pzCorsOriginalFetch = index_default.fetch;
 
