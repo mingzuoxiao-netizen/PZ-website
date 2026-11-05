@@ -3582,9 +3582,16 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true')return originalFetch.call(this,request,env,ctx);
     if(env.PZ_ORG_RBAC_ENABLED!=='true')return fail('Organization management must be enabled first',503);
     // Existing direct admin mutations can bypass the new approval state machine.
-    if((/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method)) ||
-      (/^\/(?:admin|factory)\/products\/[^/]+\/remove-image$/.test(path)&&method==='POST'))
+    if(/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
+    // Retired image-mutation endpoints must not bypass draft/review rules.
+    // Authenticate before returning 410, including when review is enabled.
+    if(/^\/(?:admin|factory)\/products\/[^/]+\/remove-image$/.test(path)&&method==='POST'){
+      const roles=path.startsWith('/admin/')?['ADMIN']:['FACTORY','ADMIN'];
+      const auth=await authorize(request,env,roles);
+      if(auth instanceof Response)return auth;
+      return fail('Legacy image removal disabled; edit and save a draft, then submit for review',410);
+    }
 
     // Limit legacy factory save routes to assigned staff, never ADMIN or a
     // different employee; preserve the original Worker field validation.
@@ -5065,63 +5072,16 @@ if (categoryResponse) return categoryResponse;
       }
       __name(publishProductsSnapshot, "publishProductsSnapshot");
       {
-        const matchRemoveImage = pathname.match(/^\/admin\/products\/([^/]+)\/remove-image$/);
-        if (matchRemoveImage && request.method === "POST") {
+        // Defense in depth: the Phase 2 review middleware rejects this legacy
+        // route, but the low-level handler must stay safe even if that feature
+        // flag is disabled. No D1 product mutation, KV publish, or R2 deletion.
+        const legacyImageRemoval = pathname.match(/^\/admin\/products\/([^/]+)\/remove-image$/);
+        if (legacyImageRemoval && request.method === "POST") {
           const auth = await authorize(request, env, ["ADMIN"]);
           if (auth instanceof Response) return auth;
-          const productId = matchRemoveImage[1].trim();
-          const body = await request.json().catch(() => ({}));
-          const key = String(body.key ?? "").trim();
-          const url = String(body.url ?? "").trim();
-          const autoPublish = body.autoPublish !== false;
-          const deleteFromCloud = body.deleteFromCloud === true;
-          if (!key && !url) return badRequest("Missing key or url");
-          const row = await env.DB.prepare(
-            `SELECT images, status FROM products WHERE id = ? LIMIT 1`
-          ).bind(productId).first();
-          if (!row) return json({ error: "Product not found" }, 404);
-          let images = [];
-          try {
-            const raw = row.images;
-            images = Array.isArray(raw) ? raw : JSON.parse(raw || "[]");
-            if (!Array.isArray(images)) images = [];
-          } catch {
-            images = [];
-          }
-          const nextImages = images.filter((img) => {
-            if (!img) return false;
-            if (url && img === url) return false;
-            if (key && img.includes(key)) return false;
-            return true;
-          });
-          const nowIso = (/* @__PURE__ */ new Date()).toISOString();
-          await env.DB.prepare(
-            `UPDATE products SET images = ?, updated_at = ? WHERE id = ?`
-          ).bind(JSON.stringify(nextImages), nowIso, productId).run();
-          if (deleteFromCloud && key) {
-            try {
-              await env.PRODUCT_IMAGES.delete(key);
-            } catch (e) {
-              console.warn("[remove-image] cloud delete failed (ignored)", e);
-            }
-          }
-          const status = String(row.status ?? "").toLowerCase();
-          let publishedMeta = null;
-          if (autoPublish && status === "published") {
-            try {
-              publishedMeta = await publishProductsSnapshot(env);
-            } catch (e) {
-              console.warn("[remove-image] auto publish snapshot failed (ignored)", e);
-            }
-          }
           return json({
-            success: true,
-            id: productId,
-            removed: images.length - nextImages.length,
-            images: nextImages,
-            autoPublishAttempted: autoPublish && status === "published",
-            publishedMeta
-          });
+            error: "Legacy image removal disabled. Save image changes as a product draft and use the review/publish workflow."
+          }, 410);
         }
       }
       if (pathname === "/admin/accounts" && request.method === "GET") {
