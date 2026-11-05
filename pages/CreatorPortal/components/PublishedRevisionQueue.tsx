@@ -28,6 +28,20 @@ const fields:[string,string][]=[
 ];
 const present=(value:unknown):string=>Array.isArray(value)?value.join('、')||'—':
   value===null||value===undefined||value===''?'—':String(value);
+/** Display only real product/packing fields; omit legacy document/evidence placeholders. */
+const visibleInternalSpecs=(input:unknown)=>{
+  const specs=input&&typeof input==='object'&&!Array.isArray(input)?input as Record<string,any>:{};
+  const fields=['dimensions_cm','net_weight_kg','color','materials','attributes',
+    'packaging','care_en','warnings_en','construction_en'];
+  const view:Record<string,unknown>={};
+  for(const field of fields){
+    if(specs[field]!==undefined)view[field]=specs[field];
+  }
+  if(specs.assembly){
+    view.assembly={required:specs.assembly.required,minutes:specs.assembly.minutes};
+  }
+  return view;
+};
 const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refreshKey=0})=>{
   const prefix=role.toLowerCase();
   const [enabled,setEnabled]=useState(false);
@@ -123,7 +137,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
         </div>
         <details><summary className="cursor-pointer text-xs font-semibold">后台技术和包装资料变化</summary>
           <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-all bg-stone-50 p-2 text-xs">
-            {JSON.stringify({original:original.specifications||{},draft:proposed.specifications||{}},null,2)}
+            {JSON.stringify({original:visibleInternalSpecs(original.specifications),draft:visibleInternalSpecs(proposed.specifications)},null,2)}
           </pre>
         </details>
         <details><summary className="cursor-pointer text-xs font-semibold">审核记录（{selected.events.length}）</summary>
