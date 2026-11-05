@@ -37,8 +37,12 @@ test('factory can open a revision and edit only an isolated draft',async()=>{
     const url=String(input);calls.push((init?.method||'GET')+' '+url);
     if(url.endsWith('/factory/revisions'))return Response.json({items:[item]});
     if(url.endsWith('/factory/revisions/revision-1')){
-      return Response.json({...item,base_snapshot:{name:'Oak Table'},
-        draft:{name:'Updated Table',images:[]},versions:[],events:[]});
+      return Response.json({...item,
+        base_snapshot:{name:'Oak Table',specifications:{attachments:[{file_name:'secret-original.pdf'}]}},
+        draft:{name:'Updated Table',images:[],specifications:{
+          packaging:[{carton_no:1,gross_weight_kg:10}],
+          attachments:[{file_name:'secret-new.pdf'}],verification:[{claim:'old claim'}]
+        }},versions:[],events:[]});
     }
     return Response.json({error:'Not expected'},{status:404});
   };
@@ -57,6 +61,9 @@ test('factory can open a revision and edit only an isolated draft',async()=>{
     await act(async()=>editButton.props.onClick());
     assert.equal(edit.length,1);
     assert.equal(edit[0].draft.name,'Updated Table');
+    const rendered=JSON.stringify(view!.toJSON());
+    assert.match(rendered,/gross_weight_kg/);
+    assert.doesNotMatch(rendered,/secret-original\.pdf|secret-new\.pdf|old claim/);
     assert.equal(calls.some(s=>s.startsWith('PUT ')||s.startsWith('POST ')),false,'opening preview is read-only');
   }finally{
     if(view)await act(async()=>view!.unmount());
