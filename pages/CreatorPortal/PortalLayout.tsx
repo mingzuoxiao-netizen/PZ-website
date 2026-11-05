@@ -21,6 +21,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
     }
   };
 
+  const [expandedGroups,setExpandedGroups]=React.useState<Record<string,boolean>>({});
   const hasGroups=navItems.some(item=>!!item.group);
   const groupNames=Array.from(new Set(navItems.flatMap(item=>item.group?[item.group]:[])));
   const navList = (mobile: boolean, items: typeof navItems = navItems) => items.map(item => (
@@ -51,7 +52,11 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
         <nav aria-label="后台功能" className="flex-grow space-y-2 overflow-y-auto p-4">
           {navList(false,navItems.filter(item=>!item.group))}
           {groupNames.map(group=><details key={group}
-            defaultOpen={navItems.some(item=>item.group===group&&item.id===activeTab)}
+            open={expandedGroups[group] ?? navItems.some(item=>item.group===group&&item.id===activeTab)}
+            onToggle={event=>{
+              const isOpen=event.currentTarget.open;
+              setExpandedGroups(prev=>prev[group]===isOpen?prev:{...prev,[group]:isOpen});
+            }}
             className="group rounded border border-white/10">
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold text-[#c5cbd1] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
               {group}
