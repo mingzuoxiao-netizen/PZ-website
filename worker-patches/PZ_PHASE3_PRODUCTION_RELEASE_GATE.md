@@ -26,6 +26,13 @@
 - Original Production D1 remains untouched. These checks do not imply permission to run Migration 012.
 - Per Cloudflare D1 documentation, Time Travel is automatic for supported databases, and a bookmark can be retrieved for a recovery point. **Do not click Restore to create a backup:** Restore overwrites the target database and could destroy unrelated Production changes.
 
+## D1 Time Travel access confirmation (2026-11-05)
+
+- Operator confirms the Production D1 Time Travel page displays recovery history.
+- Visibility is **not** a recorded recovery bookmark or evidence of a successful restore.
+- Before the authorized SQL execution: capture the exact pre-migration UTC recovery point/bookmark (and its retention window), read-only baseline and active Worker version. Never press Restore as part of preparation.
+- No Production migration, Worker deployment or flag activation has occurred in this check.
+
 ## Mandatory before an authorized Production deployment
 
 1. **Bind identity:** read the actual live Production Worker's D1 binding, verify database UUID exactly `b263701b-012b-4d3b-b24d-d250b4e582f9`, and verify separate Production R2/KV bindings.
