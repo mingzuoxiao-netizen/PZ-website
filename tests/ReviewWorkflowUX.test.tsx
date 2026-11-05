@@ -47,10 +47,13 @@ test('supervisor review prioritizes changed fields and shows return form only af
   let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
+    await act(async()=>{
+      const itemButton=view!.root.findAllByType('button').find(x=>
+        x.findAllByType('strong').some(y=>y.children.includes('橡木餐桌')));
+      assert.ok(itemButton);
+      itemButton!.props.onClick();
+    });
     assert.ok(getButton(view!,'退回员工'));
-    await act(async()=>{view!.root.findAllByType('button').find(x=>
-      x.props['aria-current']==='page' || x.props['aria-current']==='true'
-    )!.props.onClick();});
     assert.match(JSON.stringify(view!.toJSON()),/本次变更/);
     assert.equal(view!.root.findAllByType('article').length,1,'only the changed material is shown');
     assert.equal(view!.root.findAllByType('textarea').length,0,'reason is not an always-visible field');
@@ -83,13 +86,12 @@ test('published revision review shows mobile-friendly changed-field cards and op
   let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<PublishedRevisionQueue role="ADMIN"/>);});
-    await act(async()=>{getButton(view!,'橡木餐桌')?.props.onClick();});
-    if(view!.root.findAllByType('article').length===0){
-      await act(async()=>{
-        const btn=view!.root.findAllByType('button').find(x=>x.props['aria-current']!==undefined);
-        assert.ok(btn);btn!.props.onClick();
-      });
-    }
+    await act(async()=>{
+      const itemButton=view!.root.findAllByType('button').find(x=>
+        x.findAllByType('strong').some(y=>y.children.includes('橡木餐桌')));
+      assert.ok(itemButton);
+      itemButton!.props.onClick();
+    });
     assert.equal(view!.root.findAllByType('article').length,1);
     assert.equal(view!.root.findAllByType('table').length,0,'no sideways comparison table');
     assert.ok(view!.root.findAllByType('summary').some(x=>
