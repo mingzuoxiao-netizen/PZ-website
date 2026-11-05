@@ -27,7 +27,9 @@ const text = (node: any): string => typeof node === 'string'
 
 test('image remove, reorder and cover selection remain local until the full product draft is saved', async () => {
   const previousFetch = globalThis.fetch;
+  const previousAlert = (globalThis as any).alert;
   const unexpectedRequests: string[] = [];
+  (globalThis as any).alert = (message: unknown) => { throw Error('Unexpected alert: ' + String(message)); };
   globalThis.fetch = async (url) => {
     unexpectedRequests.push(String(url));
     throw Error('Unexpected media API call');
@@ -74,6 +76,8 @@ test('image remove, reorder and cover selection remain local until the full prod
   } finally {
     if (view) await act(async () => view!.unmount());
     globalThis.fetch = previousFetch;
+    if (previousAlert === undefined) delete (globalThis as any).alert;
+    else (globalThis as any).alert = previousAlert;
   }
 });
 
