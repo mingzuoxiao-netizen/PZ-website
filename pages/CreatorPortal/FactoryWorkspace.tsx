@@ -19,6 +19,7 @@ import CategoryGrid from './components/CategoryGrid';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
 import BatchCreator from './components/BatchCreator';
+import PublishedRevisionQueue, {type RevisionDetail} from './components/PublishedRevisionQueue';
 
 interface Notification {
     id: string;
@@ -33,6 +34,11 @@ const FactoryWorkspace: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
+  const [revisionEditing,setRevisionEditing] = useState<{
+    product:ProductVariant;revisionId?:string;draftRevision?:number
+  }|null>(null);
+  const [revisionEnabled,setRevisionEnabled] = useState(false);
+  const [revisionRefresh,setRevisionRefresh] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [isBatchCreating, setIsBatchCreating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -114,7 +120,7 @@ const FactoryWorkspace: React.FC = () => {
 
   useEffect(() => {
     const dataInterval = setInterval(() => {
-        if (!isCreating && !editingItem && !isBatchCreating) {
+        if (!isCreating && !editingItem && !isBatchCreating && !revisionEditing) {
             loadData(true);
         }
     }, 10000);
@@ -143,7 +149,7 @@ const FactoryWorkspace: React.FC = () => {
         clearInterval(configInterval);
         window.removeEventListener('focus', handleFocus);
     };
-  }, [loadData, loadSiteConfig, siteVersion, isCreating, editingItem, isBatchCreating]);
+  }, [loadData, loadSiteConfig, siteVersion, isCreating, editingItem, isBatchCreating, revisionEditing]);
 
   const stats = useMemo(() => ({
       pending: products.filter(p => ['awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish'].includes(p.status||'')).length,
@@ -193,6 +199,46 @@ const FactoryWorkspace: React.FC = () => {
     await loadData(true);
   };
 
+  // Published SKU revisions are stored in a separate D1 table: never PUT the
+  // live /factory/products/:id record here. The Worker independently validates
+  // every field, original product ownership and current R2 image references.
+  const handleSaveRevision = async (data:ProductVariant) => {
+    if(!revisionEditing?.product?.id)throw Error('未找到需要修改的已发布产品');
+    const allowed=['name','name_cn','category','sub_category','material','size','finish',
+      'description','description_cn','images','production_sites','specifications'] as const;
+    const draft:Record<string,unknown>={};
+    for(const field of allowed){
+      const value=data[field];
+      if(value!==undefined)draft[field]=value;
+    }
+    const creating=!revisionEditing.revisionId;
+    const endpoint=creating
+      ?'factory/products/'+encodeURIComponent(revisionEditing.product.id)+'/revisions'
+      :'factory/revisions/'+encodeURIComponent(revisionEditing.revisionId!);
+    const payload=creating?{draft}:{draft,expected_draft_revision:revisionEditing.draftRevision};
+    const response=await factoryFetch<{success?:boolean}>(endpoint,{
+      method:creating?'POST':'PUT',body:JSON.stringify(payload)
+    });
+    if(response.success!==true)throw Error('修订草稿保存结果未确认，请刷新后核对。');
+    setRevisionEditing(null);
+    setRevisionRefresh(n=>n+1);
+    await loadData(true);
+  };
+  const beginRevision=(product:ProductVariant)=>{
+    setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);
+    setRevisionEditing({product});
+  };
+  const continueRevision=(detail:RevisionDetail)=>{
+    setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);
+    setRevisionEditing({
+      product:{
+        ...detail.draft,id:detail.product_id,status:'draft',
+        image:detail.draft.images?.[0]||''
+      } as ProductVariant,
+      revisionId:detail.id,draftRevision:detail.draft_revision
+    });
+  };
+
   // O(batch size) indexed SKU lookup, rather than downloading the entire catalog.
   const checkBatchSkuCodes = async (codes: string[]): Promise<string[]> => {
       const res = await factoryFetch<{ existingCodes?: string[] }>('factory/products/check-skus', {
@@ -213,10 +259,11 @@ const FactoryWorkspace: React.FC = () => {
 
   const handleBack = () => {
       if (isBatchCreating && !window.confirm('确认离开批量录入吗？未完成的输入将丢失。')) return;
-      if (isCreating || editingItem || isBatchCreating) {
+      if (isCreating || editingItem || isBatchCreating || revisionEditing) {
           setIsCreating(false);
           setIsBatchCreating(false);
           setEditingItem(null);
+          setRevisionEditing(null);
       } else if (selectedCategoryId) {
           setSelectedCategoryId(null);
       }
@@ -315,15 +362,15 @@ const FactoryWorkspace: React.FC = () => {
       <div className="mb-8 animate-fade-in">
           <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                  {(selectedCategoryId || isCreating || editingItem || isBatchCreating) && (
+                  {(selectedCategoryId || isCreating || editingItem || isBatchCreating || revisionEditing) && (
                       <button onClick={handleBack} className="p-2 bg-white border border-stone-200 rounded-full hover:border-stone-900 transition-colors shadow-sm group"><ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" /></button>
                   )}
                   <div>
-                      <h1 className="text-2xl font-serif text-stone-900">{isBatchCreating ? '批量录入产品' : isCreating ? '新增产品' : editingItem ? `编辑产品` : selectedCategoryId ? '分类产品管理' : '工厂产品管理'}</h1>
+                      <h1 className="text-2xl font-serif text-stone-900">{revisionEditing ? '修改已发布产品' : isBatchCreating ? '批量录入产品' : isCreating ? '新增产品' : editingItem ? '编辑产品' : selectedCategoryId ? '分类产品管理' : '工厂产品管理'}</h1>
                       <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1"><span>工厂后台</span><span>/</span><span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : '产品总库'}</span></div>
                   </div>
               </div>
-              {!isCreating && !editingItem && !isBatchCreating && (
+              {!isCreating && !editingItem && !isBatchCreating && !revisionEditing && (
                   <div className="hidden md:flex gap-6">
                       <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><Clock size={16} className="text-amber-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">待审核</div><div className="text-sm font-bold text-stone-900">{stats.pending}</div></div></div>
                       <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><AlertCircle size={16} className="text-red-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">已退回</div><div className="text-sm font-bold text-stone-900">{stats.rejected}</div></div></div>
@@ -345,6 +392,21 @@ const FactoryWorkspace: React.FC = () => {
               onCompleted={async () => { await loadData(); }}
               onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await factoryFetch('upload-image', { method: 'POST', body: fd }); return r.url; }}
           />
+      ) : revisionEditing ? (
+            <div>
+              <p className="mb-5 rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                当前官网仍展示已发布版本。此处只编辑独立修订草稿，保存后请在下方“已发布产品修订”中提交审核。
+                不会直接覆盖已发布产品。
+              </p>
+              <ProductForm
+                initialData={revisionEditing.product}
+                categories={categories}
+                onSave={handleSaveRevision}
+                onCancel={handleBack}
+                userRole="FACTORY"
+                lang="zh"
+              />
+            </div>
       ) : editingItem || isCreating ? (
             <ProductForm 
                 initialData={editingItem || {}} 
@@ -374,6 +436,7 @@ const FactoryWorkspace: React.FC = () => {
                     onRefresh={() => loadData(true)} 
                     onBack={handleBack}
                     onSubmit={handleSubmitForReview}
+                    onStartRevision={revisionEnabled?beginRevision:undefined}
                     userRole="FACTORY"
                 />
             </div>
@@ -393,6 +456,9 @@ const FactoryWorkspace: React.FC = () => {
                 />
             </div>
           )}
+          {!revisionEditing&&!editingItem&&!isCreating&&!isBatchCreating&&
+            <PublishedRevisionQueue role="FACTORY" onEdit={continueRevision}
+              onEnabledChange={setRevisionEnabled} refreshKey={revisionRefresh}/>}
           </>)}
     </PortalLayout>
   );
