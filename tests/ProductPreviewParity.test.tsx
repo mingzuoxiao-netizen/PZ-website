@@ -53,7 +53,10 @@ test('internal preview retains packing, care and warnings without publishing the
     assert.equal(tabs.length,2);
     await act(async()=>{tabs[1].props.onClick();});
     assert.equal(view!.root.findAllByType(ProductDetailModal).length,0);
-    const internal=JSON.stringify(view!.toJSON());
+    const flatten=(node:any):string=>typeof node==='string' ? node
+      : Array.isArray(node) ? node.map(flatten).join('')
+      : node?.children ? flatten(node.children) : '';
+    const internal=flatten(view!.toJSON());
     assert.match(internal,/PRIVATE PACKING METHOD/);
     assert.match(internal,/INTERNAL WARNING TEXT/);
     assert.match(internal,/49 kg/);
