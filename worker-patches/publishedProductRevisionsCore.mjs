@@ -32,6 +32,20 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
     "AND sa.department_id=a.department_id "+
     "WHERE a.user_id=? AND a.job_type IN ('staff','secretary','data_entry') LIMIT 1"
   ).bind(id).first();
+  // Preserve products.created_by as provenance. A delegated assignment,
+  // when present, is authoritative for future published-product revisions.
+  const mayRequestRevision=async(env,product,actor,assignment)=>{
+    if(env.PZ_PRODUCT_RESPONSIBILITY_ENABLED!=='true')
+      return product.created_by===actor;
+    const row=await env.DB.prepare(
+      "SELECT responsible_user_id,department_id,supervisor_id "+
+      "FROM pz_product_responsibilities WHERE product_id=? LIMIT 1"
+    ).bind(product.id).first();
+    return row
+      ? row.responsible_user_id===actor&&row.department_id===assignment.department_id&&
+        row.supervisor_id===assignment.supervisor_id
+      : product.created_by===actor;
+  };
   const supervisorAssigned=(env,id,department)=>env.DB.prepare(
     "SELECT a.user_id FROM pz_staff_assignments a JOIN pz_departments d ON d.id=a.department_id "+
     "WHERE a.user_id=? AND a.department_id=? AND a.job_type='supervisor' AND d.is_active=1 LIMIT 1"
@@ -189,7 +203,8 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
       if(!assignment)return fail('Active staff assignment required',403);
       const product=await env.DB.prepare(productSql).bind(id).first();
       if(!product||product.status!=='published')return fail('Published product not found',404);
-      if(product.created_by!==actor)return fail('Only the product owner can request revisions',403);
+      if(!(await mayRequestRevision(env,product,actor,assignment)))
+        return fail('Only the authorized product custodian can request revisions',403);
       if(!product.updated_at)return fail('Published product missing version timestamp',409);
       const parsed=await readJson(request);
       if(parsed.error)return fail(parsed.error,parsed.status);
@@ -199,15 +214,24 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
         draft=await validateDraft(parsed.body.draft||{},base,env);
       }catch(e){return fail(String(e.message||e));}
       const now=stamp(),rid=crypto.randomUUID();
+      const delegated=env.PZ_PRODUCT_RESPONSIBILITY_ENABLED==='true';
+      const custodianGuard=delegated
+        ? " AND ((NOT EXISTS(SELECT 1 FROM pz_product_responsibilities a "+
+          "WHERE a.product_id=products.id) AND created_by=?) "+
+          "OR EXISTS(SELECT 1 FROM pz_product_responsibilities a "+
+          "WHERE a.product_id=products.id AND a.responsible_user_id=? "+
+          "AND a.department_id=? AND a.supervisor_id=?))"
+        : " AND created_by=?";
       try{
         await env.DB.prepare(
           "INSERT INTO pz_published_product_revisions"+
           "(id,product_id,submitter_id,supervisor_id,department_id,base_updated_at,"+
           "base_snapshot_json,draft_json,status,draft_revision,latest_version,created_at,updated_at) "+
           "SELECT ?,id,?,?,?,?,?,?, 'draft',1,0,?,? FROM products "+
-          "WHERE id=? AND status='published' AND updated_at=?"
+          "WHERE id=? AND status='published' AND updated_at=?"+custodianGuard
         ).bind(rid,actor,assignment.supervisor_id,assignment.department_id,product.updated_at,
-          JSON.stringify(base),JSON.stringify(draft),now,now,id,product.updated_at).run();
+          JSON.stringify(base),JSON.stringify(draft),now,now,id,product.updated_at,
+          ...(delegated?[actor,actor,assignment.department_id,assignment.supervisor_id]:[actor])).run();
         const exists=await env.DB.prepare(rowSql).bind(rid).first();
         if(!exists)return fail('Product changed while creating revision',409);
       }catch(e){
@@ -275,6 +299,10 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
       if(!assignment||assignment.supervisor_id!==revision.supervisor_id||
         assignment.department_id!==revision.department_id)
         return fail('Supervisor assignment changed; contact administrator',409);
+      // Reject a revision whose maintenance authority has since changed.
+      const liveProduct=await env.DB.prepare(productSql).bind(revision.product_id).first();
+      if(!liveProduct||!(await mayRequestRevision(env,liveProduct,actor,assignment)))
+        return fail('Product responsibility changed; contact administrator',409);
       const draft=JSON.parse(revision.draft_json);
       if(!Array.isArray(draft.images)||!draft.images.length)
         return fail('At least one image required before review',400);
