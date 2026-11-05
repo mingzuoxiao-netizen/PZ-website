@@ -166,6 +166,28 @@
 - A PR merged into `main` **does not** automatically update active Workers or migrate Production D1.
 - The exported Production code and current Production candidate are **not interchangeable**.
 
+## Production Phase 3 deployment checkpoint — 2026-11-05
+
+**Evidence:** operator-provided Cloudflare `pz-inquiry-api` Worker Deployments screenshot, 2026-11-05. This section is an append-only observation. Do not mistake a variable-configuration deployment for proof of its value or for a Git source checksum.
+
+| Observation | Value | Confidence |
+| --- | --- | --- |
+| Active deployment/version prefix | `e526d60b` | Visible on Worker Deployments screenshot |
+| Most recent rollout entry | `e526d60b` — `Add variable: PZ_PRODUCT_REVISIONS_ENABLED` | Screenshot |
+| Earlier new code deployment | `01d3ab2a` — `Manually deployed` | Screenshot |
+| Previously known Worker version | `e7e47e18` — `Manually deployed` | Screenshot, historical rollback reference |
+| Health information | New rollout marked Ready; screenshot showed 0 req/sec, 0% error and 0 ms median CPU (no meaningful observed request volume) | Screenshot-time only |
+| Traffic allocation | Screenshot shows a 0%-to-100% bar; **do not interpret its scale endpoints as confirmed per-version traffic allocation** | Not independently verified |
+| Revision feature flag | `PZ_PRODUCT_REVISIONS_ENABLED` **added**, actual value **not visible** | Screenshot |
+| Runtime, bindings | Previously observed Production `PZ_RUNTIME_ENV=production`, D1 `DB` name `1`, UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`, R2 `pz-product-images`, Production KV | Historical screenshot; recheck if changed |
+| Production Migration 012 | Operator reported 3 tables, 6 indexes, 6 triggers; post-check `revision_count=0`, `quick_check=ok`, no FK violations | Screenshot + operator confirmation |
+| Old features | Operator reported normal after Worker code cutover | Operator confirmation |
+| End-to-end Production revision UAT | **Not yet verified** | Pending |
+
+**Next action:** Verify in the active **Production Worker** Settings that `PZ_PRODUCT_REVISIONS_ENABLED` is `true`, `PZ_RUNTIME_ENV=production`, and DB/R2/KV bindings still point to Production. Only then run an explicit, controlled revision UAT using a designated eligible published test product. Do not silently edit actual customer product data or interpret the presence of the variable alone as feature activation.
+
+No Cloudflare environment, source code, secrets or database values were changed while recording this checkpoint.
+
 ## Required process for every subsequent review
 
 Update this ledger with:
