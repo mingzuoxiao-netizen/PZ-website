@@ -49,11 +49,11 @@ function setup(){
     PZ_TWO_STAGE_REVIEW_ENABLED:'true',PZ_ORG_RBAC_ENABLED:'true',
     PRODUCT_IMAGES:{async head(key){return key==='uploads/new.webp'?{size:32}:null;}}
   };
-  const publish={calls:0,fail:false};
+  const publish={calls:0,fail:false,softFail:false};
   const originalFetch=async req=>{
     if(new URL(req.url).pathname==='/admin/publish/products'){
       publish.calls++;
-      return Response.json({success:!publish.fail},{status:publish.fail?503:200});
+      return Response.json({success:!publish.fail&&!publish.softFail},{status:publish.fail?503:200});
     }
     return Response.json({error:'Unknown path'},{status:404});
   };
@@ -215,9 +215,13 @@ test('catalog refresh failure is explicit and retry does not reapply a revision'
   assert.equal(first.status,503);
   assert.equal(product().name,'Refresh retry');
   publish.fail=false;
+  publish.softFail=true; // HTTP 200 but the Worker did not confirm KV publication
+  const softFailure=await call('/admin/revisions/'+id+'/publish','admin','POST',{});
+  assert.equal(softFailure.status,503);
+  publish.softFail=false;
   const retry=await call('/admin/revisions/'+id+'/publish','admin','POST',{});
   assert.equal(retry.status,200);
-  assert.equal(publish.calls,2);
+  assert.equal(publish.calls,3);
   assert.equal(product().name,'Refresh retry');
 });
 
