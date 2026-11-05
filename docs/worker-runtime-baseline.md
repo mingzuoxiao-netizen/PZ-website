@@ -188,6 +188,14 @@
 
 No Cloudflare environment, source code, secrets or database values were changed while recording this checkpoint.
 
+### Production Phase 3 end-to-end UAT — operator confirmation (2026-11-05)
+
+- Operator reports: **“这一条链路全通了”** (full published-product revision workflow passed in Production).
+- Interpreted scope from the preceding requested UAT: original uploader's revision draft -> supervisor initial review -> administrator final review -> explicit publish, with old public version retained until publish. This is **operator-reported business acceptance**, not independently observed product/approval rows or logs.
+- New Production Worker last observed active version prefix: `e526d60b`; preceding code deployment: `01d3ab2a`. The feature flag's **value was not visible in the earlier screenshot**; route operation suggests it was enabled, but the exact setting is not independently verified in this record.
+- Production Migration 012 and post-migration checks were previously reported complete; no further D1 migration or Worker deployment was performed by this log update.
+- **Release status:** Phase 3 published-product revision workflow accepted by the operator in Production. Future release audits should still verify precise version/flag/binding snapshots as needed.
+
 ## Required process for every subsequent review
 
 Update this ledger with:
