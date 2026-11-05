@@ -10,7 +10,8 @@ interface ProductListProps {
   categoryTitle?: string;
   onEdit: (item: ProductVariant) => void;
   onRefresh?: () => void;
-  onSubmit?: (id: string) => Promise<void>; 
+  onSubmit?: (id: string) => Promise<void>;
+  onStartRevision?: (item: ProductVariant) => void; 
   onCreate: () => void;
   onBack: () => void;
   userRole?: 'ADMIN' | 'FACTORY';
@@ -19,7 +20,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onRefresh, onSubmit, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -219,6 +220,13 @@ const ProductList: React.FC<ProductListProps> = ({
                                 >
                                     {isSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                     {T("Submit Review","提交审核")}
+                                </button>
+                            )}
+                            {isFactory && isPublished && onStartRevision && (
+                                <button type="button" onClick={() => onStartRevision(item)}
+                                  className="rounded border border-amber-700 px-3 py-2 text-[10px] font-semibold text-amber-800 hover:bg-amber-50"
+                                  title={T('Only the original uploading staff may request a revision','仅原上传人员可提交修订申请')}>
+                                  {T('Request revision','申请修改')}
                                 </button>
                             )}
                             <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
