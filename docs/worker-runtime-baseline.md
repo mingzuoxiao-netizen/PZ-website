@@ -62,7 +62,8 @@
 - **17** entries are visible from the two screenshots, including the system tables `_cf_KV` and `sqlite_sequence`; this is consistent with the dashboard's **15 user tables**.
 - Table names observed: `_cf_KV`, `audit_logs`, `auth_tokens`, `category_change_requests`, `category_requests`, `inquiries`, `organizations`, `products`, `pz_departments`, `pz_product_review_events`, `pz_product_review_versions`, `pz_product_reviews`, `pz_staff_assignments`, `rate_limits`, `site_config_state`, `sqlite_sequence`, `users`.
 - Confirmed: department/assignment and original two-stage review tables exist. The three Phase 3 revision tables (`pz_published_product_revisions`, `pz_published_revision_versions`, `pz_published_revision_events`) are **absent** from the listing, so Production migration 012 has **not been confirmed as applied**.
-- Table names **do not verify** schema migration 011 or the `products.specs_json` column; next read-only check: `PRAGMA table_info(products);`, then assess other column/constraint compatibility.
+- **2026-11-05 follow-up:** operator confirms that `PRAGMA table_info(products)` shows `id`, `status`, `updated_at`, `created_by`, and `specs_json` present. This is **user-reported**, not independently inspected SQL output. Column presence does **not** certify the entire migration 011 or its constraints.
+- Next preflight: inspect schema compatibility for `users`, `pz_departments`, `pz_staff_assignments`, and published product review paths before drafting a **Production-specific** Phase 3 migration 012; the repository file named `012_published_product_revisions_STAGING_REVIEW.sql` is Staging-review only.
 - No Production write, D1 migration, flag activation, or Worker deployment was done in this inventory check.
 
 ### Production release gates
