@@ -76,6 +76,13 @@
 - **Assessment:** the three foreign key target tables and columns for migration 012 exist and align with the proposed revision workflow. This is a **schema shape check only**: it does not establish that all live assignments are valid or that the full products column set is complete.
 - **Production remains unchanged.** Next: confirm all Phase 3 products columns with a read-only missing-columns query; perform a Production-specific 012 rehearsal and recovery-point approval prior to any live migration.
 
+### Production D1 compatibility finding (2026-11-05)
+
+- The operator executed `PRAGMA integrity_check;` against Production D1 `1`, and the console returned **`not authorized: SQLITE_AUTH`**. This is an unsupported/blocked PRAGMA in Cloudflare D1, **not evidence of actual data corruption**.
+- Cloudflare's supported commands include `PRAGMA quick_check;` and `PRAGMA foreign_key_check;`. The operator was instructed to run these read-only checks; their results are **not yet confirmed**.
+- Documentation for the Production 012 gate was corrected in PR #30 to avoid repeating the unsupported check.
+- This observation made **no change** to Production data or Worker configuration.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
