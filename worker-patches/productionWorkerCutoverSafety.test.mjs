@@ -20,5 +20,11 @@ test('production bundle has both review stages, production auditing, and fail-cl
   assert.match(code,/PZ_ORG_RBAC_ENABLED/);
   assert.match(code,/PZ_RUNTIME_ENV/);
   assert.match(code,/Legacy direct admin product writes disabled/);
+  // Production candidate must enforce the same guarded admin-draft permissions as Staging.
+  assert.match(code,/const auth=await authorize\(request,env,\['FACTORY','ADMIN'\]\)/);
+  assert.match(code,/const isAdmin=auth\.user\.role==='ADMIN'/);
+  assert.match(code,/if\(isAdmin&&!\['draft','rejected'\]\.includes\(status\)\)/);
+  assert.match(code,/if\(!isAdmin&&product\.created_by!==actor\)/);
+  assert.match(code,/Legacy direct admin product writes disabled during two-stage review/);
   assert.match(code,/PZ_SITE_CONFIG_D1_CUTOVER_ENABLED/);
 });
