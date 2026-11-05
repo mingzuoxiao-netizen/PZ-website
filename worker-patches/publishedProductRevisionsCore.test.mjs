@@ -16,7 +16,8 @@ function setup(){
   for(const file of [
     '009_department_accounts_REVIEW.sql',
     '010_two_stage_product_review_REVIEW.sql',
-    '012_published_product_revisions_STAGING_REVIEW.sql'
+    '012_published_product_revisions_STAGING_REVIEW.sql',
+    '013_product_responsibility_STAGING_REVIEW.sql'
   ])sql.exec(readFileSync(new URL('./migrations/'+file,import.meta.url),'utf8'));
   sql.exec("INSERT INTO pz_departments(id,name,factory_site,is_active,created_by,created_at) VALUES "+
     "('d1','Dept','zhaoqing',1,'admin','2026-01-01'),('d2','Other','kandal',1,'admin','2026-01-01');"+
@@ -234,4 +235,55 @@ test('revision API refuses the wrong runtime even with a valid account and enabl
   assert.equal(product().name,'Old Table');
   env.PZ_RUNTIME_ENV='staging';
   assert.equal((await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Staging only'}})).status,201);
+});
+
+
+test('Phase 4 delegation: the originally uploaded product remains owned historically but new custodian can revise',async()=>{
+  const {sql,env,call,product}=setup();
+  env.PZ_PRODUCT_RESPONSIBILITY_ENABLED='true';
+  const original=structuredClone(product());
+  // Delegate the published SKU from the original uploader in Dept 1 to Dept 2.
+  sql.exec("INSERT INTO pz_product_responsibilities "+
+    "(product_id,responsible_user_id,department_id,supervisor_id,assigned_by,version,assigned_at,updated_at) "+
+    "VALUES('p1','outsider','d2','otherlead','admin',1,'2026-01-04','2026-01-04')");
+  const draft={draft:{name:'Reassigned table',images:JSON.parse(original.images)}};
+  assert.equal((await call('/factory/products/p1/revisions','worker','POST',draft)).status,403);
+  const created=await call('/factory/products/p1/revisions','outsider','POST',draft);
+  assert.equal(created.status,201,JSON.stringify(created.data));
+  const row=sql.prepare('SELECT * FROM pz_published_product_revisions WHERE id=?').get(created.data.id);
+  assert.equal(row.submitter_id,'outsider');
+  assert.equal(row.supervisor_id,'otherlead');
+  assert.equal(row.department_id,'d2');
+  assert.deepEqual(product(),original,'delegation alone never mutates published product data');
+  assert.equal((await call('/factory/revisions/'+row.id+'/submit','outsider','POST',{})).status,200);
+  assert.equal((await call('/supervisor/revisions/'+row.id+'/approve','lead','POST',{})).status,403);
+  assert.equal((await call('/supervisor/revisions/'+row.id+'/approve','otherlead','POST',{})).status,200);
+  assert.equal((await call('/admin/revisions/'+row.id+'/approve','admin','POST',{})).status,200);
+  assert.equal(product().name,original.name,'admin approval alone is not a publish');
+  assert.equal((await call('/admin/revisions/'+row.id+'/publish','admin','POST',{})).status,200);
+  assert.equal(product().name,'Reassigned table');
+  assert.equal(product().created_by,'worker','provenance still belongs to original uploader');
+});
+
+test('Phase 4 without delegation preserves original uploader request access',async()=>{
+  const {env,call}=setup();
+  env.PZ_PRODUCT_RESPONSIBILITY_ENABLED='true';
+  assert.equal((await call('/factory/products/p1/revisions','worker','POST',{
+    draft:{name:'No explicit reassignment',images:['https://cdn.peng-zhan.com/uploads/old.webp']}
+  })).status,201);
+});
+
+test('Phase 4 transfer after draft creation cannot transfer while revision is in-flight',async()=>{
+  const {sql,env,call}=setup();
+  env.PZ_PRODUCT_RESPONSIBILITY_ENABLED='true';
+  const created=await call('/factory/products/p1/revisions','worker','POST',{
+    draft:{name:'Draft under old responsibility',images:['https://cdn.peng-zhan.com/uploads/old.webp']}
+  });
+  assert.equal(created.status,201);
+  const id=created.data.id;
+  sql.exec("INSERT INTO pz_product_responsibilities "+
+    "(product_id,responsible_user_id,department_id,supervisor_id,assigned_by,version,assigned_at,updated_at) "+
+    "VALUES('p1','outsider','d2','otherlead','admin',1,'2026-01-04','2026-01-04')");
+  // An out-of-band reassignment invalidates the old owner's authority.
+  assert.equal((await call('/factory/revisions/'+id+'/submit','worker','POST',{})).status,409);
 });
