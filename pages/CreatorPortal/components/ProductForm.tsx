@@ -63,10 +63,8 @@ const ProductForm:React.FC<ProductFormProps>=({
     });
   };
   const {removeImage,reorderImages,setMainImage,uploadImage}=useProductImageActions({
-    productId:formData.id,
     images:formData.images||[],
-    setImages:(images)=>handleChange('images',images),
-    role:userRole
+    setImages:(images)=>handleChange('images',images)
   });
   const save=async(e:React.FormEvent)=>{
     e.preventDefault();
@@ -226,6 +224,10 @@ const ProductForm:React.FC<ProductFormProps>=({
 
           <section className="border-t border-stone-200 pt-7">
             {sectionTitle('03','Product images','产品图片',T('Existing R2 upload','沿用现有图片上传'))}
+            <p className="mb-4 text-xs text-stone-600" role="note">{T(
+              'Image additions, removals and ordering are draft changes. Click Save draft to persist them. Removing an image does not delete its R2 file.',
+              '图片新增、移除及排序仅修改当前草稿；请点击“保存草稿”才会写入产品记录。移除图片不会删除 R2 原文件。'
+            )}</p>
             <PZImageManager lang={lang} images={formData.images||[]}
               onUpdate={reorderImages} onDelete={removeImage}
               onUpload={uploadImage} onSetMain={setMainImage} onError={alert}/>
