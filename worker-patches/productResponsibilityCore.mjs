@@ -70,6 +70,8 @@ export function pzProductResponsibilityFetch(originalFetch,{authorize,json,expec
       "JOIN pz_staff_assignments sa ON sa.user_id=boss.id AND sa.job_type='supervisor' "+
       "AND sa.department_id=a.department_id "+
       "WHERE p.id=? AND lower(p.status)='published' "+
+      "AND (?=0 OR EXISTS(SELECT 1 FROM pz_product_responsibilities a "+
+      "WHERE a.product_id=p.id AND a.version=?)) "+
       "AND NOT EXISTS(SELECT 1 FROM pz_published_product_revisions r "+
       "WHERE r.product_id=p.id AND "+activeRevision+") "+
       "ON CONFLICT(product_id) DO UPDATE SET "+
@@ -82,7 +84,7 @@ export function pzProductResponsibilityFetch(originalFetch,{authorize,json,expec
       "AND lower(p.status)='published' AND NOT EXISTS("+
       "SELECT 1 FROM pz_published_product_revisions r WHERE r.product_id=p.id AND "+activeRevision+"))";
     try{
-      const result=await env.DB.prepare(query).bind(actor,now,now,userId.trim(),productId,expected).run();
+      const result=await env.DB.prepare(query).bind(actor,now,now,userId.trim(),productId,expected,expected,expected).run();
       if(Number(result.meta?.changes)!==1)
         return fail('Product unavailable, active revision, invalid staff assignment or stale version; refresh',409);
     }catch(error){
