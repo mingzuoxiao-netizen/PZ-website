@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Factory, LogOut, Globe, Menu } from 'lucide-react';
+import { Shield, Factory, LogOut, Globe, Menu, ChevronDown } from 'lucide-react';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
   role: 'ADMIN' | 'FACTORY' | 'SUPERVISOR';
   userName: string;
-  navItems: { id: string; label: string; icon: React.ReactNode }[];
+  navItems: { id: string; label: string; icon: React.ReactNode; group?: string }[];
   activeTab: string;
   onTabChange: (id: any) => void;
 }
@@ -21,7 +21,9 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
     }
   };
 
-  const navList = (mobile: boolean) => navItems.map(item => (
+  const hasGroups=navItems.some(item=>!!item.group);
+  const groupNames=Array.from(new Set(navItems.flatMap(item=>item.group?[item.group]:[])));
+  const navList = (mobile: boolean, items: typeof navItems = navItems) => items.map(item => (
     <button
       type="button"
       key={item.id}
@@ -46,8 +48,19 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
           <div className="flex h-9 w-9 items-center justify-center rounded bg-[#476b9a] font-serif font-bold text-white">P</div>
           <div className="text-[11px] font-bold tracking-[0.1em]">PZ 中文管理后台</div>
         </div>
-        <nav aria-label="后台功能" className="flex-grow space-y-1 overflow-y-auto p-4">
-          {navList(false)}
+        <nav aria-label="后台功能" className="flex-grow space-y-2 overflow-y-auto p-4">
+          {navList(false,navItems.filter(item=>!item.group))}
+          {groupNames.map(group=><details key={group}
+            defaultOpen={navItems.some(item=>item.group===group&&item.id===activeTab)}
+            className="group rounded border border-white/10">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs font-semibold text-[#c5cbd1] hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              {group}
+              <ChevronDown size={15} aria-hidden="true" className="transition-transform group-open:rotate-180"/>
+            </summary>
+            <div className="space-y-1 border-t border-white/10 p-1">
+              {navList(false,navItems.filter(item=>item.group===group))}
+            </div>
+          </details>)}
         </nav>
         <div className="border-t border-white/10 p-4">
           <div className="mb-3 rounded-sm bg-[#152335] p-4">
@@ -86,9 +99,20 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
           </div>
         </header>
 
-        <nav aria-label="手机端后台功能" className="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-2 sm:px-4 lg:hidden">
-          {navList(true)}
-        </nav>
+        {hasGroups
+          ? <div className="border-b border-stone-200 bg-white px-4 py-3 lg:hidden">
+              <label htmlFor="pz-mobile-backoffice-section" className="mb-1 block text-xs font-semibold text-stone-600">当前功能</label>
+              <select id="pz-mobile-backoffice-section" aria-label="手机端后台功能"
+                value={activeTab} onChange={event=>onTabChange(event.target.value)}
+                className="w-full rounded border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900">
+                {navItems.map(item=><option key={item.id} value={item.id}>
+                  {item.group?item.group+' · ':''}{item.label}
+                </option>)}
+              </select>
+            </div>
+          : <nav aria-label="手机端后台功能" className="flex gap-1 overflow-x-auto border-b border-stone-200 bg-white px-2 sm:px-4 lg:hidden">
+              {navList(true)}
+            </nav>}
 
         <main className="min-w-0 flex-1 bg-stone-50 p-4 md:p-8 lg:overflow-y-auto">
           <div className="mx-auto max-w-[1600px] min-w-0">{children}</div>
