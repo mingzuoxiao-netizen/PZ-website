@@ -6,6 +6,12 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
 }) {
   const fail=(error,status=400)=>json({error},status);
   const stamp=()=>new Date().toISOString();
+  // HTTP 200 alone does not prove the public KV snapshot actually refreshed.
+  const catalogConfirmed=async(response)=>{
+    if(!response.ok)return false;
+    const data=await response.clone().json().catch(()=>null);
+    return data?.success===true;
+  };
   const productSql="SELECT id,name,name_cn,category,sub_category,material,size,finish,code,"+
     "description,description_cn,images,production_sites,specs_json,created_by,status,created_at,updated_at "+
     "FROM products WHERE id=? LIMIT 1";
@@ -322,8 +328,9 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
         method:'POST',headers:{Authorization:request.headers.get('Authorization')||''}
       });
       const result=await originalFetch.call(this,republish,env,ctx);
-      return result.ok?json({success:true,id,status:'published',catalog_published:true}):
-        fail('Catalog refresh failed; retry admin publish',503);
+      return (await catalogConfirmed(result))
+        ? json({success:true,id,status:'published',catalog_published:true})
+        : fail('Catalog refresh failed; retry admin publish',503);
     }
     if(revision.status!=='approved_pending_publish'||
       revision.approved_version!==revision.latest_version)
@@ -366,7 +373,7 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
       method:'POST',headers:{Authorization:request.headers.get('Authorization')||''}
     });
     const published=await originalFetch.call(this,republish,env,ctx);
-    if(!published.ok)return fail('D1 revision published but catalog refresh failed; retry publish to resync',503);
+    if(!(await catalogConfirmed(published)))return fail('D1 revision published but catalog refresh failed; retry publish to resync',503);
     return json({success:true,id,status:'published',catalog_published:true});
   };
 }
