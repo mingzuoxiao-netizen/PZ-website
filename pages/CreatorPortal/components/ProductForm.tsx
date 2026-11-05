@@ -131,7 +131,7 @@ const ProductForm:React.FC<ProductFormProps>=({
           <div className="flex items-center gap-3"><ClipboardList size={18}/>
             <h3 className="text-sm font-semibold">{T('Product editor','产品资料编辑')}</h3>
           </div>
-          <span className="text-xs text-stone-300">{T('Four sections · no pricing','四个模块 · 无价格字段')}</span>
+          <span className="text-xs text-stone-300">{T('Save first · submit for review second','先保存草稿，再提交审核')}</span>
         </div>
         <form onSubmit={save} className="space-y-8 px-5 py-7 md:px-8">
           <section aria-label={T('Basic information','基本信息')}>
@@ -231,8 +231,10 @@ const ProductForm:React.FC<ProductFormProps>=({
             <PZImageManager lang={lang} images={formData.images||[]}
               onUpdate={reorderImages} onDelete={removeImage}
               onUpload={uploadImage} onSetMain={setMainImage} onError={alert}/>
-            {(formData.images||[]).length>0&&<div className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
-              <h5 className="mb-2 text-sm font-semibold">{T('Image labels','图片用途')}</h5>
+            {(formData.images||[]).length>0&&<details className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-stone-800">
+                {T('Advanced: image role labels','高级选项：图片用途标签')}
+              </summary>
               <p className="mb-4 text-xs text-stone-500">{T(
                 'The first image is always the main image; change its order above.',
                 '第 1 张图自动是主图；想换主图请在上方图片管理器调整顺序。')}</p>
@@ -255,13 +257,18 @@ const ProductForm:React.FC<ProductFormProps>=({
                     </label>
                   </div>)}
               </div>
-            </div>}
+            </details>}
           </section>
 
-          <div className="border-t border-stone-200 pt-7">
-            <ProductSpecificationsEditor mode="factory"
-              category={categoryLabel} value={specs} onChange={changeSpecs} lang={lang}/>
-          </div>
+          <details className="border-t border-stone-200 pt-7">
+            <summary className="cursor-pointer rounded border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800">
+              {T('Additional: packaging, assembly and care','补充信息：包装、组装与保养（按需展开）')}
+            </summary>
+            <div className="pt-4">
+              <ProductSpecificationsEditor mode="factory"
+                category={categoryLabel} value={specs} onChange={changeSpecs} lang={lang}/>
+            </div>
+          </details>
           <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
             <button type="button" onClick={onCancel}
               className="flex items-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
