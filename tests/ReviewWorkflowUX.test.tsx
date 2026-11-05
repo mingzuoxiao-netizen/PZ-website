@@ -28,7 +28,7 @@ const setup=()=>{
 };
 const getButton=(view:ReturnType<typeof create>,label:string)=>
   view.root.findAllByType('button').find(x=>
-    x.children.some(v=>typeof v==='string'&&v===label)
+    x.children.filter((v):v is string=>typeof v==='string').join('')===label
   );
 test('supervisor review prioritizes changed fields and shows return form only after request',async()=>{
   const environment=setup();
