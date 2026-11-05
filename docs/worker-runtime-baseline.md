@@ -107,6 +107,18 @@
 - Before deploying the Phase 3 Worker: inspect/download the active `e7e47e18` version source or verified version metadata, compare to the repo's Production candidate, record source checksum and any differences, and preserve the exact prior version as the rollback target.
 - No Production database or Worker mutation occurred in this check.
 
+### Active Production editor export fingerprint and exact GitHub lineage (operator file: 2026-11-05 19:46)
+
+- New file: `粘贴的文本 (1)(20261105-194602).txt`, supplied after viewing Production Worker Deployments and opening **Edit code**. Source-to-deployment link is **operator-provided**, not independently attested by Cloudflare version metadata.
+- File length **228,497 bytes**, **5,944 lines**, Windows CRLF; SHA-256 `2a47829b726e03347b30d32231fd51600f527f745c41a77c1bb333a03754582f`. Its bytes exactly match the earlier export `粘贴的文本 (1)(20261105-191918).txt`.
+- After converting CRLF to LF and adding a final newline, its Git blob SHA is **`ca4572b1139e9ec350144b0b8e78ab1919b6bd82`**, exactly matching `worker-patches/production-worker-category-governance-REVIEW.js` at historical commit **`4267d98f9a04`** (2026-11-02). The final newline and line-ending conversion are formatting differences; the code body matches that historical revision.
+- Current `main` Production **candidate** Git blob: `be546392e96842d78a71d5988b484dbb6e761834`, about **6,470 lines**. GitHub compare `4267d98f9a04...main` reports **538 additions, 13 deletions** in the Worker candidate.
+- Functional differences include **internal product `specs_json` reads/writes and validation, ADMIN guarded draft permission alignment, and Phase 3 published-product revision routes**. Old export lacks `pzValidateTechnicalSpecs`, `pzPublishedProductRevisionsFetch` and `PZ_PRODUCT_REVISIONS_ENABLED`. The new candidate contains them; Phase 3 is opt-in and must remain OFF until independently authorized.
+- The upload's top comments read `REVIEW CANDIDATE; NOT DEPLOYED` even though the operator says it was copied from active Worker Edit code. This comment is **stale/inconclusive** relative to what Cloudflare may be running. Do not infer deployed state solely from it.
+- The active Cloudflare Deployment page independently showed version **`e7e47e18`** with 100% traffic. Without a verified full Cloudflare deployed-source checksum/version API this remains an **operator-linked** source snapshot, not independently proven cryptographic linkage to that version.
+- The source code export passes **`node --check`** after a temporary `.js` extension; no live Production runtime or API write test was performed.
+- **Production still not modified.** Record exact current Worker version and a recoverable D1 bookmark/time before any authorized migration or Worker cutover. Never deploy the GitHub candidate solely because it is `main`.
+
 ### Production release gates
 
 1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
