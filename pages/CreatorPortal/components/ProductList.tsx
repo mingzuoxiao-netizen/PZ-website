@@ -225,7 +225,7 @@ const ProductList: React.FC<ProductListProps> = ({
                             {isFactory && isPublished && onStartRevision && (
                                 <button type="button" onClick={() => onStartRevision(item)}
                                   className="rounded border border-amber-700 px-3 py-2 text-[10px] font-semibold text-amber-800 hover:bg-amber-50"
-                                  title={T('Original uploader or administrator-authorized custodian may request a revision','原上传人或管理员授权的负责人可提交修订申请')}>
+                                  title={T('Only the original uploading staff may request a revision','仅原上传人员可提交修订申请')}>
                                   {T('Request revision','申请修改')}
                                 </button>
                             )}

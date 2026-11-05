@@ -1,47 +1,33 @@
-# PZ Phase 4 — Historical published-product responsibility
+# PZ Phase 4 responsibility delegation — WITHDRAWN
 
-**Review candidate only. This PR does not deploy Workers, run D1 SQL, or update R2/KV/Secrets.**
+Decision: **Do not deploy or enable the per-product responsibility delegation feature.** The operator prefers the simpler original-account rule.
 
-## Scope and invariants
+## Effective product authorization
 
-- Admin designates the future custodian for one **already published** product, using the existing department, supervisor and staff accounts.
-- `products.created_by`, public product content, SKU, image references, and existing two-stage and Phase 3 revision records do not change merely by assigning a custodian.
-- A delegated custodian can request a published-product revision through the existing factory UI; original uploading staff cannot submit a new revision after explicit reassignment. If a product is not explicitly assigned, the original uploader retains the existing permission.
-- Only an active, non-supervisor staff/secretary/data-entry account in an active department with an active same-department supervisor can be assigned.
-- A product with an unfinished Phase 3 revision cannot be reassigned. `expected_version` implements compare-and-swap for admins. D1 triggers append immutable assignment history on creation and update.
-- Revisions still go **staff → supervisor initial approval → admin final approval → explicit publish**. No automatic product publishing, image deletion or role escalation.
+- **Factory employee:** may edit their own unpublished drafts and request corrections; once published, only the original uploading account (`products.created_by`) may initiate a new versioned revision.
+- **Other factory employees:** cannot edit or request changes to that account's products, even if they are members of the same department.
+- **Supervisor:** reviews requests from assigned employees; no right to directly rewrite or publish products.
+- **Administrator:** final approval and explicit publish, plus account/department management; no individual product responsibility assignments are required.
+- Product content remains protected by the existing Phase 2 and Phase 3 review/publish workflows. The original creator ID is preserved.
 
-## Artifacts
+## Safe rollback of PR #34
 
-- Schema: `migrations/013_product_responsibility_STAGING_REVIEW.sql` and `013_product_responsibility_PRODUCTION_REVIEW.sql`. Their executable SQL is identical; only the environment comment differs. Create-only; no updates/deletions of old records.
-- API: `GET /admin/product-responsibilities`, `GET /admin/product-responsibilities/:productId/events`, `PUT /admin/product-responsibilities/:productId` with `{responsible_user_id,expected_version}`, ADMIN only.
-- Staging and Production standalone Worker **candidates** updated to include the new API and delegate-aware factory product list, plus the revised Phase 3 authorization.
-- UI: Admin → 产品管理 → 历史产品负责人授权. Factory product catalog shows assigned published products so the authorized staff can request a change.
-- Flag: **`PZ_PRODUCT_RESPONSIBILITY_ENABLED`**. Must remain unset/false until the appropriate D1 migration has been verified and the Worker candidate deployed for that environment.
+- The dedicated product responsibility API and Chinese administrator assignment panel were removed from the code. Staging and Production Worker candidates, original revision logic, and CI are restored to their proven post-PR-#33 state.
+- **Staging environment:** immediately set `PZ_PRODUCT_RESPONSIBILITY_ENABLED=false` (or remove it). Then deploy the reverted Staging Worker **only to Staging** after reviewing current active version, and confirm owner-only authorization. This migration is not a live deployment.
+- **Production:** do not apply Migration 013 and do not turn on `PZ_PRODUCT_RESPONSIBILITY_ENABLED`. No Phase 4 Production Worker cutover is required. The original Phase 3 production code already enforces creator ownership.
+- Pages frontend: merge the single rollback PR to remove the assignment UI. Verify Pages Preview and Production use their correct isolated backends before publishing.
 
-## Staging-first release gate
+## Why Migration 013 remains in the repository
 
-1. Review the live **`pz-inquiry-api-staging`** Worker version and current deployment source vs the GitHub Staging candidate; never overwrite newer live code. Keep `PZ_RUNTIME_ENV=staging` and Staging-only D1/R2/KV bindings and all existing review feature flags.
-2. Apply Migration 013 to **Staging D1 only** after verifying prerequisites 009/010/012. Confirm two new tables `pz_product_responsibilities` / `pz_product_responsibility_events`, three indexes, six triggers. Run `PRAGMA foreign_key_check;` and `PRAGMA quick_check;` after migration; do not run `PRAGMA integrity_check` if D1 blocks it. Existing product rows and counts must stay unchanged.
-3. Deploy reviewed Staging Worker **only to Staging** with `PZ_PRODUCT_RESPONSIBILITY_ENABLED` still unset/false; verify existing factory/admin login, lists, review and publish behavior and old Phase 3 UAT.
-4. Enable `PZ_PRODUCT_RESPONSIBILITY_ENABLED=true` in Staging only, preserving all D1/R2/KV bindings/secrets.
-5. Deploy a **Pages Preview** for this PR pointed at Staging API (do not treat Preview as Production). In Admin → 产品管理, select one synthetic or designated Staging published product originally created by an admin, choose an existing active staff member and confirm assignment. Verify `products.created_by` and published public data are unchanged and the new staff sees the product.
-6. Use new staff to create a revision, supervisor to initial-approve, admin to final-approve, then explicitly publish. Check original uploader/no-longer-authorized employees and cross-department accounts cannot start or approve unauthorized revisions. Verify approval still requires explicit publish.
-7. Verify assignment history, repeated/stale `expected_version` fails, inactive employee/supervisor rejected and reassignment blocked during an active revision. Ensure the existing revision is completed/canceled before reassigning. No production or customer product data should be used in destructive testing.
+The operator has already executed the additive `013_product_responsibility_STAGING_REVIEW.sql` on Staging D1. Those two tables and the related audit history must **not** be deleted automatically: this is a data-preservation decision, not a reason to keep the feature active. The original SQL scripts remain archived as a record of what was executed. They are **not approved for further deployment**.
 
-## Production release gate (separate approval)
+A database cleanup, if ever needed, would require a separate inventory and evidence that no authorization/audit records are present. No cleanup is required for the owner-only workflow.
 
-1. After Staging UAT, merge the one reviewed feature PR (no automatic Worker SQL or deployment).
-2. Record active **Production** Worker ID, D1 database `1` UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`, R2 `pz-product-images` and Production KV bindings. Obtain a private D1 Time Travel bookmark. Do **not** click Restore as a backup mechanism.
-3. Apply **Production Migration 013** separately with the flag **off**. Verify table/index/trigger counts, old row counts, `PRAGMA foreign_key_check`, and `PRAGMA quick_check`.
-4. Deploy `main/worker-patches/production-worker-category-governance-REVIEW.js` to the **Production Worker** without changing unrelated config, secrets or review flags; verify existing APIs before enabling the new feature.
-5. Enable the flag in Production, then manually deploy the reviewed Pages Production build if the Admin assignment UI is desired. Verify by granting one controlled test product, checking identity/history/read-only public content and the full review-to-publish path. Avoid customer-facing modifications as test data.
-6. If a regression occurs, turn the new flag off and roll back the Worker/Pages to the saved active versions. **No D1 restore** is required or appropriate for a Worker code rollback; do not delete the additive migration tables without a separate explicit data-preservation decision.
+## Verification
 
-## QA
+- `node --test worker-patches/publishedProductRevisionsCore.test.mjs` — rejects revision creation by any factory user whose ID differs from `products.created_by`, including staff from other departments.
+- `node --test worker-patches/productTwoStageReviewCore.test.mjs` — unapproved direct edits remain blocked; two-stage flow remains intact.
+- `python worker-patches/test_published_revision_integration.py` — both assembled Worker bundles contain the original owner-only check and unchanged Phase 3 gates.
+- **Production Worker is untouched until explicitly authorized.**
 
-- `node --test worker-patches/productResponsibilityCore.test.mjs` verifies migration parity, role restrictions, version CAS, history, active-revision locking, and no change to original product data.
-- `node --test worker-patches/publishedProductRevisionsCore.test.mjs` verifies original uploader fallback, delegated custodian access, cross-department isolation, revision approval, and immutable published SKU/provenance.
-- Existing full CI typecheck, frontend QA, Phase 2 and Phase 3 tests and Worker syntax checks must remain green.
-
-**Version-management rule:** one feature PR; future Cloudflare deployment IDs and acceptance evidence belong in this PR conversation or the existing Worker runtime ledger, not a new PR per check.
+This document supersedes the Phase 4 enablement procedure previously present here; do not follow the old enablement instructions.

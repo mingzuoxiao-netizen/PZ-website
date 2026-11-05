@@ -20,7 +20,6 @@ import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
-import ProductResponsibilityManager from './components/ProductResponsibilityManager';
 import TwoStageProductReviews from './components/TwoStageProductReviews';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
@@ -286,10 +285,7 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <div className="space-y-6">
-              <ProductResponsibilityManager products={products} />
-              <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
-            </div>
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
           )
         )}
 
