@@ -27,6 +27,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<'all' | 'unassigned' | ProductionSite>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
@@ -46,14 +47,22 @@ const ProductList: React.FC<ProductListProps> = ({
     approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' }
   };
 
+  const searchTerm=search.trim().toLowerCase();
+  const actionStatuses=isFactory
+    ? ['draft','rejected','returned_to_uploader']
+    : ['pending_admin','approved_pending_publish'];
   const filteredItems = Array.isArray(items) ? items.filter(i => {
-    const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || 
-                         (i.code && i.code.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
-    const sites = i.production_sites || [];
-    const matchesSite = siteFilter === 'all' || (siteFilter === 'unassigned' ? sites.length === 0 : sites.includes(siteFilter));
-    return matchesSearch && matchesStatus && matchesSite;
+    const matchesSearch=[i.name,i.name_cn,i.code].some(v=>
+      String(v||'').toLowerCase().includes(searchTerm));
+    const matchesStatus=statusFilter==='all' || (statusFilter==='action'
+      ? actionStatuses.includes(String(i.status||''))
+      : i.status===statusFilter);
+    const sites=i.production_sites||[];
+    const matchesSite=siteFilter==='all' || (siteFilter==='unassigned'
+      ? sites.length===0 : sites.includes(siteFilter));
+    return matchesSearch&&matchesStatus&&matchesSite;
   }) : [];
+  const hasCustomFilters=!['all','action','published'].includes(statusFilter)||siteFilter!=='all';
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -107,52 +116,69 @@ const ProductList: React.FC<ProductListProps> = ({
          {T('Product approvals and publishing must go through the Review Center. Approved and published products cannot be directly edited here.',
            '产品审核与发布请在“审核中心”操作；已批准或已发布的产品不能在此直接修改。')}
        </p>}
-       <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-4 w-full md:w-auto">
-             <div className="relative group max-w-sm w-full">
-                <div className="flex items-center bg-white border border-stone-200 rounded-sm shadow-sm focus-within:border-stone-900 transition-all px-4 py-3">
-                    <Search size={16} className="text-stone-400" />
-                    <input 
-                        type="text" 
-                        placeholder={T("Search SKU or Title...","搜索产品名称或 SKU…")} 
-                        value={search} 
-                        onChange={e => setSearch(e.target.value)} 
-                        className="ml-3 w-full text-xs focus:outline-none font-sans" 
-                    />
-                </div>
-             </div>
-             <select 
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
-             >
-                <option value="all">{T("View All Statuses","查看全部状态")}</option>
-                <option value="published">{T("Published","已发布")}</option>
-                <option value="draft">{T("Draft","草稿")}</option>
-                <option value="awaiting_review">{T("Awaiting Audit","待审核")}</option>
-                <option value="rejected">{T("Correction Req","已退回")}</option>
-                <option value="returned_to_uploader">待员工修改</option>
-                <option value="pending_supervisor">待主管初审</option>
-                <option value="pending_admin">待管理员终审</option>
-                <option value="approved_pending_publish">待发布</option>
+       <section className="mb-5 space-y-3 rounded border border-stone-200 bg-white p-3 sm:p-4" aria-label="产品筛选">
+         <div className="flex flex-wrap items-center gap-3">
+           <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded border border-stone-300 bg-white px-3 py-2.5">
+             <Search size={17} className="shrink-0 text-stone-500" aria-hidden="true"/>
+             <span className="sr-only">{T('Search products','搜索产品')}</span>
+             <input value={search} onChange={e=>setSearch(e.target.value)}
+               placeholder={T('Search name or SKU','搜索中文名、英文名或 SKU')}
+               className="w-full bg-transparent text-sm text-stone-900 outline-none"/>
+           </label>
+           <div className="flex flex-wrap gap-1" role="group" aria-label="快捷状态筛选">
+             {([
+               ['all',T('All','全部')],
+               ['action',T('Needs action','待处理')],
+               ['published',T('Published','已发布')]
+             ] as const).map(([status,name])=><button key={status} type="button"
+               aria-pressed={statusFilter===status}
+               onClick={()=>setStatusFilter(status)}
+               className={'rounded px-3 py-2.5 text-xs font-semibold transition-colors '+
+                 (statusFilter===status?'bg-stone-900 text-white':'bg-stone-100 text-stone-700 hover:bg-stone-200')}>
+               {name}
+             </button>)}
+           </div>
+           <button type="button" aria-expanded={showAdvancedFilters}
+             onClick={()=>setShowAdvancedFilters(v=>!v)}
+             className="rounded border border-stone-300 px-3 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+             {showAdvancedFilters?T('Hide filters','收起筛选'):T('More filters','更多筛选')}
+             {hasCustomFilters?' · 已筛选':''}
+           </button>
+         </div>
+         {showAdvancedFilters&&<div className="flex flex-wrap items-end gap-3 border-t border-stone-100 pt-3">
+           <label className="text-xs font-semibold text-stone-700">
+             {T('Specific status','具体状态')}
+             <select aria-label={T('Specific status','具体状态')} value={statusFilter}
+               onChange={e=>setStatusFilter(e.target.value)}
+               className="mt-1 block min-w-[160px] rounded border border-stone-300 bg-white px-3 py-2 text-sm">
+               <option value="all">{T('All','全部状态')}</option>
+               <option value="action">{T('Needs action','待处理')}</option>
+               {Object.entries(statusMap).filter(([key])=>key!=='all').map(([key,v])=>
+                 <option key={key} value={key}>{v.label}</option>)}
              </select>
-             <select
-                aria-label={T("Filter production site","筛选生产基地")}
-                value={siteFilter}
-                onChange={e => setSiteFilter(e.target.value as typeof siteFilter)}
-                className="bg-white border border-stone-200 px-4 py-3 text-[10px] font-bold text-stone-600 outline-none uppercase tracking-widest"
-             >
-                <option value="all">{T("All Production Sites","全部生产基地")}</option>
-                <option value="zhaoqing">{T("Zhaoqing · China","中国肇庆")}</option>
-                <option value="cambodia">{T("Kandal · Cambodia","柬埔寨干丹")}</option>
-                <option value="unassigned">{T("Not Assigned","未指定生产基地")}</option>
+           </label>
+           <label className="text-xs font-semibold text-stone-700">
+             {T('Production site','生产基地')}
+             <select aria-label={T('Production site','生产基地')} value={siteFilter}
+               onChange={e=>setSiteFilter(e.target.value as typeof siteFilter)}
+               className="mt-1 block min-w-[160px] rounded border border-stone-300 bg-white px-3 py-2 text-sm">
+               <option value="all">{T('All sites','全部生产基地')}</option>
+               <option value="zhaoqing">{T('Zhaoqing','肇庆')}</option>
+               <option value="cambodia">{T('Cambodia','柬埔寨干丹')}</option>
+               <option value="unassigned">{T('Unassigned','未指定')}</option>
              </select>
-          </div>
-          
-          <div className="text-[10px] font-mono text-stone-400 font-bold uppercase tracking-widest">
-            {isLoading ? T('Syncing...','正在同步…') : T(`${filteredItems.length} records detected`, `共 ${filteredItems.length} 条产品`)}
-          </div>
-       </div>
+           </label>
+           <button type="button" onClick={()=>{setStatusFilter('all');setSiteFilter('all');setSearch('');}}
+             className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-50">
+             {T('Clear filters','清除筛选')}
+           </button>
+         </div>}
+         <p className="text-right text-xs text-stone-500" role="status">
+           {isLoading?T('Loading products…','正在读取产品…'):
+             T(`Showing ${filteredItems.length} / ${items.length}`,
+               `显示 ${filteredItems.length} / ${items.length} 件产品`)}
+         </p>
+       </section>
 
        <div className="bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden">
             <div className="divide-y divide-stone-100">
@@ -229,9 +255,9 @@ const ProductList: React.FC<ProductListProps> = ({
                                   {T('Request revision','申请修改')}
                                 </button>
                             )}
-                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex">
                                 {(isAdmin ? ['draft','rejected'].includes(item.status||'') : ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
-                                    <button onClick={() => onEdit(item)} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
+                                    <button onClick={() => onEdit(item)} aria-label={T("Edit draft","编辑草稿")} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
                                 )}
 
                             </div>
