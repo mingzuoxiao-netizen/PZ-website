@@ -77,16 +77,22 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     const factoryEdit=path.match(/^\/factory\/products\/([^/]+)$/);
     const factoryCreate=path==='/factory/products'&&method==='POST';
     if(factoryCreate||(factoryEdit&&method==='PUT')){
-      const auth=await authorize(request,env,['FACTORY']);
+      const auth=await authorize(request,env,['FACTORY','ADMIN']);
       if(auth instanceof Response)return auth;
       const actor=auth.user.id;
-      if(!(await staff(env,actor)))return fail('Assigned staff account required',403);
+      const isAdmin=auth.user.role==='ADMIN';
+      if(!isAdmin&&!(await staff(env,actor)))return fail('Assigned staff account required',403);
       if(factoryEdit){
         const product=await env.DB.prepare(
           "SELECT id,created_by,status FROM products WHERE id=? LIMIT 1"
         ).bind(decodeURIComponent(factoryEdit[1])).first();
-        if(!product||product.created_by!==actor)return fail('Not your product',403);
+        if(!product)return fail('Product not found',404);
+        if(!isAdmin&&product.created_by!==actor)return fail('Not your product',403);
         const status=String(product.status||'').toLowerCase();
+        // Admins can maintain unpublished drafts, never mutate pending,
+        // approved or published products via this route.
+        if(isAdmin&&!['draft','rejected'].includes(status))
+          return fail('Admin edits require product revision approval',409);
         if(!['draft','rejected','returned_to_uploader'].includes(status))
           return fail('Product cannot be edited while awaiting review',409);
         if(status==='returned_to_uploader'){
