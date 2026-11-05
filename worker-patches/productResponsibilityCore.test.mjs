@@ -180,7 +180,9 @@ test('both assembled Workers expose only current custodian published SKUs to fac
   ]){
     const {default:worker}=await import('./'+file);
     const {sql,env,call}=setup();
-    sql.exec("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT '"+passwordHash+"';");
+    sql.exec("ALTER TABLE users ADD COLUMN password_hash TEXT DEFAULT '"+passwordHash+"'; "+
+      "ALTER TABLE users ADD COLUMN org_id TEXT DEFAULT 'org-main'; "+
+      "ALTER TABLE products ADD COLUMN org_id TEXT DEFAULT 'org-main';");
     // A former creator loses delegated access without altering the original upload record.
     sql.prepare("UPDATE products SET created_by='worker2' WHERE id='legacy'").run();
     assert.equal((await call(base+'/legacy','admin','PUT',grant('worker',0))).status,200);
