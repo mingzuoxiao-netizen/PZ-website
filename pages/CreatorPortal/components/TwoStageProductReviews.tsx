@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
+import PublishedRevisionQueue from './PublishedRevisionQueue';
 
 type Role = 'ADMIN' | 'SUPERVISOR';
 type Review = {
@@ -173,6 +174,7 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
         </>}
       </section>
     </div>
+    <PublishedRevisionQueue role={role}/>
   </div>;
 };
 export default TwoStageProductReviews;
