@@ -189,34 +189,6 @@ const AdminWorkspace: React.FC = () => {
     await loadReviewQueue();
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('确认永久删除这条产品记录吗？此操作无法撤销。')) return;
-    try {
-      await adminFetch(`admin/products/${id}`, { method: 'DELETE' });
-      setHasPendingDeploy(true);
-      await loadProducts();
-    } catch (e: any) {
-      alert(`删除失败：${e.message}`);
-    }
-  };
-
-  const handleBulkStatusChange = async (ids: string[], newStatus: string) => {
-    setIsSyncing(true);
-    try {
-      const isPublished = newStatus === 'published' ? 1 : 0;
-      await Promise.all(ids.map(id => {
-          const original = products.find(p => p.id === id);
-          return adminFetch(`admin/products/${id}`, { 
-            method: 'PUT', 
-            body: JSON.stringify({ ...original, status: newStatus, is_published: isPublished, autoPublish: isPublished === 1 }) 
-          });
-      }));
-      await loadProducts();
-      await loadReviewQueue();
-    } catch (e: any) { alert(`批量操作失败：${e.message}`); }
-    finally { setIsSyncing(false); }
-  };
-
   const navItems = [
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
@@ -313,7 +285,7 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onDelete={handleDeleteProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onBulkStatusChange={handleBulkStatusChange} onBulkDelete={async (ids) => { if(!confirm(`确认删除选中的 ${ids.length} 条记录吗？`)) return; for (const id of ids) { await adminFetch(`admin/products/${id}`, { method: 'DELETE' }); } loadProducts(); }} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
           )
         )}
 
