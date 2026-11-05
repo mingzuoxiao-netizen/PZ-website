@@ -43,6 +43,8 @@ jobs:
           python3 worker-patches/test_published_revision_integration.py
       - name: Verify Production 010 migration in memory (no remote D1)
         run: python3 worker-patches/test_two_stage_production_migration.py
+      - name: Verify Production 012 published revisions migration in memory (no remote D1)
+        run: python3 worker-patches/test_published_revision_production_migration.py
       - name: TypeScript check
         run: npm run typecheck
       - name: Automated tests
