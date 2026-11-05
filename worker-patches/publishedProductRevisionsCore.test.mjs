@@ -254,7 +254,7 @@ test('Phase 4 delegation: the originally uploaded product remains owned historic
   assert.equal(row.submitter_id,'outsider');
   assert.equal(row.supervisor_id,'otherlead');
   assert.equal(row.department_id,'d2');
-  assert.deepEqual(product(),original,'delegation alone never mutates published product data');
+  assert.deepEqual(structuredClone(product()),original,'delegation alone never mutates published product data');
   assert.equal((await call('/factory/revisions/'+row.id+'/submit','outsider','POST',{})).status,200);
   assert.equal((await call('/supervisor/revisions/'+row.id+'/approve','lead','POST',{})).status,403);
   assert.equal((await call('/supervisor/revisions/'+row.id+'/approve','otherlead','POST',{})).status,200);
