@@ -18,6 +18,14 @@
 - Test `test_published_revision_production_migration.py` recreates the observed Product/Org/Approval schema **in-memory** and checks DDL parity, no data mutation, FK protections, immutable history, unique active revision and stale published-product guards.
 - No D1 migration is automatically run by GitHub CI or merging this PR. No Production env or Worker setting is changed.
 
+## Latest preflight result (2026-11-05 operator screenshot)
+
+- Production D1 Console `PRAGMA quick_check;` returned **`ok`**.
+- `PRAGMA foreign_key_check;` completed without displayed violation rows.
+- `PRAGMA integrity_check;` was blocked by `SQLITE_AUTH`; do not reattempt it in D1.
+- Original Production D1 remains untouched. These checks do not imply permission to run Migration 012.
+- Per Cloudflare D1 documentation, Time Travel is automatic for supported databases, and a bookmark can be retrieved for a recovery point. **Do not click Restore to create a backup:** Restore overwrites the target database and could destroy unrelated Production changes.
+
 ## Mandatory before an authorized Production deployment
 
 1. **Bind identity:** read the actual live Production Worker's D1 binding, verify database UUID exactly `b263701b-012b-4d3b-b24d-d250b4e582f9`, and verify separate Production R2/KV bindings.
