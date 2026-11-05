@@ -32,7 +32,7 @@
 | Type | Binding | Value shown |
 | --- | --- | --- |
 | KV | `ASSETS_KV` | `ASSETS_KV` |
-| D1 | `DB` | `1` **(ambiguous display; confirm exact database name and ID before any migration)** |
+| D1 | `DB` | `1` — database UUID `b263701b-012b-4d3b-b24d-d250b4e582f9` (matched with dedicated D1 overview screenshot, 2026-11-05) |
 | R2 | `PRODUCT_IMAGES` | `pz-product-images` |
 | R2 | `SITE_CONFIG_HISTORY` | `pz-site-config-history` |
 | KV | `SITE_CONFIG_KV` | `SITE_CONFIG_KV` |
@@ -47,9 +47,18 @@
 - The file itself begins with the comment `REVIEW CANDIDATE; NOT DEPLOYED`. Consequently, **do not equate it to the active Production deployment without independent Cloudflare version verification**.
 - GitHub main **Production candidate** is different: `worker-patches/production-worker-category-governance-REVIEW.js`, Git blob SHA `be546392e96842d78a71d5988b484dbb6e761834` (approx. 6,470 lines) and **contains Phase 3 revision code**. **Not evidence of Production deployment.**
 
+### D1 Overview confirmation (operator screenshot: 2026-11-05)
+
+- Cloudflare breadcrumb: `D1 Database > 1` — this is the **database name**, not a numeric index.
+- Database UUID visible in screenshot: `b263701b-012b-4d3b-b24d-d250b4e582f9`.
+- Dashboard reported **15 tables** and approximately **385 kB** current storage. These are descriptive dashboard statistics, **not** proof that migrations 009/010/011/012 or required columns are installed.
+- No SQL was run in this step; no Production migration or code deployment is confirmed.
+- Next verification: **read-only** D1 Console queries to list relevant tables, inspect `products` columns, and check review/departments schema before designing a Production migration.
+- Dashboard D1 identification is screenshot-confirmed; active Worker binding is consistent by database name, but independently confirming its UUID in Worker Settings remains prudent.
+
 ### Production release gates
 
-1. Confirm actual Production Worker deployment/version and exact D1 database **ID**, especially the screenshot's `DB -> 1` mapping.
+1. Confirm actual Production Worker deployment/version. D1 `DB -> 1` is now **identified** via its D1 Overview screenshot: UUID `b263701b-012b-4d3b-b24d-d250b4e582f9`. Reconfirm the live Worker binding points to that exact UUID at deployment time.
 2. Verify Production D1 existing migrations/tables and decide whether a production-specific 012 is compatible. Do not assume Staging migration is applicable unchanged.
 3. Confirm KV/R2 isolation and public catalog code path against *actual active* Worker, not just the GitHub candidate.
 4. Before a Production change: recovery point, reviewed migration, reviewed Worker diff, disabled-flag rollout, read-only pre/post checks, operator approval.
