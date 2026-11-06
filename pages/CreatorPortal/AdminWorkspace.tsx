@@ -1,3 +1,4 @@
+import type { ProductVariant } from '../../types';
 import React, { useEffect, useState, useCallback } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
@@ -189,6 +190,15 @@ const AdminWorkspace: React.FC = () => {
     await loadReviewQueue();
   };
 
+  const handleCatalogVisibility = async (product: ProductVariant) => {
+    const hidden = product.catalog_hidden === true;
+    const action = hidden ? 'relist' : 'unpublish';
+    const label = hidden ? '重新上架' : '下架';
+    if (!window.confirm(label + ' ' + (product.code || product.name) + '？')) return;
+    await adminFetch('admin/products/' + encodeURIComponent(product.id) + '/' + action, { method: 'POST' });
+    await loadProducts();
+  };
+
   const handlePermanentDelete=async(product:any)=>{
     const id=String(product?.id||'');
     const sku=String(product?.code||'');
@@ -314,7 +324,7 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
           )
         )}
 

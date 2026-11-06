@@ -3957,6 +3957,7 @@ function normalizeProductRows(rows) {
       ...(r.specs_json !== undefined ? { specifications: safeJsonParse(r.specs_json, {}) } : {}),
       ...r.created_by !== void 0 ? { created_by: r.created_by } : {},
       status: (r.status ?? "draft").toLowerCase(),
+      ...(r.catalog_hidden !== undefined ? { catalog_hidden: r.catalog_hidden === 1 } : {}),
       created_at: r.created_at ?? null,
       updated_at: r.updated_at ?? null
     };
@@ -4018,7 +4019,7 @@ function pzIsSkuConflict(error) {
 }
 __name(pzIsSkuConflict, "pzIsSkuConflict");
 var PZ_PUBLIC_COLUMNS = "id,name,name_cn,category,sub_category,material,size,finish,code,description,description_cn,images,production_sites,status,created_at,updated_at";
-var PZ_PUBLIC_FILTER = "status = 'published' AND length(trim(coalesce(json_extract(CASE WHEN json_valid(images) THEN images ELSE '[]' END, '$[0]'), ''))) > 0";
+var PZ_PUBLIC_FILTER = "status = 'published' AND catalog_hidden = 0 AND length(trim(coalesce(json_extract(CASE WHEN json_valid(images) THEN images ELSE '[]' END, '$[0]'), ''))) > 0";
 function pzPublicJson(payload, request, status = 200) {
   const origin = request.headers.get("Origin") || "";
   return new Response(JSON.stringify(payload), {
@@ -4904,7 +4905,10 @@ var index_default = {
         }
         const raw = await env.SITE_CONFIG_KV.get("published:products");
         if (!raw) return json({ items: [] });
-        return json(safeJsonParse(raw, { items: [] }));
+        const catalog = safeJsonParse(raw, { items: [] });
+        const hiddenRows = await env.DB.prepare("SELECT id FROM products WHERE catalog_hidden = 1").all();
+        const hidden = new Set(hiddenRows.results.map((row) => String(row.id)));
+        return json({ ...catalog, items: (catalog.items || []).filter((item) => !hidden.has(String(item.id))) });
       }
       if (pathname === "/admin/publish/products" && request.method === "POST") {
         const auth = await authorize(request, env, ["ADMIN"]);
@@ -4935,6 +4939,21 @@ var index_default = {
         }
         return json({ success: true, version, publishedAt, count: items.length });
       }
+      const catalogVisibility = pathname.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+      if (catalogVisibility && request.method === "POST") {
+        const auth = await authorize(request, env, ["ADMIN"]);
+        if (auth instanceof Response) return auth;
+        const [, encodedId, action] = catalogVisibility;
+        const id = decodeURIComponent(encodedId);
+        const hidden = action === "unpublish" ? 1 : 0;
+        const result = await env.DB.prepare(
+          "UPDATE products SET catalog_hidden=? WHERE id=? AND lower(status)='published'"
+        ).bind(hidden, id).run();
+        if (result.meta?.changes !== 1) {
+          return json({ error: "Only published products can change catalog visibility" }, 409);
+        }
+        return json({ success: true, id, catalog_hidden: hidden === 1 });
+      }
       if (pathname === "/admin/products" && request.method === "GET") {
         const auth = await authorize(request, env, ["ADMIN"]);
         if (auth instanceof Response) return auth;
@@ -4943,7 +4962,7 @@ var index_default = {
         const status = (url.searchParams.get("status") ?? "").trim().toLowerCase();
         let sql = `
     SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
-           description, description_cn, images, production_sites, specs_json, created_by, status, created_at, updated_at
+           description, description_cn, images, production_sites, specs_json, created_by, status, catalog_hidden, created_at, updated_at
     FROM products
   `;
         const binds = [];
@@ -5558,7 +5577,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
   const maxLimit = 100;
   const productFields = [
     "name", "name_cn", "category", "sub_category", "material", "size", "finish",
-    "code", "status", "images", "production_sites", "created_by", "updated_at"
+    "code", "status", "catalog_hidden", "images", "production_sites", "created_by", "updated_at"
   ];
   const accountFields = ["username", "role", "is_active"];
   const validStatuses = new Set(["pending", "success", "failed"]);
@@ -5572,6 +5591,9 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return { action: "site_config.rollback", entity_type: "site_config", entity_id: "site" };
     if (path === "/admin/site-config/bootstrap" && method === "POST")
       return { action: "site_config.bootstrap", entity_type: "site_config", entity_id: "site" };
+    const visibility = path.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+    if (visibility && method === "POST")
+      return { action: "product." + visibility[2], entity_type: "product", entity_id: decodeURIComponent(visibility[1]) };
     let permanent=path.match(/^\/admin\/products\/([^/]+)\/permanent-delete$/);
     if(permanent&&method==="POST")
       return { action:"product.permanent_delete",entity_type:"product",entity_id:decodeURIComponent(permanent[1]) };
@@ -5695,7 +5717,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     if (!env.DB) return null;
     if (entityType === "product" && id) {
       const row = await env.DB.prepare(
-        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
+        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
       ).bind(id).first();
       return safeSummary(row, productFields);
     }

@@ -12,6 +12,7 @@ interface ProductListProps {
   onRefresh?: () => void;
   onSubmit?: (id: string) => Promise<void>;
   onStartRevision?: (item: ProductVariant) => void;
+  onCatalogVisibility?: (item: ProductVariant) => Promise<void>;
   onPermanentDelete?: (item: ProductVariant) => Promise<void>; 
   onCreate: () => void;
   onBack: () => void;
@@ -21,11 +22,12 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onPermanentDelete, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onPermanentDelete, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [visibilityId, setVisibilityId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<'all' | 'unassigned' | ProductionSite>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -59,9 +61,10 @@ const ProductList: React.FC<ProductListProps> = ({
   const filteredItems = Array.isArray(items) ? items.filter(i => {
     const matchesSearch=[i.name,i.name_cn,i.code].some(v=>
       String(v||'').toLowerCase().includes(searchTerm));
+    const catalogStatus = i.status === 'published' && i.catalog_hidden ? 'unpublished' : i.status;
     const matchesStatus=statusFilter==='all' || (statusFilter==='action'
       ? actionStatuses.includes(String(i.status||''))
-      : i.status===statusFilter);
+      : catalogStatus===statusFilter);
     const sites=i.production_sites||[];
     const matchesSite=siteFilter==='all' || (siteFilter==='unassigned'
       ? sites.length===0 : sites.includes(siteFilter));
@@ -71,6 +74,18 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const changeCatalogVisibility = async (item: ProductVariant) => {
+    if (!onCatalogVisibility || visibilityId) return;
+    setVisibilityId(item.id);
+    try {
+      await onCatalogVisibility(item);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : T('Could not update catalog visibility', '更新上架状态失败'));
+    } finally {
+      setVisibilityId(null);
+    }
   };
 
   const handlePermanentDelete=async(item:ProductVariant)=>{
@@ -209,7 +224,8 @@ const ProductList: React.FC<ProductListProps> = ({
                     const isSelected = selectedIds.includes(item.id!);
                     const isSubmitting = submittingIds.includes(item.id!);
                     const imageUrl = resolveImage(item.images[0]);
-                    const statusInfo = statusMap[item.status || 'draft'] || statusMap.draft;
+                    const catalogStatus = item.status === 'published' && item.catalog_hidden ? 'unpublished' : item.status;
+                    const statusInfo = statusMap[catalogStatus || 'draft'] || statusMap.draft;
                     
                     const isPublished = item.status === 'published';
                     const hasNoImages = !item.images || item.images.length === 0;
@@ -273,6 +289,13 @@ const ProductList: React.FC<ProductListProps> = ({
                             <div className="flex">
                                 {(isAdmin ? ['draft','rejected'].includes(item.status||'') : ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                     <button onClick={() => onEdit(item)} aria-label={T("Edit draft","编辑草稿")} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
+                                )}
+                                {isAdmin && isPublished && onCatalogVisibility && (
+                                  <button type="button" disabled={visibilityId !== null}
+                                    onClick={() => void changeCatalogVisibility(item)}
+                                    className="rounded px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:opacity-50">
+                                    {item.catalog_hidden ? T('Relist', '重新上架') : T('Unpublish', '下架')}
+                                  </button>
                                 )}
                                 {isAdmin&&!!onPermanentDelete&&['draft','rejected','unpublished','inactive','archived'].includes(item.status||'')&&item.id&&(
                                     <button type="button" disabled={deletingId!==null}
