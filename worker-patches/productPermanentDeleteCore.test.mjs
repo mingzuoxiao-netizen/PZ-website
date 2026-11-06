@@ -96,7 +96,8 @@ test('review/revision/responsibility history blocks deletion without tampering w
     if(table==='pz_product_responsibilities'){
       sql.prepare('INSERT INTO pz_product_responsibilities VALUES(?)').run(id);
     }else{
-      sql.prepare('INSERT INTO '+table+'(id,product_id) VALUES(?,?)').run('history'+i,id);
+      sql.prepare('INSERT INTO '+table+'(id,product_id) VALUES(?,?)')
+        .run(table==='pz_product_responsibility_events'?i:'history'+i,id);
     }
     assert.equal((await call(id)).body.code,'PRODUCT_HAS_HISTORY');
     assert.equal((await call(id,'POST',confirmation(sku))).status,409);
