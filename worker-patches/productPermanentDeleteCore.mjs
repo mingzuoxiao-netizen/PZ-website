@@ -11,7 +11,7 @@ export function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expe
     ['pz_product_responsibility_events','product_id','responsibility audit history']
   ];
   const statementNames=references.map(([name])=>name);
-  const productSql="SELECT id,code,name,name_cn,status,updated_at FROM products WHERE id=? LIMIT 1";
+  const productSql="SELECT id,code,name,status,updated_at FROM products WHERE id=? LIMIT 1";
   const isValidId=id=>typeof id==='string'&&id.length>0&&id.length<=128;
 
   async function inspect(env,id){
