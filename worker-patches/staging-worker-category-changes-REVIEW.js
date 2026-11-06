@@ -3980,7 +3980,7 @@ function normalizeProductRows(rows) {
       ...(r.specs_json !== undefined ? { specifications: safeJsonParse(r.specs_json, {}) } : {}),
       ...(r.created_by !== undefined ? { created_by: r.created_by } : {}),
       status: (r.status ?? "draft").toLowerCase(),
-      ...(r.catalog_hidden !== undefined ? { catalog_hidden: r.catalog_hidden === 1 } : {}),
+      ...(r.catalog_hidden !== undefined ? { catalog_hidden: r.catalog_hidden === 1, archived_at: r.archived_at ?? null } : {}),
       created_at: r.created_at ?? null,
       updated_at: r.updated_at ?? null
     };
@@ -4609,15 +4609,24 @@ if (categoryResponse) return categoryResponse;
         }
         return json({ success: true, version, publishedAt, count: items.length });
       }
-      const catalogVisibility = pathname.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+      const catalogVisibility = pathname.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist|archive|restore-archive)$/);
       if (catalogVisibility && request.method === "POST") {
         const auth = await authorize(request, env, ["ADMIN"]);
         if (auth instanceof Response) return auth;
         const [, encodedId, action] = catalogVisibility;
         const id = decodeURIComponent(encodedId);
+        if (action === "archive" || action === "restore-archive") {
+          const archive = action === "archive";
+          const result = await env.DB.prepare(
+            "UPDATE products SET archived_at=? WHERE id=? AND catalog_hidden=1 AND lower(status)='published' AND " +
+            (archive ? "archived_at IS NULL" : "archived_at IS NOT NULL")
+          ).bind(archive ? new Date().toISOString() : null, id).run();
+          if (result.meta?.changes !== 1) return json({ error: "Product is no longer in the expected state" }, 409);
+          return json({ success: true, id });
+        }
         const hidden = action === "unpublish" ? 1 : 0;
         const result = await env.DB.prepare(
-          "UPDATE products SET catalog_hidden=? WHERE id=? AND lower(status)='published'"
+          "UPDATE products SET catalog_hidden=? WHERE id=? AND lower(status)='published' AND archived_at IS NULL"
         ).bind(hidden, id).run();
         if (result.meta?.changes !== 1) {
           return json({ error: "Only published products can change catalog visibility" }, 409);
@@ -4632,9 +4641,30 @@ if (categoryResponse) return categoryResponse;
         const status = (url.searchParams.get("status") ?? "").trim().toLowerCase();
         let sql = `
     SELECT id, name, name_cn, category, sub_category, material, size, finish, code,
-           description, description_cn, images, production_sites, specs_json, created_by, status, catalog_hidden, created_at, updated_at
+           description, description_cn, images, production_sites, specs_json, created_by, status, catalog_hidden, archived_at, created_at, updated_at
     FROM products
   `;
+        const view = url.searchParams.get("view");
+        if (view !== null) {
+          const views = {
+            action: "archived_at IS NULL AND lower(status) IN ('draft','rejected','awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','returned_to_uploader','approved_pending_publish')",
+            published: "archived_at IS NULL AND catalog_hidden=0 AND lower(status)='published'",
+            unpublished: "archived_at IS NULL AND (catalog_hidden=1 OR lower(status) IN ('unpublished','inactive'))",
+            archived: "archived_at IS NOT NULL OR lower(status)='archived'",
+          };
+          if (!Object.hasOwn(views, view)) return badRequest("Invalid catalog view");
+          const page = Number(url.searchParams.get("page") || 1);
+          if (!Number.isSafeInteger(page) || page < 1 || page > 100000) return badRequest("Invalid page");
+          const search = (url.searchParams.get("q") || "").trim();
+          if (search.length > 120) return badRequest("Search is too long");
+          const pageSize = 50;
+          const where = " WHERE (" + views[view] + ")" + (search ?
+            " AND (instr(lower(coalesce(code,'')),lower(?))>0 OR instr(lower(coalesce(name,'')),lower(?))>0 OR instr(lower(coalesce(name_cn,'')),lower(?))>0)" : "");
+          const args = search ? [search, search, search] : [];
+          const { results } = await env.DB.prepare(sql + where + " ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?")
+            .bind(...args, pageSize + 1, (page - 1) * pageSize).all();
+          return json({ products: normalizeProductRows(results.slice(0, pageSize)), has_more: results.length > pageSize });
+        }
         const binds = [];
         if (status) {
           sql += ` WHERE lower(status) = ? `;
@@ -5185,7 +5215,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
   const maxLimit = 100;
   const productFields = [
     "name", "name_cn", "category", "sub_category", "material", "size", "finish",
-    "code", "status", "catalog_hidden", "images", "production_sites", "created_by", "updated_at"
+    "code", "status", "catalog_hidden", "archived_at", "images", "production_sites", "created_by", "updated_at"
   ];
   const accountFields = ["username", "role", "is_active"];
   const validStatuses = new Set(["pending", "success", "failed"]);
@@ -5199,7 +5229,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return { action: "site_config.rollback", entity_type: "site_config", entity_id: "site" };
     if (path === "/admin/site-config/bootstrap" && method === "POST")
       return { action: "site_config.bootstrap", entity_type: "site_config", entity_id: "site" };
-    const visibility = path.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+    const visibility = path.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist|archive|restore-archive)$/);
     if (visibility && method === "POST")
       return { action: "product." + visibility[2], entity_type: "product", entity_id: decodeURIComponent(visibility[1]) };
     let permanent=path.match(/^\/admin\/products\/([^/]+)\/permanent-delete$/);
@@ -5325,7 +5355,7 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
     if (!env.DB) return null;
     if (entityType === "product" && id) {
       const row = await env.DB.prepare(
-        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
+        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,archived_at,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
       ).bind(id).first();
       return safeSummary(row, productFields);
     }

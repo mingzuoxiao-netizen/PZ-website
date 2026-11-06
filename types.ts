@@ -21,6 +21,7 @@ export interface ProductVariant {
   code?: string;
   status?: string;
   catalog_hidden?: boolean;
+  archived_at?: string | null;
   production_sites?: ProductionSite[];
   created_by?: string | null;
   sub_category?: string;

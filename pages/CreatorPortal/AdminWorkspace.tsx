@@ -1,5 +1,5 @@
 import type { ProductVariant } from '../../types';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
@@ -33,6 +33,14 @@ const AdminWorkspace: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
   const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes'>('products');
 
+  const [catalogView, setCatalogView] = useState('action');
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogHasMore, setCatalogHasMore] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
+  const [archiving, setArchiving] = useState(false);
+  const catalogRequest = useRef(0);
   const [products, setProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
   const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
@@ -62,14 +70,29 @@ const AdminWorkspace: React.FC = () => {
   const [isProductsLoading, setIsProductsLoading] = useState(false);
 
   const loadProducts = useCallback(async () => {
+    const request = ++catalogRequest.current;
     setIsProductsLoading(true);
+    setCatalogError('');
     try {
-      const res = await adminFetch<{ products?: any[]; items?: any[] }>('admin/products?limit=1000');
-      const raw = res.products ?? res.items ?? [];
-      setProducts(normalizeProducts(raw));
-    } catch (e) { console.error(e); }
-    finally { setIsProductsLoading(false); }
-  }, []);
+      const query = new URLSearchParams({ view: catalogView, page: String(catalogPage), q: catalogQuery });
+      const response = await adminFetch<{ products: ProductVariant[]; has_more: boolean }>('admin/products?' + query);
+      if (request !== catalogRequest.current) return;
+      if (!response.products.length && catalogPage > 1) {
+        setCatalogPage(catalogPage - 1);
+        return;
+      }
+      setProducts(normalizeProducts(response.products));
+      setCatalogHasMore(response.has_more);
+    } catch {
+      if (request === catalogRequest.current) {
+        setProducts([]);
+        setCatalogHasMore(false);
+        setCatalogError('读取产品失败，请刷新重试。');
+      }
+    } finally {
+      if (request === catalogRequest.current) setIsProductsLoading(false);
+    }
+  }, [catalogView, catalogPage, catalogQuery]);
 
   const loadReviewQueue = useCallback(async () => {
     try {
@@ -113,7 +136,8 @@ const AdminWorkspace: React.FC = () => {
     return () => { clearInterval(intervalId); window.removeEventListener('focus', sync); };
   }, [activeTab, loadReviewQueue]);
 
-  useEffect(() => { loadProducts(); loadSiteConfig(); }, [loadProducts, loadSiteConfig]);
+  useEffect(() => { void loadSiteConfig(); }, [loadSiteConfig]);
+  useEffect(() => { if (activeTab === 'inventory') void loadProducts(); }, [activeTab, loadProducts]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
   // Update only the two basic fields against the latest D1 draft.
@@ -197,6 +221,26 @@ const AdminWorkspace: React.FC = () => {
     if (!window.confirm(label + ' ' + (product.code || product.name) + '？')) return;
     await adminFetch('admin/products/' + encodeURIComponent(product.id) + '/' + action, { method: 'POST' });
     await loadProducts();
+  };
+
+  const handleArchive = async (items: ProductVariant[], restore = false) => {
+    if (archiving || !items.length) return;
+    const action = restore ? 'restore-archive' : 'archive';
+    const label = restore ? '恢复为已下架' : '归档';
+    if (!window.confirm(label + ' ' + items.length + ' 件产品？')) return;
+    setArchiving(true);
+    try {
+      let failed = 0;
+      for (const item of items) {
+        try {
+          await adminFetch('admin/products/' + encodeURIComponent(item.id) + '/' + action, { method: 'POST' });
+        } catch { failed++; }
+      }
+      await loadProducts();
+      if (failed) alert(failed + ' 件产品操作失败，请刷新后重试。');
+    } finally {
+      setArchiving(false);
+    }
   };
 
   const handlePermanentDelete=async(product:any)=>{
@@ -324,7 +368,36 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
+            <>
+              <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
+                {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['archived', '归档']].map(([value, label]) => (
+                  <button key={value} type="button" aria-pressed={catalogView === value}
+                    onClick={() => { setCatalogView(value); setCatalogPage(1); }}
+                    className="rounded border px-3 py-2 text-sm aria-pressed:bg-stone-900 aria-pressed:text-white">{label}</button>
+                ))}
+                <form className="flex gap-2" onSubmit={event => {
+                  event.preventDefault();
+                  setCatalogQuery(catalogSearch.trim());
+                  setCatalogPage(1);
+                }}>
+                  <input aria-label="搜索产品名称或 SKU" placeholder="产品名称或 SKU" value={catalogSearch}
+                    maxLength={120} onChange={event => setCatalogSearch(event.target.value)} className="rounded border px-2 py-1" />
+                  <button className="rounded border px-3 py-1" type="submit">搜索</button>
+                </form>
+                {catalogView === 'unpublished' && (
+                  <button type="button" disabled={archiving || isProductsLoading || !products.some(p => p.status === 'published' && p.catalog_hidden)}
+                    onClick={() => void handleArchive(products.filter(p => p.status === 'published' && p.catalog_hidden))}
+                    className="rounded border px-3 py-2 disabled:opacity-50">归档本页</button>
+                )}
+              </div>
+              {catalogError && <p role="alert">{catalogError}</p>}
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
+              <nav aria-label="产品分页" className="flex items-center justify-end gap-3">
+                <button type="button" disabled={catalogPage <= 1 || isProductsLoading} onClick={() => setCatalogPage(page => page - 1)}>上一页</button>
+                <span>第 {catalogPage} 页</span>
+                <button type="button" disabled={!catalogHasMore || isProductsLoading} onClick={() => setCatalogPage(page => page + 1)}>下一页</button>
+              </nav>
+            </>
           )
         )}
 

@@ -13,6 +13,8 @@ interface ProductListProps {
   onSubmit?: (id: string) => Promise<void>;
   onStartRevision?: (item: ProductVariant) => void;
   onCatalogVisibility?: (item: ProductVariant) => Promise<void>;
+  serverFiltered?: boolean;
+  onArchive?: (item: ProductVariant) => Promise<void>;
   onPermanentDelete?: (item: ProductVariant) => Promise<void>; 
   onCreate: () => void;
   onBack: () => void;
@@ -22,7 +24,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onPermanentDelete, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onArchive, serverFiltered = false, onPermanentDelete, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -58,7 +60,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const actionStatuses=isFactory
     ? ['draft','rejected','returned_to_uploader']
     : ['pending_admin','approved_pending_publish'];
-  const filteredItems = Array.isArray(items) ? items.filter(i => {
+  const filteredItems = serverFiltered ? items : Array.isArray(items) ? items.filter(i => {
     const matchesSearch=[i.name,i.name_cn,i.code].some(v=>
       String(v||'').toLowerCase().includes(searchTerm));
     const catalogStatus = i.status === 'published' && i.catalog_hidden ? 'unpublished' : i.status;
@@ -146,7 +148,7 @@ const ProductList: React.FC<ProductListProps> = ({
          {T('Product approvals and publishing must go through the Review Center. Approved and published products cannot be directly edited here.',
            '产品审核与发布请在“审核中心”操作；已批准或已发布的产品不能在此直接修改。')}
        </p>}
-       <section className="mb-5 space-y-3 rounded border border-stone-200 bg-white p-3 sm:p-4" aria-label="产品筛选">
+       {!serverFiltered && (<section className="mb-5 space-y-3 rounded border border-stone-200 bg-white p-3 sm:p-4" aria-label="产品筛选">
          <div className="flex flex-wrap items-center gap-3">
            <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded border border-stone-300 bg-white px-3 py-2.5">
              <Search size={17} className="shrink-0 text-stone-500" aria-hidden="true"/>
@@ -208,7 +210,7 @@ const ProductList: React.FC<ProductListProps> = ({
              T(`Showing ${filteredItems.length} / ${items.length}`,
                `显示 ${filteredItems.length} / ${items.length} 件产品`)}
          </p>
-       </section>
+       </section>)}
 
        <div className="bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden">
             <div className="divide-y divide-stone-100">
@@ -224,7 +226,7 @@ const ProductList: React.FC<ProductListProps> = ({
                     const isSelected = selectedIds.includes(item.id!);
                     const isSubmitting = submittingIds.includes(item.id!);
                     const imageUrl = resolveImage(item.images[0]);
-                    const catalogStatus = item.status === 'published' && item.catalog_hidden ? 'unpublished' : item.status;
+                    const catalogStatus = item.archived_at ? 'archived' : item.status === 'published' && item.catalog_hidden ? 'unpublished' : item.status;
                     const statusInfo = statusMap[catalogStatus || 'draft'] || statusMap.draft;
                     
                     const isPublished = item.status === 'published';
@@ -290,11 +292,17 @@ const ProductList: React.FC<ProductListProps> = ({
                                 {(isAdmin ? ['draft','rejected'].includes(item.status||'') : ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                     <button onClick={() => onEdit(item)} aria-label={T("Edit draft","编辑草稿")} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
                                 )}
-                                {isAdmin && isPublished && onCatalogVisibility && (
+                                {isAdmin && isPublished && !item.archived_at && onCatalogVisibility && (
                                   <button type="button" disabled={visibilityId !== null}
                                     onClick={() => void changeCatalogVisibility(item)}
                                     className="rounded px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:opacity-50">
                                     {item.catalog_hidden ? T('Relist', '重新上架') : T('Unpublish', '下架')}
+                                  </button>
+                                )}
+                                {isAdmin && isPublished && item.catalog_hidden && onArchive && (
+                                  <button type="button" onClick={() => void onArchive(item)}
+                                    className="rounded px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-100">
+                                    {item.archived_at ? T('Restore to unlisted', '恢复为已下架') : T('Archive', '归档')}
                                   </button>
                                 )}
                                 {isAdmin&&!!onPermanentDelete&&['draft','rejected','unpublished','inactive','archived'].includes(item.status||'')&&item.id&&(
