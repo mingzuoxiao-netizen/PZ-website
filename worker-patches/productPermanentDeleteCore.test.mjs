@@ -42,7 +42,7 @@ function fixture(runtime='staging'){
     expectedRuntime:runtime
   });
   async function call(id,method='GET',payload,actor='admin'){
-    const opts={method,headers:{'x-actor':actor}};
+    const opts={method,headers:actor?{'x-actor':actor}:{}};
     if(payload){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(payload);}
     const res=await route(new Request(
       'https://worker.example/admin/products/'+id+'/permanent-delete',opts),env,{});
