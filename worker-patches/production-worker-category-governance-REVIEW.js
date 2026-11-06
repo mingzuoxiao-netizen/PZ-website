@@ -4981,6 +4981,7 @@ var index_default = {
             published: "archived_at IS NULL AND catalog_hidden=0 AND lower(status)='published'",
             unpublished: "archived_at IS NULL AND (catalog_hidden=1 OR lower(status) IN ('unpublished','inactive'))",
             archived: "archived_at IS NOT NULL OR lower(status)='archived'",
+            archive_review: "datetime(archived_at) <= datetime('now', '-30 days')",
           };
           if (!Object.hasOwn(views, view)) return badRequest("Invalid catalog view");
           const page = Number(url.searchParams.get("page") || 1);

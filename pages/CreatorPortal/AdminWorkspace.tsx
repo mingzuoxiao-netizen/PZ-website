@@ -370,7 +370,7 @@ const AdminWorkspace: React.FC = () => {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
-                {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['archived', '归档']].map(([value, label]) => (
+                {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['archived', '归档'], ['archive_review', '归档满 30 天']].map(([value, label]) => (
                   <button key={value} type="button" aria-pressed={catalogView === value}
                     onClick={() => { setCatalogView(value); setCatalogPage(1); }}
                     className="rounded border px-3 py-2 text-sm aria-pressed:bg-stone-900 aria-pressed:text-white">{label}</button>
@@ -390,6 +390,9 @@ const AdminWorkspace: React.FC = () => {
                     className="rounded border px-3 py-2 disabled:opacity-50">归档本页</button>
                 )}
               </div>
+              {catalogView === 'archive_review' && (
+                <p className="text-sm text-stone-600">这份清单用于复核。曾发布的产品按现行规则保留，审核或发布历史仍受永久删除保护。</p>
+              )}
               {catalogError && <p role="alert">{catalogError}</p>}
             <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
               <nav aria-label="产品分页" className="flex items-center justify-end gap-3">
