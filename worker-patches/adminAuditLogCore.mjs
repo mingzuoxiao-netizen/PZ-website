@@ -22,6 +22,9 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
       return { action: "site_config.rollback", entity_type: "site_config", entity_id: "site" };
     if (path === "/admin/site-config/bootstrap" && method === "POST")
       return { action: "site_config.bootstrap", entity_type: "site_config", entity_id: "site" };
+    let permanent=path.match(/^\/admin\/products\/([^/]+)\/permanent-delete$/);
+    if(permanent&&method==="POST")
+      return { action:"product.permanent_delete",entity_type:"product",entity_id:decodeURIComponent(permanent[1]) };
     if (path === "/admin/publish/products" && method === "POST")
       return { action: "product.publish_catalog", entity_type: "catalog", entity_id: "catalog" };
     if (path === "/admin/upload-pdf" && method === "POST")
