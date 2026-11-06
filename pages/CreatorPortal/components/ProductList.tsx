@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, AlertTriangle } from 'lucide-react';
+import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, AlertTriangle, Trash2 } from 'lucide-react';
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
@@ -11,7 +11,8 @@ interface ProductListProps {
   onEdit: (item: ProductVariant) => void;
   onRefresh?: () => void;
   onSubmit?: (id: string) => Promise<void>;
-  onStartRevision?: (item: ProductVariant) => void; 
+  onStartRevision?: (item: ProductVariant) => void;
+  onPermanentDelete?: (item: ProductVariant) => Promise<void>; 
   onCreate: () => void;
   onBack: () => void;
   userRole?: 'ADMIN' | 'FACTORY';
@@ -20,7 +21,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onPermanentDelete, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -30,6 +31,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+  const [deletingId,setDeletingId] = useState<string | null>(null);
 
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
@@ -44,7 +46,10 @@ const ProductList: React.FC<ProductListProps> = ({
     pending_supervisor: { label: '待主管初审', color: 'bg-amber-100 text-amber-700' },
     pending_admin: { label: '待管理员终审', color: 'bg-amber-100 text-amber-700' },
     returned_to_supervisor: { label: '已退回主管', color: 'bg-orange-100 text-orange-700' },
-    approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' }
+    approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' },
+    unpublished: { label: '已下架', color: 'bg-stone-100 text-stone-600' },
+    inactive: { label: '停用', color: 'bg-stone-100 text-stone-600' },
+    archived: { label: '已归档', color: 'bg-stone-100 text-stone-600' }
   };
 
   const searchTerm=search.trim().toLowerCase();
@@ -66,6 +71,16 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handlePermanentDelete=async(item:ProductVariant)=>{
+    if(!onPermanentDelete||!item.id||deletingId)return;
+    setDeletingId(item.id);
+    try{
+      await onPermanentDelete(item);
+    }catch(error:any){
+      alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
+    }finally{setDeletingId(null);}
   };
 
   const handleSubmitForReview = async (id: string) => {
@@ -258,6 +273,15 @@ const ProductList: React.FC<ProductListProps> = ({
                             <div className="flex">
                                 {(isAdmin ? ['draft','rejected'].includes(item.status||'') : ['draft','rejected','returned_to_uploader'].includes(item.status||'')) && (
                                     <button onClick={() => onEdit(item)} aria-label={T("Edit draft","编辑草稿")} className="p-2 text-stone-400 hover:text-stone-900 hover:bg-white border border-transparent hover:border-stone-200 transition-all rounded-sm" title={T("Edit","编辑")}><Edit size={16} /></button>
+                                )}
+                                {isAdmin&&!!onPermanentDelete&&['draft','rejected','unpublished','inactive','archived'].includes(item.status||'')&&item.id&&(
+                                    <button type="button" disabled={deletingId!==null}
+                                      onClick={()=>void handlePermanentDelete(item)}
+                                      aria-label={T('Permanently delete SKU','永久删除 SKU')}
+                                      title={T('Permanent deletion, if no review history exists','永久删除：需要无历史审核关联')}
+                                      className="rounded-sm border border-transparent p-2 text-red-700 hover:border-red-200 hover:bg-red-50 disabled:opacity-40">
+                                      {deletingId===item.id?<Loader2 size={16} className="animate-spin"/>:<Trash2 size={16}/>}
+                                    </button>
                                 )}
 
                             </div>

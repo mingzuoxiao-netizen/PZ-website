@@ -189,6 +189,33 @@ const AdminWorkspace: React.FC = () => {
     await loadReviewQueue();
   };
 
+  const handlePermanentDelete=async(product:any)=>{
+    const id=String(product?.id||'');
+    const sku=String(product?.code||'');
+    if(!id||!sku)throw new Error('产品缺少 ID 或 SKU，请刷新后重试。');
+    const endpoint='admin/products/'+encodeURIComponent(id)+'/permanent-delete';
+    const check=await adminFetch<{
+      eligible?:boolean;error?:string;product?:{code:string;updated_at:string}
+    }>(endpoint);
+    if(check.eligible!==true||!check.product?.updated_at){
+      throw new Error(check.error||'产品存在历史记录或仍在审核/发布中，不能永久删除。');
+    }
+    const typed=window.prompt(
+      '此操作不可恢复！将永久删除产品记录并释放 SKU（不会删除 R2 原始图片）。\n'+
+      '请输入完整 SKU 以确认：'+sku
+    );
+    if(typed===null)return;
+    if(typed!==sku)throw new Error('SKU 输入不一致，已取消删除。');
+    const result=await adminFetch<{success?:boolean;sku_reusable?:boolean}>(endpoint,{
+      method:'POST',
+      body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at})
+    });
+    if(result.success!==true||result.sku_reusable!==true)
+      throw new Error('删除结果未确认。请刷新列表检查，不要重复操作。');
+    await loadProducts();
+    alert('SKU '+sku+' 已永久删除，可以重新使用。原图片文件仍保存在 R2。');
+  };
+
   // Frequently-used work is visible; less-used settings are grouped without
   // removing any existing route, permissions, audit view or publish actions.
   const navItems = [
@@ -287,7 +314,7 @@ const AdminWorkspace: React.FC = () => {
           editingProduct || isCreating ? (
             <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} lang="zh" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
           )
         )}
 

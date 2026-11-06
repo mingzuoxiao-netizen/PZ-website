@@ -115,6 +115,12 @@ jobs:
         run: node --check worker-patches/siteConfigD1Production.mjs && node --test worker-patches/siteConfigD1Production.test.mjs
       - name: Check D1 site config schema in SQLite
         run: python3 worker-patches/test_site_config_d1_migration.py
+      - name: Safe permanent SKU deletion — backend, history and audit
+        run: |
+          node --check worker-patches/productPermanentDeleteCore.mjs
+          node --check worker-patches/staging-worker-category-changes-REVIEW.js
+          node --check worker-patches/production-worker-category-governance-REVIEW.js
+          node --test worker-patches/productPermanentDeleteCore.test.mjs
       - name: Legacy image mutation retirement safety (both Worker runtimes)
         run: |
           node --check worker-patches/staging-worker-category-changes-REVIEW.js
