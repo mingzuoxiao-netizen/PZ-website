@@ -8,7 +8,7 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
   const maxLimit = 100;
   const productFields = [
     "name", "name_cn", "category", "sub_category", "material", "size", "finish",
-    "code", "status", "images", "production_sites", "created_by", "updated_at"
+    "code", "status", "catalog_hidden", "images", "production_sites", "created_by", "updated_at"
   ];
   const accountFields = ["username", "role", "is_active"];
   const validStatuses = new Set(["pending", "success", "failed"]);
@@ -22,6 +22,9 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
       return { action: "site_config.rollback", entity_type: "site_config", entity_id: "site" };
     if (path === "/admin/site-config/bootstrap" && method === "POST")
       return { action: "site_config.bootstrap", entity_type: "site_config", entity_id: "site" };
+    const visibility = path.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+    if (visibility && method === "POST")
+      return { action: "product." + visibility[2], entity_type: "product", entity_id: decodeURIComponent(visibility[1]) };
     let permanent=path.match(/^\/admin\/products\/([^/]+)\/permanent-delete$/);
     if(permanent&&method==="POST")
       return { action:"product.permanent_delete",entity_type:"product",entity_id:decodeURIComponent(permanent[1]) };
@@ -145,7 +148,7 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
     if (!env.DB) return null;
     if (entityType === "product" && id) {
       const row = await env.DB.prepare(
-        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
+        "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
       ).bind(id).first();
       return safeSummary(row, productFields);
     }
