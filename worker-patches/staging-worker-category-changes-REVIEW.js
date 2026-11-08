@@ -6260,4 +6260,3 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
   }
   return json({ success: true });
 }
-
