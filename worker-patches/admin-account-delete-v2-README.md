@@ -1,17 +1,36 @@
-# PZ 管理员直接删除账号 · V2
+# PZ 管理员账号与部门管理 · 2026-11-10
 
-本分支基于仓库 main 的 `worker-patches/production-worker-category-governance-REVIEW.js` 修改。用户确认此上传版本对应其正式 Worker，但源文件头部仍含 NOT DEPLOYED 注释，因此上线前应核对 Cloudflare 当前 Worker 内容。
+本分支包含可在 Cloudflare Dashboard 复制的完整 Worker，以及 React 后台界面改动。
+**注意：只复制 Worker 不会更新账号管理页面。账号分类/删除部门按钮属于前端，必须将对应 React 文件的提交合入并重新部署网页。**
 
-## 使用步骤
-1. 在 D1 检查 `PRAGMA table_info(users)`，若没有 `deleted_at` 和 `deleted_by`，执行同目录 `pz_account_retirement.sql` 一次。已经存在的字段不能重复 ALTER。
-2. 检查 `pz_staff_assignments.supervisor_id` 允许 NULL，审批表含 `updated_at`、`department_id`、`status`、`supervisor_id`；建议先 Staging。
-3. 打开 `production-worker-admin-delete-v2-COPY.js`，点击 Raw 后复制全文（不是单独替换最后一个函数）。确认生产 Worker 的绑定和配置保持原样。
-4. 验证：删除 TEST02；主管有/无下属删除；无候选接任主管时人工重分配；已删除账号旧 JWT 拒绝；最后管理员无法删除；产品双级审核。
-5. 审核通过后再部署生产。此 PR 不直接修改生产 D1/Cloudflare Worker。
+## 本次功能
+- 管理员可删除部门（逻辑归档）；部门不再出现在可用部门列表。
+- 删除部门时，将 `pz_staff_assignments` 中该部门的所有关系移除；原有 `users` 账号保持不变，账号管理页和组织管理页均显示待分配。
+- 产品、审批、操作日志引用的原 `pz_departments` 记录保留；不得物理删除被引用部门。
+- 待分配账号可重新分配为部门主管、秘书、业务人员、资料录入员；先指定主管，再分配普通员工。
+- 账号权限管理按管理员 / 部门主管 / 部门员工 / 待分配分类，显示部门，提供搜索、岗位、部门、启用状态筛选和每页 15 条分页。
+- 删除主管账号后，如没有唯一有效继任主管，原下属改为待分配（不是将 supervisor_id 设置为 NULL 违反 D1 CHECK）；有唯一主管时自动转移。
+- 删除部门及账号操作应保留审计记录。
 
-## 逻辑
-- 无业务关联账号尝试物理删除；有业务历史则软删除（`is_active=0,deleted_at,deleted_by`），列表不显示，登录失效，历史保留。
-- 主管有下属和待审批数据仍可注销。有唯一合格接任主管则自动迁移；否则员工主管置空，API 返回 `requires_reassignment`，后续管理员指派主管。
-- 保护当前登录管理员与最后有效管理员。
-- 已注销用户名保留，无法直接重用相同用户名。
-- 代码基于本地原始 V2 补丁合并。本次 GitHub 文件未进行 Cloudflare 实际端到端验证。
+## 上线顺序
+1. 先核对 Cloudflare 实际 Worker 与完整文件 `production-worker-admin-delete-v2-COPY.js` 的差异；不要把 REVIEW 标注误当作未用代码。
+2. 在目标 D1 核对 `users` 中 `deleted_at` 和 `deleted_by` 两列。缺少时先执行 `worker-patches/pz_account_retirement.sql` 一次；不可重复执行 ALTER。
+3. 对已安装 009 组织迁移的 D1，执行 `migrations/014_department_archive_active_unique_REVIEW.sql`。它让已归档的部门名称可再次使用，并保留旧部门历史记录。
+4. 先在 Staging 部署 Worker，并将本分支的前端 React 改动纳入构建；验证删除部门、重新分配原主管及员工、账号分类筛选与分页。
+5. 通过后再更新 Production Worker 和网站前端。不要合并后直接把生产数据库作为首次验证环境。
+
+## 必须验证
+- 仅 admin 可以删除部门；非管理员被拒绝。
+- 删除后，账号仍在 users 表，部门已归档，部门所有账号显示待分配。
+- 旧产品、两级审核、操作日志仍可回溯至原部门记录。
+- 可以创建同名新部门；旧历史仍引用原 department_id。
+- 原主管能够重新分配为主管；员工再关联新主管。
+- 旧部门 pending_supervisor / returned_to_supervisor 等在员工重新分配后能被新主管审批。
+- 账号管理能显示真实岗位、部门、15 条分页、搜索和筛选。
+- 账号删除后旧 JWT 无效；最后一名有效管理员不可被删。
+- 检查 Cloudflare Worker 的 D1/KV/R2 绑定及环境变量无变化。
+
+## 注意事项
+- 此次“删除部门”指**从管理界面删除并在数据库归档**，而非物理清除历史部门记录。
+- 历史待审记录在重新分配人员前仍引用原部门；后台需要优先处理待分配账号。
+- 当前 GitHub 变更不等于 Cloudflare 已部署。
