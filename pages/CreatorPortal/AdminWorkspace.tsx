@@ -45,6 +45,8 @@ const AdminWorkspace: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
   const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
+  const [publishingCategoryId,setPublishingCategoryId] = useState<string|null>(null);
+  const [categoryPublishMessage,setCategoryPublishMessage] = useState('');
 
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -310,7 +312,7 @@ const AdminWorkspace: React.FC = () => {
             <div className="rounded border border-stone-200 bg-white p-5">
               <h2 className="font-serif text-2xl text-stone-900">审核中心</h2>
               <p className="mt-2 text-sm text-stone-500">
-                在这里处理产品和分类申请。产品通过终审后仍需单独发布。
+                新品类通过 Admin 终审后直接发布到网站，其他网站配置草稿不会一起发布。产品 SKU 仍沿用现有产品审核与发布流程。
               </p>
               <div role="tablist" aria-label="审核类型" className="mt-5 grid gap-2 sm:grid-cols-3">
                 {([
@@ -337,7 +339,37 @@ const AdminWorkspace: React.FC = () => {
             }>
               {reviewSection === 'products' && <TwoStageProductReviews role="ADMIN" />}
               {reviewSection === 'new-categories' && (
-                <ReviewQueue
+                <div className="space-y-5">
+                  {allCategoryRequests.some(item=>item.status==='approved' && item.published===false) &&
+                    <section className="rounded border border-amber-300 bg-amber-50 p-4" aria-label="待补发的已批准分类">
+                      <h3 className="font-semibold text-amber-950">已批准，但尚未发布的分类</h3>
+                      <p className="mt-1 text-sm text-amber-900">无需重新审批，也不需要发布整站配置。点击单个分类可直接补发。</p>
+                      {categoryPublishMessage && <p role="status" className="mt-2 text-sm text-amber-950">{categoryPublishMessage}</p>}
+                      <div className="mt-3 space-y-2">
+                        {allCategoryRequests.filter(item=>item.status==='approved' && item.published===false).map(item=>
+                          <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-white p-3">
+                            <span className="text-sm">{item.title_cn||item.title} · {item.title}</span>
+                            <button type="button" disabled={!!publishingCategoryId}
+                              onClick={async()=>{
+                                setPublishingCategoryId(item.id);
+                                setCategoryPublishMessage('');
+                                try{
+                                  const r=await adminFetch<{success:boolean;published:boolean;publishError?:string}>(
+                                    `admin/category-requests/${encodeURIComponent(item.id)}/publish`,
+                                    {method:'POST',body:JSON.stringify({})});
+                                  if(!r.success||!r.published)throw new Error(r.publishError||'分类尚未发布成功。');
+                                  setCategoryPublishMessage('分类已单独发布，其他网站草稿未改动。');
+                                }catch(e:any){setCategoryPublishMessage(e?.message||'发布失败，请检查后台。');}
+                                finally{await Promise.all([loadReviewQueue(),loadSiteConfig()]);setPublishingCategoryId(null);}
+                              }}
+                              className="rounded bg-stone-900 px-4 py-2 text-xs text-white disabled:opacity-50">
+                              {publishingCategoryId===item.id?'发布中…':'重新发布此分类'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </section>}
+                  <ReviewQueue
                   categoryOnly
                   products={[]}
                   categoryRequests={categoryRequests}
@@ -349,7 +381,7 @@ const AdminWorkspace: React.FC = () => {
                     if(action==='reject'&&!note?.trim())throw new Error('请填写退回原因。');
                     const result = await adminFetch<any>(
                       `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
-                      { method: 'POST', body: JSON.stringify({autoPublish:false,note:note||''}) }
+                      { method: 'POST', body: JSON.stringify({note:note||''}) }
                     );
                     if (result?.success !== true ||
                         (action==='approve' ? result.status!=='approved' :
@@ -357,12 +389,13 @@ const AdminWorkspace: React.FC = () => {
                       throw new Error('分类审核结果未确认，请刷新后核对状态。');
                     }
                     await Promise.all([loadReviewQueue(), loadSiteConfig()]);
-                    if (action === 'approve' && result.needsPublish !== true) {
-                      throw new Error('分类已批准，但草稿状态未确认，请检查网站配置。');
+                    if(action==='approve' && result.published!==true) {
+                      throw new Error('分类已通过 Admin 审核，但自动发布尚未完成。请在本页“已批准但尚未发布”区域单独重试。'+(result.publishError||''));
                     }
                   }}
                   reloadQueue={loadReviewQueue}
                 />
+                </div>
               )}
               {reviewSection === 'category-changes' && (
                 <CategoryChangeReview onApproved={loadSiteConfig} />
