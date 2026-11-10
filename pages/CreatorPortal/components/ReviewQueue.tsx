@@ -83,6 +83,81 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
     } finally { setIsProcessing(false); }
   };
 
+
+  if(categoryOnly){
+    const categoryItems=categoryRequests as (CategoryRequest & {
+      title_cn?:string;submitter_name?:string;supervisor_name?:string
+    })[];
+    return <section className="space-y-3" aria-label="新品类快捷审核列表">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h3 className="font-serif text-lg">待终审新品类（{categoryItems.length}）</h3>
+          <p className="mt-1 text-xs text-stone-500">主管已初审；管理员可直接批准发布或退回，资料详情按需展开。</p></div>
+        <button type="button" disabled={isManualLoading||isProcessing} onClick={()=>void handleManualRefresh()}
+          className="rounded border border-stone-300 px-3 py-2 text-xs">
+          {isManualLoading?'刷新中…':'刷新列表'}
+        </button>
+      </div>
+      {message&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
+      {categoryItems.length===0?<p className="rounded border bg-white p-8 text-center text-sm text-stone-500">当前没有待批准的新品类。</p>:
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between rounded border border-stone-200 bg-stone-50 p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" aria-label="全选新品类申请"
+                checked={selectedIds.length===categoryItems.length}
+                disabled={isProcessing}
+                onChange={e=>setSelectedIds(e.target.checked?categoryItems.map(x=>x.id):[])} />
+              全选（{categoryItems.length}）
+            </label>
+            <button type="button" disabled={isProcessing||selectedIds.length===0} onClick={()=>void handleBulkApprove()}
+              className="rounded bg-stone-900 px-4 py-2 text-xs text-white disabled:opacity-40">
+              批准并发布选中的 {selectedIds.length} 项
+            </button>
+          </div>
+          {categoryItems.map(item=><article key={item.id} className="rounded border border-stone-200 bg-white p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <input type="checkbox" aria-label={'勾选新品类 '+item.title}
+                checked={selectedIds.includes(item.id)} disabled={isProcessing}
+                onChange={()=>toggleSelect(item.id)}/>
+              <div className="h-14 w-14 overflow-hidden rounded bg-stone-100">
+                {item.image?<img src={resolveImage(item.image)} alt="" className="h-full w-full object-cover"/>:
+                  <div className="flex h-full items-center justify-center text-[10px] text-stone-400">无图片</div>}
+              </div>
+              <div className="min-w-[150px] flex-1">
+                <p className="text-sm font-semibold">{item.title_cn||item.title}</p>
+                <p className="mt-1 text-xs text-stone-500">{item.title}</p>
+                <p className="mt-1 text-xs text-stone-500">申请人：{item.submitter_name||'历史申请'}
+                  {item.supervisor_name?' · 主管：'+item.supervisor_name:''}</p>
+              </div>
+              <span className="text-xs text-amber-700">{item.status==='pending_admin'?'主管初审通过':'历史申请待审'}</span>
+              {rejectId!==item.id&&<button type="button" disabled={isProcessing}
+                onClick={()=>{setRejectId(item.id);setRejectNote('');}}
+                className="rounded border border-red-200 px-3 py-2 text-xs text-red-700">退回主管</button>}
+              {rejectId!==item.id&&<button type="button" disabled={isProcessing}
+                onClick={()=>void processItem(item.id,'approve')}
+                className="rounded bg-stone-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
+                批准并发布
+              </button>}
+            </div>
+            {rejectId===item.id&&<div className="mt-3 space-y-2 border-t pt-3">
+              <textarea aria-label="新品类退回原因" rows={2} value={rejectNote}
+                onChange={e=>setRejectNote(e.target.value)}
+                className="w-full rounded border p-2 text-sm" placeholder="填写主管需要核查的具体问题（必填）"/>
+              <div className="flex gap-2">
+                <button type="button" disabled={isProcessing||!rejectNote.trim()}
+                  onClick={()=>void processItem(item.id,'reject',rejectNote)}
+                  className="rounded bg-red-700 px-4 py-2 text-xs text-white disabled:opacity-40">确认退回</button>
+                <button type="button" onClick={()=>setRejectId(null)} className="rounded border px-4 py-2 text-xs">取消</button>
+              </div>
+            </div>}
+            <details className="mt-3 border-t border-stone-100 pt-2">
+              <summary className="cursor-pointer text-xs text-stone-500">查看申请说明（可选）</summary>
+              <p className="mt-2 whitespace-pre-wrap text-xs text-stone-700">{item.subtitle||item.description||'未填写说明'}</p>
+            </details>
+          </article>)}
+        </div>}
+    </section>;
+  }
+
   return (
     <div className="animate-fade-in relative">
         <div className="flex flex-col md:flex-row gap-4 mb-8">
