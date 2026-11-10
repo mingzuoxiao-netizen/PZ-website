@@ -63,7 +63,7 @@ function setup(runtime='production'){
     return {status:response.status,body:await response.json()};
   };
   const imageBase=runtime==='staging'?'https://staging-images.test':'https://cdn.peng-zhan.com';
-  const payload={title:'Heritage Chairs',title_cn:'复古椅',subtitle:'Wooden seating',image:imageBase+'/uploads/cover.jpg'};
+  const payload={title:'Heritage Chairs',title_cn:'复古椅',subtitle:'Wooden seating',image:imageBase+'/uploads%2Fcover.jpg'};
   return {sql,env,call,payload};
 }
 
@@ -125,5 +125,26 @@ test('security: no assignment, invalid R2, duplicate, wrong roles, legacy separa
   assert.equal((await a.call('/factory/category-requests','POST',a.payload,'factoryA')).status,404);
   a.env.PZ_CATEGORY_TWO_STAGE_ENABLED='true';a.env.PZ_RUNTIME_ENV='staging';
   assert.equal((await a.call('/factory/category-requests','POST',a.payload,'factoryA')).status,403);
+  a.sql.close();
+});
+
+
+test('accepts encoded upload-image URLs and plain R2 paths, but rejects unsafe/mismatched image hosts',async()=>{
+  const a=setup('staging');
+  const encoded=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
+  assert.equal(encoded.status,201,'The current upload-image endpoint encodes uploads/cover.jpg as uploads%2Fcover.jpg');
+  const plain=await a.call('/factory/category-requests','POST',{
+    ...a.payload,title:'Oak Shelving',title_cn:'橡木置物架',
+    image:'https://staging-images.test/uploads/cover.jpg'
+  },'factoryA');
+  assert.equal(plain.status,201,'A standard /uploads/file.jpg URL also remains valid');
+  const doubleEncoded=await a.call('/factory/category-requests','POST',{
+    ...a.payload,title:'Woven Benches',image:'https://staging-images.test/uploads%252Fcover.jpg'
+  },'factoryA');
+  assert.equal(doubleEncoded.status,400,'Double-encoded paths are rejected');
+  const external=await a.call('/factory/category-requests','POST',{
+    ...a.payload,title:'Teak Tables',image:'https://cdn.peng-zhan.com/uploads%2Fcover.jpg'
+  },'factoryA');
+  assert.equal(external.status,400,'Production CDN images are rejected in Staging');
   a.sql.close();
 });
