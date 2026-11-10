@@ -1,7 +1,7 @@
 import type { ProductVariant } from '../../types';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { adminFetch } from '../../utils/adminFetch';
-import { normalizeProducts } from '../../utils/normalizeProduct';
+import { normalizeAdminInventoryProducts } from '../../utils/normalizeAdminInventoryProducts';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
 import { mergeSiteMediaDraft, getSiteImageChanges } from '../../utils/siteMediaChanges';
 import PortalLayout from './PortalLayout';
@@ -92,11 +92,7 @@ const AdminWorkspace: React.FC = () => {
       // For Admin inventory the current D1 status is authoritative. Legacy
       // is_published must not override it: that creates a false "published"
       // badge and a misleading unpublish action on ineligible rows.
-      const normalized=normalizeProducts(response.products).map((p,i)=>({
-        ...p,
-        status:String(response.products[i].status||'draft').trim().toLowerCase() as ProductVariant['status']
-      }));
-      setProducts(normalized);
+      setProducts(normalizeAdminInventoryProducts(response.products));
       setCatalogHasMore(response.has_more);
       setUnpublishedReviewCount(response.unpublished_review_count ?? null);
     } catch {
