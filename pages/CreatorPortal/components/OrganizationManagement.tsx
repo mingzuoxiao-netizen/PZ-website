@@ -25,6 +25,9 @@ const OrganizationManagement: React.FC = () => {
   const [departmentId, setDepartmentId] = useState('');
   const [supervisorId, setSupervisorId] = useState('');
   const [legacyId, setLegacyId] = useState('');
+  const [legacyJob,setLegacyJob] = useState<Job>('staff');
+  const [deleteTarget,setDeleteTarget] = useState<Department|null>(null);
+  const [deleteConfirmation,setDeleteConfirmation] = useState('');
   const [assignmentSupervisorId, setAssignmentSupervisorId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -124,20 +127,36 @@ const OrganizationManagement: React.FC = () => {
     }
   };
 
+  const deleteDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteTarget || deleteConfirmation !== deleteTarget.name || busy) return;
+    const result=await perform(
+      () => adminFetch<{success:boolean;unassigned_count:number}>(`/admin/org/departments/${encodeURIComponent(deleteTarget.id)}`,{method:'DELETE'}),
+      '部门已删除，账号已转入待分配。',
+    );
+    if (result?.success) {
+      setMessage(`部门已删除，${result.unassigned_count || 0} 个账号进入待分配。原有审批历史仍然保留。`);
+      setDeleteTarget(null);
+      setDeleteConfirmation('');
+      setLegacyJob('staff');
+      setLegacyId('');
+    }
+  };
+
   const assignLegacy = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentDepartment || !selectedAssignmentSupervisorId) return;
+    if (!currentDepartment || (legacyJob!=='supervisor' && !selectedAssignmentSupervisorId)) return;
     const result = await perform(
       () => adminFetch('/admin/org/assignments', {
         method: 'POST',
         body: JSON.stringify({
           user_id: legacyId, department_id: departmentId,
-          supervisor_id: selectedAssignmentSupervisorId, job_type: 'staff',
+          supervisor_id: legacyJob==='supervisor'?undefined:selectedAssignmentSupervisorId, job_type:legacyJob,
         }),
       }),
-      '旧工厂账号已分配到指定主管。',
+      '待分配账号已设置岗位并分配到部门。',
     );
-    if (result) setLegacyId('');
+    if (result) {setLegacyId('');setLegacyJob('staff');}
   };
 
   return <div className="space-y-6 p-4 md:p-8">
@@ -169,6 +188,45 @@ const OrganizationManagement: React.FC = () => {
         </button>
       </div>
     </form>
+
+    <section className="rounded border bg-white p-5">
+      <h3 className="mb-3 font-semibold">现有部门（{activeDepartments.length}）</h3>
+      <p className="mb-3 text-sm text-stone-500">管理员删除部门后，账号不会被删除，所有原部门账号将进入待分配。产品及审核历史仍保留。</p>
+      {!activeDepartments.length && <p className="text-sm text-stone-500">暂无部门。</p>}
+      <div className="space-y-2">
+        {activeDepartments.map(d=>{
+          const count=members.filter(m=>m.department_id===d.id).length;
+          return <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-stone-200 p-3">
+            <div><div className="font-medium text-sm">{d.name}</div>
+              <div className="text-xs text-stone-500">成员 {count} 人 · {d.factory_site==='zhaoqing'?'肇庆':d.factory_site==='kandal'?'柬埔寨':'跨工厂'}</div></div>
+            <button type="button" disabled={busy} aria-label={`删除部门 ${d.name}`}
+              onClick={()=>{setDeleteTarget(d);setDeleteConfirmation('');}}
+              className="rounded border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40">删除部门</button>
+          </div>;
+        })}
+      </div>
+    </section>
+
+    {deleteTarget && <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4">
+      <form role="dialog" aria-modal="true" onSubmit={e=>{void deleteDepartment(e);}}
+        className="w-full max-w-md space-y-4 bg-white p-6 shadow-xl">
+        <h3 className="text-lg font-bold">删除部门：{deleteTarget.name}</h3>
+        <p className="text-sm text-stone-600">
+          此操作会移除部门，并把所属账号转为待分配；不会删除登录账号、产品或审批历史。之后需为账号重新指定部门和岗位。
+        </p>
+        <label className="block text-sm text-stone-700">输入完整部门名称确认
+          <input autoFocus required aria-label="确认删除部门名称" value={deleteConfirmation}
+            onChange={e=>setDeleteConfirmation(e.target.value)}
+            className="mt-2 w-full border border-stone-300 p-3" />
+        </label>
+        <div className="flex justify-end gap-3">
+          <button type="button" disabled={busy} onClick={()=>setDeleteTarget(null)}
+            className="border px-4 py-2">取消</button>
+          <button type="submit" disabled={busy||deleteConfirmation!==deleteTarget.name}
+            className="bg-red-700 px-4 py-2 text-white disabled:opacity-40">确认删除部门</button>
+        </div>
+      </form>
+    </div>}
 
     <form onSubmit={e => { void createAccount(e); }} className="space-y-3 rounded border bg-white p-5">
       <h3 className="font-semibold">第二步 · 创建主管或部门员工</h3>
@@ -225,24 +283,28 @@ const OrganizationManagement: React.FC = () => {
     </form>
 
     <form onSubmit={e => { void assignLegacy(e); }} className="space-y-3 rounded border bg-white p-5">
-      <h3 className="font-semibold">第三步 · 分配现有工厂账号（可选）</h3>
-      <p className="text-sm text-stone-500">只需要为以前创建、尚未归属主管的工厂账号进行分配；新账号会自动关联部门和主管。</p>
+      <h3 className="font-semibold">第三步 · 待分配账号（{legacy.length}）</h3>
+      <p className="text-sm text-stone-500">这里包含旧账号，以及从已删除部门移出的主管和员工。可重新指定部门与岗位，优先分配主管，再分配员工。</p>
       {!legacy.length && <p className="text-sm text-stone-500">当前没有待分配的旧工厂账号。</p>}
-      {!!legacy.length && !supervisors.length && <p className="text-sm text-stone-500">请在第二步先为选中的部门创建主管。</p>}
-      <fieldset disabled={busy || !currentDepartment || !supervisors.length || !legacy.length}
+      {!!legacy.length && !supervisors.length && <p className="text-sm text-stone-500">当前部门尚无主管，可先将待分配账号设为「部门主管」。</p>}
+      <fieldset disabled={busy || !currentDepartment || !legacy.length || (legacyJob!=='supervisor'&&!supervisors.length)}
         className="flex flex-wrap gap-2 disabled:opacity-60">
         <select aria-label="待分配工厂账号" value={legacyId} onChange={e => setLegacyId(e.target.value)}
           className="min-w-40 flex-1 border p-2 text-sm" required>
           <option value="">选择旧账号</option>{legacy.map(m => <option key={m.id} value={m.id}>{m.username}</option>)}
         </select>
-        <select aria-label="旧账号直属主管" value={selectedAssignmentSupervisorId}
+        <select aria-label="待分配账号岗位" value={legacyJob} onChange={e=>setLegacyJob(e.target.value as Job)}
+          className="min-w-40 flex-1 border p-2 text-sm">
+          {Object.entries(labels).map(([key,title])=><option key={key} value={key}>{title}</option>)}
+        </select>
+        {legacyJob!=='supervisor' && <select aria-label="旧账号直属主管" value={selectedAssignmentSupervisorId}
           onChange={e => setAssignmentSupervisorId(e.target.value)}
           className="min-w-40 flex-1 border p-2 text-sm" required>
           <option value="">选择主管（对应上方选定部门）</option>
           {supervisors.map(m => <option key={m.id} value={m.id}>{m.username}</option>)}
-        </select>
-        <button disabled={busy || !legacyId || !selectedAssignmentSupervisorId}
-          className="bg-stone-900 px-4 py-2 text-sm text-white disabled:opacity-50">分配账号</button>
+        </select>}
+        <button disabled={busy || !legacyId || (legacyJob!=='supervisor'&&!selectedAssignmentSupervisorId)}
+          className="bg-stone-900 px-4 py-2 text-sm text-white disabled:opacity-50">确认分配</button>
       </fieldset>
     </form>
 
