@@ -15,7 +15,8 @@ interface ProductListProps {
   onCatalogVisibility?: (item: ProductVariant) => Promise<void>;
   serverFiltered?: boolean;
   onArchive?: (item: ProductVariant) => Promise<void>;
-  onPermanentDelete?: (item: ProductVariant) => Promise<void>; 
+  onPermanentDelete?: (item: ProductVariant) => Promise<void>;
+  forceDeleteEnabled?: boolean;
   onCreate: () => void;
   onBack: () => void;
   userRole?: 'ADMIN' | 'FACTORY';
@@ -24,7 +25,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onArchive, serverFiltered = false, onPermanentDelete, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onArchive, serverFiltered = false, onPermanentDelete, forceDeleteEnabled = false, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -40,6 +41,7 @@ const ProductList: React.FC<ProductListProps> = ({
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
   const eligibleForPermanentDelete=(status?:string)=>
+    forceDeleteEnabled ||
     ['draft','rejected','unpublished','inactive','archived'].includes(String(status||''));
   const adminCanDelete=isAdmin&&!!onPermanentDelete;
   const deletionBusy=deletingId!==null||isBulkProcessing;
@@ -103,13 +105,15 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handlePermanentDelete=async(item:ProductVariant)=>{
     if(!onPermanentDelete||!item.id||deletionBusy)return;
-    if(!confirm('确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
+    if(!confirm(forceDeleteEnabled
+      ? '确认从产品管理及公开网站移除这件产品？SKU 将释放；有审批历史的产品仅保留内部审计占位记录，R2 原图不删除。操作不可恢复。'
+      : '确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
     setDeletingId(item.id);
     try{
       await onPermanentDelete(item);
       setSelectedIds(prev=>prev.filter(id=>id!==item.id));
       await onRefresh?.();
-      alert('产品已永久删除，无需输入 SKU。');
+      alert('产品已从管理及公开目录移除，原 SKU 可复用；必要审计历史仍保留。');
     }catch(error:any){
       await onRefresh?.();
       alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
@@ -119,8 +123,10 @@ const ProductList: React.FC<ProductListProps> = ({
   const handleAdminBulkDelete=async()=>{
     if(!onPermanentDelete||deletionBusy||!adminSelected.length)return;
     const batch=[...adminSelected];
-    if(!confirm('确认永久删除选中的 '+batch.length+
-      ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
+    if(!confirm(forceDeleteEnabled
+      ? '确认一次移除选中的 '+batch.length+' 件产品？无需输入 SKU。包含已发布及有审核历史的产品；成功后原 SKU 可复用，必要审计历史和 R2 原图保留。操作不可恢复。'
+      : '确认永久删除选中的 '+batch.length+
+        ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
     setIsBulkProcessing(true);
     const failed:{id:string;sku:string;reason:string}[]=[];
     let succeeded=0;
@@ -139,7 +145,7 @@ const ProductList: React.FC<ProductListProps> = ({
         ' 件。\n'+failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
         (failed.length>5?'\n其余失败项目请单独核对。':'')+
         '\n失败项目已保留选中，请核对后再重试。');
-      else alert('已删除 '+succeeded+' 件产品，R2 原图未删除。');
+      else alert('已移除 '+succeeded+' 件产品，原 SKU 可复用。R2 原图及必要审计历史已保留。');
     }finally{setIsBulkProcessing(false);}
   };
 
@@ -359,7 +365,7 @@ const ProductList: React.FC<ProductListProps> = ({
                                     <button type="button" disabled={deletionBusy}
                                       onClick={()=>void handlePermanentDelete(item)}
                                       aria-label={T('Permanently delete SKU','永久删除 SKU')}
-                                      title={T('Permanent deletion, if no review history exists','永久删除：需要无历史审核关联')}
+                                      title={forceDeleteEnabled?'管理员强制移除：保留必要审计历史':'永久删除：需要无历史审核关联'}
                                       className="rounded-sm border border-transparent p-2 text-red-700 hover:border-red-200 hover:bg-red-50 disabled:opacity-40">
                                       {deletingId===item.id?<Loader2 size={16} className="animate-spin"/>:<Trash2 size={16}/>}
                                     </button>
@@ -394,7 +400,8 @@ const ProductList: React.FC<ProductListProps> = ({
               </button>
             </div>
             <p className="w-full text-xs text-stone-600">
-              仅删除未发布且无历史关联的产品；已发布产品请下架或归档。无需输入 SKU。
+              {forceDeleteEnabled?'可直接移除已发布及有审核历史的产品；释放 SKU、保留必要审计记录及 R2 原图。无需输入 SKU。':
+                '当前 Worker 未启用强制移除，只能删除无审核历史且未发布的产品；无需输入 SKU。'}
             </p>
           </div>}
        {isFactory && !!onSubmit && selectedIds.length > 0 && (
