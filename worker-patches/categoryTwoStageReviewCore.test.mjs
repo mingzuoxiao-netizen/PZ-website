@@ -241,3 +241,26 @@ test('D1 cutover publishes one category via revision CAS and preserves other pub
   assert.equal(JSON.parse(row.draft_json).home.hero.title,'Still draft');
   a.sql.close();
 });
+
+
+test('admin list advertises targeted publishing; unknown live state stays visible instead of false success',async()=>{
+  const a=setup();
+  const created=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
+  const id=created.body.id;
+  await a.call('/supervisor/category-requests/'+id+'/approve','POST',{},'superA');
+  const approval=await a.call('/admin/category-requests/'+id+'/approve','POST',{},'admin');
+  assert.equal(approval.body.published,true);
+  const before=await a.call('/admin/category-requests','GET',undefined,'admin');
+  assert.equal(before.status,200);
+  assert.equal(before.body.capabilities.targetedCategoryPublish,true);
+  assert.equal(before.body.capabilities.publicationMode,'category_only');
+  assert.equal(before.body.items.find(x=>x.id===id).publicationStatus,'published');
+  a.kv.delete('published:site_config');
+  const unknown=await a.call('/admin/category-requests','GET',undefined,'admin');
+  const item=unknown.body.items.find(x=>x.id===id);
+  assert.equal(item.status,'approved');
+  assert.equal(item.published,null);
+  assert.equal(item.publicationStatus,'unverified');
+  assert.equal(unknown.body.items.filter(x=>x.id===id).length,1);
+  a.sql.close();
+});
