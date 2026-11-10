@@ -13,7 +13,7 @@ test('admin review center keeps one entry and routes products only through two-s
   const inventoryStart = source.indexOf("{activeTab === 'inventory' && (", reviewStart);
   assert.ok(reviewStart > 0 && inventoryStart > reviewStart);
   const reviewMarkup = source.slice(reviewStart, inventoryStart);
-  assert.match(reviewMarkup, /reviewSection === 'products' && <TwoStageProductReviews role="ADMIN"/);
+  assert.match(reviewMarkup, /reviewSection === 'products' && <AdminReleaseQueue onQueueChanged={loadReviewQueue}/);
   assert.match(reviewMarkup, /reviewSection === 'new-categories'/);
   assert.match(reviewMarkup, /reviewSection === 'category-changes'/);
   assert.match(reviewMarkup, /<CategoryChangeReview onApproved=\{loadSiteConfig\}/);
@@ -36,7 +36,7 @@ test('category-only queue does not expose old single-stage product approval cont
       reloadQueue={async()=>{}}
     />);});
     const initial=JSON.stringify(view!.toJSON());
-    assert.match(initial,/新品类申请审核/);
+    assert.match(initial,/待终审新品类/);
     assert.match(initial,/New Furniture Series/);
     assert.doesNotMatch(initial,/Old Product/);
     assert.doesNotMatch(initial,/待审核产品/);
