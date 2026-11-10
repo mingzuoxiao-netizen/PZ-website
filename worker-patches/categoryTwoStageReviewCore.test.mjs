@@ -264,3 +264,48 @@ test('admin list advertises targeted publishing; unknown live state stays visibl
   assert.equal(unknown.body.items.filter(x=>x.id===id).length,1);
   a.sql.close();
 });
+
+
+test('D1 batch write metadata cannot produce a false category-submission 503 when all records persisted',async()=>{
+  const a=setup();
+  const originalBatch=a.env.DB.batch.bind(a.env.DB);
+  a.env.DB.batch=async(statements)=>{
+    const rows=await originalBatch(statements);
+    // Simulate Cloudflare D1 batch returning an incomplete changes count.
+    return rows.map(()=>({meta:{changes:0}}));
+  };
+  const response=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
+  assert.equal(response.status,201);
+  assert.equal(response.body.success,true);
+  assert.equal(response.body.status,'pending_supervisor');
+  const requestId=response.body.id;
+  assert.equal(a.sql.prepare('SELECT COUNT(*) AS count FROM category_requests WHERE id=?').get(requestId).count,1);
+  assert.equal(a.sql.prepare('SELECT COUNT(*) AS count FROM pz_category_request_flow WHERE request_id=?').get(requestId).count,1);
+  assert.equal(a.sql.prepare('SELECT COUNT(*) AS count FROM pz_category_request_events WHERE request_id=?').get(requestId).count,1);
+  assert.equal((await a.call('/factory/category-requests','GET',undefined,'factoryA')).body.items.some(x=>x.id===requestId),true);
+  a.sql.close();
+});
+
+test('D1 commits category request but throws before acknowledgement: readback confirms successful submission',async()=>{
+  const a=setup();
+  const originalBatch=a.env.DB.batch.bind(a.env.DB);
+  a.env.DB.batch=async(statements)=>{
+    await originalBatch(statements);
+    throw Error('simulated lost transaction acknowledgement');
+  };
+  const response=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
+  assert.equal(response.status,201);
+  assert.equal(response.body.status,'pending_supervisor');
+  assert.equal(a.sql.prepare('SELECT COUNT(*) AS count FROM category_requests WHERE id=?').get(response.body.id).count,1);
+  a.sql.close();
+});
+
+test('category submission is not reported successful when D1 transaction did not commit',async()=>{
+  const a=setup();
+  a.env.DB.batch=async()=>{throw Error('simulated rollback before write');};
+  const response=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
+  assert.equal(response.status,503);
+  assert.match(response.body.error,/不要重复提交/);
+  assert.equal(a.sql.prepare('SELECT COUNT(*) AS count FROM category_requests').get().count,1,'only pre-existing legacy request');
+  a.sql.close();
+});
