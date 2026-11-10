@@ -26,3 +26,12 @@ CREATE TRIGGER IF NOT EXISTS pz_product_retirements_immutable_update
 CREATE TRIGGER IF NOT EXISTS pz_product_retirements_immutable_delete
   BEFORE DELETE ON pz_product_retirements
   BEGIN SELECT RAISE(ABORT,'Product retirement history is immutable'); END;
+
+-- The final scrubbed row is a referential-integrity placeholder, not an
+-- editable product. Never allow legacy admin/factory routes to revive it.
+CREATE TRIGGER IF NOT EXISTS pz_retired_products_no_update
+  BEFORE UPDATE ON products WHEN OLD.deleted_at IS NOT NULL
+  BEGIN SELECT RAISE(ABORT,'Retired product tombstone is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS pz_retired_products_no_delete
+  BEFORE DELETE ON products WHEN OLD.deleted_at IS NOT NULL
+  BEGIN SELECT RAISE(ABORT,'Retired product tombstone cannot be removed'); END;
