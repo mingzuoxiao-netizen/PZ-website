@@ -3,6 +3,13 @@ import { adminFetch } from '../../../utils/adminFetch';
 import PublishedRevisionQueue from './PublishedRevisionQueue';
 
 type Role = 'ADMIN' | 'SUPERVISOR';
+
+// Keep the operational review queue limited to work for the current role.
+// Published products and completed returns remain in catalog/history, not here.
+export const isActionableProductReview = (role:Role,status:string):boolean =>
+  role==='ADMIN'
+    ? ['pending_admin','approved_pending_publish'].includes(status)
+    : ['pending_supervisor','returned_to_supervisor'].includes(status);
 type Review = {
   id:string; product_id:string; name:string; name_cn?:string; code:string;category:string;
   status:string;latest_version:number;approved_version:number|null;
@@ -48,8 +55,10 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
   const [returnAction,setReturnAction]=useState<'return'|'request-correction'|null>(null);
   const refresh=useCallback(async()=>{
     const result=await adminFetch<{items:Review[]}>('/'+base+'/reviews');
-    setReviews(result.items||[]);
-  },[base]);
+    const actionable=(result.items||[]).filter(item=>isActionableProductReview(role,item.status));
+    setReviews(actionable);
+    setSelected(current=>current && !actionable.some(item=>item.id===current.id) ? null : current);
+  },[base,role]);
   useEffect(()=>{void refresh().catch(e=>setError(e?.message||'读取审核列表失败')).finally(()=>setLoading(false));},[refresh]);
   const inspect=async(id:string)=>{
     setBusy(true);setError('');setReason('');setShowAllFields(false);setReturnAction(null);
@@ -71,11 +80,20 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
       if(!result.success)throw Error('审核状态未确认');
       setNotice(name==='publish'?'产品已发布':name==='approve'?'审核已通过':'已退回并记录原因');
       setReason('');setReturnAction(null);
-      const [detail]=await Promise.all([
-        adminFetch<ReviewDetail>('/'+base+'/reviews/'+encodeURIComponent(selected.id)),
-        refresh()
-      ]);
-      setSelected(detail);
+      // A successful publish or handoff must immediately leave this role's
+      // queue, even if a legacy endpoint still includes completed records.
+      setSelected(null);
+      try {
+        await refresh();
+        if(isActionableProductReview(role,result.status)){
+          const detail=await adminFetch<ReviewDetail>(
+            '/'+base+'/reviews/'+encodeURIComponent(selected.id));
+          setSelected(detail);
+        }
+      }catch(refreshError:any){
+        setError('操作已成功，但列表刷新失败：'+
+          (refreshError?.message||'请点击刷新列表核对状态。'));
+      }
     }catch(e:any){setError(e?.message||'操作未完成，请刷新检查');await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
