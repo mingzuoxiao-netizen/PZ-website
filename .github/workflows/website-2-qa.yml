@@ -29,6 +29,12 @@ jobs:
           node --check worker-patches/production-worker-admin-delete-v2-COPY.js
           node --check worker-patches/organizationAccessCore.mjs
           node --test worker-patches/organizationAccessCore.test.mjs
+      - name: Category supervisor-to-admin review and full Worker syntax
+        run: |
+          node --check worker-patches/categoryTwoStageReviewCore.mjs
+          node --test worker-patches/categoryTwoStageReviewCore.test.mjs
+          node --check worker-patches/staging-worker-category-changes-REVIEW.js
+          node --check worker-patches/production-worker-admin-delete-v2-COPY.js
       - name: Two-stage product approval state-machine tests
         run: node --check worker-patches/productTwoStageReviewCore.mjs && node --test worker-patches/productTwoStageReviewCore.test.mjs
       - name: Structured product specs, anti-financial validation and migration gate
