@@ -137,6 +137,7 @@ test('admin removes department without deleting accounts and can restore the for
     assert.equal(control('待分配账号岗位').props.value,'staff');
     await act(async()=>control('部门名称').props.onChange({target:{value:'新产品部'}}));
     await act(async()=>root().findAllByType('form')[0].props.onSubmit({preventDefault(){}}));
+    await act(async()=>control('待分配目标部门').props.onChange({target:{value:'new'}}));
     await act(async()=>control('待分配账号岗位').props.onChange({target:{value:'supervisor'}}));
     await act(async()=>control('待分配工厂账号').props.onChange({target:{value:'lead'}}));
     const assignForm=root().findAllByType('form').find(form=>form.findAllByProps({'aria-label':'待分配工厂账号'}).length>0)!;
@@ -148,5 +149,116 @@ test('admin removes department without deleting accounts and can restore the for
     globalThis.fetch=originalFetch;
     if(originalStorage===undefined)delete (globalThis as any).sessionStorage;
     else (globalThis as any).sessionStorage=originalStorage;
+  }
+});
+
+
+test('assignment destination is independent of step two; supervisor options follow selected department',async()=>{
+  const savedFetch=globalThis.fetch;
+  const savedStorage=(globalThis as any).sessionStorage;
+  const assignments:Record<string,unknown>[]=[];
+  const depts=[
+    {id:'products',name:'肇庆产品部',factory_site:'zhaoqing',is_active:1},
+    {id:'sales',name:'肇庆业务部',factory_site:'zhaoqing',is_active:1},
+  ];
+  let users:any[]=[
+    {id:'lead-products',username:'HenryWang',role:'factory',is_active:1,job_type:'supervisor',department_id:'products',department_name:'肇庆产品部'},
+    {id:'lead-sales',username:'max',role:'factory',is_active:1,job_type:'supervisor',department_id:'sales',department_name:'肇庆业务部'},
+    {id:'unassigned',username:'waiting_staff',role:'factory',is_active:1,job_type:null,department_id:null,department_name:null},
+  ];
+  (globalThis as any).sessionStorage={getItem:()=> 'staging-admin-token'};
+  globalThis.fetch=async(url,config)=>{
+    const address=String(url);
+    const method=config?.method||'GET';
+    if(method==='GET'&&address==='/api/admin/org/departments')return Response.json({items:depts});
+    if(method==='GET'&&address==='/api/admin/org/accounts')return Response.json({users});
+    if(method==='POST'&&address==='/api/admin/org/assignments'){
+      const payload=JSON.parse(String(config?.body));
+      assignments.push(payload);
+      users=users.map(u=>u.id==='unassigned'?{...u,job_type:payload.job_type,department_id:payload.department_id,
+        department_name:'肇庆业务部',supervisor_id:payload.supervisor_id}:u);
+      return Response.json({success:true,id:payload.user_id});
+    }
+    throw new Error('Unexpected '+method+' '+address);
+  };
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<OrganizationManagement/>);});
+    const root=()=>view!.root;
+    const input=(name:string)=>root().findByProps({'aria-label':name});
+    assert.equal(input('所属部门').props.value,'products');
+    assert.equal(input('待分配目标部门').props.value,'');
+    await act(async()=>input('待分配目标部门').props.onChange({target:{value:'sales'}}));
+    assert.equal(input('所属部门').props.value,'products');
+    const supervisors=input('旧账号直属主管').findAllByType('option').map(x=>x.children.join(''));
+    assert.ok(supervisors.includes('max'));
+    assert.ok(!supervisors.includes('HenryWang'));
+    await act(async()=>input('待分配工厂账号').props.onChange({target:{value:'unassigned'}}));
+    const assignForm=root().findAllByType('form').find(
+      form=>form.findAllByProps({'aria-label':'待分配工厂账号'}).length>0)!;
+    await act(async()=>assignForm.props.onSubmit({preventDefault(){}}));
+    assert.equal(assignments.length,1);
+    assert.equal(assignments[0].department_id,'sales');
+    assert.equal(assignments[0].supervisor_id,'lead-sales');
+    assert.equal(assignments[0].job_type,'staff');
+    assert.equal(input('所属部门').props.value,'products');
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    globalThis.fetch=savedFetch;
+    if(savedStorage===undefined)delete (globalThis as any).sessionStorage;
+    else (globalThis as any).sessionStorage=savedStorage;
+  }
+});
+
+test('department cards show supervisors first; members render only for the opened department',async()=>{
+  const savedFetch=globalThis.fetch;
+  const savedStorage=(globalThis as any).sessionStorage;
+  const departments=[
+    {id:'products',name:'肇庆产品部',factory_site:'zhaoqing',is_active:1},
+    {id:'sales',name:'肇庆业务部',factory_site:'zhaoqing',is_active:1},
+  ];
+  const users=[
+    {id:'admin',username:'staging_admin',role:'admin',is_active:1,job_type:null,department_id:null,department_name:null,supervisor_id:null},
+    {id:'lead-p',username:'HenryWang',role:'factory',is_active:1,job_type:'supervisor',department_id:'products',department_name:'肇庆产品部',supervisor_id:null},
+    {id:'staff-p',username:'mishu',role:'factory',is_active:1,job_type:'secretary',department_id:'products',department_name:'肇庆产品部',supervisor_id:'lead-p'},
+    {id:'lead-s',username:'max',role:'factory',is_active:1,job_type:'supervisor',department_id:'sales',department_name:'肇庆业务部',supervisor_id:null},
+    {id:'staff-s',username:'PZ03',role:'factory',is_active:1,job_type:'data_entry',department_id:'sales',department_name:'肇庆业务部',supervisor_id:'lead-s'},
+  ];
+  (globalThis as any).sessionStorage={getItem:()=> 'staging-admin-token'};
+  globalThis.fetch=async(url)=>{
+    if(String(url)==='/api/admin/org/departments')return Response.json({items:departments});
+    if(String(url)==='/api/admin/org/accounts')return Response.json({users});
+    throw Error('Unexpected '+url);
+  };
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<OrganizationManagement/>);});
+    const root=()=>view!.root;
+    const card=(name:string)=>root().findByProps({'aria-label':'查看部门成员 '+name});
+    assert.equal(root().findAllByType('tbody').length,0);
+    assert.equal(card('肇庆产品部').props['aria-expanded'],false);
+    assert.equal(card('肇庆业务部').props['aria-expanded'],false);
+    assert.match(card('肇庆产品部').findAllByType('span').map(x=>x.children.join('')).join(' '),/HenryWang/);
+    assert.match(card('肇庆业务部').findAllByType('span').map(x=>x.children.join('')).join(' '),/max/);
+    await act(async()=>card('肇庆产品部').props.onClick());
+    assert.equal(card('肇庆产品部').props['aria-expanded'],true);
+    let rows=root().findAllByType('tbody')[0].findAllByType('tr');
+    assert.equal(rows.length,2);
+    assert.match(JSON.stringify(rows.map(x=>x.children)),/mishu/);
+    assert.doesNotMatch(JSON.stringify(rows.map(x=>x.children)),/PZ03/);
+    await act(async()=>card('肇庆业务部').props.onClick());
+    assert.equal(card('肇庆产品部').props['aria-expanded'],false);
+    assert.equal(card('肇庆业务部').props['aria-expanded'],true);
+    rows=root().findAllByType('tbody')[0].findAllByType('tr');
+    assert.equal(rows.length,2);
+    assert.match(JSON.stringify(rows.map(x=>x.children)),/PZ03/);
+    assert.doesNotMatch(JSON.stringify(rows.map(x=>x.children)),/mishu/);
+    await act(async()=>card('肇庆业务部').props.onClick());
+    assert.equal(root().findAllByType('tbody').length,0);
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    globalThis.fetch=savedFetch;
+    if(savedStorage===undefined)delete (globalThis as any).sessionStorage;
+    else (globalThis as any).sessionStorage=savedStorage;
   }
 });
