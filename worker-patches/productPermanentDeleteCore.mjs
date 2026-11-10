@@ -173,7 +173,7 @@ export function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expe
     // Unreferenced rows may be truly deleted. FK protection is still active;
     // if a previously unknown FK exists, privileged requests safely fall back
     // to an audit tombstone instead of disabling triggers or foreign keys.
-    if(!result.linked?.length){
+    if(!result.linked?.length && (!forceRequested || ['draft','rejected'].includes(String(result.product.status).toLowerCase()))){
       const guards=(result.existing||[]).map(table=>
         " AND NOT EXISTS(SELECT 1 FROM "+table+" WHERE product_id=products.id)");
       const sql="DELETE FROM products WHERE id=? AND code=? AND updated_at=? "+
