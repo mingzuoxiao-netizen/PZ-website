@@ -21,7 +21,7 @@ import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
-import TwoStageProductReviews from './components/TwoStageProductReviews';
+import AdminReleaseQueue from './components/AdminReleaseQueue';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
@@ -45,6 +45,13 @@ const AdminWorkspace: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
   const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
+  const [publishingCategoryId,setPublishingCategoryId] = useState<string|null>(null);
+  const [categoryPublishMessage,setCategoryPublishMessage] = useState('');
+  const [categoryQueueError,setCategoryQueueError] = useState('');
+  const [categoryQueueLoaded,setCategoryQueueLoaded] = useState(false);
+  const [targetedPublishSupported,setTargetedPublishSupported] = useState<boolean|null>(null);
+  const [productReviewCount,setProductReviewCount] = useState<number|null>(null);
+  const [categoryChangeCount,setCategoryChangeCount] = useState<number|null>(null);
 
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -98,16 +105,48 @@ const AdminWorkspace: React.FC = () => {
   }, [catalogView, catalogPage, catalogQuery]);
 
   const loadReviewQueue = useCallback(async () => {
-    try {
-      // Product reviews and category requests are separate two-stage workflows.
-      // Admin sees proposals ONLY after supervisor first approval, plus grandfathered legacy requests.
-      const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
-      setAllCategoryRequests(catRes.items ?? []);
-      setCategoryRequests((catRes.items ?? []).filter(item =>
-        item.status === 'pending_admin' ||
-        (item.legacy !== false && ['pending','awaiting_review'].includes(item.status))));
-    } catch (e) { console.error('Category queue sync error', e); }
+    // Load each queue independently. Never misreport a failed fetch as "0 pending".
+    const [categoryResult,productResult,revisionResult,changeResult] = await Promise.allSettled([
+      adminFetch<{items:any[];capabilities?:{targetedCategoryPublish?:boolean;workflowVersion?:string}}>('admin/category-requests'),
+      adminFetch<{items:any[]}>('admin/reviews'),
+      adminFetch<{items:any[]}>('admin/revisions'),
+      adminFetch<{items:any[]}>('admin/category-change-requests')
+    ]);
+    if(categoryResult.status==='fulfilled' && Array.isArray(categoryResult.value?.items)){
+      const items=categoryResult.value.items;
+      setAllCategoryRequests(items);
+      setCategoryRequests(items.filter(item =>
+        item.status==='pending_admin' ||
+        (item.legacy!==false && ['pending','awaiting_review'].includes(item.status))));
+      setTargetedPublishSupported(categoryResult.value.capabilities?.targetedCategoryPublish===true);
+      setCategoryQueueError('');
+      setCategoryQueueLoaded(true);
+    }else{
+      const reason=categoryResult.status==='rejected'
+        ? (categoryResult.reason?.message||'连接失败')
+        : '接口没有返回正确的申请列表';
+      setCategoryQueueError('新品类申请记录读取失败，不能将队列视为已清空：'+reason);
+      setCategoryQueueLoaded(false);
+      setTargetedPublishSupported(null);
+    }
+    if(productResult.status==='fulfilled' && Array.isArray(productResult.value?.items) &&
+       revisionResult.status==='fulfilled' && Array.isArray(revisionResult.value?.items)){
+      const needsAction=(item:{status:string})=>['pending_admin','approved_pending_publish'].includes(item.status);
+      setProductReviewCount(productResult.value.items.filter(needsAction).length+
+        revisionResult.value.items.filter(needsAction).length);
+    }else setProductReviewCount(null);
+    if(changeResult.status==='fulfilled' && Array.isArray(changeResult.value?.items)){
+      setCategoryChangeCount(changeResult.value.items.filter(item=>item.status==='pending').length);
+    }else setCategoryChangeCount(null);
   }, []);
+
+  const waitingCategories = allCategoryRequests.filter(item =>
+    item.status==='approved' && item.published!==true);
+  const actionableCategoryCount = categoryQueueLoaded ? categoryRequests.length : null;
+  const reviewCounts = [productReviewCount,actionableCategoryCount,categoryChangeCount];
+  const knownPending = reviewCounts.filter((count):count is number=>count!==null)
+    .reduce((total,count)=>total+count,0);
+  const reviewCountsComplete = reviewCounts.every(count=>count!==null);
 
   const loadSiteConfig = useCallback(async () => {
     try {
@@ -308,16 +347,23 @@ const AdminWorkspace: React.FC = () => {
         {activeTab === 'review' && (
           <section className="space-y-6" aria-label="统一审核中心">
             <div className="rounded border border-stone-200 bg-white p-5">
-              <h2 className="font-serif text-2xl text-stone-900">审核中心</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-serif text-2xl text-stone-900">审核中心</h2>
+                <span className="text-sm font-medium text-stone-700">
+                  {reviewCountsComplete ? `待处理 ${knownPending} 项` :
+                    `已统计 ${knownPending} 项 · 部分队列未完成同步`}
+                  {waitingCategories.length>0 ? ` · 已批准待发布 ${waitingCategories.length} 项` : ''}
+                </span>
+              </div>
               <p className="mt-2 text-sm text-stone-500">
-                在这里处理产品和分类申请。产品通过终审后仍需单独发布。
+                产品和修订由部门主管先审核，管理员仅需确认发布或退回；新品类通过终审后单独发布，不会带出其他网站草稿。
               </p>
               <div role="tablist" aria-label="审核类型" className="mt-5 grid gap-2 sm:grid-cols-3">
                 {([
-                  ['products', '产品审核与发布'],
-                  ['new-categories', '新增分类申请'],
-                  ['category-changes', '分类修改申请'],
-                ] as const).map(([id, label]) => (
+                  ['products', '产品审核与发布', productReviewCount],
+                  ['new-categories', '新增分类申请', actionableCategoryCount],
+                  ['category-changes', '分类修改申请', categoryChangeCount],
+                ] as const).map(([id,label,count])=>(
                   <button key={id} type="button" role="tab"
                     aria-selected={reviewSection === id}
                     onClick={() => setReviewSection(id)}
@@ -326,18 +372,69 @@ const AdminWorkspace: React.FC = () => {
                         ? 'border-stone-900 bg-stone-900 text-white'
                         : 'border-stone-200 bg-white text-stone-700 hover:border-stone-500'
                     }`}>
-                    {label}
+                    {label}（{count===null?'未同步':count}）
                   </button>
                 ))}
               </div>
+              {categoryQueueError && <p role="alert" className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {categoryQueueError}
+              </p>}
+              {categoryQueueLoaded && targetedPublishSupported===false &&
+                <p role="alert" className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  当前 Worker 尚未确认支持“单分类自动发布”。请更新对应环境的 Worker，避免只更新前端导致分类通过审核却无法公开。
+                </p>}
             </div>
             <div role="tabpanel" aria-label={
               reviewSection === 'products' ? '产品终审与发布' :
               reviewSection === 'new-categories' ? '新品类申请审核' : '已有分类修改审核'
             }>
-              {reviewSection === 'products' && <TwoStageProductReviews role="ADMIN" />}
+              {reviewSection === 'products' && <AdminReleaseQueue onQueueChanged={loadReviewQueue} />}
               {reviewSection === 'new-categories' && (
-                <ReviewQueue
+                <div className="space-y-5">
+                  {waitingCategories.length>0 &&
+                    <section className="rounded border border-amber-300 bg-amber-50 p-4" aria-label="待补发的已批准分类">
+                      <h3 className="font-semibold text-amber-950">已批准，但尚未发布的分类</h3>
+                      <p className="mt-1 text-sm text-amber-900">无需重新审批，也不需要发布整站配置。点击单个分类可直接补发。</p>
+                      {categoryPublishMessage && <p role="status" className="mt-2 text-sm text-amber-950">{categoryPublishMessage}</p>}
+                      {targetedPublishSupported!==true && <p className="mt-2 text-xs text-amber-900">
+                        原申请可见，但当前后端未确认支持单分类发布；更新 Worker 后可在这里重试，无需再次审批。
+                      </p>}
+                      <div className="mt-3 space-y-2">
+                        {waitingCategories.map(item=>
+                          <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-white p-3">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium">{item.title_cn||item.title} · {item.title}</p>
+                              <p className="text-xs text-amber-900">
+                                {item.published===null || item.published===undefined
+                                  ? '发布状态未确认，原审核记录已保留'
+                                  : '已批准，但未在网站已发布配置中找到'}
+                              </p>
+                            </div>
+                            <button type="button" disabled={!!publishingCategoryId || targetedPublishSupported!==true}
+                              onClick={async()=>{
+                                setPublishingCategoryId(item.id);
+                                setCategoryPublishMessage('');
+                                try{
+                                  const r=await adminFetch<{success:boolean;published:boolean;publishError?:string}>(
+                                    `admin/category-requests/${encodeURIComponent(item.id)}/publish`,
+                                    {method:'POST',body:JSON.stringify({})});
+                                  if(!r.success||!r.published)throw new Error(r.publishError||'分类尚未发布成功。');
+                                  setCategoryPublishMessage('分类已单独发布，其他网站草稿未改动。');
+                                }catch(e:any){setCategoryPublishMessage(e?.message||'发布失败，请检查后台。');}
+                                finally{await Promise.all([loadReviewQueue(),loadSiteConfig()]);setPublishingCategoryId(null);}
+                              }}
+                              className="rounded bg-stone-900 px-4 py-2 text-xs text-white disabled:opacity-50">
+                              {publishingCategoryId===item.id?'发布中…' :
+                                targetedPublishSupported===true?'单独发布此分类':'请先更新 Worker'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </section>}
+                  {!categoryQueueLoaded && <p role="status" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    新品类审核记录未成功加载，暂不显示“审核队列已清空”。请检查上方错误信息后重试。
+                  </p>}
+                  {categoryQueueLoaded && <ReviewQueue
                   categoryOnly
                   products={[]}
                   categoryRequests={categoryRequests}
@@ -345,11 +442,15 @@ const AdminWorkspace: React.FC = () => {
                     throw new Error('旧产品审核已关闭，必须通过主管初审和管理员终审。');
                   }}
                   onProcessCategory={async (id, action, note) => {
+                    // Never consume an approval on an older Worker that only writes
+                    // site drafts. Otherwise the request leaves the queue without publishing.
+                    if(action==='approve' && targetedPublishSupported!==true)
+                      throw new Error('当前 Worker 尚不支持单分类自动发布，已阻止本次批准。请先更新 Worker，再重试。');
                     const endpoint = action === 'approve' ? 'approve' : 'reject';
                     if(action==='reject'&&!note?.trim())throw new Error('请填写退回原因。');
                     const result = await adminFetch<any>(
                       `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
-                      { method: 'POST', body: JSON.stringify({autoPublish:false,note:note||''}) }
+                      { method: 'POST', body: JSON.stringify({note:note||''}) }
                     );
                     if (result?.success !== true ||
                         (action==='approve' ? result.status!=='approved' :
@@ -357,12 +458,13 @@ const AdminWorkspace: React.FC = () => {
                       throw new Error('分类审核结果未确认，请刷新后核对状态。');
                     }
                     await Promise.all([loadReviewQueue(), loadSiteConfig()]);
-                    if (action === 'approve' && result.needsPublish !== true) {
-                      throw new Error('分类已批准，但草稿状态未确认，请检查网站配置。');
+                    if(action==='approve' && result.published!==true) {
+                      throw new Error('分类已通过 Admin 审核，但自动发布尚未完成。请在本页“已批准但尚未发布”区域单独重试。'+(result.publishError||''));
                     }
                   }}
                   reloadQueue={loadReviewQueue}
-                />
+                />}
+                </div>
               )}
               {reviewSection === 'category-changes' && (
                 <CategoryChangeReview onApproved={loadSiteConfig} />

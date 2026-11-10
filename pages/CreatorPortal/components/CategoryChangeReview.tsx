@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, RefreshCw, XCircle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 import { resolveImage } from '../../../utils/imageResolver';
 
@@ -41,7 +41,7 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
     <section className="bg-white border border-stone-200 p-6 mb-8">
       <header className="flex items-center justify-between gap-4 mb-4">
         <div><h3 className="font-serif text-xl">待审核 · 已有分类修改（{rows.length}）</h3>
-        <p className="text-xs text-stone-500 mt-1">对比原值与工厂申请值；批准仅更新网站草稿，不直接发布。</p></div>
+        <p className="text-xs text-stone-500 mt-1">管理员可在简洁列表中直接处理；需要时再展开差异。当前分类修改接口只保存草稿，不会自动发布。</p></div>
         <button disabled={busy} className="border px-3 py-2 text-xs flex gap-2 items-center" onClick={()=>void load()}><RefreshCw size={14}/>刷新</button>
       </header>
       {error && <div role="alert" className="bg-amber-50 text-amber-900 text-sm p-3 mb-3">{error}</div>}
@@ -49,14 +49,26 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
       {!rows.length&&!error&&<div className="text-stone-500 text-sm py-5">目前没有待审核的分类修改。</div>}
       <div className="space-y-5">{rows.map(request=>{
         const altered=Object.keys(labels).filter(key=>request.base?.[key as keyof Payload]!==request.proposed?.[key as keyof Payload]);
-        return <article key={request.id} className="border border-stone-200 p-5">
-          <div className="flex flex-wrap justify-between gap-2 mb-4">
-            <div><h4 className="font-semibold text-stone-900">{request.category_id}</h4>
-              <p className="text-xs text-stone-500">申请人：{request.created_by} · {request.created_at}</p>
+        return <article key={request.id} className="rounded border border-stone-200 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-stone-100">
+                {request.proposed?.image?<img src={resolveImage(request.proposed.image)} alt="" className="h-full w-full object-cover"/>:
+                  <span className="flex h-full items-center justify-center text-[10px] text-stone-400">分类</span>}
+              </div>
+              <div><h4 className="text-sm font-semibold text-stone-900">{request.category_id}</h4>
+                <p className="mt-1 text-xs text-stone-500">申请人：{request.created_by} · 修改 {altered.length} 项 · 待管理员审核</p></div>
             </div>
-            <span className="text-xs text-amber-800">待审核</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button disabled={busy} onClick={()=>void review(request,'reject')}
+                className="rounded border border-red-200 px-3 py-2 text-xs text-red-700">退回</button>
+              <button disabled={busy} onClick={()=>void review(request,'approve')}
+                className="rounded bg-stone-900 px-3 py-2 text-xs text-white">批准修改（保存草稿）</button>
+            </div>
           </div>
-          <div className="grid lg:grid-cols-2 gap-5">
+          <details className="mt-3 border-t border-stone-100 pt-2">
+            <summary className="cursor-pointer text-xs text-stone-600">查看修改前后差异（可选）</summary>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <div className="border p-4 bg-stone-50">
               <h5 className="text-xs font-semibold mb-3 text-stone-500">原始内容</h5>
               {altered.map(key=><div key={key} className="mb-3">
@@ -74,10 +86,7 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
               </div>)}
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <button disabled={busy} onClick={()=>void review(request,'reject')} className="border border-red-200 px-4 py-2 text-sm text-red-700 flex items-center gap-2"><XCircle size={15}/>驳回</button>
-            <button disabled={busy} onClick={()=>void review(request,'approve')} className="bg-stone-900 px-4 py-2 text-white text-sm flex items-center gap-2"><CheckCircle size={15}/>批准并保存草稿</button>
-          </div>
+          </details>
         </article>;
       })}</div>
     </section>

@@ -3,7 +3,7 @@ import { adminFetch } from '../../../utils/adminFetch';
 
 type RequestItem = {
   id:string;title:string;title_cn:string;subtitle:string;image:string;
-  status:string;created_at:string;updated_at:string;
+  status:string;published?:boolean;created_at:string;updated_at:string;
   submitter_name?:string|null;reject_reason?:string|null;
 };
 const statuses:Record<string,string>={
@@ -64,7 +64,7 @@ const SupervisorCategoryRequests:React.FC=()=>{
             <p className="mt-1 text-xs text-stone-500">申请人：{item.submitter_name||'—'} · {item.created_at}</p>
             {item.subtitle&&<p className="mt-2 text-sm">{item.subtitle}</p>}
             {item.reject_reason&&<p className="mt-2 text-xs text-red-700">上次退回原因：{item.reject_reason}</p>}</div>
-            <span className="text-sm text-amber-800">{statuses[item.status]||item.status}</span>
+            <span className="text-sm text-amber-800">{item.status==='approved' && item.published ? '已发布到网站' : (statuses[item.status]||item.status)}</span>
           </div>
           {item.image&&<img src={item.image} alt="拟新增分类封面" className="mt-3 h-28 w-44 rounded object-cover" />}
           {reviewable&&(rejectId===item.id?

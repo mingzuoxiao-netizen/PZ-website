@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import {act,create} from 'react-test-renderer';
-import TwoStageProductReviews from '../pages/CreatorPortal/components/TwoStageProductReviews';
-import PublishedRevisionQueue from '../pages/CreatorPortal/components/PublishedRevisionQueue';
+import TwoStageProductReviews,{isActionableProductReview} from '../pages/CreatorPortal/components/TwoStageProductReviews';
+import PublishedRevisionQueue,{isActionableRevisionForRole} from '../pages/CreatorPortal/components/PublishedRevisionQueue';
 
 const status=(response:any)=>Response.json(response);
 const setup=()=>{
@@ -100,6 +100,129 @@ test('published revision review shows mobile-friendly changed-field cards and op
     assert.equal(environment.calls.filter(x=>x.startsWith('POST')).length,0);
   }finally{
     if(view)await act(async()=>view!.unmount());
+    environment.restore();
+  }
+});
+
+test('role-based product and revision review queues exclude completed and other-role work',()=>{
+  assert.equal(isActionableProductReview('ADMIN','pending_admin'),true);
+  assert.equal(isActionableProductReview('ADMIN','approved_pending_publish'),true);
+  assert.equal(isActionableProductReview('ADMIN','published'),false);
+  assert.equal(isActionableProductReview('ADMIN','pending_supervisor'),false);
+  assert.equal(isActionableProductReview('SUPERVISOR','pending_supervisor'),true);
+  assert.equal(isActionableProductReview('SUPERVISOR','returned_to_supervisor'),true);
+  assert.equal(isActionableProductReview('SUPERVISOR','published'),false);
+  assert.equal(isActionableRevisionForRole('ADMIN','pending_admin'),true);
+  assert.equal(isActionableRevisionForRole('ADMIN','approved_pending_publish'),true);
+  assert.equal(isActionableRevisionForRole('ADMIN','published'),false);
+  assert.equal(isActionableRevisionForRole('ADMIN','canceled'),false);
+  assert.equal(isActionableRevisionForRole('SUPERVISOR','pending_supervisor'),true);
+  assert.equal(isActionableRevisionForRole('SUPERVISOR','returned_to_supervisor'),true);
+  assert.equal(isActionableRevisionForRole('SUPERVISOR','published'),false);
+  assert.equal(isActionableRevisionForRole('FACTORY','returned_to_uploader'),true);
+  assert.equal(isActionableRevisionForRole('FACTORY','published'),false);
+});
+
+test('admin product review excludes published records and removes item and detail immediately after publishing',async()=>{
+  const environment=setup();
+  const priorConfirm=(globalThis as any).confirm;
+  (globalThis as any).confirm=()=>true;
+  const make=(id:string,status:string)=>({
+    id,product_id:id,name:id==='new'?'Pending Product':'Completed Product',
+    name_cn:id==='new'?'待发布产品':'已发布产品',
+    code:'PZ-'+id,status,latest_version:2,approved_version:2,
+    submitter_id:'staff',supervisor_id:'lead',department_id:'d1'
+  });
+  let current='approved_pending_publish';
+  environment.install(async(url,init)=>{
+    if(url.endsWith('/admin/revisions'))return Response.json({error:'disabled'},{status:404});
+    if(url.endsWith('/admin/reviews/new/publish')&&(init?.method==='POST')){
+      current='published';
+      return status({success:true,status:'published'});
+    }
+    if(url.endsWith('/admin/reviews/new'))return status({
+      ...make('new',current),
+      versions:[{version:1,snapshot:{name:'Pending Product'},created_at:'2026-10-01'},
+        {version:2,snapshot:{name:'Pending Product'},created_at:'2026-10-02'}],
+      events:[]
+    });
+    if(url.endsWith('/admin/reviews'))return status({items:[
+      make('new',current),make('old','published'),
+      {...make('in-supervisor','pending_supervisor'),name_cn:'待主管初审产品'}
+    ]});
+    throw Error('Unexpected '+url);
+  });
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<TwoStageProductReviews role="ADMIN"/>);});
+    let rendered=JSON.stringify(view!.toJSON());
+    assert.equal(view!.root.findAllByType('h3').find(x=>x.children.join('').startsWith('产品申请'))?.children.join(''),'产品申请（1）');
+    assert.match(rendered,/待发布产品/);
+    assert.doesNotMatch(rendered,/已发布产品/);
+    assert.doesNotMatch(rendered,/待主管初审产品/);
+    const list=view!.root.findByProps({'aria-label':'审核申请列表'});
+    await act(async()=>list.findAllByType('button')[0].props.onClick());
+    assert.ok(getButton(view!,'确认正式发布'));
+    await act(async()=>getButton(view!,'确认正式发布')!.props.onClick());
+    rendered=JSON.stringify(view!.toJSON());
+    assert.equal(view!.root.findAllByType('h3').find(x=>x.children.join('').startsWith('产品申请'))?.children.join(''),'产品申请（0）');
+    assert.doesNotMatch(rendered,/待发布产品/);
+    assert.doesNotMatch(rendered,/已发布产品/);
+    assert.match(rendered,/选择一条审核申请/);
+    assert.ok(environment.calls.some(x=>x==='POST /api/admin/reviews/new/publish'));
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    if(priorConfirm===undefined)delete (globalThis as any).confirm;
+    else (globalThis as any).confirm=priorConfirm;
+    environment.restore();
+  }
+});
+
+test('admin completed revision disappears from review list and does not retain stale detail',async()=>{
+  const environment=setup();
+  const priorConfirm=(globalThis as any).confirm;
+  (globalThis as any).confirm=()=>true;
+  const make=(id:string,status:string)=>({
+    id,product_id:'p-'+id,submitter_id:'staff',supervisor_id:'lead',department_id:'d1',
+    name:id==='r1'?'Updated Table':'Old Table',
+    name_cn:id==='r1'?'待发布修订':'已完成修订',
+    code:id,status,latest_version:2,approved_version:2,draft_revision:2
+  });
+  let current='approved_pending_publish';
+  environment.install(async(url,init)=>{
+    if(url.endsWith('/admin/revisions/r1/publish')&&(init?.method==='POST')){
+      current='published';
+      return status({success:true,status:'published'});
+    }
+    if(url.endsWith('/admin/revisions/r1'))return status({
+      ...make('r1',current),base_snapshot:{name:'Updated Table'},
+      draft:{name:'Updated Table',material:'walnut'},versions:[],events:[]
+    });
+    if(url.endsWith('/admin/revisions'))return status({items:[
+      make('r1',current),make('old','published'),
+      {...make('supervisor','pending_supervisor'),name_cn:'主管审批中的修订'}
+    ]});
+    throw Error('Unexpected '+url);
+  });
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<PublishedRevisionQueue role="ADMIN"/>);});
+    let rendered=JSON.stringify(view!.toJSON());
+    assert.equal(view!.root.findAllByType('h2').find(x=>x.children.join('').startsWith('产品修订待办'))?.children.join(''),'产品修订待办（1）');
+    assert.match(rendered,/待发布修订/);
+    assert.doesNotMatch(rendered,/已完成修订|主管审批中的修订/);
+    const row=view!.root.findByProps({'aria-label':'修订申请列表'}).findAllByType('button')[0];
+    await act(async()=>row.props.onClick());
+    assert.ok(getButton(view!,'确认发布修订'));
+    await act(async()=>getButton(view!,'确认发布修订')!.props.onClick());
+    rendered=JSON.stringify(view!.toJSON());
+    assert.doesNotMatch(rendered,/已完成修订|待发布修订|修订已发布/);
+    assert.equal(view!.root.findAllByProps({'aria-label':'产品修订待办'}).length,0,
+      'the completed revision work section should disappear when nothing remains');
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    if(priorConfirm===undefined)delete (globalThis as any).confirm;
+    else (globalThis as any).confirm=priorConfirm;
     environment.restore();
   }
 });

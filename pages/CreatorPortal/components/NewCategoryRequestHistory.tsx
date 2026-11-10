@@ -4,7 +4,7 @@ import PZImageManager from './PZImageManager';
 
 export type NewCategoryItem={
   id:string;title:string;title_cn:string;subtitle:string;image:string;
-  status:string;created_at:string;updated_at:string;
+  status:string;published?:boolean;created_at:string;updated_at:string;
   reject_reason?:string|null;supervisor_name?:string|null;legacy?:boolean;
   events?:{revision:number;action:string;actor_id:string;note?:string|null;created_at:string}[];
 };
@@ -77,7 +77,7 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
               <p className="mt-1 text-xs text-stone-500">{item.created_at}
                 {item.supervisor_name?' · 主管：'+item.supervisor_name:''}</p></div>
             <span className={item.status.startsWith('returned')?'text-sm text-red-700':'text-sm text-amber-800'}>
-              {labels[item.status]||item.status}</span>
+              {item.status==='approved' && item.published ? '已发布到网站' : (labels[item.status]||item.status)}</span>
           </div>
           {item.reject_reason&&<p className="mt-2 text-sm text-red-700">退回原因：{item.reject_reason}</p>}
           {item.events?.length ? <details className="mt-3 rounded border border-stone-100 bg-stone-50 p-3">

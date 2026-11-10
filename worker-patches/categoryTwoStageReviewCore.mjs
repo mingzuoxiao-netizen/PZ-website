@@ -94,6 +94,126 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       "AND a.job_type='supervisor' AND a.department_id=? AND d.is_active=1 LIMIT 1"
     ).bind(id,dept).first();
   }
+
+  // Publish only the approved category into the live registry. NEVER publish
+  // unrelated pending homepage/catalog/media draft edits.
+  const d1Cutover=env=>
+    String(env.PZ_D1_SITE_CONFIG_ENABLED||'').toLowerCase()==='true' &&
+    String(env.PZ_SITE_CONFIG_D1_CUTOVER_ENABLED||'').toLowerCase()==='true';
+  const validConfig=x=>x && typeof x==='object' && !Array.isArray(x) &&
+    Array.isArray(x.categories) && x.categories.every(c=>c && typeof c.id==='string');
+  const parseConfig=raw=>{
+    try {const x=JSON.parse(raw||'null');return validConfig(x)?x:null;}
+    catch {return null;}
+  };
+  async function publishedConfig(env) {
+    if(d1Cutover(env)){
+      const row=await env.DB.prepare("SELECT published_json FROM site_config_state WHERE id=1").first();
+      return parseConfig(row?.published_json);
+    }
+    return parseConfig(await env.SITE_CONFIG_KV?.get('published:site_config'));
+  }
+  const categorySlug=title=>norm(title).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const isAlreadyPublished=(config,requestId)=>
+    Boolean(config?.categories.some(c=>c.proposal_id===requestId));
+  // Return a status object rather than throw after approval: approval is
+  // irreversible, and the admin needs a distinct publication-retry path.
+  async function publishApprovedCategory(env,requestId){
+    let proposal;
+    try {
+      proposal=await env.DB.prepare(
+        "SELECT id,title,title_cn,subtitle,image,status,created_at FROM category_requests "+
+        "WHERE id=? LIMIT 1"
+      ).bind(requestId).first();
+    }catch(error){
+      console.error('Category publication request read failed',String(error));
+      return {published:false,publishError:'读取已批准分类失败，请在审核中心重试发布。'};
+    }
+    if(!proposal || proposal.status!=='approved')
+      return {published:false,publishError:'只有 Admin 已批准的新品类可以发布。'};
+    // A new workflow request cannot be published from the legacy status alone;
+    // its supervisor/admin event chain must also have reached approved.
+    const flow=await env.DB.prepare(
+      "SELECT status FROM pz_category_request_flow WHERE request_id=? LIMIT 1"
+    ).bind(requestId).first();
+    if(flow && flow.status!=='approved')
+      return {published:false,publishError:'新品类双级审核状态未完成，请先核对审批事件。'};
+    const slug=categorySlug(proposal.title);
+    if(!slug)return {published:false,publishError:'分类英文名称无法生成有效编号。'};
+    const proposed={
+      id:slug,title:proposal.title,title_cn:proposal.title_cn||'',
+      title_zh:proposal.title_cn||'',subtitle:proposal.subtitle||'',
+      image:proposal.image||'',source:'proposal',proposal_id:requestId,
+      created_at:proposal.created_at||iso()
+    };
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        const usingD1=d1Cutover(env);
+        let row=null,raw;
+        if(usingD1){
+          row=await env.DB.prepare(
+            "SELECT published_json,published_revision FROM site_config_state WHERE id=1"
+          ).first();
+          raw=row?.published_json;
+        }else raw=await env.SITE_CONFIG_KV?.get('published:site_config');
+        const current=parseConfig(raw);
+        if(!current)return {published:false,publishError:'网站已发布配置不存在，已保留批准记录。'};
+        const existing=current.categories.find(c=>c.proposal_id===requestId);
+        if(existing) {
+          const correct=existing.id===slug &&
+            norm(existing.title)===norm(proposal.title) &&
+            existing.image===proposal.image;
+          return correct?{published:true,alreadyPublished:true,categoryId:slug}:
+            {published:false,publishError:'该申请已存在不同的公开内容，需要人工核对。'};
+        }
+        if(current.categories.some(c=>c.id===slug ||
+          norm(c.title)===norm(proposal.title)))
+          return {published:false,publishError:'公开网站已有同名或同编号分类，不能覆盖。'};
+        const snapshot={...current,categories:[proposed,...current.categories]};
+        const serialized=JSON.stringify(snapshot);
+        if(serialized.length>512*1024)
+          return {published:false,publishError:'公开分类数据超过存储限制。'};
+        const version=String(Date.now())+'-'+crypto.randomUUID();
+        const publishedAt=iso();
+        if(!usingD1){
+          // Advisory reread prevents stale read-modify-write in normal cases;
+          // KV does not provide compare-and-swap. No unrelated *draft* content
+          // is ever copied to the public snapshot.
+          const latest=await env.SITE_CONFIG_KV.get('published:site_config');
+          if(latest!==raw)continue;
+        }
+        if(env.SITE_CONFIG_HISTORY?.put){
+          // Save the intended live snapshot before making it public.
+          await env.SITE_CONFIG_HISTORY.put(
+            'snapshots/site_config/'+version+'.json',serialized,
+            {httpMetadata:{contentType:'application/json'}}
+          );
+        }else if(usingD1) {
+          return {published:false,publishError:'D1 发布要求配置历史 R2 绑定。'};
+        }
+        if(usingD1){
+          const result=await env.DB.prepare(
+            'UPDATE site_config_state SET published_json=?,published_revision=published_revision+1,'+
+            'published_version=?,published_at=?,updated_at=? WHERE id=1 AND published_revision=?'
+          ).bind(serialized,version,publishedAt,publishedAt,row.published_revision).run();
+          if(Number(result?.meta?.changes)!==1)continue;
+        }else{
+          await env.SITE_CONFIG_KV.put('published:site_config',serialized);
+          await env.SITE_CONFIG_KV.put('published:meta',JSON.stringify({version,publishedAt}));
+        }
+        return {published:true,categoryId:slug,version,publishedAt};
+      }catch(error){
+        console.error('Targeted category publication failed',requestId,String(error));
+        return {published:false,publishError:'分类已批准，但发布失败。可在审核中心单独重试。'};
+      }
+    }
+    return {published:false,publishError:'公开配置在发布期间发生变化，请重试该分类。'};
+  }
+  async function publicationResponse(env,requestId,result){
+    const pub=await publishApprovedCategory(env,requestId);
+    return json({...result,...pub,needsPublish:!pub.published,
+      publicationMode:'category_only'});
+  }
   const tableListSql=
     "SELECT c.id,c.title,c.title_cn,c.subtitle,c.image,c.created_at,c.updated_at,"+
     "c.status AS legacy_status,COALESCE(f.status,c.status) AS status,"+
@@ -121,11 +241,22 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
         });
       }
     }
+    let publicConfig=null;
+    try{publicConfig=await publishedConfig(env);}catch(error){
+      console.error('Category publication status check failed',String(error));
+    }
     return records.map(x=>({
       ...x,
       status:x.legacy_status==='approved'?'approved':x.status,
       legacy:!x.request_id,
-      events:history.get(x.id)||[]
+      events:history.get(x.id)||[],
+      // An unreadable published config is unknown, not a proven publication.
+      published:x.legacy_status==='approved'
+        ? (publicConfig ? isAlreadyPublished(publicConfig,x.id) : null)
+        : false,
+      publicationStatus:x.legacy_status==='approved'
+        ? (!publicConfig ? 'unverified' : isAlreadyPublished(publicConfig,x.id) ? 'published' : 'not_published')
+        : 'not_approved'
     }));
   }
   async function writeTransition(env,{id,actor,from,to,action,note,revision}) {
@@ -154,6 +285,29 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
   }
   const getFlow=(env,id)=>env.DB.prepare(
     'SELECT * FROM pz_category_request_flow WHERE request_id=? LIMIT 1').bind(id).first();
+
+  // Cloudflare D1 may report an unexpected batch meta.changes even when its
+  // atomic transaction committed. Confirm the persisted application, ownership
+  // and first audit event rather than returning a false 503 after a real write.
+  async function confirmCreatedRequest(env,id,actor,assignment,value) {
+    const row=await env.DB.prepare(
+      "SELECT c.id,c.title,c.title_cn,c.subtitle,c.image,c.status AS category_status,"+
+      "f.status AS review_status,f.submitter_id,f.supervisor_id,f.department_id,"+
+      "e.action AS event_action,e.actor_id AS event_actor "+
+      "FROM category_requests c "+
+      "JOIN pz_category_request_flow f ON f.request_id=c.id "+
+      "JOIN pz_category_request_events e ON e.request_id=c.id "+
+      "AND e.revision=1 AND e.action='submitted' "+
+      "WHERE c.id=? LIMIT 1"
+    ).bind(id).first();
+    return Boolean(row && row.category_status==='pending' &&
+      row.review_status==='pending_supervisor' && row.submitter_id===actor &&
+      row.event_action==='submitted' && row.event_actor===actor &&
+      row.supervisor_id===assignment.supervisor_id &&
+      row.department_id===assignment.department_id &&
+      row.title===value.title && row.title_cn===value.title_cn &&
+      row.subtitle===value.subtitle && row.image===value.image);
+  }
   return async function categoryTwoStageFetch(request,env,ctx) {
     const path=new URL(request.url).pathname;
     const method=request.method;
@@ -161,7 +315,7 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       path==='/supervisor/category-requests'||path==='/admin/category-requests'||
       /^\/factory\/category-requests\/[^/]+\/resubmit$/.test(path)||
       /^\/supervisor\/category-requests\/[^/]+\/(approve|reject)$/.test(path)||
-      /^\/admin\/category[-_]requests\/[^/]+\/(approve|reject)$/.test(path);
+      /^\/admin\/category[-_]requests\/[^/]+\/(approve|reject|publish)$/.test(path);
     if(!isCategoryRoute || String(env.PZ_CATEGORY_TWO_STAGE_ENABLED||'').toLowerCase()!=='true')
       return originalFetch.call(this,request,env,ctx);
     if(String(env.PZ_RUNTIME_ENV||'').toLowerCase()!==expectedRuntime)
@@ -190,7 +344,9 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
         [actor,assigned.department_id],300)});
     }
     if(method==='GET'&&path==='/admin/category-requests') {
-      return json({items:await list(env,'',[],500)});
+      return json({items:await list(env,'',[],500),
+        capabilities:{workflowVersion:'category-targeted-publication-v2',
+          targetedCategoryPublish:true,publicationMode:'category_only'}});
     }
     if(method==='POST'&&path==='/factory/category-requests') {
       const assignment=await actorAssignment(env,actor);
@@ -204,8 +360,9 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       const conflict=await checkCategoryConflict(env,checked.value);
       if(conflict)return conflict;
       const v=checked.value,id=crypto.randomUUID(),now=iso();
+      let batchError=null;
       try{
-        const result=await env.DB.batch([
+        await env.DB.batch([
           env.DB.prepare("INSERT INTO category_requests "+
             "(id,title,title_cn,subtitle,image,status,created_at,updated_at) "+
             "VALUES(?,?,?,?,?,'pending',?,?)")
@@ -218,11 +375,18 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
             "(id,request_id,revision,action,actor_id,note,created_at) VALUES(?, ?,1,'submitted',?,NULL,?)")
             .bind(crypto.randomUUID(),id,actor,now)
         ]);
-        if(result.some(x=>Number(x.meta?.changes)!==1))
-          return respond('申请保存未确认，请刷新查看记录。',503);
       }catch(error){
-        console.error('Category request create failed',String(error));
-        return respond('新品类申请保存失败，请刷新后检查记录。',503);
+        batchError=error;
+        console.error('Category request D1 batch error; verifying persisted state',String(error));
+      }
+      // Do not treat batch metadata as proof of failure. Confirm all three
+      // persisted records after the write, including when batch threw after commit.
+      let confirmed=false;
+      try{confirmed=await confirmCreatedRequest(env,id,actor,assignment,v);}
+      catch(error){console.error('Category request readback failed',String(error));}
+      if(!confirmed){
+        if(batchError)return respond('申请提交未确认，请先在「我的新品类申请」核对记录，不要重复提交。',503);
+        return respond('申请保存状态未确认，请先刷新「我的新品类申请」，不要重复提交。',503);
       }
       return json({success:true,id,status:'pending_supervisor'},201);
     }
@@ -290,13 +454,23 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
         action:action==='approve'?'supervisor_approved':'supervisor_returned',
         note,revision:f.revision});
     }
-    const adminAction=path.match(/^\/admin\/category[-_]requests\/([^/]+)\/(approve|reject)$/);
+    const adminAction=path.match(/^\/admin\/category[-_]requests\/([^/]+)\/(approve|reject|publish)$/);
     if(method==='POST'&&adminAction) {
       const [,id,action]=adminAction;
+      if(action==='publish'){
+        // No additional approval needed: retry publication of an already
+        // Admin-approved category, and never re-run the approval transition.
+        return publicationResponse(env,id,{success:true,id,status:'approved'});
+      }
       const f=await getFlow(env,id);
       if(!f) {
-        // Grandfather existing requests: no reliable employee attribution in the legacy table.
-        return originalFetch.call(this,request,env,ctx);
+        // Legacy requests have no known submitter; keep their existing approval
+        // semantics, but publish this single category after successful approval.
+        const upstream=await originalFetch.call(this,request,env,ctx);
+        if(action!=='approve'||!upstream.ok)return upstream;
+        const result=await upstream.clone().json().catch(()=>null);
+        if(result?.success!==true||result.status!=='approved')return upstream;
+        return publicationResponse(env,id,{...result,approval:'legacy'});
       }
       if(f.status!=='pending_admin')
         return respond('该申请尚未通过部门主管初审，Admin 不可终审。',409);
@@ -319,7 +493,7 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
         console.error('Category approved in legacy table but workflow reconciliation required',id);
         return respond('分类草稿已批准，但审核日志同步失败，请管理员核对，勿重复批准。',503);
       }
-      return json({...result,approval:'two_stage',published:false,needsPublish:true});
+      return publicationResponse(env,id,{...result,approval:'two_stage'});
     }
     return originalFetch.call(this,request,env,ctx);
   };
