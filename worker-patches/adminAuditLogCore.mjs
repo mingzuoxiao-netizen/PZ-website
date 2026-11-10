@@ -69,6 +69,9 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
       return { action: `category_change.${m[2]}`, entity_type: "category_change", entity_id: decodeURIComponent(m[1]) };
     if (path === "/admin/org/departments" && method === "POST")
       return { action: "department.create", entity_type: "department", entity_id: "" };
+    const departmentMatch = path.match(/^\/admin\/org\/departments\/([^/]+)$/);
+    if (departmentMatch && method === "DELETE")
+      return { action: "department.delete", entity_type: "department", entity_id: decodeURIComponent(departmentMatch[1]) };
     if ((path === "/admin/org/accounts" || path === "/supervisor/accounts") && method === "POST")
       return { action: "account.delegated_create", entity_type: "account", entity_id: "" };
     if (path === "/admin/org/assignments" && method === "POST")
@@ -151,6 +154,17 @@ export function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpe
         "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,archived_at,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
       ).bind(id).first();
       return safeSummary(row, productFields);
+    }
+    if (entityType === "department" && id) {
+      const row = await env.DB.prepare(
+        "SELECT id,name,factory_site,is_active FROM pz_departments WHERE id=? LIMIT 1"
+      ).bind(id).first();
+      if (!row) return null;
+      const count = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM pz_staff_assignments WHERE department_id=?"
+      ).bind(id).first();
+      return {name:row.name,factory_site:row.factory_site,is_active:row.is_active,
+        assigned_accounts:Number(count?.n||0)};
     }
     if (entityType === "account" && id) {
       const row = await env.DB.prepare(
