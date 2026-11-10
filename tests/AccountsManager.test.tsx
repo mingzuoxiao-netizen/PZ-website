@@ -84,7 +84,7 @@ test('account list shows supervisor roles and departments, filters unassigned an
     assert.equal(root().findAllByType('button').filter(b=>b.props.title==='删除账号').length,15);
     const next=root().findAllByType('button').find(b=>b.children.join('')==='下一页')!;
     await act(async()=>next.props.onClick());
-    assert.match(JSON.stringify(view!.toJSON()),/第 2\/2 页/);
+    assert.ok(root().findAllByType('span').some(s=>s.children.join('').includes('第 2/2 页')));
   }finally{
     if(view)await act(async()=>view!.unmount());
     globalThis.fetch=oldFetch;
