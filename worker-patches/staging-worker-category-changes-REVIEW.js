@@ -5696,6 +5696,10 @@ index_default.fetch=pzProductPermanentDeleteFetch(pzHardDeleteOriginalFetch,{
 // published-draft source; review ownership and history are recorded separately.
 // Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
 // This module is inlined into the complete Staging and Production Worker candidates.
+// Additive two-stage category proposals. Legacy category_requests stays the
+// published-draft source; review ownership and history are recorded separately.
+// Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
+// This module is inlined into the complete Staging and Production Worker candidates.
 function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expectedRuntime, imageBase }) {
   const respond=(error,status=400)=>json({error},status);
   const iso=()=>new Date().toISOString();
@@ -5944,7 +5948,13 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
       status:x.legacy_status==='approved'?'approved':x.status,
       legacy:!x.request_id,
       events:history.get(x.id)||[],
-      published:x.legacy_status==='approved' && isAlreadyPublished(publicConfig,x.id)
+      // An unreadable published config is unknown, not a proven publication.
+      published:x.legacy_status==='approved'
+        ? (publicConfig ? isAlreadyPublished(publicConfig,x.id) : null)
+        : false,
+      publicationStatus:x.legacy_status==='approved'
+        ? (!publicConfig ? 'unverified' : isAlreadyPublished(publicConfig,x.id) ? 'published' : 'not_published')
+        : 'not_approved'
     }));
   }
   async function writeTransition(env,{id,actor,from,to,action,note,revision}) {
@@ -6009,7 +6019,9 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
         [actor,assigned.department_id],300)});
     }
     if(method==='GET'&&path==='/admin/category-requests') {
-      return json({items:await list(env,'',[],500)});
+      return json({items:await list(env,'',[],500),
+        capabilities:{workflowVersion:'category-targeted-publication-v2',
+          targetedCategoryPublish:true,publicationMode:'category_only'}});
     }
     if(method==='POST'&&path==='/factory/category-requests') {
       const assignment=await actorAssignment(env,actor);
