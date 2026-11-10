@@ -2,6 +2,14 @@ import React,{useCallback,useEffect,useState} from 'react';
 import {adminFetch} from '../../../utils/adminFetch';
 
 type Role='FACTORY'|'SUPERVISOR'|'ADMIN';
+// Completed revisions remain in the audit/product history, never in work queues.
+export const isActionableRevisionForRole=(role:Role,status:string):boolean=>{
+  if(['published','canceled'].includes(status))return false;
+  if(role==='ADMIN')return ['pending_admin','approved_pending_publish'].includes(status);
+  if(role==='SUPERVISOR')return ['pending_supervisor','returned_to_supervisor'].includes(status);
+  return ['draft','pending_supervisor','pending_admin','returned_to_supervisor',
+    'returned_to_uploader','approved_pending_publish'].includes(status);
+};
 export type RevisionSummary={
   id:string;product_id:string;submitter_id:string;supervisor_id:string;department_id:string;
   name:string;name_cn?:string;code:string;status:string;latest_version:number;
@@ -54,14 +62,17 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
   const refresh=useCallback(async()=>{
     try{
       const response=await adminFetch<{items:RevisionSummary[]}>('/'+prefix+'/revisions');
-      setEnabled(true);onEnabledChange?.(true);setItems(response.items||[]);
+      const actionable=(response.items||[]).filter(item=>
+        isActionableRevisionForRole(role,item.status));
+      setEnabled(true);onEnabledChange?.(true);setItems(actionable);
+      setSelected(current=>current && !actionable.some(item=>item.id===current.id) ? null : current);
     }catch(e:any){
       if(/404|not found/i.test(String(e?.message||''))){
         setEnabled(false);onEnabledChange?.(false);setItems([]);setSelected(null);return;
       }
       setError(e?.message||'无法读取修订申请');
     }
-  },[prefix,onEnabledChange]);
+  },[prefix,onEnabledChange,role]);
   useEffect(()=>{void refresh();},[refresh,refreshKey]);
   const inspect=async(id:string)=>{
     setError('');
@@ -79,21 +90,35 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
     if(action==='submit'&&!confirm('确认提交主管初审吗？'))return;
     if(action==='cancel'&&!confirm('确认取消修订草稿吗？'))return;
     setBusy(true);setError('');setNotice('');
+    let updated=false;
     try{
       const result=await adminFetch<{success?:boolean}>(
         '/'+prefix+'/revisions/'+encodeURIComponent(selected.id)+'/'+action,
         {method:'POST',body:JSON.stringify({note:reason.trim()})}
       );
       if(result.success!==true)throw Error('修订结果未确认，请刷新核对');
-      setNotice(action==='publish'?'已发布并同步目录':'修订审核状态已更新');
+      updated=true;
+      setNotice(action==='publish'
+        ? '修订已发布并退出待办；可在产品管理中查看已发布产品。'
+        : '修订审核状态已更新');
     }catch(e:any){setError(e?.message||'操作未完成，请核对状态');}
     finally{
-      // D1 publish can succeed before a KV refresh error: always read state.
-      await Promise.all([refresh(),inspect(selected.id)]);
+      // D1 publish may commit before catalog sync fails; always reconcile state.
+      // Never reselect a completed revision in the review center.
+      try{
+        await refresh();
+        const detail=await adminFetch<RevisionDetail>(
+          '/'+prefix+'/revisions/'+encodeURIComponent(selected.id));
+        setSelected(isActionableRevisionForRole(role,detail.status)?detail:null);
+      }catch(e:any){
+        setSelected(null);
+        setError(updated ? '操作已成功，但刷新修订列表失败，请手动刷新核对。' :
+          (e?.message||'无法刷新修订状态。'));
+      }
       setBusy(false);
     }
   };
-  if(!enabled)return null;
+  if(!enabled || (role!=='FACTORY' && !items.length && !error))return null;
   const original=selected?.base_snapshot||{};
   const proposed=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
   const diff=fields.filter(([key])=>JSON.stringify(original[key])!==JSON.stringify(proposed[key]));
@@ -101,7 +126,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
   const canSupervisorApprove=role==='SUPERVISOR'&&selected?.status==='pending_supervisor';
   const canSupervisorCorrect=role==='SUPERVISOR'&&selected?.status==='returned_to_supervisor';
   const canAdminApprove=role==='ADMIN'&&selected?.status==='pending_admin';
-  const canPublish=role==='ADMIN'&&['approved_pending_publish','published'].includes(selected?.status||'');
+  const canPublish=role==='ADMIN'&&selected?.status==='approved_pending_publish';
   const actionButton=(label:string,kind:'submit'|'approve'|'return'|'request-correction'|'publish'|'cancel',disabled=false)=>{
     const primary=['submit','approve','publish'].includes(kind);
     return <button type="button" disabled={busy||disabled} onClick={()=>void act(kind)}
@@ -109,16 +134,16 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
         (primary?'bg-stone-900 text-white hover:bg-stone-800':
           'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50')}>{label}</button>;
   };
-  return <section aria-label="已发布产品修订" className="space-y-4 rounded border border-stone-200 bg-white p-3 sm:p-5">
+  return <section aria-label={role==='FACTORY'?'我的产品修订':'产品修订待办'} className="space-y-4 rounded border border-stone-200 bg-white p-3 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="font-serif text-lg">已发布产品修订（{items.length}）</h2>
-        <p className="mt-1 text-xs leading-5 text-stone-500">审核期间官网保留旧版，管理员确认发布后才更新。</p>
+      <div><h2 className="font-serif text-lg">{role==='FACTORY'?'我的产品修订':'产品修订待办'}（{items.length}）</h2>
+        <p className="mt-1 text-xs leading-5 text-stone-500">这里只显示当前需要处理的修订。已发布记录保留在产品与审批历史中。</p>
       </div>
       <button type="button" className="rounded border border-stone-300 px-3 py-2 text-xs" onClick={()=>void refresh()}>刷新列表</button>
     </div>
     {error&&<p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="rounded bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
-    {!items.length&&<p className="rounded bg-stone-50 p-4 text-sm text-stone-500">暂无修订申请</p>}
+    {!items.length&&<p className="rounded bg-stone-50 p-4 text-sm text-stone-500">当前没有需要处理的修订。</p>}
     <div className="grid gap-4 lg:grid-cols-[minmax(210px,1fr)_minmax(0,2fr)]">
       <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto" aria-label="修订申请列表">
         {items.map(item=><button key={item.id} type="button" onClick={()=>void inspect(item.id)}
@@ -168,7 +193,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
             {canEdit&&actionButton('取消修订','cancel')}
             {canSupervisorApprove&&actionButton('初审通过','approve')}
             {canAdminApprove&&actionButton('终审批准（待发布）','approve')}
-            {canPublish&&actionButton(selected.status==='published'?'重新同步官网目录':'确认发布修订','publish')}
+            {canPublish&&actionButton('确认发布修订','publish')}
           </div>
           {(canSupervisorApprove||canSupervisorCorrect||canAdminApprove)&&<details className="rounded border border-stone-200 bg-white p-3">
             <summary className="cursor-pointer text-sm font-medium text-stone-800">
