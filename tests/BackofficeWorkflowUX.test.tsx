@@ -14,7 +14,7 @@ test('admin navigation prioritizes daily tasks while retaining all protected fun
     assert.match(admin,new RegExp("id: '"+id+"'"));
   assert.match(admin,/group: '网站内容'/);
   assert.match(admin,/group: '系统管理'/);
-  assert.match(admin,/<TwoStageProductReviews role="ADMIN"/);
+  assert.match(admin,/<AdminReleaseQueue onQueueChanged={loadReviewQueue}/);
   assert.match(admin,/<AuditTimeline \/>/);
   assert.match(admin,/admin\/publish\/products/);
 });
