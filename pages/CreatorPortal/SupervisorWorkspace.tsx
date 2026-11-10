@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Users, ClipboardCheck } from 'lucide-react';
 import TwoStageProductReviews from './components/TwoStageProductReviews';
+import SupervisorCategoryRequests from './components/SupervisorCategoryRequests';
 import PortalLayout from './PortalLayout';
 import { adminFetch } from '../../utils/adminFetch';
 
@@ -8,7 +9,7 @@ type TeamAccount={id:string;username:string;is_active:number;job_type:string};
 type Job='secretary'|'staff'|'data_entry';
 const labels:Record<Job,string>={secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
 const SupervisorWorkspace:React.FC=()=>{
-  const [tab,setTab]=useState<'team'|'reviews'>('reviews');
+  const [tab,setTab]=useState<'team'|'reviews'|'categories'>('reviews');
   const [users,setUsers]=useState<TeamAccount[]>([]);
   const [username,setUsername]=useState('');
   const [password,setPassword]=useState('');
@@ -43,9 +44,14 @@ const SupervisorWorkspace:React.FC=()=>{
     }),'密码已重置；账号需要重新登录');
   };
   return <PortalLayout role="SUPERVISOR" userName={sessionStorage.getItem('pz_user_name')||'部门主管'}
-    navItems={[{id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},{id:'team',label:'团队账号管理',icon:<Users size={18}/>}]}
-    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews')}>
-    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR"/>:<div className="space-y-6 p-4 md:p-8">
+    navItems={[
+      {id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},
+      {id:'categories',label:'新品类初审',icon:<ClipboardCheck size={18}/>},
+      {id:'team',label:'团队账号管理',icon:<Users size={18}/>}
+    ]}
+    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews'|'categories')}>
+    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR"/>:
+    tab==='categories'?<SupervisorCategoryRequests/>:<div className="space-y-6 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-900">产品审批在「产品初审」中进行；「团队账号管理」只负责创建、停用和重置员工账号。</p>
         <button type="button" onClick={()=>setTab('reviews')} className="rounded bg-stone-900 px-4 py-2 text-xs font-semibold text-white">

@@ -51,7 +51,19 @@ const FactoryWorkspace: React.FC = () => {
   const [isRequestingCategory, setIsRequestingCategory] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [catRequest, setCatRequest] = useState({ title: '', title_cn: '', subtitle: '', image: '' });
+  const [categoryRequestRefreshKey,setCategoryRequestRefreshKey]=useState(0);
+  const [categoryQuickSearch,setCategoryQuickSearch]=useState('');
 
+  const categoryCounts=useMemo(()=>categories.map(category=>({
+    id:category.id,label:category.title_cn||category.title_zh||category.title,
+    count:products.filter(product=>categoryMatches(product.category,category)).length
+  })),[products,categories]);
+  const uncategorizedCount=useMemo(()=>products.filter(
+    product=>!categories.some(category=>categoryMatches(product.category,category))
+  ).length,[products,categories]);
+  const visibleCategoryCounts=categoryCounts.filter(c=>
+    c.label.toLocaleLowerCase().includes(categoryQuickSearch.trim().toLocaleLowerCase())
+  );
   const userName = sessionStorage.getItem('pz_user_name') || '工厂操作员';
 
   const addNotification = (type: Notification['type'], message: string, target?: string) => {
@@ -274,7 +286,7 @@ const FactoryWorkspace: React.FC = () => {
   return (
     <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as 'inventory' | 'categories')}>
       {activeTab === 'categories' ? (
-        <FactoryCategoryManagement categories={categories} onUpload={async file => {
+        <FactoryCategoryManagement categories={categories} newCategoryRefreshKey={categoryRequestRefreshKey} onUpload={async file => {
           const form = new FormData(); form.append('file', file);
           const uploaded = await factoryFetch<{url:string}>('upload-image', { method: 'POST', body: form });
           if (!uploaded.url) throw new Error('上传封面未返回图片地址');
@@ -310,15 +322,20 @@ const FactoryWorkspace: React.FC = () => {
                       if (!catRequest.title.trim() || !catRequest.title_cn.trim() || !catRequest.image) return alert('请填写中英文分类名称并上传封面图片。');
                       setIsSavingCategory(true);
                       try {
-                          // Existing Staging D1 creates a reviewable "pending" request in one POST.
-                          // There is no draft/submit endpoint in the verified legacy schema.
-                          const created = await factoryFetch('factory/category-requests', { method: 'POST', body: JSON.stringify(catRequest) });
-                          if (!created?.id || created?.status !== 'pending' || created?.success !== true) {
-                            throw new Error('分类申请结果未确认，请让管理员检查待审核新品类，勿重复提交。');
-                          }
-                          alert('新品类申请已提交，请等待管理员审核。通过后才会显示在网站上。');
+                          const created = await factoryFetch<{success:boolean;id:string;status:string}>(
+                            'factory/category-requests', {method:'POST',body:JSON.stringify(catRequest)}
+                          );
+                          if (!created?.id || !['pending_supervisor','pending'].includes(created.status) || created.success !== true)
+                            throw new Error('分类申请结果未确认，请刷新记录检查，勿重复提交。');
                           setIsRequestingCategory(false);
                           setCatRequest({ title: '', title_cn: '', subtitle: '', image: '' });
+                          setCategoryRequestRefreshKey(value=>value+1);
+                          setActiveTab('categories');
+                          if(created.status==='pending') {
+                            alert('当前提交到了旧审核流程，请联系管理员确认新品类双级审核是否启用。');
+                          } else {
+                            alert('新品类申请已提交到部门主管，请在我的新品类申请中查看进度。');
+                          }
                       } catch (e: any) {
                           const message = String(e?.message || '未知错误');
                           alert(message.includes('Not found') && !message.includes('草稿已创建')
@@ -424,6 +441,7 @@ const FactoryWorkspace: React.FC = () => {
                     onChange={e=>setSelectedCategoryId(e.target.value==='all'?null:e.target.value)}
                     className="mt-2 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900">
                     <option value="all">全部分类 · 我的产品</option>
+                     <option value="__uncategorized">未归类（{uncategorizedCount}）</option>
                     {categories.map(c=><option value={c.id} key={c.id}>
                       {c.title_cn || c.title_zh || c.title}
                     </option>)}
@@ -444,12 +462,38 @@ const FactoryWorkspace: React.FC = () => {
                   </button>
                 </div>
               </div>
+              <div className="rounded border border-stone-200 bg-white p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold">按产品品类查看</h2>
+                  <input aria-label="搜索产品品类" type="search" value={categoryQuickSearch}
+                    onChange={e=>setCategoryQuickSearch(e.target.value)}
+                    placeholder="搜索品类名称" className="rounded border border-stone-300 px-3 py-2 text-xs" />
+                </div>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="产品品类快捷筛选">
+                  <button type="button" aria-pressed={!selectedCategoryId}
+                    onClick={()=>setSelectedCategoryId(null)}
+                    className={'rounded border px-3 py-2 text-xs '+(!selectedCategoryId?'bg-stone-900 text-white':'bg-stone-50 text-stone-700')}>
+                    全部产品 · {products.length}
+                  </button>
+                  {visibleCategoryCounts.map(c=><button type="button" key={c.id}
+                    aria-pressed={selectedCategoryId===c.id} onClick={()=>setSelectedCategoryId(c.id)}
+                    className={'rounded border px-3 py-2 text-xs '+(selectedCategoryId===c.id?'bg-stone-900 text-white':'bg-white text-stone-700 hover:bg-stone-50')}>
+                    {c.label} · {c.count}
+                  </button>)}
+                  <button type="button" aria-pressed={selectedCategoryId==='__uncategorized'}
+                    onClick={()=>setSelectedCategoryId('__uncategorized')}
+                    className={'rounded border px-3 py-2 text-xs '+(selectedCategoryId==='__uncategorized'?'bg-stone-900 text-white':'bg-amber-50 text-amber-900')}>
+                    未归类 · {uncategorizedCount}
+                  </button>
+                </div>
+              </div>
               <ProductList
-                lang="zh"
-                items={!selectedCategoryId || selectedCategoryId==='all' ? products : products.filter(item => {
-                  const selectedCategory=categories.find(cat=>cat.id===selectedCategoryId);
-                  return selectedCategory ? categoryMatches(item.category,selectedCategory) : false;
-                })}
+                 lang="zh"
+                 items={!selectedCategoryId || selectedCategoryId==='all' ? products : products.filter(item => {
+                   if(selectedCategoryId==='__uncategorized')return !categories.some(c=>categoryMatches(item.category,c));
+                   const selectedCategory=categories.find(cat=>cat.id===selectedCategoryId);
+                   return selectedCategory ? categoryMatches(item.category,selectedCategory) : false;
+                 })}
                 categories={categories}
                 onEdit={setEditingItem}
                 onCreate={()=>setIsCreating(true)}

@@ -99,12 +99,13 @@ const AdminWorkspace: React.FC = () => {
 
   const loadReviewQueue = useCallback(async () => {
     try {
-      // Phase 2 product approvals use /admin/reviews and supervisor first review.
-      // Only category applications remain on the legacy category-request endpoint.
+      // Product reviews and category requests are separate two-stage workflows.
+      // Admin sees proposals ONLY after supervisor first approval, plus grandfathered legacy requests.
       const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
       setAllCategoryRequests(catRes.items ?? []);
       setCategoryRequests((catRes.items ?? []).filter(item =>
-        item.status === 'pending' || item.status === 'awaiting_review'));
+        item.status === 'pending_admin' ||
+        (item.legacy !== false && ['pending','awaiting_review'].includes(item.status))));
     } catch (e) { console.error('Category queue sync error', e); }
   }, []);
 
@@ -343,13 +344,16 @@ const AdminWorkspace: React.FC = () => {
                   onProcessProduct={async () => {
                     throw new Error('旧产品审核已关闭，必须通过主管初审和管理员终审。');
                   }}
-                  onProcessCategory={async (id, action) => {
+                  onProcessCategory={async (id, action, note) => {
                     const endpoint = action === 'approve' ? 'approve' : 'reject';
+                    if(action==='reject'&&!note?.trim())throw new Error('请填写退回原因。');
                     const result = await adminFetch<any>(
                       `admin/category-requests/${encodeURIComponent(id)}/${endpoint}`,
-                      { method: 'POST', body: JSON.stringify(action === 'approve' ? {autoPublish:false} : {}) }
+                      { method: 'POST', body: JSON.stringify({autoPublish:false,note:note||''}) }
                     );
-                    if (result?.success !== true || result.status !== (action === 'approve' ? 'approved' : 'rejected')) {
+                    if (result?.success !== true ||
+                        (action==='approve' ? result.status!=='approved' :
+                          !['returned_to_supervisor','rejected'].includes(result.status))) {
                       throw new Error('分类审核结果未确认，请刷新后核对状态。');
                     }
                     await Promise.all([loadReviewQueue(), loadSiteConfig()]);

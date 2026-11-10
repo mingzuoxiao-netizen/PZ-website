@@ -3,6 +3,7 @@ import { ClipboardCheck, Send, RefreshCw } from 'lucide-react';
 import { factoryFetch } from '../../../utils/factoryFetch';
 import { Category } from '../../../types';
 import PZImageManager from './PZImageManager';
+import NewCategoryRequestHistory from './NewCategoryRequestHistory';
 import { resolveImage } from '../../../utils/imageResolver';
 
 type Editable = { title: string; title_cn: string; subtitle: string; description: string; image: string };
@@ -17,8 +18,9 @@ type Item = { id: string; category_id: string; status: string; created_at: strin
 interface Props {
   categories: Category[];
   onUpload: (file: File) => Promise<string>;
+  newCategoryRefreshKey?: number;
 }
-const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload }) => {
+const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload, newCategoryRefreshKey }) => {
   const [categoryId, setCategoryId] = useState('');
   const [form, setForm] = useState<Editable | null>(null);
   const [requests, setRequests] = useState<Item[]>([]);
@@ -73,6 +75,7 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload }) =>
       </header>
       {error && <div role="alert" className="border border-red-300 bg-red-50 text-red-800 p-3 text-sm">{error}</div>}
       {notice && <div role="status" className="border border-green-300 bg-green-50 text-green-800 p-3 text-sm">{notice}</div>}
+      <NewCategoryRequestHistory onUpload={onUpload} refreshKey={newCategoryRefreshKey} />
       <div className="grid lg:grid-cols-[300px_1fr] gap-5">
         <aside className="border bg-white p-4">
           <h3 className="font-semibold mb-4">所有已发布分类</h3>
