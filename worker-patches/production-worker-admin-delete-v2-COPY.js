@@ -6261,6 +6261,119 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
       "AND a.job_type='supervisor' AND a.department_id=? AND d.is_active=1 LIMIT 1"
     ).bind(id,dept).first();
   }
+
+  // Publish only the approved category into the live registry. NEVER publish
+  // unrelated pending homepage/catalog/media draft edits.
+  const d1Cutover=env=>
+    String(env.PZ_D1_SITE_CONFIG_ENABLED||'').toLowerCase()==='true' &&
+    String(env.PZ_SITE_CONFIG_D1_CUTOVER_ENABLED||'').toLowerCase()==='true';
+  const validConfig=x=>x && typeof x==='object' && !Array.isArray(x) &&
+    Array.isArray(x.categories) && x.categories.every(c=>c && typeof c.id==='string');
+  const parseConfig=raw=>{
+    try {const x=JSON.parse(raw||'null');return validConfig(x)?x:null;}
+    catch {return null;}
+  };
+  async function publishedConfig(env) {
+    if(d1Cutover(env)){
+      const row=await env.DB.prepare("SELECT published_json FROM site_config_state WHERE id=1").first();
+      return parseConfig(row?.published_json);
+    }
+    return parseConfig(await env.SITE_CONFIG_KV?.get('published:site_config'));
+  }
+  const categorySlug=title=>norm(title).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const isAlreadyPublished=(config,requestId)=>
+    Boolean(config?.categories.some(c=>c.proposal_id===requestId));
+  // Return a status object rather than throw after approval: approval is
+  // irreversible, and the admin needs a distinct publication-retry path.
+  async function publishApprovedCategory(env,requestId){
+    let proposal;
+    try {
+      proposal=await env.DB.prepare(
+        "SELECT id,title,title_cn,subtitle,image,status,created_at FROM category_requests "+
+        "WHERE id=? LIMIT 1"
+      ).bind(requestId).first();
+    }catch(error){
+      console.error('Category publication request read failed',String(error));
+      return {published:false,publishError:'读取已批准分类失败，请在审核中心重试发布。'};
+    }
+    if(!proposal || proposal.status!=='approved')
+      return {published:false,publishError:'只有 Admin 已批准的新品类可以发布。'};
+    const slug=categorySlug(proposal.title);
+    if(!slug)return {published:false,publishError:'分类英文名称无法生成有效编号。'};
+    const proposed={
+      id:slug,title:proposal.title,title_cn:proposal.title_cn||'',
+      title_zh:proposal.title_cn||'',subtitle:proposal.subtitle||'',
+      image:proposal.image||'',source:'proposal',proposal_id:requestId,
+      created_at:proposal.created_at||iso()
+    };
+    for(let attempt=0;attempt<3;attempt++){
+      try{
+        const usingD1=d1Cutover(env);
+        let row=null,raw;
+        if(usingD1){
+          row=await env.DB.prepare(
+            "SELECT published_json,published_revision FROM site_config_state WHERE id=1"
+          ).first();
+          raw=row?.published_json;
+        }else raw=await env.SITE_CONFIG_KV?.get('published:site_config');
+        const current=parseConfig(raw);
+        if(!current)return {published:false,publishError:'网站已发布配置不存在，已保留批准记录。'};
+        const existing=current.categories.find(c=>c.proposal_id===requestId);
+        if(existing) {
+          const correct=existing.id===slug &&
+            norm(existing.title)===norm(proposal.title) &&
+            existing.image===proposal.image;
+          return correct?{published:true,alreadyPublished:true,categoryId:slug}:
+            {published:false,publishError:'该申请已存在不同的公开内容，需要人工核对。'};
+        }
+        if(current.categories.some(c=>c.id===slug ||
+          norm(c.title)===norm(proposal.title)))
+          return {published:false,publishError:'公开网站已有同名或同编号分类，不能覆盖。'};
+        const snapshot={...current,categories:[proposed,...current.categories]};
+        const serialized=JSON.stringify(snapshot);
+        if(serialized.length>512*1024)
+          return {published:false,publishError:'公开分类数据超过存储限制。'};
+        const version=String(Date.now())+'-'+crypto.randomUUID();
+        const publishedAt=iso();
+        if(!usingD1){
+          // Advisory reread prevents stale read-modify-write in normal cases;
+          // KV does not provide compare-and-swap. No unrelated *draft* content
+          // is ever copied to the public snapshot.
+          const latest=await env.SITE_CONFIG_KV.get('published:site_config');
+          if(latest!==raw)continue;
+        }
+        if(env.SITE_CONFIG_HISTORY?.put){
+          // Save the intended live snapshot before making it public.
+          await env.SITE_CONFIG_HISTORY.put(
+            'snapshots/site_config/'+version+'.json',serialized,
+            {httpMetadata:{contentType:'application/json'}}
+          );
+        }else if(usingD1) {
+          return {published:false,publishError:'D1 发布要求配置历史 R2 绑定。'};
+        }
+        if(usingD1){
+          const result=await env.DB.prepare(
+            'UPDATE site_config_state SET published_json=?,published_revision=published_revision+1,'+
+            'published_version=?,published_at=?,updated_at=? WHERE id=1 AND published_revision=?'
+          ).bind(serialized,version,publishedAt,publishedAt,row.published_revision).run();
+          if(Number(result?.meta?.changes)!==1)continue;
+        }else{
+          await env.SITE_CONFIG_KV.put('published:site_config',serialized);
+          await env.SITE_CONFIG_KV.put('published:meta',JSON.stringify({version,publishedAt}));
+        }
+        return {published:true,categoryId:slug,version,publishedAt};
+      }catch(error){
+        console.error('Targeted category publication failed',requestId,String(error));
+        return {published:false,publishError:'分类已批准，但发布失败。可在审核中心单独重试。'};
+      }
+    }
+    return {published:false,publishError:'公开配置在发布期间发生变化，请重试该分类。'};
+  }
+  async function publicationResponse(env,requestId,result){
+    const pub=await publishApprovedCategory(env,requestId);
+    return json({...result,...pub,needsPublish:!pub.published,
+      publicationMode:'category_only'});
+  }
   const tableListSql=
     "SELECT c.id,c.title,c.title_cn,c.subtitle,c.image,c.created_at,c.updated_at,"+
     "c.status AS legacy_status,COALESCE(f.status,c.status) AS status,"+
@@ -6288,11 +6401,16 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
         });
       }
     }
+    let publicConfig=null;
+    try{publicConfig=await publishedConfig(env);}catch(error){
+      console.error('Category publication status check failed',String(error));
+    }
     return records.map(x=>({
       ...x,
       status:x.legacy_status==='approved'?'approved':x.status,
       legacy:!x.request_id,
-      events:history.get(x.id)||[]
+      events:history.get(x.id)||[],
+      published:x.legacy_status==='approved' && isAlreadyPublished(publicConfig,x.id)
     }));
   }
   async function writeTransition(env,{id,actor,from,to,action,note,revision}) {
@@ -6328,7 +6446,7 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
       path==='/supervisor/category-requests'||path==='/admin/category-requests'||
       /^\/factory\/category-requests\/[^/]+\/resubmit$/.test(path)||
       /^\/supervisor\/category-requests\/[^/]+\/(approve|reject)$/.test(path)||
-      /^\/admin\/category[-_]requests\/[^/]+\/(approve|reject)$/.test(path);
+      /^\/admin\/category[-_]requests\/[^/]+\/(approve|reject|publish)$/.test(path);
     if(!isCategoryRoute || String(env.PZ_CATEGORY_TWO_STAGE_ENABLED||'').toLowerCase()!=='true')
       return originalFetch.call(this,request,env,ctx);
     if(String(env.PZ_RUNTIME_ENV||'').toLowerCase()!==expectedRuntime)
@@ -6457,13 +6575,23 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
         action:action==='approve'?'supervisor_approved':'supervisor_returned',
         note,revision:f.revision});
     }
-    const adminAction=path.match(/^\/admin\/category[-_]requests\/([^/]+)\/(approve|reject)$/);
+    const adminAction=path.match(/^\/admin\/category[-_]requests\/([^/]+)\/(approve|reject|publish)$/);
     if(method==='POST'&&adminAction) {
       const [,id,action]=adminAction;
+      if(action==='publish'){
+        // No additional approval needed: retry publication of an already
+        // Admin-approved category, and never re-run the approval transition.
+        return publicationResponse(env,id,{success:true,id,status:'approved'});
+      }
       const f=await getFlow(env,id);
       if(!f) {
-        // Grandfather existing requests: no reliable employee attribution in the legacy table.
-        return originalFetch.call(this,request,env,ctx);
+        // Legacy requests have no known submitter; keep their existing approval
+        // semantics, but publish this single category after successful approval.
+        const upstream=await originalFetch.call(this,request,env,ctx);
+        if(action!=='approve'||!upstream.ok)return upstream;
+        const result=await upstream.clone().json().catch(()=>null);
+        if(result?.success!==true||result.status!=='approved')return upstream;
+        return publicationResponse(env,id,{...result,approval:'legacy'});
       }
       if(f.status!=='pending_admin')
         return respond('该申请尚未通过部门主管初审，Admin 不可终审。',409);
@@ -6486,7 +6614,7 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
         console.error('Category approved in legacy table but workflow reconciliation required',id);
         return respond('分类草稿已批准，但审核日志同步失败，请管理员核对，勿重复批准。',503);
       }
-      return json({...result,approval:'two_stage',published:false,needsPublish:true});
+      return publicationResponse(env,id,{...result,approval:'two_stage'});
     }
     return originalFetch.call(this,request,env,ctx);
   };
