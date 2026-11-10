@@ -87,3 +87,66 @@ test('failed department creation keeps input so the user can correct it',async()
     else (globalThis as any).sessionStorage=oldStorage;
   }
 });
+
+
+test('admin removes department without deleting accounts and can restore the former supervisor assignment',async()=>{
+  const originalFetch=globalThis.fetch;
+  const originalStorage=(globalThis as any).sessionStorage;
+  let departments:any[]=[{id:'old',name:'原产品部',factory_site:'zhaoqing',is_active:1}];
+  let members:any[]=[
+    {id:'lead',username:'old_lead',role:'factory',is_active:1,job_type:'supervisor',department_id:'old',department_name:'原产品部'},
+    {id:'staff',username:'old_staff',role:'factory',is_active:1,job_type:'staff',department_id:'old',department_name:'原产品部',supervisor_id:'lead'},
+  ];
+  const calls:RequestLog[]=[];
+  (globalThis as any).sessionStorage={getItem:()=> 'staging-admin-token'};
+  globalThis.fetch=async(url,options)=>{
+    const method=options?.method||'GET';
+    const address=String(url);
+    const body=options?.body?JSON.parse(String(options.body)):null;
+    calls.push({url:address,method,body});
+    if(method==='GET'&&address==='/api/admin/org/departments')return Response.json({items:departments});
+    if(method==='GET'&&address==='/api/admin/org/accounts')return Response.json({users:members});
+    if(method==='DELETE'&&address==='/api/admin/org/departments/old'){
+      departments=[]; members=members.map(m=>({...m,job_type:null,department_id:null,department_name:null,supervisor_id:null}));
+      return Response.json({success:true,unassigned_count:2});
+    }
+    if(method==='POST'&&address==='/api/admin/org/departments'){
+      departments=[{id:'new',name:body.name,factory_site:body.factory_site,is_active:1}];
+      return Response.json({success:true,id:'new'},{status:201});
+    }
+    if(method==='POST'&&address==='/api/admin/org/assignments'){
+      members=members.map(m=>m.id!==body.user_id?m:
+        {...m,department_id:body.department_id,department_name:'新产品部',
+          supervisor_id:body.supervisor_id||null,job_type:body.job_type});
+      return Response.json({success:true,id:body.user_id,job_type:body.job_type});
+    }
+    throw Error('Unexpected API '+method+' '+address);
+  };
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<OrganizationManagement/>);});
+    const root=()=>view!.root;
+    const control=(name:string)=>root().findByProps({'aria-label':name});
+    await act(async()=>control('删除部门 原产品部').props.onClick());
+    assert.equal(root().findByProps({role:'dialog'}).findAllByType('button').at(-1)!.props.disabled,true);
+    await act(async()=>control('确认删除部门名称').props.onChange({target:{value:'原产品部'}}));
+    await act(async()=>root().findByProps({role:'dialog'}).props.onSubmit({preventDefault(){}}));
+    assert.ok(calls.some(c=>c.method==='DELETE'&&c.url.endsWith('/departments/old')));
+    assert.equal(members.length,2);
+    assert.equal(members.filter(m=>!m.job_type).length,2);
+    assert.equal(control('待分配账号岗位').props.value,'staff');
+    await act(async()=>control('部门名称').props.onChange({target:{value:'新产品部'}}));
+    await act(async()=>root().findAllByType('form')[0].props.onSubmit({preventDefault(){}}));
+    await act(async()=>control('待分配账号岗位').props.onChange({target:{value:'supervisor'}}));
+    await act(async()=>control('待分配工厂账号').props.onChange({target:{value:'lead'}}));
+    const assignForm=root().findAllByType('form').find(form=>form.findAllByProps({'aria-label':'待分配工厂账号'}).length>0)!;
+    await act(async()=>assignForm.props.onSubmit({preventDefault(){}}));
+    assert.ok(calls.some(c=>c.method==='POST'&&c.url.endsWith('/assignments')&&c.body?.job_type==='supervisor'));
+    assert.equal(members.find(m=>m.id==='lead').job_type,'supervisor');
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    globalThis.fetch=originalFetch;
+    if(originalStorage===undefined)delete (globalThis as any).sessionStorage;
+    else (globalThis as any).sessionStorage=originalStorage;
+  }
+});
