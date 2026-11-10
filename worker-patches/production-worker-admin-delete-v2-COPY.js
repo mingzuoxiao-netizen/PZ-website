@@ -6177,6 +6177,10 @@ index_default.fetch=pzProductPermanentDeleteFetch(pzHardDeleteOriginalFetch,{
 // published-draft source; review ownership and history are recorded separately.
 // Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
 // This module is inlined into the complete Staging and Production Worker candidates.
+// Additive two-stage category proposals. Legacy category_requests stays the
+// published-draft source; review ownership and history are recorded separately.
+// Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
+// This module is inlined into the complete Staging and Production Worker candidates.
 function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expectedRuntime, imageBase }) {
   const respond=(error,status=400)=>json({error},status);
   const iso=()=>new Date().toISOString();
@@ -6460,6 +6464,29 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
   }
   const getFlow=(env,id)=>env.DB.prepare(
     'SELECT * FROM pz_category_request_flow WHERE request_id=? LIMIT 1').bind(id).first();
+
+  // Cloudflare D1 may report an unexpected batch meta.changes even when its
+  // atomic transaction committed. Confirm the persisted application, ownership
+  // and first audit event rather than returning a false 503 after a real write.
+  async function confirmCreatedRequest(env,id,actor,assignment,value) {
+    const row=await env.DB.prepare(
+      "SELECT c.id,c.title,c.title_cn,c.subtitle,c.image,c.status AS category_status,"+
+      "f.status AS review_status,f.submitter_id,f.supervisor_id,f.department_id,"+
+      "e.action AS event_action,e.actor_id AS event_actor "+
+      "FROM category_requests c "+
+      "JOIN pz_category_request_flow f ON f.request_id=c.id "+
+      "JOIN pz_category_request_events e ON e.request_id=c.id "+
+      "AND e.revision=1 AND e.action='submitted' "+
+      "WHERE c.id=? LIMIT 1"
+    ).bind(id).first();
+    return Boolean(row && row.category_status==='pending' &&
+      row.review_status==='pending_supervisor' && row.submitter_id===actor &&
+      row.event_action==='submitted' && row.event_actor===actor &&
+      row.supervisor_id===assignment.supervisor_id &&
+      row.department_id===assignment.department_id &&
+      row.title===value.title && row.title_cn===value.title_cn &&
+      row.subtitle===value.subtitle && row.image===value.image);
+  }
   return async function categoryTwoStageFetch(request,env,ctx) {
     const path=new URL(request.url).pathname;
     const method=request.method;
@@ -6512,8 +6539,9 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
       const conflict=await checkCategoryConflict(env,checked.value);
       if(conflict)return conflict;
       const v=checked.value,id=crypto.randomUUID(),now=iso();
+      let batchError=null;
       try{
-        const result=await env.DB.batch([
+        await env.DB.batch([
           env.DB.prepare("INSERT INTO category_requests "+
             "(id,title,title_cn,subtitle,image,status,created_at,updated_at) "+
             "VALUES(?,?,?,?,?,'pending',?,?)")
@@ -6526,11 +6554,18 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
             "(id,request_id,revision,action,actor_id,note,created_at) VALUES(?, ?,1,'submitted',?,NULL,?)")
             .bind(crypto.randomUUID(),id,actor,now)
         ]);
-        if(result.some(x=>Number(x.meta?.changes)!==1))
-          return respond('申请保存未确认，请刷新查看记录。',503);
       }catch(error){
-        console.error('Category request create failed',String(error));
-        return respond('新品类申请保存失败，请刷新后检查记录。',503);
+        batchError=error;
+        console.error('Category request D1 batch error; verifying persisted state',String(error));
+      }
+      // Do not treat batch metadata as proof of failure. Confirm all three
+      // persisted records after the write, including when batch threw after commit.
+      let confirmed=false;
+      try{confirmed=await confirmCreatedRequest(env,id,actor,assignment,v);}
+      catch(error){console.error('Category request readback failed',String(error));}
+      if(!confirmed){
+        if(batchError)return respond('申请提交未确认，请先在「我的新品类申请」核对记录，不要重复提交。',503);
+        return respond('申请保存状态未确认，请先刷新「我的新品类申请」，不要重复提交。',503);
       }
       return json({success:true,id,status:'pending_supervisor'},201);
     }
