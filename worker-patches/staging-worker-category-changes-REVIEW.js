@@ -4628,8 +4628,26 @@ if (categoryResponse) return categoryResponse;
         const result = await env.DB.prepare(
           "UPDATE products SET catalog_hidden=? WHERE id=? AND lower(status)='published' AND archived_at IS NULL"
         ).bind(hidden, id).run();
-        if (result.meta?.changes !== 1) {
-          return json({ error: "Only published products can change catalog visibility" }, 409);
+        if (Number(result.meta?.changes) !== 1) {
+          // A stale tab or already-completed action should never be reported as
+          // an unexplained 409, and must never circumvent published/archived guards.
+          const current=await env.DB.prepare(
+            "SELECT status,catalog_hidden,archived_at FROM products WHERE id=? LIMIT 1"
+          ).bind(id).first();
+          if(!current)return json({error:"Product no longer exists",code:"PRODUCT_NOT_FOUND"},404);
+          if(String(current.status||"").toLowerCase()!=="published" || current.archived_at){
+            return json({
+              error:"该产品当前不属于可上架/下架的已发布产品，请刷新产品列表。",
+              code:"PRODUCT_VISIBILITY_CONFLICT",
+              actual_status:current.status,
+              archived:!!current.archived_at
+            },409);
+          }
+          if(Number(current.catalog_hidden)===hidden){
+            return json({success:true,id,catalog_hidden:hidden===1,already_in_state:true});
+          }
+          return json({error:"产品状态已变化，请刷新列表后重试。",
+            code:"PRODUCT_VISIBILITY_CONFLICT",actual_status:current.status},409);
         }
         return json({ success: true, id, catalog_hidden: hidden === 1 });
       }

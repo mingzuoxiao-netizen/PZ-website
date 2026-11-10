@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, AlertTriangle, Trash2 } from 'lucide-react';
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
@@ -39,6 +39,10 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
+  const eligibleForPermanentDelete=(status?:string)=>
+    ['draft','rejected','unpublished','inactive','archived'].includes(String(status||''));
+  const adminCanDelete=isAdmin&&!!onPermanentDelete;
+  const deletionBusy=deletingId!==null||isBulkProcessing;
 
   const statusMap: Record<string, { label: string, color: string }> = {
     all: { label: T('All Statuses','全部状态'), color: '' },
@@ -72,6 +76,13 @@ const ProductList: React.FC<ProductListProps> = ({
       ? sites.length===0 : sites.includes(siteFilter));
     return matchesSearch&&matchesStatus&&matchesSite;
   }) : [];
+  const adminDeleteCandidates=adminCanDelete
+    ? filteredItems.filter(x=>!!x.id&&eligibleForPermanentDelete(x.status))
+    : [];
+  const adminSelected=adminDeleteCandidates.filter(x=>selectedIds.includes(x.id!));
+  useEffect(()=>{
+    setSelectedIds(prev=>prev.filter(id=>items.some(x=>x.id===id)));
+  },[items]);
   const hasCustomFilters=!['all','action','published'].includes(statusFilter)||siteFilter!=='all';
 
   const toggleSelect = (id: string) => {
@@ -91,13 +102,45 @@ const ProductList: React.FC<ProductListProps> = ({
   };
 
   const handlePermanentDelete=async(item:ProductVariant)=>{
-    if(!onPermanentDelete||!item.id||deletingId)return;
+    if(!onPermanentDelete||!item.id||deletionBusy)return;
+    if(!confirm('确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
     setDeletingId(item.id);
     try{
       await onPermanentDelete(item);
+      setSelectedIds(prev=>prev.filter(id=>id!==item.id));
+      await onRefresh?.();
+      alert('产品已永久删除，无需输入 SKU。');
     }catch(error:any){
+      await onRefresh?.();
       alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
     }finally{setDeletingId(null);}
+  };
+
+  const handleAdminBulkDelete=async()=>{
+    if(!onPermanentDelete||deletionBusy||!adminSelected.length)return;
+    const batch=[...adminSelected];
+    if(!confirm('确认永久删除选中的 '+batch.length+
+      ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
+    setIsBulkProcessing(true);
+    const failed:{id:string;sku:string;reason:string}[]=[];
+    let succeeded=0;
+    try{
+      // No bulk permission bypass: use existing preflight and deletion guards per item.
+      for(const item of batch){
+        try{await onPermanentDelete(item);succeeded++;}
+        catch(error:any){
+          failed.push({id:item.id!,sku:item.code||item.name||item.id!,
+            reason:error?.message||'删除结果未确认'});
+        }
+      }
+      setSelectedIds(failed.map(x=>x.id));
+      await onRefresh?.();
+      if(failed.length)alert('批量删除结果：成功 '+succeeded+' 件，失败 '+failed.length+
+        ' 件。\n'+failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
+        (failed.length>5?'\n其余失败项目请单独核对。':'')+
+        '\n失败项目已保留选中，请核对后再重试。');
+      else alert('已删除 '+succeeded+' 件产品，R2 原图未删除。');
+    }finally{setIsBulkProcessing(false);}
   };
 
   const handleSubmitForReview = async (id: string) => {
@@ -234,6 +277,13 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
+                        {adminCanDelete&&eligibleForPermanentDelete(item.status)&&!!item.id&&
+                          <button type="button" aria-label={'选择永久删除 '+(item.code||item.name)}
+                            disabled={deletionBusy} aria-pressed={isSelected}
+                            onClick={()=>toggleSelect(item.id!)}
+                            className="text-stone-400 hover:text-red-700 disabled:opacity-40">
+                            {isSelected?<CheckSquare size={18} className="text-red-700"/>:<Square size={18}/>}
+                          </button>}
                         {isFactory && !!onSubmit && ['draft','rejected','returned_to_uploader'].includes(item.status||'') && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
                             onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
                             {isSelected ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
@@ -305,8 +355,8 @@ const ProductList: React.FC<ProductListProps> = ({
                                     {item.archived_at ? T('Restore to unlisted', '恢复为已下架') : T('Archive', '归档')}
                                   </button>
                                 )}
-                                {isAdmin&&!!onPermanentDelete&&['draft','rejected','unpublished','inactive','archived'].includes(item.status||'')&&item.id&&(
-                                    <button type="button" disabled={deletingId!==null}
+                                {adminCanDelete&&eligibleForPermanentDelete(item.status)&&item.id&&(
+                                    <button type="button" disabled={deletionBusy}
                                       onClick={()=>void handlePermanentDelete(item)}
                                       aria-label={T('Permanently delete SKU','永久删除 SKU')}
                                       title={T('Permanent deletion, if no review history exists','永久删除：需要无历史审核关联')}
@@ -325,6 +375,28 @@ const ProductList: React.FC<ProductListProps> = ({
        </div>
 
        {/* Bulk Action Bar */}
+       {adminCanDelete&&adminDeleteCandidates.length>0&&
+          <div aria-label="管理员批量删除产品"
+            className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded border border-red-200 bg-red-50 p-3">
+            <label className="flex items-center gap-2 text-xs text-red-900">
+              <input type="checkbox" aria-label="全选本页可删除产品"
+                disabled={deletionBusy}
+                checked={adminSelected.length===adminDeleteCandidates.length}
+                onChange={e=>setSelectedIds(e.target.checked?adminDeleteCandidates.map(x=>x.id!):[])}/>
+              全选本页可删除产品（{adminDeleteCandidates.length}）
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-red-900">已选 {adminSelected.length} 件</span>
+              <button type="button" disabled={deletionBusy||adminSelected.length===0}
+                onClick={()=>void handleAdminBulkDelete()}
+                className="rounded bg-red-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
+                {isBulkProcessing?'正在删除…':'批量删除'}
+              </button>
+            </div>
+            <p className="w-full text-xs text-stone-600">
+              仅删除未发布且无历史关联的产品；已发布产品请下架或归档。无需输入 SKU。
+            </p>
+          </div>}
        {isFactory && !!onSubmit && selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
