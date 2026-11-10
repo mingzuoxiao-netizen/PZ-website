@@ -89,7 +89,14 @@ const AdminWorkspace: React.FC = () => {
         setCatalogPage(catalogPage - 1);
         return;
       }
-      setProducts(normalizeProducts(response.products));
+      // For Admin inventory the current D1 status is authoritative. Legacy
+      // is_published must not override it: that creates a false "published"
+      // badge and a misleading unpublish action on ineligible rows.
+      const normalized=normalizeProducts(response.products).map((p,i)=>({
+        ...p,
+        status:String(response.products[i].status||'draft').trim().toLowerCase() as ProductVariant['status']
+      }));
+      setProducts(normalized);
       setCatalogHasMore(response.has_more);
       setUnpublishedReviewCount(response.unpublished_review_count ?? null);
     } catch {
@@ -262,8 +269,18 @@ const AdminWorkspace: React.FC = () => {
     const action = hidden ? 'relist' : 'unpublish';
     const label = hidden ? '重新上架' : '下架';
     if (!window.confirm(label + ' ' + (product.code || product.name) + '？')) return;
-    await adminFetch('admin/products/' + encodeURIComponent(product.id) + '/' + action, { method: 'POST' });
-    await loadProducts();
+    try{
+      const result=await adminFetch<{success?:boolean}>(
+        'admin/products/' + encodeURIComponent(product.id) + '/' + action,{method:'POST'});
+      if(result.success!==true)throw new Error('上架状态没有得到服务器确认，请刷新列表。');
+      await loadProducts();
+    }catch(error:any){
+      await loadProducts();
+      if(/HTTP 409|PRODUCT_VISIBILITY_CONFLICT|expected state/i.test(error?.message||'')){
+        throw new Error('产品最新状态与当前列表不一致，操作已取消并刷新列表。请检查实际状态后再操作。');
+      }
+      throw error;
+    }
   };
 
   const handleArchive = async (items: ProductVariant[], restore = false) => {
@@ -297,20 +314,16 @@ const AdminWorkspace: React.FC = () => {
     if(check.eligible!==true||!check.product?.updated_at){
       throw new Error(check.error||'产品存在历史记录或仍在审核/发布中，不能永久删除。');
     }
-    const typed=window.prompt(
-      '此操作不可恢复！将永久删除产品记录并释放 SKU（不会删除 R2 原始图片）。\n'+
-      '请输入完整 SKU 以确认：'+sku
-    );
-    if(typed===null)return;
-    if(typed!==sku)throw new Error('SKU 输入不一致，已取消删除。');
+    // The caller shows one explicit confirmation for single/bulk deletion.
+    // Keep server-side exact SKU + version validation without asking Admin to type.
     const result=await adminFetch<{success?:boolean;sku_reusable?:boolean}>(endpoint,{
       method:'POST',
       body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at})
     });
     if(result.success!==true||result.sku_reusable!==true)
       throw new Error('删除结果未确认。请刷新列表检查，不要重复操作。');
-    await loadProducts();
-    alert('SKU '+sku+' 已永久删除，可以重新使用。原图片文件仍保存在 R2。');
+    // Batch caller reconciles the list once after the final item.
+    // Product history guards and original R2 preservation remain enforced.
   };
 
   // Frequently-used work is visible; less-used settings are grouped without
