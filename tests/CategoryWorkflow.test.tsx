@@ -50,6 +50,8 @@ test('rejecting a new category calls category rejection, never product rejection
       .find(x => (x.children || []).flat(Infinity).join(' ').includes(label));
     await act(async () => { findButton('待审核新品类')!.props.onClick(); });
     await act(async () => { findButton('驳回申请')!.props.onClick(); });
+    const noteField=view!.root.findAllByType('textarea')[0];
+    await act(async () => { noteField.props.onChange({target:{value:'请补充分类名称'}}); });
     await act(async () => { findButton('确认驳回')!.props.onClick(); });
     assert.deepEqual(events, ['category:reject:req-1']);
   } finally {
