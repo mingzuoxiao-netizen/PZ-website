@@ -40,6 +40,10 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
   };
 
   const processItem = async (id: string, action: 'approve' | 'reject', note?: string) => {
+    if(activeView==='categories'&&action==='reject'&&!String(note||'').trim()){
+      setMessage('退回新品类必须填写原因。');
+      return;
+    }
     setMessage('');
     setIsProcessing(true);
     try {
@@ -152,14 +156,20 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                             <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400 font-mono pt-0.5">{'category' in item ? item.category : '分类申请'}</span>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">待审核</span>
+                                    <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">
+                      {activeView==='categories' && item.status==='pending_admin'?'主管已通过 · 待 Admin 终审':'待审核'}
+                    </span>
                                 </div>
-                                <p className="text-stone-500 text-xs line-clamp-2 mb-6 font-light">{item.description || '没有填写详细说明。'}</p>
+                                <p className="text-stone-500 text-xs line-clamp-2 mb-3 font-light">
+                                  {item.description || ('title_cn' in item ? item.title_cn : '') || '没有填写详细说明。'}
+                                </p>
+                                {activeView==='categories'&&'submitter_name' in item &&
+                                  <p className="mb-4 text-xs text-stone-500">提交人：{String(item.submitter_name||'历史申请')}</p>}
                                 {rejectId === item.id ? (
                                     <div className="bg-red-50 p-4 border border-red-100 rounded-sm">
                                         <textarea className="w-full border border-red-200 p-3 text-xs mb-3 focus:outline-none resize-none h-20" placeholder="填写退回原因，供工厂修改…" value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
                                         <div className="flex gap-2">
-                                            <button disabled={isProcessing} onClick={() => { void processItem(item.id!, 'reject', rejectNote); }} className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest">确认驳回</button>
+                                            <button disabled={isProcessing || !rejectNote.trim()} onClick={() => { void processItem(item.id!, 'reject', rejectNote); }} className="bg-red-600 text-white px-4 py-2 text-[9px] font-bold uppercase tracking-widest">确认驳回</button>
                                             <button onClick={() => setRejectId(null)} className="bg-white text-stone-500 px-4 py-2 text-[9px] font-bold uppercase border border-stone-200">取消</button>
                                         </div>
                                     </div>
