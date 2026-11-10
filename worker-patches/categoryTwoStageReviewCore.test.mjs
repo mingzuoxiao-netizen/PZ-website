@@ -28,8 +28,19 @@ function setup(runtime='production'){
       runSync(){return {meta:{changes:Number(sql.prepare(q).run(...args).changes)}};}
     };
   };
+  const kv=new Map([
+    ['draft:site_config',JSON.stringify({categories:[],home:{hero:{title:'Unpublished draft'}}})],
+    ['published:site_config',JSON.stringify({categories:[],home:{hero:{title:'Existing live homepage'}}})]
+  ]);
+  const snapshots=new Map();
   const env={PZ_RUNTIME_ENV:runtime,PZ_CATEGORY_TWO_STAGE_ENABLED:'true',
-    SITE_CONFIG_KV:{async get(){return JSON.stringify({categories:[]});}},
+    SITE_CONFIG_KV:{
+      async get(key){return kv.get(key)||null;},
+      async put(key,value){kv.set(key,value);}
+    },
+    SITE_CONFIG_HISTORY:{
+      async put(key,value){snapshots.set(key,value);}
+    },
     PRODUCT_IMAGES:{async head(key){return key==='uploads/cover.jpg'?{size:100}:null;}},
     DB:{prepare,async batch(statements){
       sql.exec('BEGIN');
@@ -64,10 +75,10 @@ function setup(runtime='production'){
   };
   const imageBase=runtime==='staging'?'https://staging-images.test':'https://cdn.peng-zhan.com';
   const payload={title:'Heritage Chairs',title_cn:'复古椅',subtitle:'Wooden seating',image:imageBase+'/uploads%2Fcover.jpg'};
-  return {sql,env,call,payload};
+  return {sql,env,call,payload,kv,snapshots};
 }
 
-test('staff -> supervisor -> admin stages and final approved not published',async()=>{
+test('staff -> supervisor -> admin approves and publishes only the category',async()=>{
   const a=setup();
   const create=await a.call('/factory/category-requests','POST',a.payload,'factoryA');
   assert.equal(create.status,201);
@@ -82,9 +93,17 @@ test('staff -> supervisor -> admin stages and final approved not published',asyn
   assert.equal((await a.call('/factory/category-requests','GET',undefined,'factoryA')).body.items[0].status,'pending_admin');
   const approved=await a.call('/admin/category-requests/'+id+'/approve','POST',{note:''},'admin');
   assert.equal(approved.status,200);
-  assert.equal(approved.body.needsPublish,true);
-  assert.equal(approved.body.published,false);
-  assert.equal((await a.call('/factory/category-requests','GET',undefined,'factoryA')).body.items[0].status,'approved');
+  assert.equal(approved.body.needsPublish,false);
+  assert.equal(approved.body.published,true);
+  assert.equal(approved.body.publicationMode,'category_only');
+  const publicConfig=JSON.parse(a.kv.get('published:site_config'));
+  assert.equal(publicConfig.categories.length,1);
+  assert.equal(publicConfig.categories[0].proposal_id,id);
+  assert.equal(publicConfig.home.hero.title,'Existing live homepage');
+  assert.equal(JSON.parse(a.kv.get('draft:site_config')).home.hero.title,'Unpublished draft');
+  const mine=(await a.call('/factory/category-requests','GET',undefined,'factoryA')).body.items[0];
+  assert.equal(mine.status,'approved');
+  assert.equal(mine.published,true);
   assert.deepEqual(a.sql.prepare('SELECT action FROM pz_category_request_events WHERE request_id=? ORDER BY revision').all(id).map(x=>x.action),
     ['submitted','supervisor_approved','admin_approved']);
   a.sql.close();
@@ -146,5 +165,79 @@ test('accepts encoded upload-image URLs and plain R2 paths, but rejects unsafe/m
     ...a.payload,title:'Teak Tables',image:'https://cdn.peng-zhan.com/uploads%2Fcover.jpg'
   },'factoryA');
   assert.equal(external.status,400,'Production CDN images are rejected in Staging');
+  a.sql.close();
+});
+
+
+test('two different approved categories publish independently, never copying unrelated website drafts',async()=>{
+  const a=setup();
+  for (const [title,titleCn] of [['Cedar Benches','雪松长凳'],['Walnut Shelves','胡桃木架']]) {
+    const created=await a.call('/factory/category-requests','POST',{...a.payload,title,title_cn:titleCn},'factoryA');
+    const id=created.body.id;
+    assert.equal((await a.call('/supervisor/category-requests/'+id+'/approve','POST',{},'superA')).status,200);
+    const approved=await a.call('/admin/category-requests/'+id+'/approve','POST',{note:''},'admin');
+    assert.equal(approved.body.published,true);
+    assert.equal(approved.body.needsPublish,false);
+  }
+  const published=JSON.parse(a.kv.get('published:site_config'));
+  assert.equal(published.categories.length,2);
+  assert.deepEqual(new Set(published.categories.map(c=>c.title)),new Set(['Cedar Benches','Walnut Shelves']));
+  assert.equal(published.home.hero.title,'Existing live homepage');
+  const draft=JSON.parse(a.kv.get('draft:site_config'));
+  assert.equal(draft.home.hero.title,'Unpublished draft');
+  assert.equal(draft.categories.length,0,'mock approval does not change unrelated draft');
+  assert.ok(a.snapshots.size>=2);
+  a.sql.close();
+});
+
+test('if publication fails, approval persists and an idempotent individual retry publishes exactly once',async()=>{
+  const a=setup();
+  const id=(await a.call('/factory/category-requests','POST',a.payload,'factoryA')).body.id;
+  assert.equal((await a.call('/supervisor/category-requests/'+id+'/approve','POST',{},'superA')).status,200);
+  const put=a.env.SITE_CONFIG_KV.put.bind(a.env.SITE_CONFIG_KV);
+  let fail=true;
+  a.env.SITE_CONFIG_KV.put=async(key,value)=>{
+    if(fail && key==='published:site_config')throw Error('simulated KV outage');
+    return put(key,value);
+  };
+  const approved=await a.call('/admin/category-requests/'+id+'/approve','POST',{},'admin');
+  assert.equal(approved.body.status,'approved');
+  assert.equal(approved.body.published,false);
+  assert.equal(approved.body.needsPublish,true);
+  assert.equal(a.sql.prepare('SELECT status FROM category_requests WHERE id=?').get(id).status,'approved');
+  assert.equal((await a.call('/admin/category-requests')).body.items.find(x=>x.id===id).published,false);
+  fail=false;
+  const retry=await a.call('/admin/category-requests/'+id+'/publish','POST',{},'admin');
+  assert.equal(retry.body.published,true);
+  assert.equal(JSON.parse(a.kv.get('published:site_config')).categories.length,1);
+  assert.equal((await a.call('/admin/category-requests/'+id+'/publish','POST',{},'admin')).body.alreadyPublished,true);
+  assert.equal(JSON.parse(a.kv.get('published:site_config')).categories.length,1);
+  assert.equal((await a.call('/admin/category-requests/'+id+'/publish','POST',{},'factoryA')).status,403);
+  a.sql.close();
+});
+
+test('D1 cutover publishes one category via revision CAS and preserves other published settings',async()=>{
+  const a=setup();
+  a.env.PZ_D1_SITE_CONFIG_ENABLED='true';
+  a.env.PZ_SITE_CONFIG_D1_CUTOVER_ENABLED='true';
+  a.sql.exec("CREATE TABLE site_config_state("+
+    "id INTEGER PRIMARY KEY,draft_json TEXT NOT NULL,draft_revision INTEGER NOT NULL,"+
+    "published_json TEXT NOT NULL,published_revision INTEGER NOT NULL,"+
+    "published_version TEXT NOT NULL,published_at TEXT NOT NULL,"+
+    "write_token TEXT NOT NULL,updated_at TEXT NOT NULL)");
+  a.sql.prepare('INSERT INTO site_config_state VALUES(1,?,?,?,?,?,?,?,?)').run(
+    JSON.stringify({categories:[],home:{hero:{title:'Still draft'}}}),1,
+    JSON.stringify({categories:[],home:{hero:{title:'Currently live'}}}),3,
+    'prior-version','prior-time','prior-token','prior-time'
+  );
+  const id=(await a.call('/factory/category-requests','POST',a.payload,'factoryA')).body.id;
+  await a.call('/supervisor/category-requests/'+id+'/approve','POST',{},'superA');
+  const result=await a.call('/admin/category-requests/'+id+'/approve','POST',{},'admin');
+  assert.equal(result.body.published,true);
+  const row=a.sql.prepare('SELECT * FROM site_config_state WHERE id=1').get();
+  assert.equal(row.published_revision,4);
+  assert.equal(JSON.parse(row.published_json).categories[0].proposal_id,id);
+  assert.equal(JSON.parse(row.published_json).home.hero.title,'Currently live');
+  assert.equal(JSON.parse(row.draft_json).home.hero.title,'Still draft');
   a.sql.close();
 });
