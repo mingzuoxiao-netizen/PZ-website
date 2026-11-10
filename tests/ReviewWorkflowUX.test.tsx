@@ -156,7 +156,7 @@ test('admin product review excludes published records and removes item and detai
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="ADMIN"/>);});
     let rendered=JSON.stringify(view!.toJSON());
-    assert.match(rendered,/产品申请（1）/);
+    assert.equal(view!.root.findAllByType('h3').find(x=>x.children.join('').startsWith('产品申请'))?.children.join(''),'产品申请（1）');
     assert.match(rendered,/待发布产品/);
     assert.doesNotMatch(rendered,/已发布产品/);
     assert.doesNotMatch(rendered,/待主管初审产品/);
@@ -165,7 +165,7 @@ test('admin product review excludes published records and removes item and detai
     assert.ok(getButton(view!,'确认正式发布'));
     await act(async()=>getButton(view!,'确认正式发布')!.props.onClick());
     rendered=JSON.stringify(view!.toJSON());
-    assert.match(rendered,/产品申请（0）/);
+    assert.equal(view!.root.findAllByType('h3').find(x=>x.children.join('').startsWith('产品申请'))?.children.join(''),'产品申请（0）');
     assert.doesNotMatch(rendered,/待发布产品/);
     assert.doesNotMatch(rendered,/已发布产品/);
     assert.match(rendered,/选择一条审核申请/);
@@ -208,7 +208,7 @@ test('admin completed revision disappears from review list and does not retain s
   try{
     await act(async()=>{view=create(<PublishedRevisionQueue role="ADMIN"/>);});
     let rendered=JSON.stringify(view!.toJSON());
-    assert.match(rendered,/产品修订待办（1）/);
+    assert.equal(view!.root.findAllByType('h2').find(x=>x.children.join('').startsWith('产品修订待办'))?.children.join(''),'产品修订待办（1）');
     assert.match(rendered,/待发布修订/);
     assert.doesNotMatch(rendered,/已完成修订|主管审批中的修订/);
     const row=view!.root.findByProps({'aria-label':'修订申请列表'}).findAllByType('button')[0];
