@@ -277,6 +277,13 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex items-center gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
+                        {adminCanDelete&&eligibleForPermanentDelete(item.status)&&!!item.id&&
+                          <button type="button" aria-label={'选择永久删除 '+(item.code||item.name)}
+                            disabled={deletionBusy} aria-pressed={isSelected}
+                            onClick={()=>toggleSelect(item.id!)}
+                            className="text-stone-400 hover:text-red-700 disabled:opacity-40">
+                            {isSelected?<CheckSquare size={18} className="text-red-700"/>:<Square size={18}/>}
+                          </button>}
                         {isFactory && !!onSubmit && ['draft','rejected','returned_to_uploader'].includes(item.status||'') && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
                             onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
                             {isSelected ? <CheckSquare size={18} className="text-safety-700"/> : <Square size={18}/>}
@@ -348,8 +355,8 @@ const ProductList: React.FC<ProductListProps> = ({
                                     {item.archived_at ? T('Restore to unlisted', '恢复为已下架') : T('Archive', '归档')}
                                   </button>
                                 )}
-                                {isAdmin&&!!onPermanentDelete&&['draft','rejected','unpublished','inactive','archived'].includes(item.status||'')&&item.id&&(
-                                    <button type="button" disabled={deletingId!==null}
+                                {adminCanDelete&&eligibleForPermanentDelete(item.status)&&item.id&&(
+                                    <button type="button" disabled={deletionBusy}
                                       onClick={()=>void handlePermanentDelete(item)}
                                       aria-label={T('Permanently delete SKU','永久删除 SKU')}
                                       title={T('Permanent deletion, if no review history exists','永久删除：需要无历史审核关联')}
@@ -368,6 +375,28 @@ const ProductList: React.FC<ProductListProps> = ({
        </div>
 
        {/* Bulk Action Bar */}
+       {adminCanDelete&&adminDeleteCandidates.length>0&&
+          <div aria-label="管理员批量删除产品"
+            className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded border border-red-200 bg-red-50 p-3">
+            <label className="flex items-center gap-2 text-xs text-red-900">
+              <input type="checkbox" aria-label="全选本页可删除产品"
+                disabled={deletionBusy}
+                checked={adminSelected.length===adminDeleteCandidates.length}
+                onChange={e=>setSelectedIds(e.target.checked?adminDeleteCandidates.map(x=>x.id!):[])}/>
+              全选本页可删除产品（{adminDeleteCandidates.length}）
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-red-900">已选 {adminSelected.length} 件</span>
+              <button type="button" disabled={deletionBusy||adminSelected.length===0}
+                onClick={()=>void handleAdminBulkDelete()}
+                className="rounded bg-red-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
+                {isBulkProcessing?'正在删除…':'批量删除'}
+              </button>
+            </div>
+            <p className="w-full text-xs text-stone-600">
+              仅删除未发布且无历史关联的产品；已发布产品请下架或归档。无需输入 SKU。
+            </p>
+          </div>}
        {isFactory && !!onSubmit && selectedIds.length > 0 && (
            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
                <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md">
