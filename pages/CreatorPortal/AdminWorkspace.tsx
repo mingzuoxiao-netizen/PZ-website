@@ -439,6 +439,10 @@ const AdminWorkspace: React.FC = () => {
                     throw new Error('旧产品审核已关闭，必须通过主管初审和管理员终审。');
                   }}
                   onProcessCategory={async (id, action, note) => {
+                    // Never consume an approval on an older Worker that only writes
+                    // site drafts. Otherwise the request leaves the queue without publishing.
+                    if(action==='approve' && targetedPublishSupported!==true)
+                      throw new Error('当前 Worker 尚不支持单分类自动发布，已阻止本次批准。请先更新 Worker，再重试。');
                     const endpoint = action === 'approve' ? 'approve' : 'reject';
                     if(action==='reject'&&!note?.trim())throw new Error('请填写退回原因。');
                     const result = await adminFetch<any>(
