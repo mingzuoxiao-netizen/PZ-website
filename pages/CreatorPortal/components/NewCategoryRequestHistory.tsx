@@ -6,6 +6,7 @@ export type NewCategoryItem={
   id:string;title:string;title_cn:string;subtitle:string;image:string;
   status:string;created_at:string;updated_at:string;
   reject_reason?:string|null;supervisor_name?:string|null;legacy?:boolean;
+  events?:{revision:number;action:string;actor_id:string;note?:string|null;created_at:string}[];
 };
 const labels:Record<string,string>={
   pending_supervisor:'待部门主管初审',
@@ -79,6 +80,22 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
               {labels[item.status]||item.status}</span>
           </div>
           {item.reject_reason&&<p className="mt-2 text-sm text-red-700">退回原因：{item.reject_reason}</p>}
+          {item.events?.length ? <details className="mt-3 rounded border border-stone-100 bg-stone-50 p-3">
+            <summary className="cursor-pointer text-xs font-medium text-stone-700">
+              查看历次审核记录（{item.events.length}）
+            </summary>
+            <ol className="mt-3 space-y-2">
+              {item.events.map((ev,index)=><li key={ev.revision+'-'+ev.action+'-'+index}
+                className="border-l-2 border-stone-300 pl-3 text-xs text-stone-600">
+                <span className="font-medium">{({
+                  submitted:'首次提交',supervisor_approved:'主管通过',supervisor_returned:'主管退回',
+                  admin_approved:'管理员批准',admin_returned:'管理员退回',resubmitted:'修改后重提'
+                } as Record<string,string>)[ev.action]||ev.action}</span>
+                <span className="ml-2">{ev.created_at}</span>
+                {ev.note&&<p className="mt-1 text-red-700">审核意见：{ev.note}</p>}
+              </li>)}
+            </ol>
+          </details> : null}
           {item.status==='returned_to_uploader'&&
             <button type="button" onClick={()=>edit(item)}
               className="mt-3 rounded bg-stone-900 px-4 py-2 text-sm text-white">修改并重新提交</button>}
