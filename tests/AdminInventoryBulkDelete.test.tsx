@@ -86,7 +86,7 @@ test('Admin single product delete also uses only a confirmation, never a SKU pro
     await act(async()=>{await single.props.onClick();});
     assert.deepEqual(called,['d1']);
     assert.equal(env.confirmations.length,1);
-    assert.match(env.alerts.join(' '),/已永久删除/);
+    assert.match(env.alerts.join(' '),/产品已从管理及公开目录移除/);
   }finally{
     if(view)await act(async()=>view!.unmount());
     env.restore();
