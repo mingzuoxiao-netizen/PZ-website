@@ -14,7 +14,15 @@ interface Account {
   role: UiRole;
   status: UiStatus;
   last_login?: string;
+  job_type?: Job | null; department_name?: string | null;
+  department_id?: string | null; supervisor_id?: string | null;
 }
+type Job = 'supervisor' | 'secretary' | 'staff' | 'data_entry';
+const labels: Record<Job,string> = {supervisor:'部门主管',secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
+const labelOf=(a:Account)=>a.role==='ADMIN'?'管理员':a.job_type?labels[a.job_type]:'待分配工厂账号';
+const rankOf=(a:Account)=>a.role==='ADMIN'?0:a.job_type==='supervisor'?1:a.job_type?2:3;
+const groupOf=(a:Account)=>labelOf(a)+(a.department_name?' · '+a.department_name:'');
+const PAGE_SIZE=15;
 
 type ApiUserRow = {
   id: string;
@@ -23,6 +31,8 @@ type ApiUserRow = {
   is_active: number;
   created_at?: string;
   last_login?: string;
+  job_type?: string | null; department_name?: string | null;
+  department_id?: string | null; supervisor_id?: string | null;
 };
 
 function mapApiUserToAccount(u: ApiUserRow): Account {
@@ -34,12 +44,21 @@ function mapApiUserToAccount(u: ApiUserRow): Account {
     role,
     status,
     last_login: u.last_login ?? undefined,
+    job_type:u.job_type && u.job_type in labels ? u.job_type as Job : null,
+    department_name:u.department_name??null,department_id:u.department_id??null,
+    supervisor_id:u.supervisor_id??null,
   };
 }
 
 const AccountsManager: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState('');
+  const [search,setSearch]=useState('');
+  const [roleFilter,setRoleFilter]=useState('all');
+  const [departmentFilter,setDepartmentFilter]=useState('all');
+  const [statusFilter,setStatusFilter]=useState('all');
+  const [page,setPage]=useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -58,12 +77,13 @@ const AccountsManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAccounts = useCallback(async () => {
-    setLoading(true);
+    setLoading(true);setLoadError('');
     try {
       const res = await adminFetch<{ users: ApiUserRow[] }>('/admin/accounts');
       const mapped = (res.users ?? []).map(mapApiUserToAccount);
       setAccounts(mapped);
-    } catch (e) {
+    } catch (e: any) {
+      setLoadError(e?.message || '账号读取失败，请刷新重试。');
       console.error("Failed to fetch accounts", e);
     } finally {
       setLoading(false);
@@ -71,6 +91,26 @@ const AccountsManager: React.FC = () => {
   }, []);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
+  const departments=Array.from(new Map(accounts
+    .filter(a=>a.department_id && a.department_name)
+    .map(a=>[a.department_id!,a.department_name!] as [string,string])).entries())
+    .sort((a,b)=>a[1].localeCompare(b[1],'zh-CN'));
+  const filtered=accounts.filter(a=>{
+    const q=search.trim().toLocaleLowerCase();
+    if(q && ![a.username,a.id,a.department_name||'',labelOf(a)].some(x=>x.toLocaleLowerCase().includes(q)))return false;
+    if(roleFilter==='admin' && a.role!=='ADMIN')return false;
+    if(roleFilter==='supervisor' && a.job_type!=='supervisor')return false;
+    if(roleFilter==='staff' && (a.role==='ADMIN'||!a.job_type||a.job_type==='supervisor'))return false;
+    if(roleFilter==='unassigned' && (a.role==='ADMIN'||a.job_type))return false;
+    if(departmentFilter==='unassigned' && (a.role==='ADMIN'||a.department_id))return false;
+    if(departmentFilter!=='all'&&departmentFilter!=='unassigned'&&a.department_id!==departmentFilter)return false;
+    if(statusFilter!=='all'&&a.status!==statusFilter)return false;
+    return true;
+  }).sort((a,b)=>rankOf(a)-rankOf(b)||(a.department_name||'').localeCompare(b.department_name||'','zh-CN')||
+    (a.job_type||'').localeCompare(b.job_type||'')||a.username.localeCompare(b.username,'zh-CN'));
+  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const currentPage=Math.min(page,pages);
+  const visible=filtered.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,7 +273,7 @@ const AccountsManager: React.FC = () => {
             <p className="text-sm text-stone-600">
               {accountAction.type === 'rename'
                 ? '修改后请使用新账号名称登录，密码、账号编号和产品归属保持不变。'
-                : '删除后无法恢复，该账号将无法继续登录。有关联业务记录的账号请使用停用功能。'}
+                : '账号删除后不能再次登录；若有历史业务记录，系统会安全注销并保留审计历史。'}
             </p>
             <label className="block text-sm text-stone-700">
               {accountAction.type === 'rename' ? '新账号名称' : '输入完整账号名称以确认删除'}
@@ -393,6 +433,39 @@ const AccountsManager: React.FC = () => {
         </div>
       )}
 
+      <div className="mb-5 grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="账号分类统计">
+        {[
+          ['管理员',accounts.filter(a=>a.role==='ADMIN').length],
+          ['部门主管',accounts.filter(a=>a.job_type==='supervisor').length],
+          ['部门员工',accounts.filter(a=>a.role!=='ADMIN'&&a.job_type&&a.job_type!=='supervisor').length],
+          ['待分配',accounts.filter(a=>a.role!=='ADMIN'&&!a.job_type).length],
+        ].map(([name,count])=><div key={name} className="rounded border border-stone-200 bg-white p-4">
+          <div className="text-xs text-stone-500">{name}</div>
+          <div className="mt-1 text-xl font-semibold text-stone-900">{count}</div>
+        </div>)}
+      </div>
+      <div className="mb-5 grid gap-3 rounded border border-stone-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <input aria-label="搜索账号" type="search" value={search}
+          onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="搜索账号、编号或部门"
+          className="rounded border border-stone-300 px-3 py-2 text-sm" />
+        <select aria-label="按岗位筛选" value={roleFilter}
+          onChange={e=>{setRoleFilter(e.target.value);setPage(1);}} className="rounded border border-stone-300 px-3 py-2 text-sm">
+          <option value="all">全部岗位</option><option value="admin">管理员</option>
+          <option value="supervisor">部门主管</option><option value="staff">部门员工</option>
+          <option value="unassigned">待分配</option>
+        </select>
+        <select aria-label="按部门筛选" value={departmentFilter}
+          onChange={e=>{setDepartmentFilter(e.target.value);setPage(1);}} className="rounded border border-stone-300 px-3 py-2 text-sm">
+          <option value="all">全部部门</option><option value="unassigned">待分配</option>
+          {departments.map(([id,name])=><option key={id} value={id}>{name}</option>)}
+        </select>
+        <select aria-label="按状态筛选" value={statusFilter}
+          onChange={e=>{setStatusFilter(e.target.value);setPage(1);}} className="rounded border border-stone-300 px-3 py-2 text-sm">
+          <option value="all">全部状态</option><option value="Active">已启用</option>
+          <option value="Disabled">已停用</option>
+        </select>
+      </div>
+      {loadError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm">{loadError}</p>}
       {/* Identity Matrix */}
       <div className="bg-white border border-stone-200 shadow-sm overflow-hidden rounded-sm">
         {loading && accounts.length === 0 ? (
@@ -405,19 +478,25 @@ const AccountsManager: React.FC = () => {
             <Users className="mb-4 opacity-20" size={48} />
             <span className="text-[10px] font-bold uppercase tracking-widest">暂无账号记录。</span>
           </div>
+        ) : filtered.length===0 ? (
+          <div className="p-16 text-center text-sm text-stone-500">没有符合条件的账号，请调整筛选条件。</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-stone-50 border-b border-stone-200">
                 <tr className="text-[10px] font-bold text-stone-400 uppercase tracking-widest font-mono">
                   <th className="px-8 py-4">账号信息</th>
-                  <th className="px-8 py-4">账号类型</th>
+                  <th className="px-8 py-4">岗位</th>
+                  <th className="px-8 py-4">所属部门</th>
                   <th className="px-8 py-4">状态</th>
                   <th className="px-8 py-4 text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {accounts.map((account) => (
+                {visible.map((account,index) => (
+                  <React.Fragment key={account.id}>
+                  {(index===0 || groupOf(account)!==groupOf(visible[index-1])) &&
+                    <tr className="bg-stone-100"><td colSpan={5} className="px-8 py-2 text-xs font-semibold text-stone-700">{groupOf(account)}</td></tr>}
                   <tr key={account.id} className="hover:bg-stone-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
@@ -437,10 +516,11 @@ const AccountsManager: React.FC = () => {
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border inline-block
                         ${account.role === 'ADMIN' ? 'border-safety-700/20 text-safety-700 bg-safety-50' : 'border-stone-200 text-stone-500 bg-stone-50'}
                       `}>
-                        {account.role === 'ADMIN' ? '管理员' : '工厂操作员'}
+                        {labelOf(account)}
                       </span>
                     </td>
 
+                    <td className="px-8 py-5 text-xs text-stone-600">{account.department_name||(account.role==='ADMIN'?'全站':'待分配')}</td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-stone-300'}`}></div>
@@ -484,9 +564,17 @@ const AccountsManager: React.FC = () => {
                       </div>
                     </td>
                   </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
+            <div className="flex justify-between items-center gap-3 border-t border-stone-200 p-4 text-xs text-stone-600">
+              <span>共 {filtered.length} 个匹配账号 · 第 {currentPage}/{pages} 页</span>
+              <div className="flex gap-2">
+                <button disabled={currentPage<=1} onClick={()=>setPage(currentPage-1)} className="border px-3 py-2 rounded disabled:opacity-40">上一页</button>
+                <button disabled={currentPage>=pages} onClick={()=>setPage(currentPage+1)} className="border px-3 py-2 rounded disabled:opacity-40">下一页</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
