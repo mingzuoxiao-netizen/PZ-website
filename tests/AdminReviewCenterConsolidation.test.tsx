@@ -64,4 +64,5 @@ test('admin review tabs show live counts and keep approved unverified category v
   assert.match(source,/targetedPublishSupported===false/,'legacy Worker mode is surfaced');
   assert.match(source,/categoryQueueError/,'failed category refresh cannot silently appear empty');
   assert.match(source,/categoryQueueLoaded && <ReviewQueue/,'render empty queue only after successful fetch');
+  assert.match(source,/action==='approve' && targetedPublishSupported!==true/,'do not approve on a legacy draft-only Worker');
 });
