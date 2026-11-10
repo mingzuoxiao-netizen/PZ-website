@@ -42,7 +42,7 @@ test('category-only queue does not expose old single-stage product approval cont
     assert.doesNotMatch(initial,/待审核产品/);
     assert.doesNotMatch(initial,/批准产品/);
     const approve=view!.root.findAllByType('button').find(b=>
-      b.children.filter((x:unknown):x is string=>typeof x==='string').join(' ').includes('批准并发布')
+      b.children.filter((x:unknown):x is string=>typeof x==='string').join(' ').trim()==='批准并发布'
     );
     assert.ok(approve, 'category-only approval button remains available');
     await act(async()=>approve!.props.onClick());
