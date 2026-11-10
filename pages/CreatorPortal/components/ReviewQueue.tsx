@@ -128,7 +128,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 <p className="mt-1 text-xs text-stone-500">申请人：{item.submitter_name||'历史申请'}
                   {item.supervisor_name?' · 主管：'+item.supervisor_name:''}</p>
               </div>
-              <span className="text-xs text-amber-700">{item.status==='pending_admin'?'主管初审通过':'历史申请待审'}</span>
+              <span className="text-xs text-amber-700">{(item.status as string)==='pending_admin'?'主管初审通过':'历史申请待审'}</span>
               {rejectId!==item.id&&<button type="button" disabled={isProcessing}
                 onClick={()=>{setRejectId(item.id);setRejectNote('');}}
                 className="rounded border border-red-200 px-3 py-2 text-xs text-red-700">退回主管</button>}
