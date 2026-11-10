@@ -4646,11 +4646,14 @@ if (categoryResponse) return categoryResponse;
   `;
         const view = url.searchParams.get("view");
         if (view !== null) {
+          const reviewCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const unpublishedReview = "archived_at IS NULL AND catalog_hidden=1 AND lower(status)='published' AND unpublished_at IS NOT NULL AND unpublished_at<=?";
           const views = {
             action: "archived_at IS NULL AND lower(status) IN ('draft','rejected','awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','returned_to_uploader','approved_pending_publish')",
             published: "archived_at IS NULL AND catalog_hidden=0 AND lower(status)='published'",
             unpublished: "archived_at IS NULL AND (catalog_hidden=1 OR lower(status) IN ('unpublished','inactive'))",
             archived: "archived_at IS NOT NULL OR lower(status)='archived'",
+            unpublished_review: unpublishedReview,
             archive_review: "datetime(archived_at) <= datetime('now', '-30 days')",
           };
           if (!Object.hasOwn(views, view)) return badRequest("Invalid catalog view");
@@ -4661,10 +4664,18 @@ if (categoryResponse) return categoryResponse;
           const pageSize = 50;
           const where = " WHERE (" + views[view] + ")" + (search ?
             " AND (instr(lower(coalesce(code,'')),lower(?))>0 OR instr(lower(coalesce(name,'')),lower(?))>0 OR instr(lower(coalesce(name_cn,'')),lower(?))>0)" : "");
-          const args = search ? [search, search, search] : [];
-          const { results } = await env.DB.prepare(sql + where + " ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?")
-            .bind(...args, pageSize + 1, (page - 1) * pageSize).all();
-          return json({ products: normalizeProductRows(results.slice(0, pageSize)), has_more: results.length > pageSize });
+          const args = view === "unpublished_review" ? [reviewCutoff] : [];
+          if (search) args.push(search, search, search);
+          const [pageResult, reviewResult] = await env.DB.batch([
+            env.DB.prepare(sql + where + " ORDER BY updated_at DESC,id DESC LIMIT ? OFFSET ?")
+              .bind(...args, pageSize + 1, (page - 1) * pageSize),
+            env.DB.prepare("SELECT COUNT(*) AS count FROM products WHERE " + unpublishedReview).bind(reviewCutoff),
+          ]);
+          return json({
+            products: normalizeProductRows(pageResult.results.slice(0, pageSize)),
+            has_more: pageResult.results.length > pageSize,
+            unpublished_review_count: reviewResult.results[0].count,
+          });
         }
         const binds = [];
         if (status) {

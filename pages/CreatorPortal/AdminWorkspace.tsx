@@ -38,6 +38,7 @@ const AdminWorkspace: React.FC = () => {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogQuery, setCatalogQuery] = useState('');
   const [catalogHasMore, setCatalogHasMore] = useState(false);
+  const [unpublishedReviewCount, setUnpublishedReviewCount] = useState<number | null>(null);
   const [catalogError, setCatalogError] = useState('');
   const [archiving, setArchiving] = useState(false);
   const catalogRequest = useRef(0);
@@ -75,7 +76,7 @@ const AdminWorkspace: React.FC = () => {
     setCatalogError('');
     try {
       const query = new URLSearchParams({ view: catalogView, page: String(catalogPage), q: catalogQuery });
-      const response = await adminFetch<{ products: ProductVariant[]; has_more: boolean }>('admin/products?' + query);
+      const response = await adminFetch<{ products: ProductVariant[]; has_more: boolean; unpublished_review_count?: number }>('admin/products?' + query);
       if (request !== catalogRequest.current) return;
       if (!response.products.length && catalogPage > 1) {
         setCatalogPage(catalogPage - 1);
@@ -83,10 +84,12 @@ const AdminWorkspace: React.FC = () => {
       }
       setProducts(normalizeProducts(response.products));
       setCatalogHasMore(response.has_more);
+      setUnpublishedReviewCount(response.unpublished_review_count ?? null);
     } catch {
       if (request === catalogRequest.current) {
         setProducts([]);
         setCatalogHasMore(false);
+        setUnpublishedReviewCount(null);
         setCatalogError('读取产品失败，请刷新重试。');
       }
     } finally {
@@ -370,7 +373,7 @@ const AdminWorkspace: React.FC = () => {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
-                {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['archived', '归档'], ['archive_review', '归档满 30 天']].map(([value, label]) => (
+                {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['unpublished_review', unpublishedReviewCount === null ? '下架满 30 天' : `下架满 30 天（${unpublishedReviewCount}）`], ['archived', '归档'], ['archive_review', '归档满 30 天']].map(([value, label]) => (
                   <button key={value} type="button" aria-pressed={catalogView === value}
                     onClick={() => { setCatalogView(value); setCatalogPage(1); }}
                     className="rounded border px-3 py-2 text-sm aria-pressed:bg-stone-900 aria-pressed:text-white">{label}</button>
@@ -384,12 +387,15 @@ const AdminWorkspace: React.FC = () => {
                     maxLength={120} onChange={event => setCatalogSearch(event.target.value)} className="rounded border px-2 py-1" />
                   <button className="rounded border px-3 py-1" type="submit">搜索</button>
                 </form>
-                {catalogView === 'unpublished' && (
+                {(catalogView === 'unpublished' || catalogView === 'unpublished_review') && (
                   <button type="button" disabled={archiving || isProductsLoading || !products.some(p => p.status === 'published' && p.catalog_hidden)}
                     onClick={() => void handleArchive(products.filter(p => p.status === 'published' && p.catalog_hidden))}
                     className="rounded border px-3 py-2 disabled:opacity-50">归档本页</button>
                 )}
               </div>
+              {catalogView === 'unpublished_review' && (
+                <p className="text-sm text-stone-600">请复核连续下架满 30 天的商品。确认停产后可归档，仍计划重新上架的商品可继续留在此清单。</p>
+              )}
               {catalogView === 'archive_review' && (
                 <p className="text-sm text-stone-600">这份清单用于复核。曾发布的产品按现行规则保留，审核或发布历史仍受永久删除保护。</p>
               )}
