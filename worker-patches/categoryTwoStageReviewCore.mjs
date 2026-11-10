@@ -101,10 +101,27 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
   async function list(env,where='',params=[],limit=300) {
     const rows=await env.DB.prepare(tableListSql+where+
       " ORDER BY COALESCE(f.updated_at,c.updated_at) DESC LIMIT "+limit).bind(...params).all();
-    return (rows.results||[]).map(x=>({
+    const records=rows.results||[];
+    const ids=records.filter(x=>x.request_id).map(x=>x.id);
+    const history=new Map();
+    if(ids.length){
+      const sql="SELECT request_id,revision,action,actor_id,note,created_at "+
+        "FROM pz_category_request_events WHERE request_id IN ("+
+        ids.map(()=>"?").join(",")+") ORDER BY revision ASC";
+      const events=await env.DB.prepare(sql).bind(...ids).all();
+      for(const entry of events.results||[]){
+        if(!history.has(entry.request_id))history.set(entry.request_id,[]);
+        history.get(entry.request_id).push({
+          revision:entry.revision,action:entry.action,actor_id:entry.actor_id,
+          note:entry.note,created_at:entry.created_at
+        });
+      }
+    }
+    return records.map(x=>({
       ...x,
       status:x.legacy_status==='approved'?'approved':x.status,
-      legacy:!x.request_id
+      legacy:!x.request_id,
+      events:history.get(x.id)||[]
     }));
   }
   async function writeTransition(env,{id,actor,from,to,action,note,revision}) {
@@ -146,6 +163,12 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
     if(String(env.PZ_RUNTIME_ENV||'').toLowerCase()!==expectedRuntime)
       return respond('该分类申请接口只允许在配置的环境运行。',403);
     if(!env.DB)return respond('D1 未配置。',503);
+    // Authenticate before inspecting schema to avoid disclosing deployment state.
+    const roles=path.startsWith('/admin/')?['ADMIN']:
+      path.startsWith('/supervisor/')?['SUPERVISOR']:['FACTORY'];
+    const auth=await authorize(request,env,roles);
+    if(auth instanceof Response)return auth;
+    const actor=auth.user.id;
     // Fail closed if migration is not installed; never silently submit legacy single-stage.
     try{
       const schema=await env.DB.prepare(
@@ -153,11 +176,6 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       ).first();
       if(!schema)return respond('分类双级审核迁移 015 尚未执行。',503);
     }catch{return respond('无法验证分类审核数据库结构。',503);}
-    const roles=path.startsWith('/admin/')?['ADMIN']:
-      path.startsWith('/supervisor/')?['SUPERVISOR']:['FACTORY'];
-    const auth=await authorize(request,env,roles);
-    if(auth instanceof Response)return auth;
-    const actor=auth.user.id;
     if(method==='GET'&&path==='/factory/category-requests') {
       return json({items:await list(env,' WHERE f.submitter_id=?',[actor],200)});
     }
