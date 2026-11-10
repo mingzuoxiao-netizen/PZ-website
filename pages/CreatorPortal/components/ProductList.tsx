@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, AlertTriangle, Trash2 } from 'lucide-react';
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
@@ -39,6 +39,10 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const isFactory = userRole === "FACTORY";
   const isAdmin = userRole === "ADMIN";
+  const eligibleForPermanentDelete=(status?:string)=>
+    ['draft','rejected','unpublished','inactive','archived'].includes(String(status||''));
+  const adminCanDelete=isAdmin&&!!onPermanentDelete;
+  const deletionBusy=deletingId!==null||isBulkProcessing;
 
   const statusMap: Record<string, { label: string, color: string }> = {
     all: { label: T('All Statuses','全部状态'), color: '' },
@@ -72,6 +76,13 @@ const ProductList: React.FC<ProductListProps> = ({
       ? sites.length===0 : sites.includes(siteFilter));
     return matchesSearch&&matchesStatus&&matchesSite;
   }) : [];
+  const adminDeleteCandidates=adminCanDelete
+    ? filteredItems.filter(x=>!!x.id&&eligibleForPermanentDelete(x.status))
+    : [];
+  const adminSelected=adminDeleteCandidates.filter(x=>selectedIds.includes(x.id!));
+  useEffect(()=>{
+    setSelectedIds(prev=>prev.filter(id=>items.some(x=>x.id===id)));
+  },[items]);
   const hasCustomFilters=!['all','action','published'].includes(statusFilter)||siteFilter!=='all';
 
   const toggleSelect = (id: string) => {
