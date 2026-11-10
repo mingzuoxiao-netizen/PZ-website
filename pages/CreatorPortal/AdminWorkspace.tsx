@@ -21,7 +21,7 @@ import CategoryManagement from './components/CategoryManagement';
 import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
-import TwoStageProductReviews from './components/TwoStageProductReviews';
+import AdminReleaseQueue from './components/AdminReleaseQueue';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
@@ -106,9 +106,10 @@ const AdminWorkspace: React.FC = () => {
 
   const loadReviewQueue = useCallback(async () => {
     // Load each queue independently. Never misreport a failed fetch as "0 pending".
-    const [categoryResult,productResult,changeResult] = await Promise.allSettled([
+    const [categoryResult,productResult,revisionResult,changeResult] = await Promise.allSettled([
       adminFetch<{items:any[];capabilities?:{targetedCategoryPublish?:boolean;workflowVersion?:string}}>('admin/category-requests'),
       adminFetch<{items:any[]}>('admin/reviews'),
+      adminFetch<{items:any[]}>('admin/revisions'),
       adminFetch<{items:any[]}>('admin/category-change-requests')
     ]);
     if(categoryResult.status==='fulfilled' && Array.isArray(categoryResult.value?.items)){
@@ -128,9 +129,11 @@ const AdminWorkspace: React.FC = () => {
       setCategoryQueueLoaded(false);
       setTargetedPublishSupported(null);
     }
-    if(productResult.status==='fulfilled' && Array.isArray(productResult.value?.items)){
-      setProductReviewCount(productResult.value.items.filter(item =>
-        ['pending_admin','approved_pending_publish'].includes(item.status)).length);
+    if(productResult.status==='fulfilled' && Array.isArray(productResult.value?.items) &&
+       revisionResult.status==='fulfilled' && Array.isArray(revisionResult.value?.items)){
+      const needsAction=(item:{status:string})=>['pending_admin','approved_pending_publish'].includes(item.status);
+      setProductReviewCount(productResult.value.items.filter(needsAction).length+
+        revisionResult.value.items.filter(needsAction).length);
     }else setProductReviewCount(null);
     if(changeResult.status==='fulfilled' && Array.isArray(changeResult.value?.items)){
       setCategoryChangeCount(changeResult.value.items.filter(item=>item.status==='pending').length);
@@ -353,7 +356,7 @@ const AdminWorkspace: React.FC = () => {
                 </span>
               </div>
               <p className="mt-2 text-sm text-stone-500">
-                新品类通过 Admin 终审后直接发布到网站，其他网站配置草稿不会一起发布。产品 SKU 仍沿用现有产品审核与发布流程。
+                产品和修订由部门主管先审核，管理员仅需确认发布或退回；新品类通过终审后单独发布，不会带出其他网站草稿。
               </p>
               <div role="tablist" aria-label="审核类型" className="mt-5 grid gap-2 sm:grid-cols-3">
                 {([
@@ -385,7 +388,7 @@ const AdminWorkspace: React.FC = () => {
               reviewSection === 'products' ? '产品终审与发布' :
               reviewSection === 'new-categories' ? '新品类申请审核' : '已有分类修改审核'
             }>
-              {reviewSection === 'products' && <TwoStageProductReviews role="ADMIN" />}
+              {reviewSection === 'products' && <AdminReleaseQueue onQueueChanged={loadReviewQueue} />}
               {reviewSection === 'new-categories' && (
                 <div className="space-y-5">
                   {waitingCategories.length>0 &&
