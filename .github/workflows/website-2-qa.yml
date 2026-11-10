@@ -24,8 +24,11 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Organization RBAC and delegated account tests
-        run: node --test worker-patches/organizationAccessCore.test.mjs
+      - name: Organization RBAC, department lifecycle and copy-ready Worker syntax
+        run: |
+          node --check worker-patches/production-worker-admin-delete-v2-COPY.js
+          node --check worker-patches/organizationAccessCore.mjs
+          node --test worker-patches/organizationAccessCore.test.mjs
       - name: Two-stage product approval state-machine tests
         run: node --check worker-patches/productTwoStageReviewCore.mjs && node --test worker-patches/productTwoStageReviewCore.test.mjs
       - name: Structured product specs, anti-financial validation and migration gate

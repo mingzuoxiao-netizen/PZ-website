@@ -52,3 +52,43 @@ test('account rename, confirmed delete and server errors work through the actual
     else (globalThis as any).sessionStorage=savedStorage;
   }
 });
+
+
+test('account list shows supervisor roles and departments, filters unassigned and pages large lists',async()=>{
+  const oldFetch=globalThis.fetch;
+  const oldStorage=(globalThis as any).sessionStorage;
+  (globalThis as any).sessionStorage={getItem:()=> 'test-token'};
+  const rows:any[]=[
+    {id:'admin',username:'admin',role:'admin',is_active:1},
+    {id:'lead',username:'lead',role:'factory',is_active:1,job_type:'supervisor',department_id:'d1',department_name:'肇庆生产部'},
+    {id:'staff',username:'staff',role:'factory',is_active:1,job_type:'staff',department_id:'d1',department_name:'肇庆生产部'},
+    {id:'pending',username:'unassigned',role:'factory',is_active:1,job_type:null,department_id:null,department_name:null},
+    ...Array.from({length:17},(_,i)=>({id:'u'+i,username:'worker_'+i,role:'factory',is_active:1,
+      job_type:'staff',department_id:'d1',department_name:'肇庆生产部'}))
+  ];
+  globalThis.fetch=async()=>Response.json({users:rows});
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<AccountsManager/>);});
+    const root=()=>view!.root;
+    assert.match(JSON.stringify(view!.toJSON()),/部门主管/);
+    assert.match(JSON.stringify(view!.toJSON()),/肇庆生产部/);
+    assert.ok(root().findAllByType('button').some(b=>b.props.title==='删除账号'));
+    const filter=(name:string)=>root().findByProps({'aria-label':name});
+    await act(async()=>filter('按岗位筛选').props.onChange({target:{value:'supervisor'}}));
+    assert.equal(root().findAllByType('button').filter(b=>b.props.title==='删除账号').length,1);
+    await act(async()=>filter('按岗位筛选').props.onChange({target:{value:'unassigned'}}));
+    assert.match(JSON.stringify(view!.toJSON()),/unassigned/);
+    assert.equal(root().findAllByType('button').filter(b=>b.props.title==='删除账号').length,1);
+    await act(async()=>filter('按岗位筛选').props.onChange({target:{value:'all'}}));
+    assert.equal(root().findAllByType('button').filter(b=>b.props.title==='删除账号').length,15);
+    const next=root().findAllByType('button').find(b=>b.children.join('')==='下一页')!;
+    await act(async()=>next.props.onClick());
+    assert.ok(root().findAllByType('span').some(s=>s.children.join('').includes('第 2/2 页')));
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    globalThis.fetch=oldFetch;
+    if(oldStorage===undefined)delete (globalThis as any).sessionStorage;
+    else (globalThis as any).sessionStorage=oldStorage;
+  }
+});

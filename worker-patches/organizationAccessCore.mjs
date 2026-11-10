@@ -91,7 +91,7 @@ export function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash
 
     if (path === '/admin/org/departments' && method === 'GET') {
       const result = await env.DB.prepare(
-        "SELECT id,name,factory_site,is_active,created_at FROM pz_departments ORDER BY name"
+        "SELECT id,name,factory_site,is_active,created_at FROM pz_departments WHERE is_active=1 ORDER BY name"
       ).all();
       return json({ items: result.results || [] });
     }
@@ -109,6 +109,36 @@ export function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash
         throw err;
       }
       return json({success:true,id},201);
+    }
+
+    // Logical department deletion: keep historical department ID for audit FKs,
+    // but detach all account assignments so they become pending assignment.
+    const departmentDelete=path.match(/^\/admin\/org\/departments\/([^/]+)$/);
+    if (departmentDelete && method==='DELETE') {
+      let departmentId;
+      try { departmentId=decodeURIComponent(departmentDelete[1]); }
+      catch { return fail('Invalid department id',400); }
+      const department=await env.DB.prepare(
+        "SELECT id,name FROM pz_departments WHERE id=? AND is_active=1 LIMIT 1"
+      ).bind(departmentId).first();
+      if (!department) return fail('部门不存在或已删除。',404);
+      const old=await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM pz_staff_assignments WHERE department_id=?"
+      ).bind(departmentId).first();
+      try {
+        const results=await env.DB.batch([
+          env.DB.prepare("UPDATE pz_departments SET is_active=0 WHERE id=? AND is_active=1").bind(departmentId),
+          env.DB.prepare("DELETE FROM pz_staff_assignments WHERE department_id=? " +
+            "AND EXISTS(SELECT 1 FROM pz_departments WHERE id=? AND is_active=0)")
+            .bind(departmentId,departmentId)
+        ]);
+        if (Number(results[0]?.meta?.changes)!==1) return fail('部门状态已变化，请刷新后重试。',409);
+      } catch (error) {
+        console.error('Department archival transaction failed',String(error));
+        return fail('部门删除失败。组织成员未修改，请检查 D1 约束。',503);
+      }
+      return json({success:true,id:departmentId,name:department.name,mode:'archived',
+        unassigned_count:Number(old?.n||0),message:'部门已删除，账号进入待分配。历史审批保留。'});
     }
     if (path === '/admin/org/accounts' && method === 'GET') {
       const rows=await env.DB.prepare(
@@ -165,18 +195,24 @@ export function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash
       const departmentId=typeof body?.department_id==='string'?body.department_id:'';
       const supervisorId=typeof body?.supervisor_id==='string'?body.supervisor_id:'';
       const kind=String(body?.job_type||'staff').toLowerCase();
-      if (!userId || !createRoles.has(kind) || !(await validSupervisor(env,supervisorId,departmentId)))
-        return fail('Invalid assignment',409);
-      const target=await env.DB.prepare("SELECT id FROM users WHERE id=? AND lower(role)='factory' AND is_active=1").bind(userId).first();
-      if (!target || userId===supervisorId) return fail('Only active factory users can be assigned',403);
+      const department=await env.DB.prepare("SELECT id FROM pz_departments WHERE id=? AND is_active=1").bind(departmentId).first();
+      if (!userId || !jobTypes.has(kind) || !department ||
+        (kind!=='supervisor' && !(await validSupervisor(env,supervisorId,departmentId))))
+        return fail('请选择有效部门、岗位和主管。',409);
+      const target=await env.DB.prepare(
+        "SELECT id FROM users WHERE id=? AND lower(role)='factory' AND is_active=1"
+      ).bind(userId).first();
+      if (!target || (kind!=='supervisor'&&userId===supervisorId)) return fail('Only active factory users can be assigned',403);
       const existing=await env.DB.prepare("SELECT job_type FROM pz_staff_assignments WHERE user_id=?").bind(userId).first();
-      if (existing?.job_type==='supervisor') return fail('Cannot reassign supervisor as staff',403);
+      if (existing?.job_type==='supervisor' && kind!=='supervisor') return fail('Cannot reassign supervisor as staff',403);
+      if (existing && kind==='supervisor' && existing.job_type!=='supervisor')
+        return fail('请先解除员工的当前分配，再设置主管。',409);
       await env.DB.prepare(
         "INSERT INTO pz_staff_assignments (user_id,department_id,supervisor_id,job_type,created_by,created_at,updated_at) " +
         "VALUES (?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET department_id=excluded.department_id," +
         "supervisor_id=excluded.supervisor_id,job_type=excluded.job_type,updated_at=excluded.updated_at"
-      ).bind(userId,departmentId,supervisorId,kind,actor,now,now).run();
-      return json({success:true,id:userId});
+      ).bind(userId,departmentId,kind==='supervisor'?null:supervisorId,kind,actor,now,now).run();
+      return json({success:true,id:userId,job_type:kind});
     }
     const match=path.match(/^\/supervisor\/accounts\/([^/]+)(?:\/(password))?$/);
     if (match && (method==='PATCH' || (method==='POST' && match[2]==='password'))) {

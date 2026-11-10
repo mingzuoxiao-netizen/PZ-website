@@ -3324,7 +3324,7 @@ function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passw
 
     if (path === '/admin/org/departments' && method === 'GET') {
       const result = await env.DB.prepare(
-        "SELECT id,name,factory_site,is_active,created_at FROM pz_departments ORDER BY name"
+        "SELECT id,name,factory_site,is_active,created_at FROM pz_departments WHERE is_active=1 ORDER BY name"
       ).all();
       return json({ items: result.results || [] });
     }
@@ -3342,6 +3342,38 @@ function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passw
         throw err;
       }
       return json({success:true,id},201);
+    }
+
+    // Archive the department and release its accounts into the unassigned pool.
+    // Department row remains for immutable review/audit foreign keys.
+    const departmentDelete = path.match(/^\/admin\/org\/departments\/([^/]+)$/);
+    if (departmentDelete && method === 'DELETE') {
+      let departmentId;
+      try { departmentId=decodeURIComponent(departmentDelete[1]); }
+      catch { return fail('Invalid department id',400); }
+      const current=await env.DB.prepare(
+        "SELECT id,name FROM pz_departments WHERE id=? AND is_active=1 LIMIT 1"
+      ).bind(departmentId).first();
+      if (!current) return fail('部门不存在或已删除。',404);
+      const assigned=await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM pz_staff_assignments WHERE department_id=?"
+      ).bind(departmentId).first();
+      try {
+        const result=await env.DB.batch([
+          env.DB.prepare("UPDATE pz_departments SET is_active=0 WHERE id=? AND is_active=1")
+            .bind(departmentId),
+          env.DB.prepare("DELETE FROM pz_staff_assignments WHERE department_id=? " +
+            "AND EXISTS(SELECT 1 FROM pz_departments WHERE id=? AND is_active=0)")
+            .bind(departmentId,departmentId)
+        ]);
+        if (Number(result[0]?.meta?.changes)!==1) return fail('部门状态已变化，请刷新后重试。',409);
+      } catch (error) {
+        console.error('Department archival transaction failed',String(error));
+        return fail('部门删除失败。组织成员未修改，请检查 D1 约束。',503);
+      }
+      return json({success:true,id:departmentId,name:current.name,mode:'archived',
+        unassigned_count:Number(assigned?.n||0),
+        message:'部门已删除，原部门账号已转入待分配。审批与审计历史保留。'});
     }
     if (path === '/admin/org/accounts' && method === 'GET') {
       const rows=await env.DB.prepare(
@@ -3398,36 +3430,50 @@ function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passw
       const departmentId=typeof body?.department_id==='string'?body.department_id:'';
       const supervisorId=typeof body?.supervisor_id==='string'?body.supervisor_id:'';
       const kind=String(body?.job_type||'staff').toLowerCase();
-      if (!userId || !createRoles.has(kind) || !(await validSupervisor(env,supervisorId,departmentId)))
-        return fail('Invalid assignment',409);
-      const target=await env.DB.prepare("SELECT id FROM users WHERE id=? AND lower(role)='factory' AND is_active=1 AND deleted_at IS NULL").bind(userId).first();
-      if (!target || userId===supervisorId) return fail('Only active factory users can be assigned',403);
-      const existing=await env.DB.prepare("SELECT job_type FROM pz_staff_assignments WHERE user_id=?").bind(userId).first();
-      if (existing?.job_type==='supervisor') return fail('Cannot reassign supervisor as staff',403);
+      const activeDepartment=await env.DB.prepare(
+        "SELECT id FROM pz_departments WHERE id=? AND is_active=1 LIMIT 1"
+      ).bind(departmentId).first();
+      if (!userId || !jobTypes.has(kind) || !activeDepartment ||
+          (kind!=='supervisor' && !(await validSupervisor(env,supervisorId,departmentId))))
+        return fail('请选择有效部门、岗位和主管。',409);
+      const target=await env.DB.prepare(
+        "SELECT id FROM users WHERE id=? AND lower(role)='factory' AND is_active=1 AND deleted_at IS NULL"
+      ).bind(userId).first();
+      if (!target || (kind!=='supervisor' && userId===supervisorId))
+        return fail('Only active factory users can be assigned',403);
+      const existing=await env.DB.prepare(
+        "SELECT job_type FROM pz_staff_assignments WHERE user_id=?"
+      ).bind(userId).first();
+      if (existing?.job_type==='supervisor' && kind!=='supervisor')
+        return fail('Cannot reassign supervisor as staff',403);
+      if (existing && kind==='supervisor' && existing.job_type!=='supervisor')
+        return fail('请先移除该账号当前员工分配，再设为主管。',409);
       // Keep in-flight review chains with the newly assigned supervisor.
       const writes = [env.DB.prepare(
         "INSERT INTO pz_staff_assignments (user_id,department_id,supervisor_id,job_type,created_by,created_at,updated_at) " +
         "VALUES (?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET department_id=excluded.department_id," +
         "supervisor_id=excluded.supervisor_id,job_type=excluded.job_type,updated_at=excluded.updated_at"
-      ).bind(userId,departmentId,supervisorId,kind,actor,now,now)];
+      ).bind(userId,departmentId,kind==='supervisor'?null:supervisorId,kind,actor,now,now)];
       const tableNames = await env.DB.prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('pz_product_reviews','pz_published_product_revisions')"
       ).all();
       const reviewTables = new Set((tableNames.results||[]).map(x=>x.name));
-      for (const table of ['pz_product_reviews','pz_published_product_revisions']) {
-        if (!reviewTables.has(table)) continue;
-        writes.push(env.DB.prepare(
-          "UPDATE " + table + " SET supervisor_id=?,department_id=?,updated_at=? " +
-          "WHERE submitter_id=? AND status IN ('pending_supervisor','returned_to_supervisor'," +
-          "'returned_to_uploader','pending_admin')"
-        ).bind(supervisorId,departmentId,now,userId));
+      if (kind!=='supervisor') {
+        for (const table of ['pz_product_reviews','pz_published_product_revisions']) {
+          if (!reviewTables.has(table)) continue;
+          writes.push(env.DB.prepare(
+            "UPDATE " + table + " SET supervisor_id=?,department_id=?,updated_at=? " +
+            "WHERE submitter_id=? AND status IN ('draft','pending_supervisor','returned_to_supervisor'," +
+            "'returned_to_uploader','pending_admin')"
+          ).bind(supervisorId,departmentId,now,userId));
+        }
       }
       try { await env.DB.batch(writes); }
       catch(error) {
         console.error('Assignment review transfer failed',String(error));
         return fail('Assignment or linked review transfer failed; no changes committed',409);
       }
-      return json({success:true,id:userId,linked_open_reviews_reassigned:true});
+      return json({success:true,id:userId,job_type:kind,linked_open_reviews_reassigned:kind!=='supervisor'});
     }
     const match=path.match(/^\/supervisor\/accounts\/([^/]+)(?:\/(password))?$/);
     if (match && (method==='PATCH' || (method==='POST' && match[2]==='password'))) {
@@ -5559,9 +5605,12 @@ if (
         const auth = await authorize(request, env, ["ADMIN"]);
         if (auth instanceof Response) return auth;
         const rows = await env.DB.prepare(
-          `SELECT id, username, role, is_active, created_at
-           FROM users WHERE deleted_at IS NULL
-           ORDER BY created_at DESC`
+          `SELECT u.id,u.username,u.role,u.is_active,u.created_at,
+                  a.job_type,a.department_id,a.supervisor_id,d.name AS department_name
+           FROM users u
+           LEFT JOIN pz_staff_assignments a ON a.user_id=u.id
+           LEFT JOIN pz_departments d ON d.id=a.department_id AND d.is_active=1
+           WHERE u.deleted_at IS NULL ORDER BY u.created_at DESC`
         ).all();
         return json({ users: rows.results ?? [] });
       }
@@ -5702,6 +5751,9 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       return { action: `category_change.${m[2]}`, entity_type: "category_change", entity_id: decodeURIComponent(m[1]) };
     if (path === "/admin/org/departments" && method === "POST")
       return { action: "department.create", entity_type: "department", entity_id: "" };
+    const departmentMatch = path.match(/^\/admin\/org\/departments\/([^/]+)$/);
+    if (departmentMatch && method === "DELETE")
+      return { action: "department.delete", entity_type: "department", entity_id: decodeURIComponent(departmentMatch[1]) };
     if ((path === "/admin/org/accounts" || path === "/supervisor/accounts") && method === "POST")
       return { action: "account.delegated_create", entity_type: "account", entity_id: "" };
     if (path === "/admin/org/assignments" && method === "POST")
@@ -5784,6 +5836,17 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
         "SELECT name,name_cn,category,sub_category,material,size,finish,code,status,catalog_hidden,archived_at,images,production_sites,created_by,updated_at FROM products WHERE id=? LIMIT 1"
       ).bind(id).first();
       return safeSummary(row, productFields);
+    }
+    if (entityType === "department" && id) {
+      const row = await env.DB.prepare(
+        "SELECT id,name,factory_site,is_active FROM pz_departments WHERE id=? LIMIT 1"
+      ).bind(id).first();
+      if (!row) return null;
+      const count = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM pz_staff_assignments WHERE department_id=?"
+      ).bind(id).first();
+      return {name:row.name,factory_site:row.factory_site,is_active:row.is_active,
+        assigned_accounts:Number(count?.n||0)};
     }
     if (entityType === "account" && id) {
       const row = await env.DB.prepare(
@@ -6640,10 +6703,18 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
     // D1.batch gives atomicity. Historical supervisor assignment remains.
     if (supervisorDepartment !== null) {
       const retiredGate = "EXISTS(SELECT 1 FROM users WHERE id=? AND deleted_at=? AND is_active=0)";
-      updates.push(env.DB.prepare(
-        "UPDATE pz_staff_assignments SET supervisor_id=?,updated_at=? " +
-        "WHERE supervisor_id=? AND " + retiredGate
-      ).bind(replacementSupervisorId,stamp,id,id,stamp));
+      if (replacementSupervisorId) {
+        updates.push(env.DB.prepare(
+          "UPDATE pz_staff_assignments SET supervisor_id=?,updated_at=? " +
+          "WHERE supervisor_id=? AND " + retiredGate
+        ).bind(replacementSupervisorId,stamp,id,id,stamp));
+      } else {
+        // D1 CHECK forbids a staff assignment with NULL supervisor_id.
+        // Removing its assignment places staff in the pending-assignment pool.
+        updates.push(env.DB.prepare(
+          "DELETE FROM pz_staff_assignments WHERE supervisor_id=? AND " + retiredGate
+        ).bind(id,id,stamp));
+      }
       if (replacementSupervisorId) {
         for (const table of ["pz_product_reviews","pz_published_product_revisions"]) {
           if (!tables.has(table)) continue;

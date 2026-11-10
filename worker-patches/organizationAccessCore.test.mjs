@@ -137,3 +137,47 @@ test('both candidate bundles contain new org routes and feature flag',()=>{
     assert.match(content,/account.delegated_create/);
   }
 });
+
+
+test('admin archives a department, retains accounts and audit FKs, and supports reassignment',async()=>{
+  const {sql,env,call}=setup();
+  sql.exec(readFileSync(new URL('./migrations/014_department_archive_active_unique_REVIEW.sql',import.meta.url),'utf8'));
+  const old=(await call('/admin/org/departments','POST',{name:'Old Team',factory_site:'zhaoqing'})).body.id;
+  const lead=(await call('/admin/org/accounts','POST',{
+    username:'old_lead',password:strong,job_type:'supervisor',department_id:old
+  })).body.id;
+  const member=(await call('/supervisor/accounts','POST',{
+    username:'old_staff',password:strong,job_type:'staff'
+  },lead)).body.id;
+  sql.exec('CREATE TABLE dept_audit(id TEXT PRIMARY KEY, dept_id TEXT NOT NULL REFERENCES pz_departments(id));');
+  sql.prepare('INSERT INTO dept_audit VALUES (?,?)').run('audit1',old);
+  assert.equal((await call('/admin/org/departments/'+old,'DELETE',undefined,member)).status,403);
+  const removal=await call('/admin/org/departments/'+old,'DELETE');
+  assert.equal(removal.status,200);
+  assert.equal(removal.body.unassigned_count,2);
+  assert.equal(sql.prepare('SELECT is_active FROM pz_departments WHERE id=?').get(old).is_active,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM pz_staff_assignments WHERE department_id=?').get(old).n,0);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM users WHERE id IN (?,?)').get(lead,member).n,2);
+  assert.equal(sql.prepare('SELECT dept_id FROM dept_audit WHERE id=?').get('audit1').dept_id,old);
+  assert.ok((await call('/admin/org/accounts')).body.users
+    .filter(row=>[lead,member].includes(row.id)).every(row=>row.job_type===null));
+  assert.equal(await pzOrgCanManageProduct(env,member),false);
+  assert.equal((await call('/admin/org/departments')).body.items.length,0);
+  assert.equal((await call('/admin/org/departments/'+old,'DELETE')).status,404);
+  assert.equal((await call('/admin/org/assignments','POST',{
+    user_id:lead,department_id:old,job_type:'supervisor'
+  })).status,409);
+  const fresh=(await call('/admin/org/departments','POST',{name:'Old Team',factory_site:'shared'}));
+  assert.equal(fresh.status,201);
+  const reassignLead=await call('/admin/org/assignments','POST',{
+    user_id:lead,department_id:fresh.body.id,job_type:'supervisor'
+  });
+  assert.equal(reassignLead.status,200);
+  assert.equal(reassignLead.body.job_type,'supervisor');
+  assert.equal(await pzOrgEffectiveRole(env,lead,'factory'),'SUPERVISOR');
+  const reassignMember=await call('/admin/org/assignments','POST',{
+    user_id:member,department_id:fresh.body.id,supervisor_id:lead,job_type:'staff'
+  });
+  assert.equal(reassignMember.status,200);
+  assert.equal(sql.prepare('SELECT supervisor_id FROM pz_staff_assignments WHERE user_id=?').get(member).supervisor_id,lead);
+});
