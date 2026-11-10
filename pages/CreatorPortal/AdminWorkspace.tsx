@@ -105,7 +105,7 @@ const AdminWorkspace: React.FC = () => {
       setAllCategoryRequests(catRes.items ?? []);
       setCategoryRequests((catRes.items ?? []).filter(item =>
         item.status === 'pending_admin' ||
-        (item.legacy && ['pending','awaiting_review'].includes(item.status))));
+        (item.legacy !== false && ['pending','awaiting_review'].includes(item.status))));
     } catch (e) { console.error('Category queue sync error', e); }
   }, []);
 
