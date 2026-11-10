@@ -47,6 +47,11 @@ const AdminWorkspace: React.FC = () => {
   const [allCategoryRequests, setAllCategoryRequests] = useState<any[]>([]);
   const [publishingCategoryId,setPublishingCategoryId] = useState<string|null>(null);
   const [categoryPublishMessage,setCategoryPublishMessage] = useState('');
+  const [categoryQueueError,setCategoryQueueError] = useState('');
+  const [categoryQueueLoaded,setCategoryQueueLoaded] = useState(false);
+  const [targetedPublishSupported,setTargetedPublishSupported] = useState<boolean|null>(null);
+  const [productReviewCount,setProductReviewCount] = useState<number|null>(null);
+  const [categoryChangeCount,setCategoryChangeCount] = useState<number|null>(null);
 
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -100,16 +105,45 @@ const AdminWorkspace: React.FC = () => {
   }, [catalogView, catalogPage, catalogQuery]);
 
   const loadReviewQueue = useCallback(async () => {
-    try {
-      // Product reviews and category requests are separate two-stage workflows.
-      // Admin sees proposals ONLY after supervisor first approval, plus grandfathered legacy requests.
-      const catRes = await adminFetch<{ items: any[] }>('admin/category-requests');
-      setAllCategoryRequests(catRes.items ?? []);
-      setCategoryRequests((catRes.items ?? []).filter(item =>
-        item.status === 'pending_admin' ||
-        (item.legacy !== false && ['pending','awaiting_review'].includes(item.status))));
-    } catch (e) { console.error('Category queue sync error', e); }
+    // Load each queue independently. Never misreport a failed fetch as "0 pending".
+    const [categoryResult,productResult,changeResult] = await Promise.allSettled([
+      adminFetch<{items:any[];capabilities?:{targetedCategoryPublish?:boolean;workflowVersion?:string}}>('admin/category-requests'),
+      adminFetch<{items:any[]}>('admin/reviews'),
+      adminFetch<{items:any[]}>('admin/category-change-requests')
+    ]);
+    if(categoryResult.status==='fulfilled' && Array.isArray(categoryResult.value?.items)){
+      const items=categoryResult.value.items;
+      setAllCategoryRequests(items);
+      setCategoryRequests(items.filter(item =>
+        item.status==='pending_admin' ||
+        (item.legacy!==false && ['pending','awaiting_review'].includes(item.status))));
+      setTargetedPublishSupported(categoryResult.value.capabilities?.targetedCategoryPublish===true);
+      setCategoryQueueError('');
+      setCategoryQueueLoaded(true);
+    }else{
+      const reason=categoryResult.status==='rejected'
+        ? (categoryResult.reason?.message||'连接失败')
+        : '接口没有返回正确的申请列表';
+      setCategoryQueueError('新品类申请记录读取失败，不能将队列视为已清空：'+reason);
+      setCategoryQueueLoaded(false);
+      setTargetedPublishSupported(null);
+    }
+    if(productResult.status==='fulfilled' && Array.isArray(productResult.value?.items)){
+      setProductReviewCount(productResult.value.items.filter(item =>
+        ['pending_admin','approved_pending_publish'].includes(item.status)).length);
+    }else setProductReviewCount(null);
+    if(changeResult.status==='fulfilled' && Array.isArray(changeResult.value?.items)){
+      setCategoryChangeCount(changeResult.value.items.filter(item=>item.status==='pending').length);
+    }else setCategoryChangeCount(null);
   }, []);
+
+  const waitingCategories = allCategoryRequests.filter(item =>
+    item.status==='approved' && item.published!==true);
+  const actionableCategoryCount = categoryQueueLoaded ? categoryRequests.length : null;
+  const reviewCounts = [productReviewCount,actionableCategoryCount,categoryChangeCount];
+  const knownPending = reviewCounts.filter((count):count is number=>count!==null)
+    .reduce((total,count)=>total+count,0);
+  const reviewCountsComplete = reviewCounts.every(count=>count!==null);
 
   const loadSiteConfig = useCallback(async () => {
     try {
