@@ -40,11 +40,15 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       return {error:respond('请上传当前环境的分类封面。',400)};
     try {
       const u=new URL(value.image),b=new URL(base);
-      if(u.origin!==b.origin || !u.pathname.startsWith('/uploads/') ||
+      if(u.origin!==b.origin ||
         u.search||u.hash||u.username||u.password||u.protocol!=='https:')
         return {error:respond('分类封面必须来自当前环境的图片存储。',400)};
+      // The existing /upload-image endpoint returns encodeURIComponent(key),
+      // e.g. /uploads%2Ffilename.jpg. Support that legacy encoding, alongside
+      // /uploads/filename.jpg, without allowing arbitrary or double-encoded paths.
       const key=decodeURIComponent(u.pathname.slice(1));
-      if(!/^uploads\/[^/]+$/.test(key)||key.includes('..'))
+      if(!/^uploads\/[^/]+$/.test(key)||key.includes('..')||
+        (u.pathname!==('/'+encodeURIComponent(key)) && u.pathname!==('/'+key)))
         return {error:respond('图片存储路径无效。',400)};
       if(!env.PRODUCT_IMAGES || !(await env.PRODUCT_IMAGES.head(key)))
         return {error:respond('分类封面未在当前环境的 R2 中找到。',409)};
