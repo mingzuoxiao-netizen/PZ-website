@@ -6169,6 +6169,10 @@ index_default.fetch=pzProductPermanentDeleteFetch(pzHardDeleteOriginalFetch,{
 // published-draft source; review ownership and history are recorded separately.
 // Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
 // This module is inlined into the complete Staging and Production Worker candidates.
+// Additive two-stage category proposals. Legacy category_requests stays the
+// published-draft source; review ownership and history are recorded separately.
+// Enabled only after migration 015 with PZ_CATEGORY_TWO_STAGE_ENABLED=true.
+// This module is inlined into the complete Staging and Production Worker candidates.
 function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expectedRuntime, imageBase }) {
   const respond=(error,status=400)=>json({error},status);
   const iso=()=>new Date().toISOString();
@@ -6298,6 +6302,13 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
     }
     if(!proposal || proposal.status!=='approved')
       return {published:false,publishError:'只有 Admin 已批准的新品类可以发布。'};
+    // A new workflow request cannot be published from the legacy status alone;
+    // its supervisor/admin event chain must also have reached approved.
+    const flow=await env.DB.prepare(
+      "SELECT status FROM pz_category_request_flow WHERE request_id=? LIMIT 1"
+    ).bind(requestId).first();
+    if(flow && flow.status!=='approved')
+      return {published:false,publishError:'新品类双级审核状态未完成，请先核对审批事件。'};
     const slug=categorySlug(proposal.title);
     if(!slug)return {published:false,publishError:'分类英文名称无法生成有效编号。'};
     const proposed={
@@ -6619,7 +6630,6 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
     return originalFetch.call(this,request,env,ctx);
   };
 }
-
 const pzCategoryOriginalFetch=index_default.fetch;
 index_default.fetch=pzCategoryTwoStageReviewFetch(pzCategoryOriginalFetch,{
   authorize,json,expectedRuntime:'production',imageBase:pzConfiguredImageBase
