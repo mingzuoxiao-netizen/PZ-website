@@ -131,6 +131,13 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
     }
     if(!proposal || proposal.status!=='approved')
       return {published:false,publishError:'只有 Admin 已批准的新品类可以发布。'};
+    // A new workflow request cannot be published from the legacy status alone;
+    // its supervisor/admin event chain must also have reached approved.
+    const flow=await env.DB.prepare(
+      "SELECT status FROM pz_category_request_flow WHERE request_id=? LIMIT 1"
+    ).bind(requestId).first();
+    if(flow && flow.status!=='approved')
+      return {published:false,publishError:'新品类双级审核状态未完成，请先核对审批事件。'};
     const slug=categorySlug(proposal.title);
     if(!slug)return {published:false,publishError:'分类英文名称无法生成有效编号。'};
     const proposed={
