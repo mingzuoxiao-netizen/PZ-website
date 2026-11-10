@@ -118,7 +118,9 @@ test('no deletion with wrong confirmation, stale edit version or unexpected fiel
   const {sql,call}=fixture();
   assert.equal((await call('draft','POST',confirmation('PZ-OAK-001'))).status,409);
   assert.equal((await call('draft','POST',confirmation('PZ-BIRCH-001','old'))).status,409);
-  assert.equal((await call('draft','POST',{...confirmation('PZ-BIRCH-001'),force:true})).status,400);
+  assert.equal((await call('draft','POST',{...confirmation('PZ-BIRCH-001'),force:true})).status,503,
+    'forced deletion must fail closed without migration and feature flag');
+  assert.equal((await call('draft','POST',{...confirmation('PZ-BIRCH-001'),dangerous:true})).status,400);
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM products').get().n,4);
 });
 
