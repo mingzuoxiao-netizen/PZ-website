@@ -102,13 +102,45 @@ const ProductList: React.FC<ProductListProps> = ({
   };
 
   const handlePermanentDelete=async(item:ProductVariant)=>{
-    if(!onPermanentDelete||!item.id||deletingId)return;
+    if(!onPermanentDelete||!item.id||deletionBusy)return;
+    if(!confirm('确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
     setDeletingId(item.id);
     try{
       await onPermanentDelete(item);
+      setSelectedIds(prev=>prev.filter(id=>id!==item.id));
+      await onRefresh?.();
+      alert('产品已永久删除，无需输入 SKU。');
     }catch(error:any){
+      await onRefresh?.();
       alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
     }finally{setDeletingId(null);}
+  };
+
+  const handleAdminBulkDelete=async()=>{
+    if(!onPermanentDelete||deletionBusy||!adminSelected.length)return;
+    const batch=[...adminSelected];
+    if(!confirm('确认永久删除选中的 '+batch.length+
+      ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
+    setIsBulkProcessing(true);
+    const failed:{id:string;sku:string;reason:string}[]=[];
+    let succeeded=0;
+    try{
+      // No bulk permission bypass: use existing preflight and deletion guards per item.
+      for(const item of batch){
+        try{await onPermanentDelete(item);succeeded++;}
+        catch(error:any){
+          failed.push({id:item.id!,sku:item.code||item.name||item.id!,
+            reason:error?.message||'删除结果未确认'});
+        }
+      }
+      setSelectedIds(failed.map(x=>x.id));
+      await onRefresh?.();
+      if(failed.length)alert('批量删除结果：成功 '+succeeded+' 件，失败 '+failed.length+
+        ' 件。\n'+failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
+        (failed.length>5?'\n其余失败项目请单独核对。':'')+
+        '\n失败项目已保留选中，请核对后再重试。');
+      else alert('已删除 '+succeeded+' 件产品，R2 原图未删除。');
+    }finally{setIsBulkProcessing(false);}
   };
 
   const handleSubmitForReview = async (id: string) => {
