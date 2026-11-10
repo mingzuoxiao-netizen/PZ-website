@@ -250,7 +250,13 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
       status:x.legacy_status==='approved'?'approved':x.status,
       legacy:!x.request_id,
       events:history.get(x.id)||[],
-      published:x.legacy_status==='approved' && isAlreadyPublished(publicConfig,x.id)
+      // An unreadable published config is unknown, not a proven publication.
+      published:x.legacy_status==='approved'
+        ? (publicConfig ? isAlreadyPublished(publicConfig,x.id) : null)
+        : false,
+      publicationStatus:x.legacy_status==='approved'
+        ? (!publicConfig ? 'unverified' : isAlreadyPublished(publicConfig,x.id) ? 'published' : 'not_published')
+        : 'not_approved'
     }));
   }
   async function writeTransition(env,{id,actor,from,to,action,note,revision}) {
@@ -315,7 +321,9 @@ export function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, 
         [actor,assigned.department_id],300)});
     }
     if(method==='GET'&&path==='/admin/category-requests') {
-      return json({items:await list(env,'',[],500)});
+      return json({items:await list(env,'',[],500),
+        capabilities:{workflowVersion:'category-targeted-publication-v2',
+          targetedCategoryPublish:true,publicationMode:'category_only'}});
     }
     if(method==='POST'&&path==='/factory/category-requests') {
       const assignment=await actorAssignment(env,actor);
