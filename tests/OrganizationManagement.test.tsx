@@ -244,15 +244,15 @@ test('department cards show supervisors first; members render only for the opene
     assert.equal(card('肇庆产品部').props['aria-expanded'],true);
     let rows=root().findAllByType('tbody')[0].findAllByType('tr');
     assert.equal(rows.length,2);
-    assert.match(JSON.stringify(rows.map(x=>x.children)),/mishu/);
-    assert.doesNotMatch(JSON.stringify(rows.map(x=>x.children)),/PZ03/);
+    assert.match(rows.flatMap(row=>row.findAllByType('td').map(cell=>cell.children.join(''))).join(' | '),/mishu/);
+    assert.doesNotMatch(rows.flatMap(row=>row.findAllByType('td').map(cell=>cell.children.join(''))).join(' | '),/PZ03/);
     await act(async()=>card('肇庆业务部').props.onClick());
     assert.equal(card('肇庆产品部').props['aria-expanded'],false);
     assert.equal(card('肇庆业务部').props['aria-expanded'],true);
     rows=root().findAllByType('tbody')[0].findAllByType('tr');
     assert.equal(rows.length,2);
-    assert.match(JSON.stringify(rows.map(x=>x.children)),/PZ03/);
-    assert.doesNotMatch(JSON.stringify(rows.map(x=>x.children)),/mishu/);
+    assert.match(rows.flatMap(row=>row.findAllByType('td').map(cell=>cell.children.join(''))).join(' | '),/PZ03/);
+    assert.doesNotMatch(rows.flatMap(row=>row.findAllByType('td').map(cell=>cell.children.join(''))).join(' | '),/mishu/);
     await act(async()=>card('肇庆业务部').props.onClick());
     assert.equal(root().findAllByType('tbody').length,0);
   }finally{
