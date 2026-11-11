@@ -54,7 +54,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
   const detailRequest=useRef(0);
   const refresh=useCallback(async()=>{
     const request=++requestId.current;
-    setLoading(true);setError('');
+    setLoading(true);
     try{
       const result=await fetchBackofficePage<WorkItem>('admin/release-queue',{
         page,q:query,department,supervisor,kind:kind||undefined,sort
@@ -71,7 +71,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
     }finally{if(request===requestId.current)setLoading(false);}
   },[page,query,department,supervisor,kind,sort]);
   useEffect(()=>{
-    setSelected([]);setExpanded(null);setDetail(null);setReturnKey(null);setReason('');detailRequest.current++;
+    setError('');setSelected([]);setExpanded(null);setDetail(null);setReturnKey(null);setReason('');detailRequest.current++;
     void refresh();
     return ()=>{requestId.current++;};
   },[refresh]);
@@ -178,7 +178,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
         <h2 className="font-serif text-lg text-stone-900">待发布产品与修订（{unknown?'未同步':pendingCount}）</h2>
         <p className="mt-1 text-xs text-stone-500">主管负责内容审核，Admin 一键终审并发布。详情仅在需要时展开。</p>
       </div>
-      <button type="button" disabled={busy||loading} onClick={()=>void refresh()}
+      <button type="button" disabled={busy||loading} onClick={()=>{setError('');void refresh();}}
         className="rounded border border-stone-300 px-3 py-2 text-xs">刷新待办</button>
     </div>
     {partial.length>0&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

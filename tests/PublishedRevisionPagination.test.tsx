@@ -27,3 +27,27 @@ test('factory revision search reaches beyond 300 and only renders a bounded page
   }finally{if(view)await act(async()=>view!.unmount());globalThis.fetch=oldFetch;
     if(oldStorage===undefined)delete (globalThis as any).sessionStorage;else (globalThis as any).sessionStorage=oldStorage;}
 });
+
+test('revision submission error is not erased by a successful list refresh',async()=>{
+  const oldFetch=globalThis.fetch,oldStorage=(globalThis as any).sessionStorage,oldConfirm=(globalThis as any).confirm;
+  (globalThis as any).sessionStorage={getItem:()=>null};(globalThis as any).confirm=()=>true;
+  const item={id:'draft',code:'PZ-DRAFT',name:'Draft Table',status:'draft',latest_version:0,draft_revision:1};
+  let view:ReturnType<typeof create>|undefined;
+  globalThis.fetch=(async(input:any,init?:RequestInit)=>{
+    const path=String(input);
+    if(path.endsWith('/submit'))return Response.json({error:'temporary revision failure'},{status:503});
+    if(path.endsWith('/draft'))return Response.json({...item,versions:[],base_snapshot:{},draft:{name:item.name},events:[]});
+    return Response.json({items:[item]});
+  }) as typeof fetch;
+  try{
+    await act(async()=>{view=create(<PublishedRevisionQueue role="FACTORY"/>);});
+    await act(async()=>view!.root.findByProps({'aria-label':'修订申请列表'}).findAllByType('button')[0].props.onClick());
+    const submit=view!.root.findAllByType('button').find(button=>button.children.join('')==='提交主管初审')!;
+    await act(async()=>submit.props.onClick());
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/temporary revision failure/);
+  }finally{
+    if(view)await act(async()=>view!.unmount());globalThis.fetch=oldFetch;
+    if(oldStorage===undefined)delete (globalThis as any).sessionStorage;else (globalThis as any).sessionStorage=oldStorage;
+    if(oldConfirm===undefined)delete (globalThis as any).confirm;else (globalThis as any).confirm=oldConfirm;
+  }
+});

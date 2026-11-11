@@ -84,7 +84,6 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
       if(request!==requestGeneration.current)return;
       setTotal('total' in response?Number(response.total):response.items.length);
       if(paged&&page>1&&!response.items.length){setPage(Math.max(1,Math.ceil(('total' in response?Number(response.total):0)/50)));return;}
-      setError('');
       const actionable=(response.items||[]).filter(item=>
         isActionableRevisionForRole(role,item.status));
       setEnabled(true);onEnabledChange?.(true);setItems(actionable);
@@ -97,7 +96,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
       setError(e?.message||'无法读取修订申请');setTotal(null);setItems([]);setSelected(null);
     }finally{if(request===requestGeneration.current)setLoading(false);}
   },[prefix,onEnabledChange,role,paged,page,query,filter]);
-  useEffect(()=>{setSelected(null);detailGeneration.current++;void refresh();return ()=>{requestGeneration.current++;detailGeneration.current++;};},[refresh,refreshKey]);
+  useEffect(()=>{setError('');setSelected(null);detailGeneration.current++;void refresh();return ()=>{requestGeneration.current++;detailGeneration.current++;};},[refresh,refreshKey]);
   const inspect=async(id:string)=>{
     const request=++detailGeneration.current;setBusy(true);setSelected(null);setReason('');setError('');
     try{
@@ -164,7 +163,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
       <div><h2 className="font-serif text-lg">{role==='FACTORY'?'我的产品修订':'产品修订待办'}（{paged?(total===null?'未同步':total):items.length}）</h2>
         <p className="mt-1 text-xs leading-5 text-stone-500">这里只显示当前需要处理的修订。已发布记录保留在产品与审批历史中。</p>
       </div>
-      <button type="button" className="rounded border border-stone-300 px-3 py-2 text-xs" onClick={()=>void refresh()}>刷新列表</button>
+      <button type="button" className="rounded border border-stone-300 px-3 py-2 text-xs" onClick={()=>{setError('');void refresh();}}>刷新列表</button>
     </div>
     {paged&&enabled&&<form aria-label="筛选我的修订" className="flex flex-wrap items-end gap-3" onSubmit={event=>{event.preventDefault();setQuery(search.trim());setPage(1);}}>
       <label className="flex-1 text-xs">SKU 或产品名称<input aria-label="搜索我的修订" value={search} disabled={busy||loading} type="search" maxLength={120}

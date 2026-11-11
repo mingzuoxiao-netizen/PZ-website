@@ -107,5 +107,6 @@ test('saved draft survives a failed submission without a second create',async t=
     assert.equal(env.rows.find(row=>row.code==='PZ-NEW-ONE')!.status,'draft');
     assert.equal(view!.root.findAllByType(ProductForm).length,0);
     assert.match(JSON.stringify(view!.toJSON()),/PZ-NEW-ONE/);
+    assert.match(JSON.stringify(view!.toJSON()),/草稿已保存/,'the saved-draft message survives editor unmount and list refresh');
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });

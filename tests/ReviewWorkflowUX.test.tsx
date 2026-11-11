@@ -224,3 +224,22 @@ test('admin completed revision disappears from review list and does not retain s
   }
 });
 
+test('supervisor action error stays visible after the successful reconciliation read',async()=>{
+  const environment=setup();let view:ReturnType<typeof create>|undefined;
+  const item={id:'failed',kind:'product',name:'Pending Table',code:'PZ-FAILED',status:'pending_supervisor',latest_version:1};
+  environment.install(async(url,init)=>{
+    if(url.includes('/supervisor/release-queue?'))return status({list_version:1,items:[item],total:1,page:1,page_size:50,has_more:false});
+    if(url.endsWith('/supervisor/reviews/failed/approve'))return Response.json({error:'temporary review failure'},{status:503});
+    if(url.endsWith('/supervisor/reviews/failed'))return status({...item,versions:[{version:1,snapshot:{name:item.name}}],events:[]});
+    throw Error('Unexpected '+url+' '+init?.method);
+  });
+  try{
+    await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
+    const row=view!.root.findByProps({'aria-label':'审核申请列表'}).findAllByType('button')[0];
+    await act(async()=>row.props.onClick());
+    await act(async()=>getButton(view!,'初审通过并查看下一条')!.props.onClick());
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/temporary review failure/);
+    assert.equal(environment.calls.filter(call=>call.startsWith('POST')).length,1);
+  }finally{if(view)await act(async()=>view!.unmount());environment.restore();}
+});
+

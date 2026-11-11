@@ -60,6 +60,7 @@ const FactoryWorkspace: React.FC = () => {
   const [catalogSite,setCatalogSite]=useState('all');
   const [catalogTotal,setCatalogTotal]=useState<number|null>(null);
   const [catalogError,setCatalogError]=useState('');
+  const [productActionError,setProductActionError]=useState('');
   const [statusCounts,setStatusCounts]=useState<{status:string;count:number}[]>([]);
   const [categoryFacets,setCategoryFacets]=useState<{category:string|null;count:number}[]>([]);
   const categoryFacetRef=useRef<typeof categoryFacets>([]);
@@ -189,6 +190,7 @@ const FactoryWorkspace: React.FC = () => {
   }),[statusCounts,ownerTotal]);
 
   const persistDraft=async(product:ProductVariant)=>{
+    setProductActionError('');
     const saved=await factoryFetch<{success?:boolean;id?:string}>(product.id?'factory/products/'+encodeURIComponent(product.id):'factory/products',{
       method:product.id?'PUT':'POST',body:JSON.stringify({...product,status:'draft'})
     });
@@ -212,7 +214,8 @@ const FactoryWorkspace: React.FC = () => {
     try{await handleSubmitForReview(id,false);}
     catch(e:any){
       setEditingItem(null);setIsCreating(false);setCreationTemplate({});setCatalogSearch(product.code||'');setCatalogQuery(product.code||'');setCatalogStatus('all');setCatalogPage(1);
-      throw Error('草稿已保存，SKU '+product.code+'；提交未完成，请在列表核对状态：'+(e?.message||''));
+      const message='草稿已保存，SKU '+product.code+'；提交未完成，请在列表核对状态：'+(e?.message||'');
+      setProductActionError(message);throw Error(message);
     }finally{await loadData(true);}
   };
   const handleSaveNext=async(product:ProductVariant)=>{
@@ -415,6 +418,9 @@ const FactoryWorkspace: React.FC = () => {
           <div className="h-px bg-stone-200 w-full mb-8"></div>
       </div>
 
+      {productActionError&&<div role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        {productActionError}<button type="button" onClick={()=>setProductActionError('')} className="ml-3 underline">知道了</button>
+      </div>}
       {loading && products.length === 0 ? (
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">正在加载产品…</span></div>
       ) : isBatchCreating ? (
