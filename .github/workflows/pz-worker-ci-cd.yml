@@ -1,0 +1,126 @@
+name: PZ Worker — source CI and guarded releases
+
+on:
+  pull_request:
+    paths:
+      - 'worker/**'
+      - '.github/workflows/pz-worker-ci-cd.yml'
+      - 'worker-patches/pz-production-unified-v2-2026-11-10.js'
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/pz-worker-ci-cd.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pz-worker-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Worker parity, regression tests and dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify exact source baseline and read-only version endpoint
+        run: |
+          node --check worker/src/index.js
+          node --test worker/tests/source-parity.test.mjs
+      - name: Existing Worker regression suites
+        run: |
+          node --test worker-patches/productTwoStageReviewCore.test.mjs
+          node --test worker-patches/publishedProductRevisionsCore.test.mjs
+          node --test worker-patches/categoryTwoStageReviewCore.test.mjs
+          node --test worker-patches/backofficeListsCore.test.mjs
+          node --test worker-patches/siteConfigD1Production.test.mjs
+          node --test worker-patches/productionWorkerCutoverSafety.test.mjs
+      - name: Build frontend and types for shared contract
+        run: npm run build && npm run typecheck && npm test
+      - name: Safe staging Wrangler dry-run with synthetic binding IDs
+        run: |
+          node worker/scripts/prepare-deployment.mjs staging dry-run
+          npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging --dry-run --outdir worker/.wrangler-dry-run
+
+  staging:
+    name: Deploy and inspect isolated staging
+    needs: validate
+    if: github.event_name == 'push' && vars.PZ_STAGING_CI_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Render verified staging config and stamp commit SHA
+        env:
+          PZ_STAGING_PARITY_CONFIRMED: ${{ vars.PZ_STAGING_PARITY_CONFIRMED }}
+          PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
+          PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
+        run: |
+          node worker/scripts/prepare-deployment.mjs staging deploy
+          node worker/scripts/stamp-version.mjs
+      - name: Deploy staging ONLY (no production routes)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging
+      - name: Read-only staging smoke checks
+        run: node worker/scripts/staging-smoke.mjs
+
+  production:
+    name: Approval-gated production Worker release
+    needs: validate
+    if: >-
+      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'pz-worker-v')) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # REQUIRED SETUP: Configure production GitHub Environment with required reviewers.
+    # The script also fails closed unless PZ_PRODUCTION_APPROVAL_CONFIRMED=true.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check release gate, bindings and stamp commit SHA
+        env:
+          PZ_PRODUCTION_APPROVAL_CONFIRMED: ${{ vars.PZ_PRODUCTION_APPROVAL_CONFIRMED }}
+          PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
+          PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
+        run: |
+          node worker/scripts/prepare-deployment.mjs production deploy
+          node worker/scripts/stamp-version.mjs
+      - name: Deploy explicit production Worker name (approval required)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env production
+      - name: Verify production Worker commit SHA
+        run: |
+          node --input-type=module -e "
+          const u='https://pz-inquiry-api.mingzuoxiao29.workers.dev/version';
+          const r=await fetch(u,{signal:AbortSignal.timeout(12000),cache:'no-store'});
+          if(!r.ok || (await r.json()).git_sha!==process.env.GITHUB_SHA)
+            throw Error('Production Worker SHA mismatch');
+          "
