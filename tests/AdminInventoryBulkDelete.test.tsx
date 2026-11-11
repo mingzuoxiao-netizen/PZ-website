@@ -133,3 +133,55 @@ test('Admin force mode can select published and in-review SKUs for one-confirmat
     env.restore();
   }
 });
+
+
+test('Admin sees a disabled published deletion action with a clear readiness label when Worker force delete is off',async()=>{
+  const env=setup();
+  let view:ReactTestRenderer|undefined;
+  try{
+    await act(async()=>{view=create(<ProductList
+      items={[products[2]]} categories={[] as any} onEdit={()=>{}} onCreate={()=>{}} onBack={()=>{}}
+      userRole="ADMIN" lang="zh" forceDeleteEnabled={false}
+      onPermanentDelete={async()=>{throw Error('Should never execute disabled action');}}
+    />);});
+    const disabled=view!.root.findByProps({'aria-label':'强制删除尚未启用'});
+    assert.equal(disabled.props.disabled,true);
+    assert.match(disabled.props.title,/D1 016/);
+    assert.equal(view!.root.findAllByProps({'aria-label':'管理员批量删除产品'}).length,0);
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    env.restore();
+  }
+});
+
+test('batch deletion reports confirmed success separately from already-absent records and real failures',async()=>{
+  const env=setup();
+  let view:ReactTestRenderer|undefined;
+  try{
+    await act(async()=>{view=create(<ProductList
+      items={products} categories={[] as any} onEdit={()=>{}} onCreate={()=>{}} onBack={()=>{}}
+      userRole="ADMIN" lang="zh" forceDeleteEnabled
+      onPermanentDelete={async item=>{
+        if(item.id==='d1')return {state:'deleted' as const};
+        if(item.id==='d2')return {state:'verified_removed' as const};
+        if(item.id==='p3')return {state:'already_absent' as const};
+        throw Error('Unrelated record is still in review');
+      }}
+      onRefresh={()=>{}}
+    />);});
+    await act(async()=>{
+      view!.root.findByProps({'aria-label':'全选本页可删除产品'}).props.onChange({target:{checked:true}});
+    });
+    await act(async()=>{await getButton(view!,'批量删除')!.props.onClick();});
+    const summary=env.alerts.join(' ');
+    assert.match(summary,/成功 2 件，失败 1 件/);
+    assert.match(summary,/数据库中已不存在 1 件/);
+    assert.match(summary,/其中 1 件经状态复查确认已移除/);
+    assert.match(summary,/Unrelated record/);
+    assert.doesNotMatch(summary,/HTTP 409/);
+    assert.equal(env.confirmations.length,1);
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    env.restore();
+  }
+});

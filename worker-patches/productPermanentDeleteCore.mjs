@@ -16,20 +16,55 @@ export function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expe
   const productSql="SELECT id,code,name,status,updated_at FROM products WHERE id=? LIMIT 1";
   const isValidId=id=>typeof id==='string'&&id.length>0&&id.length<=128;
 
-  async function forceAvailable(env){
-    if(env.PZ_FORCE_PRODUCT_RETIRE_ENABLED!=='true'||!env.DB)return false;
+  async function forceDiagnostics(env){
+    if(env.PZ_PERMANENT_SKU_DELETE_ENABLED!=='true')
+      return {available:false,reason:'基础永久删除开关 PZ_PERMANENT_SKU_DELETE_ENABLED 尚未启用。'};
+    if(env.PZ_FORCE_PRODUCT_RETIRE_ENABLED!=='true')
+      return {available:false,reason:'强制删除开关 PZ_FORCE_PRODUCT_RETIRE_ENABLED 尚未启用。'};
+    if(!env.DB)
+      return {available:false,reason:'当前 Worker 未绑定 D1 数据库。'};
     try{
       const table=await env.DB.prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='pz_product_retirements'"
       ).first();
-      if(!table)return false;
+      if(!table)return {available:false,reason:'当前 D1 尚未执行迁移 016（缺少删除审计表）。'};
       const columns=await env.DB.prepare('PRAGMA table_info(products)').all();
       const names=new Set((columns.results||[]).map(c=>c.name));
-      return names.has('deleted_at')&&names.has('deleted_by');
+      if(!names.has('deleted_at')||!names.has('deleted_by'))
+        return {available:false,reason:'当前 D1 迁移 016 不完整（缺少 deleted_at/deleted_by）。'};
+      return {available:true,reason:null};
     }catch(error){
       console.error('Force product retirement schema verification failed',String(error));
-      return false;
+      return {available:false,reason:'无法验证 D1 迁移结构，请检查 Worker 绑定及数据库日志。'};
     }
+  }
+  async function forceAvailable(env){
+    return (await forceDiagnostics(env)).available;
+  }
+
+  // Read-only reconciliation never mutates data and never reports a stale
+  // catalog-filter result as a confirmed physical deletion.
+  async function deletionStatus(env,id){
+    const row=await env.DB.prepare(
+      "SELECT id,code,status,updated_at FROM products WHERE id=? LIMIT 1"
+    ).bind(id).first();
+    const receipts=await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='pz_product_retirements'"
+    ).first();
+    const receipt=receipts?await env.DB.prepare(
+      "SELECT original_sku,tombstone_sku,disposal_mode FROM pz_product_retirements WHERE product_id=? LIMIT 1"
+    ).bind(id).first():null;
+    if(receipt && row && row.code===receipt.tombstone_sku)
+      return {state:'retired',removed:true,verified:true,
+        original_sku:receipt.original_sku,disposal_mode:receipt.disposal_mode};
+    if(!row && !receipt)
+      return {state:'absent',removed:true,verified:false,
+        reason:'该 ID 已不存在于 products；无法单凭此结果判定由哪次请求删除。'};
+    if(receipt || (row && String(row.code||'').startsWith('PZ-DEL-')))
+      return {state:'inconsistent',removed:false,verified:false,
+        reason:'删除占位记录与审计回执不一致，请暂停操作并核对 D1。'};
+    return {state:'active',removed:false,verified:true,
+      current_status:row.status,current_sku:row.code,updated_at:row.updated_at};
   }
 
   async function inspect(env,id,force=false){
@@ -117,23 +152,34 @@ export function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expe
     const path=new URL(request.url).pathname;
     const match=path.match(/^\/admin\/products\/([^/]+)\/permanent-delete$/);
     const capability=path==='/admin/product-delete/capabilities';
-    if(!match&&!capability)return originalFetch.call(this,request,env,ctx);
+    const statusMatch=path.match(/^\/admin\/products\/([^/]+)\/deletion-status$/);
+    if(!match&&!capability&&!statusMatch)return originalFetch.call(this,request,env,ctx);
     if(String(env.PZ_RUNTIME_ENV||'').toLowerCase()!==expectedRuntime)
       return fail('Wrong Worker environment',403);
-    if(capability?request.method!=='GET':!['GET','POST'].includes(request.method))
+    if((capability||statusMatch)?request.method!=='GET':!['GET','POST'].includes(request.method))
       return fail('Method not allowed',405);
     const auth=await authorize(request,env,['ADMIN']);
     if(auth instanceof Response)return auth;
-    if(env.PZ_PERMANENT_SKU_DELETE_ENABLED!=='true')
-      return capability?json({force_available:false,reason:'Permanent deletion not enabled'}):
-        fail('Permanent deletion is not enabled',404);
-    if(!env.DB)return fail('D1 is unavailable',503);
-    const canForce=await forceAvailable(env);
+    const diagnostics=await forceDiagnostics(env);
     if(capability){
-      return json({force_available:canForce,
-        strategy:canForce?'physical_or_audit_tombstone':'guarded_physical_only',
+      return json({force_available:diagnostics.available,reason:diagnostics.reason,
+        strategy:diagnostics.available?'physical_or_audit_tombstone':'guarded_physical_only',
         r2_policy:'retain_shared_images'});
     }
+    if(!env.DB)return fail('D1 is unavailable',503);
+    if(statusMatch){
+      let statusId;
+      try{statusId=decodeURIComponent(statusMatch[1]);}catch{return fail('Invalid product ID');}
+      if(!isValidId(statusId))return fail('Invalid product ID');
+      try{return json(await deletionStatus(env,statusId));}
+      catch(error){
+        console.error('Read-only product deletion status failed',String(error));
+        return fail('无法核对删除结果，请检查 D1 和 Worker 日志。',503,'DELETE_STATUS_UNAVAILABLE');
+      }
+    }
+    if(env.PZ_PERMANENT_SKU_DELETE_ENABLED!=='true')
+      return fail('Permanent deletion is not enabled',404);
+    const canForce=diagnostics.available;
     let id;
     try{id=decodeURIComponent(match[1]);}catch{return fail('Invalid product ID');}
     if(!isValidId(id))return fail('Invalid product ID');

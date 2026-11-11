@@ -15,7 +15,8 @@ interface ProductListProps {
   onCatalogVisibility?: (item: ProductVariant) => Promise<void>;
   serverFiltered?: boolean;
   onArchive?: (item: ProductVariant) => Promise<void>;
-  onPermanentDelete?: (item: ProductVariant) => Promise<void>;
+  onPermanentDelete?: (item: ProductVariant) => Promise<
+    void|{state:'deleted'|'verified_removed'|'already_absent'}>;
   forceDeleteEnabled?: boolean;
   onCreate: () => void;
   onBack: () => void;
@@ -110,10 +111,14 @@ const ProductList: React.FC<ProductListProps> = ({
       : '确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
     setDeletingId(item.id);
     try{
-      await onPermanentDelete(item);
+      const outcome=await onPermanentDelete(item);
       setSelectedIds(prev=>prev.filter(id=>id!==item.id));
       await onRefresh?.();
-      alert('产品已从管理及公开目录移除，原 SKU 可复用；必要审计历史仍保留。');
+      if(outcome&&outcome.state==='already_absent')
+        alert('数据库中已没有这条产品记录，可能由此前操作移除；本次没有重复删除。');
+      else if(outcome&&outcome.state==='verified_removed')
+        alert('状态复查确认产品已移除，原 SKU 可复用；审核历史仍保留。');
+      else alert('产品已从管理及公开目录移除，原 SKU 可复用；必要审计历史仍保留。');
     }catch(error:any){
       await onRefresh?.();
       alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
@@ -129,23 +134,33 @@ const ProductList: React.FC<ProductListProps> = ({
         ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
     setIsBulkProcessing(true);
     const failed:{id:string;sku:string;reason:string}[]=[];
-    let succeeded=0;
+    let succeeded=0,alreadyAbsent=0,verified=0;
     try{
-      // No bulk permission bypass: use existing preflight and deletion guards per item.
+      // Preserve per-product RBAC, version guards and separate readback checks.
       for(const item of batch){
-        try{await onPermanentDelete(item);succeeded++;}
-        catch(error:any){
+        try{
+          const result=await onPermanentDelete(item);
+          if(result&&result.state==='already_absent')alreadyAbsent++;
+          else {
+            succeeded++;
+            if(result&&result.state==='verified_removed')verified++;
+          }
+        }catch(error:any){
+          const raw=String(error?.message||'删除结果未确认');
           failed.push({id:item.id!,sku:item.code||item.name||item.id!,
-            reason:error?.message||'删除结果未确认'});
+            reason:raw.replace(/\s*\(HTTP \d+\) @ \/api\/admin\/products\/[^\s]+/g,'').slice(0,220)});
         }
       }
       setSelectedIds(failed.map(x=>x.id));
       await onRefresh?.();
-      if(failed.length)alert('批量删除结果：成功 '+succeeded+' 件，失败 '+failed.length+
-        ' 件。\n'+failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
+      const summary='批量删除结果：成功 '+succeeded+' 件，失败 '+failed.length+
+        ' 件'+(alreadyAbsent?'，数据库中已不存在 '+alreadyAbsent+' 件':'')+
+        '。'+(verified?'\n其中 '+verified+' 件经状态复查确认已移除。':'');
+      if(failed.length)alert(summary+'\n'+
+        failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
         (failed.length>5?'\n其余失败项目请单独核对。':'')+
-        '\n失败项目已保留选中，请核对后再重试。');
-      else alert('已移除 '+succeeded+' 件产品，原 SKU 可复用。R2 原图及必要审计历史已保留。');
+        '\n失败产品仍受保护，请核对状态后决定是否重试。');
+      else alert(summary+'\nR2 原图及必要审计历史已保留。');
     }finally{setIsBulkProcessing(false);}
   };
 
@@ -361,12 +376,15 @@ const ProductList: React.FC<ProductListProps> = ({
                                     {item.archived_at ? T('Restore to unlisted', '恢复为已下架') : T('Archive', '归档')}
                                   </button>
                                 )}
-                                {adminCanDelete&&eligibleForPermanentDelete(item.status)&&item.id&&(
-                                    <button type="button" disabled={deletionBusy}
+                                {adminCanDelete&&item.id&&(
+                                    <button type="button"
+                                      disabled={deletionBusy||!eligibleForPermanentDelete(item.status)}
                                       onClick={()=>void handlePermanentDelete(item)}
-                                      aria-label={T('Permanently delete SKU','永久删除 SKU')}
-                                      title={forceDeleteEnabled?'管理员强制移除：保留必要审计历史':'永久删除：需要无历史审核关联'}
-                                      className="rounded-sm border border-transparent p-2 text-red-700 hover:border-red-200 hover:bg-red-50 disabled:opacity-40">
+                                      aria-label={eligibleForPermanentDelete(item.status)?'永久删除 SKU':'强制删除尚未启用'}
+                                      title={!eligibleForPermanentDelete(item.status)?
+                                        '当前 Worker 尚未启用强制删除：请检查 D1 016、环境开关和 Staging Worker。':
+                                        forceDeleteEnabled?'管理员强制移除：保留必要审计历史':'永久删除：需要无历史审核关联'}
+                                      className="rounded-sm border border-transparent p-2 text-red-700 hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30">
                                       {deletingId===item.id?<Loader2 size={16} className="animate-spin"/>:<Trash2 size={16}/>}
                                     </button>
                                 )}
