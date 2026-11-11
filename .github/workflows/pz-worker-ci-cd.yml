@@ -49,6 +49,7 @@ jobs:
           node --check worker/src/index.js
           node --test worker/tests/source-parity.test.mjs
           node --test worker/tests/release-gates.test.mjs
+          node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
         run: |
