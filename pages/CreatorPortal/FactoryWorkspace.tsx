@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { factoryFetch } from '../../utils/factoryFetch';
-import { productReviewSubmissionHint } from '../../utils/productReviewSubmission';
+import {fetchBackofficePage} from '../../utils/backofficeLists';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
 import { categoryMatches } from '../../utils/categoryMatching';
@@ -53,14 +53,34 @@ const FactoryWorkspace: React.FC = () => {
   const [catRequest, setCatRequest] = useState({ title: '', title_cn: '', subtitle: '', image: '' });
   const [categoryRequestRefreshKey,setCategoryRequestRefreshKey]=useState(0);
   const [categoryQuickSearch,setCategoryQuickSearch]=useState('');
+  const [catalogPage,setCatalogPage]=useState(1);
+  const [catalogSearch,setCatalogSearch]=useState('');
+  const [catalogQuery,setCatalogQuery]=useState('');
+  const [catalogStatus,setCatalogStatus]=useState('action');
+  const [catalogSite,setCatalogSite]=useState('all');
+  const [catalogTotal,setCatalogTotal]=useState<number|null>(null);
+  const [catalogError,setCatalogError]=useState('');
+  const [productActionError,setProductActionError]=useState('');
+  const [statusCounts,setStatusCounts]=useState<{status:string;count:number}[]>([]);
+  const [categoryFacets,setCategoryFacets]=useState<{category:string|null;count:number}[]>([]);
+  const categoryFacetRef=useRef<typeof categoryFacets>([]);
+  const catalogGeneration=useRef(0);
+  const formDirty=useRef(false);
+  const formBusy=useRef(false);
+  const rememberDirty=useCallback((dirty:boolean)=>{formDirty.current=dirty;},[]);
+  const rememberBusy=useCallback((busy:boolean)=>{formBusy.current=busy;},[]);
+  const [creationKey,setCreationKey]=useState(0);
+  const [creationTemplate,setCreationTemplate]=useState<Partial<ProductVariant>>({});
+  const canLeave=()=>!formBusy.current&&(!formDirty.current||window.confirm('当前产品资料尚未保存，确认离开吗？'));
 
+
+  const ownerTotal=statusCounts.reduce((sum,row)=>sum+row.count,0);
   const categoryCounts=useMemo(()=>categories.map(category=>({
     id:category.id,label:category.title_cn||category.title_zh||category.title,
-    count:products.filter(product=>categoryMatches(product.category,category)).length
-  })),[products,categories]);
-  const uncategorizedCount=useMemo(()=>products.filter(
-    product=>!categories.some(category=>categoryMatches(product.category,category))
-  ).length,[products,categories]);
+    count:categoryFacets.filter(row=>categoryMatches(row.category,category)).reduce((sum,row)=>sum+row.count,0)
+  })),[categoryFacets,categories]);
+  const uncategorizedCount=useMemo(()=>categoryFacets.filter(row=>!categories.some(category=>categoryMatches(row.category,category)))
+    .reduce((sum,row)=>sum+row.count,0),[categoryFacets,categories]);
   const visibleCategoryCounts=categoryCounts.filter(c=>
     c.label.toLocaleLowerCase().includes(categoryQuickSearch.trim().toLocaleLowerCase())
   );
@@ -100,41 +120,44 @@ const FactoryWorkspace: React.FC = () => {
   }, []);
 
   const loadData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
-    try {
-      const res = await factoryFetch<{ products?: any[] }>('factory/products?limit=500');
-      const incomingProducts = normalizeProducts(res.products || []);
-      
-      // Detect Approvals: Status changed from awaiting_review to published
-      if (isSilent && productsRef.current.length > 0) {
-          incomingProducts.forEach(newItem => {
-              const oldItem = productsRef.current.find(o => o.id === newItem.id);
-              if (oldItem && oldItem.status === 'awaiting_review' && newItem.status === 'published') {
-                  addNotification('approval', `审核通过：${newItem.name}`, newItem.id);
-              }
-          });
+    const request=++catalogGeneration.current;
+    if(!isSilent){setLoading(true);setProducts([]);}
+    setCatalogError('');
+    try{
+      let aliases:string[]|undefined;
+      if(selectedCategoryId){
+        const selected=categoriesRef.current.find(category=>category.id===selectedCategoryId);
+        aliases=categoryFacetRef.current.filter(row=>selectedCategoryId==='__uncategorized'
+          ?!categoriesRef.current.some(category=>categoryMatches(row.category,category))
+          :selected?categoryMatches(row.category,selected):row.category===selectedCategoryId).map(row=>row.category||'');
       }
+      const res=await fetchBackofficePage<ProductVariant>('factory/products',{
+        page:catalogPage,q:catalogQuery,status:catalogStatus,site:catalogSite==='all'?undefined:catalogSite,
+        categories:aliases
+      });
+      if(request!==catalogGeneration.current)return;
+      if(catalogPage>1&&!res.items.length){setCatalogPage(Math.max(1,Math.ceil(res.total/50)));return;}
+      const incomingProducts=normalizeProducts(res.items);
+      setProducts(incomingProducts);productsRef.current=incomingProducts;
+      setCatalogTotal(res.total);setStatusCounts(res.status_counts||[]);
+      setCategoryFacets(res.category_counts||[]);categoryFacetRef.current=res.category_counts||[];
+    }catch(e:any){
+      if(request===catalogGeneration.current){setCatalogError(e?.message||'无法读取完整产品列表');setCatalogTotal(null);}
+    }finally{if(request===catalogGeneration.current)setLoading(false);}
+  },[catalogPage,catalogQuery,catalogStatus,catalogSite,selectedCategoryId]);
 
-      setProducts(incomingProducts);
-      productsRef.current = incomingProducts;
-      await loadSiteConfig();
-    } catch (e) { 
-        console.error("[Registry] Product sync failed:", e); 
-    } finally {
-        if (!isSilent) setLoading(false);
-    }
-  }, [loadSiteConfig]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { void loadData();return ()=>{catalogGeneration.current++;}; }, [loadData]);
+  useEffect(()=>{void loadSiteConfig();},[loadSiteConfig]);
 
   useEffect(() => {
     const dataInterval = setInterval(() => {
-        if (!isCreating && !editingItem && !isBatchCreating && !revisionEditing) {
+        if (document.visibilityState!=='hidden' && !isCreating && !editingItem && !isBatchCreating && !revisionEditing) {
             loadData(true);
         }
-    }, 10000);
+    }, 30000);
 
     const configInterval = setInterval(async () => {
+        if(document.visibilityState==='hidden')return;
         try {
             const res = await fetch('/api/site-config/meta', { cache: 'no-store' });
             if (!res.ok) return;
@@ -150,7 +173,7 @@ const FactoryWorkspace: React.FC = () => {
         } catch {}
     }, 30000);
 
-    const handleFocus = () => loadData(true);
+    const handleFocus = () => {if(!isCreating&&!editingItem&&!isBatchCreating&&!revisionEditing)void loadData(true);};
     window.addEventListener('focus', handleFocus);
 
     return () => {
@@ -161,51 +184,50 @@ const FactoryWorkspace: React.FC = () => {
   }, [loadData, loadSiteConfig, siteVersion, isCreating, editingItem, isBatchCreating, revisionEditing]);
 
   const stats = useMemo(() => ({
-      pending: products.filter(p => ['awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish'].includes(p.status||'')).length,
-      rejected: products.filter(p => ['rejected','returned_to_uploader'].includes(p.status||'')).length,
-      total: products.length
-  }), [products]);
+    pending:statusCounts.filter(row=>['awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish'].includes(row.status)).reduce((sum,row)=>sum+row.count,0),
+    rejected:statusCounts.filter(row=>['rejected','returned_to_uploader'].includes(row.status)).reduce((sum,row)=>sum+row.count,0),
+    total:ownerTotal
+  }),[statusCounts,ownerTotal]);
 
-  const handleSaveDraft = async (product: ProductVariant) => {
-    const method = product.id ? 'PUT' : 'POST';
-    const url = product.id ? `factory/products/${product.id}` : 'factory/products';
-    const payload = { ...product, status: 'draft' };
-    // Let ProductForm show failures instead of silently closing/resetting.
-    const saved = await factoryFetch<{success?:boolean}>(url, {method, body: JSON.stringify(payload)});
-    if (saved.success !== true) throw new Error('草稿保存状态未确认，请先刷新产品列表核对。');
-    setEditingItem(null);
-    setIsCreating(false);
-    await loadData();
+  const persistDraft=async(product:ProductVariant)=>{
+    setProductActionError('');
+    const saved=await factoryFetch<{success?:boolean;id?:string}>(product.id?'factory/products/'+encodeURIComponent(product.id):'factory/products',{
+      method:product.id?'PUT':'POST',body:JSON.stringify({...product,status:'draft'})
+    });
+    const id=product.id||saved.id;
+    if(saved.success!==true||!id)throw Error('草稿保存结果未确认，请在产品列表按 SKU 核对，勿重复创建。');
+    return id;
   };
-
-  const handleSubmitForReview = async (productId: string) => {
-    try {
-      // The editor may contain a stale status (e.g. a submission succeeded
-      // in another tab). Check fresh server data before attempting a write.
-      const latest = await factoryFetch<{products?:Array<{id:string;status?:string}>}>('factory/products?limit=500');
-      if (!Array.isArray(latest.products)) throw new Error('无法确认最新产品状态，请刷新后重试。');
-      const current = latest.products.find(product => product.id === productId);
-      if (current) {
-        const hint = productReviewSubmissionHint(current.status);
-        if (hint) {
-          setEditingItem(null);
-          setIsCreating(false);
-          throw new Error(hint);
-        }
-      }
-      const result = await factoryFetch<{success?:boolean;status?:string}>(`factory/products/${encodeURIComponent(productId)}/submit`, {method:'POST'});
-      if (result.success !== true || result.status !== 'pending_supervisor') {
-        throw new Error('提交结果未确认，请刷新产品列表，避免重复提交。');
-      }
-      setEditingItem(null);
-      setIsCreating(false);
-    } catch (e: any) {
-      // A 409 can mean that another request already submitted this product.
-      // Refresh before showing the failure, never retry the POST blindly.
-      await loadData(true);
-      throw e;
-    }
-    await loadData(true);
+  const handleSaveDraft=async(product:ProductVariant)=>{
+    await persistDraft(product);setEditingItem(null);setIsCreating(false);setCreationTemplate({});await loadData(true);
+  };
+  const handleSubmitForReview=async(productId:string,refreshAfter=true)=>{
+    try{
+      const result=await factoryFetch<{success?:boolean;status?:string}>('factory/products/'+encodeURIComponent(productId)+'/submit',{method:'POST'});
+      if(result.success!==true||result.status!=='pending_supervisor')throw Error('提交结果未确认，请刷新列表核对，勿重复提交。');
+      setEditingItem(null);setIsCreating(false);setCreationTemplate({});
+    }catch(e){if(refreshAfter)await loadData(true);throw e;}
+    if(refreshAfter)await loadData(true);
+  };
+  const handleSaveAndSubmit=async(product:ProductVariant)=>{
+    const id=await persistDraft(product);
+    try{await handleSubmitForReview(id,false);}
+    catch(e:any){
+      setEditingItem(null);setIsCreating(false);setCreationTemplate({});setCatalogSearch(product.code||'');setCatalogQuery(product.code||'');setCatalogStatus('all');setCatalogPage(1);
+      const message='草稿已保存，SKU '+product.code+'；提交未完成，请在列表核对状态：'+(e?.message||'');
+      setProductActionError(message);throw Error(message);
+    }finally{await loadData(true);}
+  };
+  const handleSaveNext=async(product:ProductVariant)=>{
+    await persistDraft(product);
+    setCreationTemplate({...product,id:undefined,name:'',name_cn:'',code:'',images:[],image:'',
+      specifications:{...product.specifications,media_roles:{}}});
+    setEditingItem(null);setIsCreating(true);setCreationKey(key=>key+1);await loadData(true);
+  };
+  const duplicateProduct=(product:ProductVariant)=>{
+    const fields=['name','name_cn','category','sub_category','material','size','finish','description','description_cn','images','production_sites','specifications'] as const;
+    const draft:Record<string,unknown>={};for(const key of fields)draft[key]=product[key];
+    setCreationTemplate({...draft,code:'',status:'draft'});setCreationKey(key=>key+1);setIsCreating(true);
   };
 
   // Published SKU revisions are stored in a separate D1 table: never PUT the
@@ -267,6 +289,8 @@ const FactoryWorkspace: React.FC = () => {
   };
 
   const handleBack = () => {
+      if(!canLeave())return;
+      setCreationTemplate({});
       if (isBatchCreating && !window.confirm('确认离开批量录入吗？未完成的输入将丢失。')) return;
       if (isCreating || editingItem || isBatchCreating || revisionEditing) {
           setIsCreating(false);
@@ -284,7 +308,7 @@ const FactoryWorkspace: React.FC = () => {
   ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as 'inventory' | 'categories')}>
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories');}}>
       {activeTab === 'categories' ? (
         <FactoryCategoryManagement categories={categories} newCategoryRefreshKey={categoryRequestRefreshKey} onUpload={async file => {
           const form = new FormData(); form.append('file', file);
@@ -380,20 +404,23 @@ const FactoryWorkspace: React.FC = () => {
                       <button onClick={handleBack} className="p-2 bg-white border border-stone-200 rounded-full hover:border-stone-900 transition-colors shadow-sm group"><ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" /></button>
                   )}
                   <div>
-                      <h1 className="text-2xl font-serif text-stone-900">{revisionEditing ? '修改已发布产品' : isBatchCreating ? '批量录入产品' : isCreating ? '新增产品' : editingItem ? '编辑产品' : selectedCategoryId ? '分类产品管理' : '工厂产品管理'}</h1>
+                      <h1 className="text-2xl font-serif text-stone-900">{revisionEditing ? '修改已发布产品' : isBatchCreating ? '批量录入产品' : isCreating ? '新增产品' : editingItem ? '编辑产品' : selectedCategoryId ? '分类产品管理' : catalogStatus==='action'?'我的待办':'我的产品'}</h1>
                       <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 mt-1"><span>工厂后台</span><span>/</span><span className="text-stone-900">{selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.title : '产品总库'}</span></div>
                   </div>
               </div>
               {!isCreating && !editingItem && !isBatchCreating && !revisionEditing && (
                   <div className="hidden md:flex gap-6">
-                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><Clock size={16} className="text-amber-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">待审核</div><div className="text-sm font-bold text-stone-900">{stats.pending}</div></div></div>
-                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><AlertCircle size={16} className="text-red-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">已退回</div><div className="text-sm font-bold text-stone-900">{stats.rejected}</div></div></div>
+                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><Clock size={16} className="text-amber-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">待审核</div><div className="text-sm font-bold text-stone-900">{catalogTotal===null?'未同步':stats.pending}</div></div></div>
+                      <div className="bg-white border border-stone-100 px-4 py-2 rounded shadow-sm flex items-center gap-3"><AlertCircle size={16} className="text-red-500" /><div><div className="text-[10px] text-stone-400 font-bold uppercase">已退回</div><div className="text-sm font-bold text-stone-900">{catalogTotal===null?'未同步':stats.rejected}</div></div></div>
                   </div>
               )}
           </div>
           <div className="h-px bg-stone-200 w-full mb-8"></div>
       </div>
 
+      {productActionError&&<div role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        {productActionError}<button type="button" onClick={()=>setProductActionError('')} className="ml-3 underline">知道了</button>
+      </div>}
       {loading && products.length === 0 ? (
         <div className="py-40 flex flex-col items-center justify-center text-stone-300 font-mono"><Package className="animate-bounce mb-4 opacity-20" size={48} /><span className="text-[10px] font-bold tracking-widest uppercase">正在加载产品…</span></div>
       ) : isBatchCreating ? (
@@ -413,6 +440,7 @@ const FactoryWorkspace: React.FC = () => {
                 不会直接覆盖已发布产品。
               </p>
               <ProductForm
+                onDirtyChange={rememberDirty} onBusyChange={rememberBusy}
                 initialData={revisionEditing.product}
                 categories={categories}
                 onSave={handleSaveRevision}
@@ -422,8 +450,10 @@ const FactoryWorkspace: React.FC = () => {
               />
             </div>
       ) : editingItem || isCreating ? (
-            <ProductForm 
-                initialData={editingItem || {}} 
+            <ProductForm key={editingItem?.id||creationKey}
+                onDirtyChange={rememberDirty} onBusyChange={rememberBusy}
+                onSaveAndSubmit={handleSaveAndSubmit} onSaveNext={handleSaveNext}
+                initialData={editingItem || creationTemplate} 
                 fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
                 categories={categories} 
                 onSave={handleSaveDraft} 
@@ -438,7 +468,7 @@ const FactoryWorkspace: React.FC = () => {
                 <label className="min-w-[190px] flex-1 text-xs font-semibold text-stone-700">
                   产品分类
                   <select aria-label="筛选产品分类" value={selectedCategoryId || 'all'}
-                    onChange={e=>setSelectedCategoryId(e.target.value==='all'?null:e.target.value)}
+                    onChange={e=>{if(formBusy.current)return;setSelectedCategoryId(e.target.value==='all'?null:e.target.value);setCatalogPage(1);}}
                     className="mt-2 w-full rounded border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900">
                     <option value="all">全部分类 · 我的产品</option>
                      <option value="__uncategorized">未归类（{uncategorizedCount}）</option>
@@ -462,51 +492,74 @@ const FactoryWorkspace: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="rounded border border-stone-200 bg-white p-4">
+              <details className="rounded border border-stone-200 bg-white p-4">
+                <summary className="cursor-pointer text-sm font-semibold">按品类快速筛选（可展开）</summary>
+                <div className="mt-3">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold">按产品品类查看</h2>
+                  <h2 className="text-sm font-semibold">按品类查看 · 数量为我的完整产品库统计</h2>
                   <input aria-label="搜索产品品类" type="search" value={categoryQuickSearch}
                     onChange={e=>setCategoryQuickSearch(e.target.value)}
                     placeholder="搜索品类名称" className="rounded border border-stone-300 px-3 py-2 text-xs" />
                 </div>
                 <div className="flex flex-wrap gap-2" role="group" aria-label="产品品类快捷筛选">
                   <button type="button" aria-pressed={!selectedCategoryId}
-                    onClick={()=>setSelectedCategoryId(null)}
+                    onClick={()=>{if(formBusy.current)return;setSelectedCategoryId(null);setCatalogPage(1);}}
                     className={'rounded border px-3 py-2 text-xs '+(!selectedCategoryId?'bg-stone-900 text-white':'bg-stone-50 text-stone-700')}>
-                    全部产品 · {products.length}
+                    我的产品总量 · {catalogTotal===null?'未同步':ownerTotal}
                   </button>
                   {visibleCategoryCounts.map(c=><button type="button" key={c.id}
-                    aria-pressed={selectedCategoryId===c.id} onClick={()=>setSelectedCategoryId(c.id)}
+                    aria-pressed={selectedCategoryId===c.id} onClick={()=>{if(formBusy.current)return;setSelectedCategoryId(c.id);setCatalogPage(1);}}
                     className={'rounded border px-3 py-2 text-xs '+(selectedCategoryId===c.id?'bg-stone-900 text-white':'bg-white text-stone-700 hover:bg-stone-50')}>
-                    {c.label} · {c.count}
+                    {c.label} · {catalogTotal===null?'未同步':c.count}
                   </button>)}
                   <button type="button" aria-pressed={selectedCategoryId==='__uncategorized'}
-                    onClick={()=>setSelectedCategoryId('__uncategorized')}
+                    onClick={()=>{if(formBusy.current)return;setSelectedCategoryId('__uncategorized');setCatalogPage(1);}}
                     className={'rounded border px-3 py-2 text-xs '+(selectedCategoryId==='__uncategorized'?'bg-stone-900 text-white':'bg-amber-50 text-amber-900')}>
-                    未归类 · {uncategorizedCount}
+                    未归类 · {catalogTotal===null?'未同步':uncategorizedCount}
                   </button>
                 </div>
               </div>
+              </details>
+              <form aria-label="筛选我的产品" onSubmit={event=>{event.preventDefault();if(formBusy.current)return;setCatalogQuery(catalogSearch.trim());setCatalogPage(1);}}
+                className="flex flex-wrap items-end gap-3 rounded border bg-white p-3">
+                <label className="flex-1 text-xs">SKU 或产品名称<input type="search" maxLength={120} aria-label="搜索全部我的产品" value={catalogSearch}
+                  onChange={e=>setCatalogSearch(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm"/></label>
+                <label className="text-xs">状态<select aria-label="我的产品状态" value={catalogStatus}
+                  onChange={e=>{if(formBusy.current)return;setCatalogStatus(e.target.value);setCatalogPage(1);}} className="mt-1 block rounded border px-3 py-2 text-sm">
+                  <option value="action">需要我处理</option><option value="all">全部产品</option><option value="draft">草稿</option>
+                  <option value="returned_to_uploader">退回待修改</option><option value="waiting">等待审核与发布</option><option value="published">已发布</option>
+                </select></label>
+                <label className="text-xs">生产基地<select aria-label="我的产品生产基地" value={catalogSite}
+                  onChange={e=>{if(formBusy.current)return;setCatalogSite(e.target.value);setCatalogPage(1);}} className="mt-1 block rounded border px-3 py-2 text-sm">
+                  <option value="all">全部基地</option><option value="zhaoqing">肇庆</option><option value="cambodia">柬埔寨</option><option value="unassigned">未指定</option>
+                </select></label>
+                <button type="submit" className="rounded bg-stone-900 px-4 py-2 text-sm text-white">搜索</button>
+                <button type="button" onClick={()=>{if(formBusy.current)return;setCatalogSearch('');setCatalogQuery('');setCatalogStatus('action');setCatalogSite('all');setSelectedCategoryId(null);setCatalogPage(1);}}
+                  className="rounded border px-3 py-2 text-sm">回到我的待办</button>
+              </form>
+              {catalogError&&<div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{catalogError}
+                <button type="button" onClick={()=>void loadData()} className="ml-3 underline">重新读取</button></div>}
               <ProductList
                  lang="zh"
-                 items={!selectedCategoryId || selectedCategoryId==='all' ? products : products.filter(item => {
-                   if(selectedCategoryId==='__uncategorized')return !categories.some(c=>categoryMatches(item.category,c));
-                   const selectedCategory=categories.find(cat=>cat.id===selectedCategoryId);
-                   return selectedCategory ? categoryMatches(item.category,selectedCategory) : false;
-                 })}
+                 items={products} isLoading={loading} serverFiltered onDuplicate={duplicateProduct} onBusyChange={rememberBusy}
                 categories={categories}
                 onEdit={setEditingItem}
                 onCreate={()=>setIsCreating(true)}
                 onRefresh={()=>loadData(true)}
                 onBack={handleBack}
-                onSubmit={handleSubmitForReview}
+                onSubmit={id=>handleSubmitForReview(id,false)}
                 onStartRevision={revisionEnabled?beginRevision:undefined}
                 userRole="FACTORY"
               />
+              <nav aria-label="我的产品分页" className="flex flex-wrap items-center justify-end gap-3 text-sm">
+                <span role="status">{catalogTotal===null?'数量未同步':`匹配 ${catalogTotal} 件 · 第 ${catalogPage} 页 · 每页 50 件`}</span>
+                <button type="button" disabled={loading||catalogPage===1} onClick={()=>{if(!formBusy.current)setCatalogPage(page=>page-1);}} className="rounded border px-3 py-2">上一页</button>
+                <button type="button" disabled={loading||catalogTotal===null||catalogPage*50>=catalogTotal} onClick={()=>{if(!formBusy.current)setCatalogPage(page=>page+1);}} className="rounded border px-3 py-2">下一页</button>
+              </nav>
             </div>
           )}
           {!revisionEditing&&!editingItem&&!isCreating&&!isBatchCreating&&
-            <PublishedRevisionQueue role="FACTORY" onEdit={continueRevision}
+            <PublishedRevisionQueue role="FACTORY" paged onEdit={continueRevision}
               onEnabledChange={setRevisionEnabled} refreshKey={revisionRefresh}/>}
           </>)}
     </PortalLayout>

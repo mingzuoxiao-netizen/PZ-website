@@ -20,6 +20,7 @@ export interface ProductVariant {
   finish?: string;
   code?: string;
   status?: string;
+  return_reason?: string | null;
   catalog_hidden?: boolean;
   archived_at?: string | null;
   production_sites?: ProductionSite[];
