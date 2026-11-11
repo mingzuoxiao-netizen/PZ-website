@@ -1,0 +1,53 @@
+# Template: placeholder IDs MUST be replaced by scripts/prepare-deployment.mjs.
+# Bindings and Workers names must be checked against the ACTIVE Cloudflare dashboard.
+# Never deploy this template directly. No secrets or actual resource IDs belong here.
+name = "pz-inquiry-api"
+main = "src/index.js"
+compatibility_date = "2026-11-10"
+keep_vars = true
+
+[env.staging]
+name = "pz-inquiry-api-staging"
+workers_dev = true
+keep_vars = true
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "__STAGING_D1_NAME__"
+database_id = "__STAGING_D1_ID__"
+
+[[env.staging.kv_namespaces]]
+binding = "SITE_CONFIG_KV"
+id = "__STAGING_KV_ID__"
+
+[[env.staging.r2_buckets]]
+binding = "PRODUCT_IMAGES"
+bucket_name = "__STAGING_IMAGES_BUCKET__"
+
+[[env.staging.r2_buckets]]
+binding = "SITE_CONFIG_HISTORY"
+bucket_name = "__STAGING_HISTORY_BUCKET__"
+
+[env.production]
+# Explicit name avoids accidentally creating a -production Worker.
+# Verify the target of wrangler deploy --dry-run before enabling release.
+name = "pz-inquiry-api"
+workers_dev = true
+keep_vars = true
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "__PRODUCTION_D1_NAME__"
+database_id = "__PRODUCTION_D1_ID__"
+
+[[env.production.kv_namespaces]]
+binding = "SITE_CONFIG_KV"
+id = "__PRODUCTION_KV_ID__"
+
+[[env.production.r2_buckets]]
+binding = "PRODUCT_IMAGES"
+bucket_name = "__PRODUCTION_IMAGES_BUCKET__"
+
+[[env.production.r2_buckets]]
+binding = "SITE_CONFIG_HISTORY"
+bucket_name = "__PRODUCTION_HISTORY_BUCKET__"
