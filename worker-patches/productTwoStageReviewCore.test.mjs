@@ -24,6 +24,7 @@ function setup() {
  sql.exec(readFileSync(new URL('./migrations/011_structured_product_specifications_STAGING_REVIEW.sql',import.meta.url),'utf8'));
  sql.exec("INSERT INTO products(id,name,name_cn,category,sub_category,material,size,finish,code,description,description_cn,images,production_sites,created_by,status,created_at,updated_at)"+
  " VALUES('p1','Oak Counter','橡木台面','countertop','','oak','6ft','matte','PZ-OAK-01','desc','描述','[\"a.jpg\"]','[\"zhaoqing\"]','worker','draft','2026-01-01','2026-01-01')");
+ sql.prepare("UPDATE products SET specs_json=? WHERE id='p1'").run(JSON.stringify({schema_version:1,dimensions_cm:{length:180,width:80,thickness:4}}));
  const db={
   prepare(sqlText){let args=[];return{bind(...v){args=v;return this;},
     async first(){return sql.prepare(sqlText).get(...args)||null;},
@@ -93,7 +94,7 @@ test('factory submit => supervisor approve => admin approve => explicit publish'
 test('scheme A: admin returns to supervisor, who directs corrections, then repeat first-level review',async()=>{
  const {sql,call}=setup();
  sql.prepare("UPDATE products SET specs_json=? WHERE id='p1'").run(
-   JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:182}}));
+   JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:182,width:80,thickness:4}}));
  const s=await call('/factory/products/p1/submit','worker','POST');
  const rid=s.data.id;
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','lead','POST')).status,200);
@@ -101,7 +102,7 @@ test('scheme A: admin returns to supervisor, who directs corrections, then repea
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).status,409);
  assert.equal((await call('/supervisor/reviews/'+rid+'/request-correction','lead','POST',{note:'Please correct product description'})).data.status,'returned_to_uploader');
  sql.prepare("UPDATE products SET description=?, specs_json=? WHERE id='p1'").run(
-   'updated description', JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:190}}));
+   'updated description', JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:190,width:80,thickness:4}}));
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).data.version,2);
  const detail=await call('/admin/reviews/'+rid,'admin');
  assert.equal(detail.status,200);
@@ -144,7 +145,7 @@ test('submission requires at least one product image and cannot skip required da
  sql.prepare("UPDATE products SET images=? WHERE id='p1'").run('[]');
  const missing=await call('/factory/products/p1/submit','worker','POST');
  assert.equal(missing.status,400);
- assert.match(missing.data.error,/image/i);
+ assert.deepEqual(missing.data.missing_fields,['images']);
  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_reviews").get().n,0);
 });
 
@@ -207,4 +208,31 @@ test('admin can maintain unpublished drafts, but cannot bypass review or overwri
  // Ownership boundaries remain intact for factory staff.
  sql.prepare("UPDATE products SET status='draft' WHERE id='p1'").run();
  assert.equal((await call('/factory/products/p1','outsider','PUT',{name:'Cross-team attempt'})).status,403);
+});
+
+test('rejects numeric or placeholder names and missing publish fields with explicit field keys',async()=>{
+  const {sql,call}=setup();
+  sql.prepare("UPDATE products SET name='123',material='',description='',specs_json='{}' WHERE id='p1'").run();
+  const result=await call('/factory/products/p1/submit','worker','POST');
+  assert.equal(result.status,400);
+  assert.deepEqual(result.data.missing_fields,['name','material','description','dimensions']);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM pz_product_reviews").get().count,0);
+  sql.prepare("UPDATE products SET name='Demo Counter' WHERE id='p1'").run();
+  const demo=await call('/factory/products/p1/submit','worker','POST');
+  assert.ok(demo.data.missing_fields.includes('name'));
+});
+
+test('admin publication rechecks current product completeness before status changes',async()=>{
+  const {sql,call,legacy}=setup();
+  const submitted=await call('/factory/products/p1/submit','worker','POST');
+  assert.equal(submitted.status,200);
+  const rid=submitted.data.id;
+  await call('/supervisor/reviews/'+rid+'/approve','lead','POST');
+  await call('/admin/reviews/'+rid+'/approve','admin','POST');
+  sql.prepare("UPDATE products SET material='' WHERE id='p1'").run();
+  const blocked=await call('/admin/reviews/'+rid+'/publish','admin','POST');
+  assert.equal(blocked.status,400);
+  assert.ok(blocked.data.missing_fields.includes('material'));
+  assert.equal(sql.prepare("SELECT status FROM products WHERE id='p1'").get().status,'approved_pending_publish');
+  assert.equal(legacy.includes('/admin/publish/products'),false);
 });

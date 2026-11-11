@@ -1,9 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, ArrowUpRight } from 'lucide-react';
 import { usePublishedSiteConfig } from '../../contexts/SiteConfigContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { publishedSiteCategories } from '../../utils/catalogCategories';
+import { publishedSiteCategories, categoriesWithPublishedItems } from '../../utils/catalogCategories';
+import { fetchPublicCatalogFacets, CategoryFacet } from '../../utils/publicCatalog';
 
 interface DesktopNavProps {
   activeMenu: string | null;
@@ -20,7 +21,15 @@ const DesktopNav: React.FC<DesktopNavProps> = ({ activeMenu, setActiveMenu, isSe
   const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const { config } = usePublishedSiteConfig();
   const closeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const productCategories = publishedSiteCategories(config?.categories);
+  const [facets, setFacets] = useState<CategoryFacet[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicCatalogFacets(controller.signal)
+      .then(value => { if (!controller.signal.aborted) setFacets(value); })
+      .catch(error => { if (!controller.signal.aborted) console.warn('Catalog navigation facets unavailable', error); });
+    return () => controller.abort();
+  }, []);
+  const productCategories = categoriesWithPublishedItems(publishedSiteCategories(config?.categories), facets);
   const nav = [
     { label: 'Home', zh: '首页', to: '/' },
     { label: 'Products', zh: '产品中心', to: '/collections', menu: 'products' },

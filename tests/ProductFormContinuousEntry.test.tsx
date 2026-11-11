@@ -8,7 +8,7 @@ test('form save intents call one matching workflow and reset before the next ord
   const old=(globalThis as any).alert;(globalThis as any).alert=(message:any)=>{throw Error(message);};
   let view:ReturnType<typeof create>|undefined;const calls:string[]=[];
   try{
-    await act(async()=>{view=create(<ProductForm initialData={{name:'Oak Table',category:'tables',code:'PZ-OK',images:[]}}
+    await act(async()=>{view=create(<ProductForm initialData={{name:'Oak Table',category:'tables',code:'PZ-OK',images:['oak.jpg'],material:'White Oak',description:'Oak dining table',specifications:{schema_version:1,dimensions_cm:{length:180,width:90,height:75}}}}
       categories={[{id:'tables',title:'Tables'}] as any} onSave={async()=>{calls.push('draft');}}
       onSaveAndSubmit={async()=>{calls.push('submit');}} onSaveNext={async()=>{calls.push('next');}}
       onCancel={()=>{}} userRole="FACTORY" lang="zh"/>);});

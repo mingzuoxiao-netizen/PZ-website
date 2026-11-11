@@ -5,6 +5,31 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
   authorize,json,validateSpecs,imageBase,expectedRuntime
 }) {
   const fail=(error,status=400)=>json({error},status);
+  // Mirror of utils/publishReadiness.ts. Standalone Worker candidates do not import browser code.
+  const readinessIssues=product=>{
+    const issues=[];
+    const name=String(product?.name||'').trim();
+    if(!name||/^[0-9\s.,+-]+$/.test(name)||/\b(?:test|demo|sample)\b|测试/i.test(name))issues.push('name');
+    const code=String(product?.code||'').trim().toUpperCase();
+    if(!/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code))issues.push('code');
+    const category=String(product?.category||'').trim();
+    if(!category)issues.push('category');
+    let images=product?.images;
+    if(typeof images==='string'){try{images=JSON.parse(images);}catch{images=[];}}
+    if(!Array.isArray(images)||!images.some(x=>typeof x==='string'&&x.trim()))issues.push('images');
+    if(!String(product?.material||'').trim())issues.push('material');
+    if(!String(product?.description||'').trim())issues.push('description');
+    let specs=product?.specifications??product?.specs_json??{};
+    if(typeof specs==='string'){try{specs=JSON.parse(specs);}catch{specs={};}}
+    const dimensions=specs?.dimensions_cm||{};
+    const keys=/butcher|work.surface|countertop|panel|wood.top|cutting.board/i.test(category)
+      ? ['length','width','thickness']
+      : /chair|bench|stool|seating/i.test(category)
+        ? ['width','length','height']:['length','width','height'];
+    if(keys.some(key=>typeof dimensions[key]!=='number'||!Number.isFinite(dimensions[key])||dimensions[key]<=0))
+      issues.push('dimensions');
+    return issues;
+  };
   const stamp=()=>new Date().toISOString();
   // HTTP 200 alone does not prove the public KV snapshot actually refreshed.
   const catalogConfirmed=async(response)=>{
@@ -276,8 +301,8 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
         assignment.department_id!==revision.department_id)
         return fail('Supervisor assignment changed; contact administrator',409);
       const draft=JSON.parse(revision.draft_json);
-      if(!Array.isArray(draft.images)||!draft.images.length)
-        return fail('At least one image required before review',400);
+      const missing=readinessIssues(draft);
+      if(missing.length)return json({error:'Revision is not ready for review',missing_fields:missing},400);
       const n=revision.latest_version+1,time=stamp();
       try{
         const results=await env.DB.batch([
@@ -340,6 +365,8 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
     const approved=await approvedJson(env,revision);
     if(!approved||approved.id!==revision.product_id)
       return fail('Approved snapshot missing or invalid',409);
+    const missing=readinessIssues(approved);
+    if(missing.length)return json({error:'Revision publication blocked: incomplete product information',missing_fields:missing},400);
     const time=stamp();
     try{
       const results=await env.DB.batch([

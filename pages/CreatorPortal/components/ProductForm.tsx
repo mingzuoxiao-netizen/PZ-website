@@ -6,6 +6,7 @@ import {
   formatDimensionsForDisplay,readProductSpecifications,specificationIssues
 } from '../../../utils/productSpecifications';
 import LivePreview from './LivePreview';
+import { publishReadinessIssues, publishReadinessLabels } from '../../../utils/publishReadiness';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
 
@@ -103,6 +104,14 @@ const ProductForm:React.FC<ProductFormProps>=({
     if(code&&!/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)){
       issue(T('SKU must begin with PZ- and use 2–40 letters/numbers/hyphens.','SKU 必须以 PZ- 开头，后续使用 2–40 位字母、数字、横线或下划线。'),'code');return;
     }
+    if(intent==='submit'){
+      const missing=publishReadinessIssues({...formData,category:categoryId,code},categoryLabel);
+      if(missing.length){
+        const fields=missing.map(key=>publishReadinessLabels[key][lang]).join(lang==='zh'?'、':', ');
+        issue(T('Cannot submit for review. Complete: ','提交审核前请补全：')+fields);
+        return;
+      }
+    }
     const validation=specificationIssues(specs);
     if(validation.length){
       issue(T('Correct the technical data: ','请修正技术数据：')+validation.join('；'));return;
@@ -124,6 +133,12 @@ const ProductForm:React.FC<ProductFormProps>=({
   };
   const submitReview=async()=>{
     if(!formData.id||!onSubmit||dirty)return;
+    const missing=publishReadinessIssues({...formData,category:currentCategory},categoryLabel);
+    if(missing.length){
+      const fields=missing.map(key=>publishReadinessLabels[key][lang]).join(lang==='zh'?'、':', ');
+      issue(T('Cannot submit for review. Complete: ','提交审核前请补全：')+fields);
+      return;
+    }
     if(!window.confirm(T('Submit this saved draft for supervisor review?','确认将已保存的草稿提交主管初审吗？')))return;
     setIsPromoting(true);
     try{await onSubmit(formData.id);}
@@ -201,7 +216,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
               </label>
               <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
-                <input className={field} value={formData.material||''}
+                <input name="material" className={field} value={formData.material||''}
                   onChange={e=>handleChange('material',e.target.value)}
                   placeholder={T('Solid white oak','白橡木实木')}/>
               </label>
@@ -225,7 +240,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               <summary className="cursor-pointer text-sm font-semibold">{T('Product descriptions (English / Chinese)','产品描述（中英文，可展开填写）')}</summary>
               <div className="mt-4 space-y-3">
                 <label className="block"><span className={label}>{T('English description','英文描述')}</span>
-                  <textarea className={field} rows={3} value={formData.description||''}
+                  <textarea name="description" className={field} rows={3} value={formData.description||''}
                     onChange={e=>handleChange('description',e.target.value)}
                     placeholder={T('Briefly describe product design and benefits.','简洁描述产品外观、功能及特点。')}/>
                 </label>
