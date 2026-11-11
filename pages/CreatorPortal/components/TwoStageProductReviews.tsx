@@ -70,7 +70,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const detailGeneration=useRef(0);
   const refresh=useCallback(async()=>{
     const request=++generation.current;
-    setLoading(true);setError('');
+    setLoading(true);
     try{
       const result=await fetchBackofficePage<Review>(role==='ADMIN'?'admin/release-queue':'supervisor/release-queue',{
         page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest'
@@ -86,7 +86,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     }finally{if(request===generation.current)setLoading(false);}
   },[role,page,query,employee,kind,status]);
   useEffect(()=>{
-    setSelected(null);detailGeneration.current++;void refresh();
+    setError('');setSelected(null);detailGeneration.current++;void refresh();
     return ()=>{generation.current++;detailGeneration.current++;};
   },[refresh]);
   const inspect=async(item:Review)=>{
@@ -169,7 +169,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           {role==='ADMIN'?'核对变更后决定批准或退回；批准后仍须单独发布。':'核对本部门产品变更，批准或退回给上传员工。'}
         </p>
       </div>
-      <button type="button" disabled={busy||loading} onClick={()=>void refresh().catch(e=>setError(e?.message||'刷新失败'))}
+      <button type="button" disabled={busy||loading} onClick={()=>{setError('');void refresh();}}
         className="rounded border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-white">刷新列表</button>
     </div>
     {error&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
