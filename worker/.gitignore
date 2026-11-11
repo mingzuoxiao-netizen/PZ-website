@@ -1,0 +1,4 @@
+# CI-only Wrangler configuration includes resource identifiers.
+wrangler.generated.toml
+.wrangler/
+node_modules/
