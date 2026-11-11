@@ -48,3 +48,24 @@ test('legacy, malformed and failed list responses cannot silently become zero co
     else (globalThis as any).sessionStorage=oldStorage;
   }
 });
+
+test('factory client requires complete owner facets and encodes category aliases as a bounded server filter',async()=>{
+  const oldFetch=globalThis.fetch,oldStorage=(globalThis as any).sessionStorage;
+  (globalThis as any).sessionStorage={getItem:()=>null};
+  const page={list_version:1,items:[],total:0,page:1,page_size:50,has_more:false};
+  try{
+    globalThis.fetch=(async()=>Response.json(page)) as typeof fetch;
+    await assert.rejects(fetchBackofficePage('factory/products'),/完整产品统计未同步/);
+    globalThis.fetch=(async input=>{
+      const url=new URL(String(input),'https://local.example');
+      assert.deepEqual(JSON.parse(url.searchParams.get('categories')!),['Tables','餐桌']);
+      return Response.json({...page,status_counts:[{status:'draft',count:1234}],category_counts:[{category:'Tables',count:1234}]});
+    }) as typeof fetch;
+    const result=await fetchBackofficePage('factory/products',{categories:['Tables','餐桌']});
+    assert.equal(result.status_counts![0].count,1234);
+    globalThis.fetch=(async()=>Response.json({...page,status_counts:[{status:'draft',count:1234}],category_counts:[]})) as typeof fetch;
+    await assert.rejects(fetchBackofficePage('factory/products'),/完整产品统计未同步/);
+  }finally{
+    globalThis.fetch=oldFetch;if(oldStorage===undefined)delete (globalThis as any).sessionStorage;else (globalThis as any).sessionStorage=oldStorage;
+  }
+});

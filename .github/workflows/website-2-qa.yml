@@ -4,7 +4,7 @@ on:
   push:
     branches: [feature/pz-v2-two-stage-product-approvals]
   pull_request:
-    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac]
+    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac, feat/backoffice-complete-lists-20261110, feat/admin-release-workbench-20261110, feat/supervisor-review-workbench-20261110]
   workflow_dispatch:
 
 permissions:

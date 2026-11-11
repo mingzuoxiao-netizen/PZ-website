@@ -135,6 +135,9 @@ test('role, current department and ownership cannot be widened by caller filters
     s.product('mine');s.product('foreign','other');s.product('old-department');
     s.review('mine','mine');s.review('foreign','foreign','pending_supervisor','other-lead','d2','other');
     s.review('old-department','old-department','pending_supervisor','lead','d2');
+    const unified=await s.call('/supervisor/release-queue?list_version=1','lead');
+    assert.equal(unified.data.total,2);
+    assert.ok(unified.data.items.every(x=>x.department_id==='d1'));
     for(const kind of ['reviews','revisions']){
       const r=await s.call('/supervisor/'+kind+'?list_version=1','lead');
       assert.equal(r.data.total,1);assert.equal(r.data.items[0].id,'mine');
@@ -159,6 +162,24 @@ test('status, Chinese name, category and site filters agree with matching total'
     assert.equal(match.data.total,1);assert.equal(match.data.items[0].id,'c');
     assert.equal(match.data.status_counts.reduce((n,x)=>n+x.count,0),3,'facets are complete owner-scope totals');
     assert.equal((await s.call('/factory/products?list_version=1&page=99','staff')).data.items.length,0);
+  }finally{s.db.close();}
+});
+
+test('legacy category aliases and returned-task reasons remain scoped and searchable',async()=>{
+  const s=setup();
+  try{
+    s.product('a','staff','returned_to_uploader','Tables');s.product('b','staff','pending_admin','');
+    s.product('foreign','other','returned_to_uploader','Tables');s.review('a','a','returned_to_uploader');
+    s.db.exec("UPDATE pz_product_reviews SET return_reason='请核对产品尺寸' WHERE id='a'");
+    const match=await s.call('/factory/products?list_version=1&categories='+encodeURIComponent(JSON.stringify(['Tables',''])),'staff');
+    assert.equal(match.data.total,2);assert.equal(match.data.items.find(x=>x.id==='a').return_reason,'请核对产品尺寸');
+    const waiting=await s.call('/factory/products?list_version=1&status=waiting','staff');
+    assert.equal(waiting.data.total,1);assert.equal(waiting.data.items[0].id,'b');
+    assert.equal((await s.call('/factory/products?list_version=1&categories=[]','staff')).data.total,0);
+    assert.equal((await s.call('/factory/products?list_version=1&category=Tables&categories=[]','staff')).status,400);
+    assert.equal((await s.call('/factory/products?list_version=1&categories='+encodeURIComponent(JSON.stringify(Array(51).fill('x'))),'staff')).status,400);
+    const tracking=await s.call('/supervisor/release-queue?list_version=1&status=returned_to_uploader','lead');
+    assert.equal(tracking.data.total,2,'product and revision can be tracked without changing write permissions');
   }finally{s.db.close();}
 });
 

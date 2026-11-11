@@ -7381,7 +7381,7 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const match=url.pathname.match(/^\/(admin|supervisor|factory)\/(reviews|revisions|products|release-queue)$/);
     if(request.method!=='GET'||params.get('list_version')!=='1'||!match||
        (match[2]==='products'&&match[1]!=='factory')||
-       (match[2]==='release-queue'&&match[1]!=='admin')||
+       (match[2]==='release-queue'&&match[1]==='factory')||
        (match[2]==='reviews'&&match[1]==='factory'))
       return originalFetch.call(this,request,env,ctx);
     if(!['staging','production'].includes(expectedRuntime)||env.PZ_RUNTIME_ENV!==expectedRuntime)
@@ -7441,16 +7441,18 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const statusColumn=product?'p.status':'r.status';
     const status=params.get('status')||(product?'all':'action');
     if(product){
-      const allowed=['all','action','draft','rejected','returned_to_uploader','awaiting_review',
+      const allowed=['all','action','waiting','draft','rejected','returned_to_uploader','awaiting_review',
         'pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish','published','unpublished','inactive','archived'];
       if(!allowed.includes(status))return fail('Invalid status');
       if(status==='action')base.push("p.status IN ('draft','rejected','returned_to_uploader')");
+      else if(status==='waiting')base.push("p.status IN ('awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish')");
       else if(status!=='all'){base.push('p.status=?');bindings.push(status);}
     }else{
-      const allowed=activeStatuses(scope);
+      const actionable=activeStatuses(scope);
+      const allowed=scope==='supervisor'? [...actionable,'returned_to_uploader','pending_admin','approved_pending_publish']:actionable;
       // Even explicit filters cannot turn an operational queue into an audit export.
       if(status==='action'){
-        base.push(statusColumn+' IN ('+allowed.map(()=>'?').join(',')+')');bindings.push(...allowed);
+        base.push(statusColumn+' IN ('+actionable.map(()=>'?').join(',')+')');bindings.push(...actionable);
       }else if(allowed.includes(status)){base.push(statusColumn+'=?');bindings.push(status);}
       else return fail('Invalid work queue status');
     }
@@ -7460,6 +7462,15 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       bindings.push(q,q,q);
     }
     if(params.get('category')){base.push('p.category=?');bindings.push(params.get('category'));}
+    if(params.has('categories')){
+      let values;
+      if(params.get('categories').length>10000)return fail('Invalid categories');
+      try{values=JSON.parse(params.get('categories'));}catch{return fail('Invalid categories');}
+      if(params.get('category')||!Array.isArray(values)||values.length>50||
+         values.some(value=>typeof value!=='string'||value.length>120))return fail('Invalid categories');
+      if(!values.length)base.push('0=1');
+      else{base.push("coalesce(p.category,'') IN ("+values.map(()=>'?').join(',')+')');bindings.push(...values);}
+    }
     if(params.get('kind')){
       if(!release||!['product','revision'].includes(params.get('kind')))return fail('Invalid kind');
       base.push('r.kind=?');bindings.push(params.get('kind'));
@@ -7481,7 +7492,8 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
-      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at':
+      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
+      (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
       kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
       'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';

@@ -1,9 +1,9 @@
 import {adminFetch} from './adminFetch';
 
 export type BackofficeListEndpoint = 'admin/reviews'|'admin/revisions'|'admin/release-queue'|
-  'supervisor/reviews'|'supervisor/revisions'|'factory/revisions'|'factory/products';
+  'supervisor/reviews'|'supervisor/revisions'|'supervisor/release-queue'|'factory/revisions'|'factory/products';
 export interface BackofficeListQuery {
-  page?:number;page_size?:number;q?:string;status?:string;category?:string;
+  page?:number;page_size?:number;q?:string;status?:string;category?:string;categories?:string[];
   department?:string;supervisor?:string;submitter?:string;site?:string;
   kind?:'product'|'revision';
   sort?:'oldest'|'newest';
@@ -21,7 +21,7 @@ export async function fetchBackofficePage<T>(endpoint:BackofficeListEndpoint,
   const params:Record<string,string>={list_version:'1',page:String(query.page??1),
     page_size:String(query.page_size??50)};
   for(const [key,value] of Object.entries(query))
-    if(value!==undefined&&value!=='')params[key]=String(value);
+    if(value!==undefined&&value!=='')params[key]=Array.isArray(value)?JSON.stringify(value):String(value);
   const result=await adminFetch<BackofficePage<T>>(endpoint,{params,signal});
   if(!result||result.list_version!==1)
     throw Error('当前列表服务需要更新，暂时无法确认完整结果。请联系管理员。');
@@ -32,5 +32,14 @@ export async function fetchBackofficePage<T>(endpoint:BackofficeListEndpoint,
     result.items.every(item=>!!item&&typeof item==='object'&&typeof (item as {id?:unknown}).id==='string')&&
     result.has_more===(page*size<result.total);
   if(!valid)throw Error('列表结果不完整，请刷新重试；当前数量不能作为完整统计。');
+  if(endpoint==='factory/products'){
+    const statuses=result.status_counts,categories=result.category_counts;
+    if(!Array.isArray(statuses)||!Array.isArray(categories)||
+       statuses.some(row=>typeof row.status!=='string'||!Number.isSafeInteger(row.count)||row.count<0)||
+       categories.some(row=>row.category!==null&&typeof row.category!=='string'||!Number.isSafeInteger(row.count)||row.count<0)||
+       statuses.reduce((sum,row)=>sum+row.count,0)!==categories.reduce((sum,row)=>sum+row.count,0)||
+       statuses.reduce((sum,row)=>sum+row.count,0)<result.total)
+      throw Error('完整产品统计未同步，请刷新重试。');
+  }
   return result;
 }

@@ -26,6 +26,7 @@ Only GET requests containing `list_version=1` use the new implementation:
 | `/admin/reviews`, `/admin/revisions` | Admin | pending_admin, approved_pending_publish |
 | `/admin/release-queue` | Admin; globally paged union of product and revision requests | pending_admin, approved_pending_publish |
 | `/supervisor/reviews`, `/supervisor/revisions` | Current supervisor ID and active department | pending_supervisor, returned_to_supervisor |
+| `/supervisor/release-queue` | Same supervisor and current department; unified product/revision queue | pending_supervisor, returned_to_supervisor |
 | `/factory/revisions` | Original revision submitter and active staff assignment | Active revision states only |
 | `/factory/products` | Current product creator and active staff assignment; existing Admin access retained | all |
 
@@ -39,11 +40,17 @@ Parameters:
 - `q`: at most 120 characters; SKU, English name and Chinese name are searched
   over the complete permitted scope. Exact SKU matches rank before substrings.
 - `category`: exact category ID.
+- `categories`: optional JSON array of at most 50 exact stored category values,
+  mutually exclusive with `category`. This preserves legacy category aliases and
+  uncategorized views without filtering only the current page.
 - `status`: a specific allowed state or `action`; products additionally allow
   `all`. Work queues intentionally do not become historical audit exports.
 - Review/revision queues: `department`, `supervisor`, `submitter` exact IDs.
 - Unified Admin release queue: optional `kind=product` or `kind=revision`.
 - Products: `site` is zhaoqing, cambodia or unassigned.
+- Products also accept `status=waiting` for in-flight review/publication. A
+  supervisor may explicitly read returned_to_uploader, pending_admin or
+  approved_pending_publish to track progress; no write permission changes.
 - `sort`: newest (default) or oldest, with ID as the stable tie-breaker.
 
 Example: `/supervisor/reviews?list_version=1&page=1&page_size=50&q=PZ-001&sort=oldest`.
@@ -54,6 +61,8 @@ complete owner scope, independent of current search/status/category filters.
 These facets must be labeled as owner-scope counts, not search-result counts.
 Product images/sites/specifications are normalized without exposing arbitrary
 product columns. Page and matching total are read in the same D1 batch.
+When two-stage review is enabled, owned product rows include their own latest
+review return reason, so correction tasks can show concrete instructions.
 
 Failures return an error, not zero counts. The typed client in
 `utils/backofficeLists.ts` requires the versioned envelope and internally
