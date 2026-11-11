@@ -66,6 +66,13 @@ export async function adminFetch<T = any>(
         if (contentType.includes("application/json")) {
           const json = await response.json();
           errorDetail = json.message || json.error || "";
+          // Do not discard the typed D1 failure category on permanent delete.
+          // A generic "deletion failed" obscures whether the blocker is
+          // schema, foreign key, CHECK constraint, or a concurrent update.
+          if(normalized.endsWith('/permanent-delete')&&
+             typeof json.code==='string'&&/^[A-Z0-9_]{3,90}$/.test(json.code)){
+            errorDetail += ' ['+json.code+']';
+          }
         } else {
           errorDetail = await response.text();
         }
