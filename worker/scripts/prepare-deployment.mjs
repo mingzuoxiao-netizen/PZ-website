@@ -44,6 +44,27 @@ const getBindings = (target) => {
     if (!/^[a-z0-9][a-z0-9_-]{1,80}$/i.test(result[key])) throw Error('Invalid binding name: ' + key);
   }
   if (result.D1_ID === dummy.D1_ID || result.KV_ID === dummy.KV_ID) throw Error('Dry-run binding ID is forbidden for deploy');
+  if (target === 'staging') {
+    // Verifying formats is insufficient: a correctly formatted production ID in
+    // staging can expose or mutate live business data. Require an independent
+    // Cloudflare resource audit AND explicit comparison to production bindings.
+    if (process.env.PZ_STAGING_RESOURCES_VERIFIED !== 'true')
+      throw Error('Safety gate missing: PZ_STAGING_RESOURCES_VERIFIED (confirm Cloudflare isolation first)');
+    const productionReferences = {
+      D1_ID: process.env.PZ_EXPECTED_PRODUCTION_D1_ID,
+      KV_ID: process.env.PZ_EXPECTED_PRODUCTION_KV_ID,
+      IMAGES_BUCKET: process.env.PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET,
+      HISTORY_BUCKET: process.env.PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET
+    };
+    for (const [key, expected] of Object.entries(productionReferences)) {
+      if (!expected || !String(expected).trim())
+        throw Error('Missing production comparison reference for staging: ' + key);
+      if (String(result[key]).trim().toLowerCase() === String(expected).trim().toLowerCase())
+        throw Error('Staging binding matches PRODUCTION ' + key + '; deployment blocked');
+    }
+    if (result.IMAGES_BUCKET.toLowerCase() === result.HISTORY_BUCKET.toLowerCase())
+      throw Error('Staging R2 images/history must use distinct buckets');
+  }
   return result;
 };
 for (const target of ['staging','production']) {
