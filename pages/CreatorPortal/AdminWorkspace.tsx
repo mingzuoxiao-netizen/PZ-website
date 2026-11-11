@@ -41,6 +41,7 @@ const AdminWorkspace: React.FC = () => {
   const [unpublishedReviewCount, setUnpublishedReviewCount] = useState<number | null>(null);
   const [catalogError, setCatalogError] = useState('');
   const [archiving, setArchiving] = useState(false);
+  const [forceDeleteEnabled,setForceDeleteEnabled]=useState(false);
   const catalogRequest = useRef(0);
   const [products, setProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
@@ -183,7 +184,15 @@ const AdminWorkspace: React.FC = () => {
   }, [activeTab, loadReviewQueue]);
 
   useEffect(() => { void loadSiteConfig(); }, [loadSiteConfig]);
-  useEffect(() => { if (activeTab === 'inventory') void loadProducts(); }, [activeTab, loadProducts]);
+  useEffect(() => {
+    if(activeTab!=='inventory')return;
+    void loadProducts();
+    let active=true;
+    void adminFetch<{force_available?:boolean}>('admin/product-delete/capabilities')
+      .then(data=>{if(active)setForceDeleteEnabled(data.force_available===true);})
+      .catch(()=>{if(active)setForceDeleteEnabled(false);});
+    return ()=>{active=false;};
+  }, [activeTab, loadProducts]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
   // Update only the two basic fields against the latest D1 draft.
@@ -308,13 +317,15 @@ const AdminWorkspace: React.FC = () => {
       eligible?:boolean;error?:string;product?:{code:string;updated_at:string}
     }>(endpoint);
     if(check.eligible!==true||!check.product?.updated_at){
-      throw new Error(check.error||'产品存在历史记录或仍在审核/发布中，不能永久删除。');
+      throw new Error(check.error||'产品删除资格未确认，请刷新后重试。');
     }
+    if(check.product.code!==sku)throw new Error('产品 SKU 已更新，请刷新列表，不要重复操作。');
     // The caller shows one explicit confirmation for single/bulk deletion.
     // Keep server-side exact SKU + version validation without asking Admin to type.
     const result=await adminFetch<{success?:boolean;sku_reusable?:boolean}>(endpoint,{
       method:'POST',
-      body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at})
+      body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at,
+        ...(forceDeleteEnabled?{force:true}:{})})
     });
     if(result.success!==true||result.sku_reusable!==true)
       throw new Error('删除结果未确认。请刷新列表检查，不要重复操作。');
@@ -515,7 +526,7 @@ const AdminWorkspace: React.FC = () => {
                 <p className="text-sm text-stone-600">这份清单用于复核。曾发布的产品按现行规则保留，审核或发布历史仍受永久删除保护。</p>
               )}
               {catalogError && <p role="alert">{catalogError}</p>}
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} lang="zh" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} forceDeleteEnabled={forceDeleteEnabled} lang="zh" userRole="ADMIN" />
               <nav aria-label="产品分页" className="flex items-center justify-end gap-3">
                 <button type="button" disabled={catalogPage <= 1 || isProductsLoading} onClick={() => setCatalogPage(page => page - 1)}>上一页</button>
                 <span>第 {catalogPage} 页</span>

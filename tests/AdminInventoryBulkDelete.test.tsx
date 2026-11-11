@@ -86,7 +86,7 @@ test('Admin single product delete also uses only a confirmation, never a SKU pro
     await act(async()=>{await single.props.onClick();});
     assert.deepEqual(called,['d1']);
     assert.equal(env.confirmations.length,1);
-    assert.match(env.alerts.join(' '),/已永久删除/);
+    assert.match(env.alerts.join(' '),/产品已从管理及公开目录移除/);
   }finally{
     if(view)await act(async()=>view!.unmount());
     env.restore();
@@ -103,4 +103,33 @@ test('Admin product status follows current D1 status, not stale is_published val
   assert.equal(result[0].status,'pending_admin');
   assert.equal(result[1].status,'published');
   assert.equal(result[2].status,'archived');
+});
+
+
+test('Admin force mode can select published and in-review SKUs for one-confirmation bulk removal',async()=>{
+  const env=setup(),called:string[]=[];
+  let view:ReactTestRenderer|undefined;
+  try{
+    await act(async()=>{view=create(<ProductList
+      items={products} categories={[] as any} onEdit={()=>{}} onCreate={()=>{}} onBack={()=>{}}
+      userRole="ADMIN" lang="zh" forceDeleteEnabled
+      onRefresh={()=>{}}
+      onPermanentDelete={async item=>{called.push(item.id!);}}
+    />);});
+    const published=view!.root.findByProps({'aria-label':'选择永久删除 PZ-PUBLISHED-3'});
+    const reviewing=view!.root.findByProps({'aria-label':'选择永久删除 PZ-WAITING-4'});
+    await act(async()=>{
+      published.props.onClick();
+      reviewing.props.onClick();
+    });
+    assert.equal(getButton(view!,'批量删除')!.props.disabled,false);
+    await act(async()=>{await getButton(view!,'批量删除')!.props.onClick();});
+    assert.deepEqual(called,['p3','w4']);
+    assert.equal(env.confirmations.length,1);
+    assert.match(env.confirmations[0],/包含已发布及有审核历史的产品/);
+    assert.match(env.confirmations[0],/必要审计历史/);
+  }finally{
+    if(view)await act(async()=>view!.unmount());
+    env.restore();
+  }
 });
