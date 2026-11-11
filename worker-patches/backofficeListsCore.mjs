@@ -14,9 +14,10 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
   };
   return async function(request,env,ctx) {
     const url=new URL(request.url),params=url.searchParams;
-    const match=url.pathname.match(/^\/(admin|supervisor|factory)\/(reviews|revisions|products)$/);
+    const match=url.pathname.match(/^\/(admin|supervisor|factory)\/(reviews|revisions|products|release-queue)$/);
     if(request.method!=='GET'||params.get('list_version')!=='1'||!match||
        (match[2]==='products'&&match[1]!=='factory')||
+       (match[2]==='release-queue'&&match[1]!=='admin')||
        (match[2]==='reviews'&&match[1]==='factory'))
       return originalFetch.call(this,request,env,ctx);
     if(!['staging','production'].includes(expectedRuntime)||env.PZ_RUNTIME_ENV!==expectedRuntime)
@@ -30,7 +31,7 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
     if(env.PZ_ORG_RBAC_ENABLED!=='true')return fail('Organization permissions must be enabled',503);
     if(kind!=='products'&&env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true')
       return fail('Two-stage review is not enabled',503);
-    if(kind==='revisions'&&env.PZ_PRODUCT_REVISIONS_ENABLED!=='true')
+    if(['revisions','release-queue'].includes(kind)&&env.PZ_PRODUCT_REVISIONS_ENABLED!=='true')
       return fail('Published revision workflow is not enabled',404);
     const actor=auth.user.id;
     // Do not let reassigned or inactive team members browse historical scope.
@@ -51,13 +52,17 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
       pageSize=integer(params,'page_size',50,100);
       q=(params.get('q')||'').trim();
       if(q.length>120)throw Error('Search is too long');
-      for(const key of ['status','category','department','supervisor','submitter','site'])
+      for(const key of ['status','category','department','supervisor','submitter','site','kind'])
         if((params.get(key)||'').length>120)throw Error('Filter is too long');
     }catch(error){return fail(error.message);}
     const product=kind==='products';
     const table=kind==='reviews'?'pz_product_reviews':'pz_published_product_revisions';
+    const release=kind==='release-queue';
+    const common='id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,approved_version,return_reason,created_at,updated_at';
+    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision FROM pz_product_reviews "+
+      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision FROM pz_published_product_revisions)";
     const from=product?' FROM products p':
-      ' FROM '+table+' r JOIN products p ON p.id=r.product_id';
+      ' FROM '+(release?releaseTable:table)+' r JOIN products p ON p.id=r.product_id';
     const base=['p.deleted_at IS NULL'];
     const bindings=[];
     if(product){
@@ -91,6 +96,10 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
       bindings.push(q,q,q);
     }
     if(params.get('category')){base.push('p.category=?');bindings.push(params.get('category'));}
+    if(params.get('kind')){
+      if(!release||!['product','revision'].includes(params.get('kind')))return fail('Invalid kind');
+      base.push('r.kind=?');bindings.push(params.get('kind'));
+    }
     if(!product){
       for(const [key,col] of [['department','department_id'],['supervisor','supervisor_id'],['submitter','submitter_id']]){
         if(params.get(key)){base.push('r.'+col+'=?');bindings.push(params.get(key));}
@@ -109,14 +118,15 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
     if(!product&&params.get('site'))return fail('Unsupported review filter');
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at':
-      kind==='reviews'?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
+      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
       'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';
     const sort=(q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
-      alias+'.updated_at '+(order==='oldest'?'ASC':'DESC')+','+alias+'.id '+(order==='oldest'?'ASC':'DESC');
+      alias+'.updated_at '+(order==='oldest'?'ASC':'DESC')+','+alias+'.id '+(order==='oldest'?'ASC':'DESC')+
+      (release?',r.kind ASC':'');
     try{
       // D1 batch reads share one snapshot: matching total and page are consistent.
       const statements=[

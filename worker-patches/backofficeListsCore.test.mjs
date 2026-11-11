@@ -99,6 +99,21 @@ test('10,005 SKU pagination and search cover the full owner scope, not the old 5
   }finally{s.db.close();}
 });
 
+test('unified Admin release queue paginates both types together with a stable tie-breaker',async()=>{
+  const s=setup();
+  try{
+    s.product('a');s.review('same-id','a','pending_admin');
+    const first=await s.call('/admin/release-queue?list_version=1&page_size=1');
+    const next=await s.call('/admin/release-queue?list_version=1&page_size=1&page=2');
+    assert.equal(first.data.total,2);assert.equal(first.data.items[0].kind,'product');
+    assert.equal(next.data.items[0].kind,'revision');assert.equal(next.data.has_more,false);
+    const revisions=await s.call('/admin/release-queue?list_version=1&kind=revision');
+    assert.equal(revisions.data.total,1);assert.equal(revisions.data.items[0].kind,'revision');
+    assert.equal((await s.call('/admin/release-queue?list_version=1','lead')).status,403);
+    assert.equal((await s.call('/admin/release-queue?list_version=1&kind=invalid')).status,400);
+  }finally{s.db.close();}
+});
+
 test('same-time pagination is deterministic, exact SKU ranks first and SQL input stays data',async()=>{
   const s=setup();
   try{

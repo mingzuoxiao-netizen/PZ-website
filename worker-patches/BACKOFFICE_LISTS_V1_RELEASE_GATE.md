@@ -24,6 +24,7 @@ Only GET requests containing `list_version=1` use the new implementation:
 | Endpoint | Server-enforced scope | Default status |
 | --- | --- | --- |
 | `/admin/reviews`, `/admin/revisions` | Admin | pending_admin, approved_pending_publish |
+| `/admin/release-queue` | Admin; globally paged union of product and revision requests | pending_admin, approved_pending_publish |
 | `/supervisor/reviews`, `/supervisor/revisions` | Current supervisor ID and active department | pending_supervisor, returned_to_supervisor |
 | `/factory/revisions` | Original revision submitter and active staff assignment | Active revision states only |
 | `/factory/products` | Current product creator and active staff assignment; existing Admin access retained | all |
@@ -41,6 +42,7 @@ Parameters:
 - `status`: a specific allowed state or `action`; products additionally allow
   `all`. Work queues intentionally do not become historical audit exports.
 - Review/revision queues: `department`, `supervisor`, `submitter` exact IDs.
+- Unified Admin release queue: optional `kind=product` or `kind=revision`.
 - Products: `site` is zhaoqing, cambodia or unassigned.
 - `sort`: newest (default) or oldest, with ID as the stable tie-breaker.
 
