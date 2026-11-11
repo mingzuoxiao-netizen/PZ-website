@@ -8,7 +8,10 @@ function fixture(runtime='staging'){
   const sql=new DatabaseSync(':memory:');
   sql.exec(
     "PRAGMA foreign_keys=ON;"+
-    "CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT UNIQUE NOT NULL,name TEXT,status TEXT,updated_at TEXT NOT NULL);"+
+    "CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT UNIQUE NOT NULL,name TEXT,"+
+    "status TEXT NOT NULL CHECK(status IN ('draft','rejected','unpublished','inactive',"+
+    "'pending_supervisor','pending_admin','returned_to_supervisor','returned_to_uploader',"+
+    "'approved_pending_publish','published')),updated_at TEXT NOT NULL);"+
     "CREATE TABLE pz_product_reviews(id TEXT PRIMARY KEY,product_id TEXT NOT NULL REFERENCES products(id) ON DELETE RESTRICT);"+
     "CREATE TABLE pz_published_product_revisions(id TEXT PRIMARY KEY,product_id TEXT NOT NULL REFERENCES products(id) ON DELETE RESTRICT);"+
     "CREATE TABLE pz_product_responsibilities(product_id TEXT PRIMARY KEY REFERENCES products(id) ON DELETE RESTRICT);"+
@@ -183,7 +186,7 @@ test('Admin can force-remove published SKU with review history; audit references
   assert.equal(done.body.history_retained,true);
   assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM products WHERE code='PZ-OAK-001'").get().n,0);
   const row=f.sql.prepare("SELECT * FROM products WHERE id='live'").get();
-  assert.equal(row.status,'archived');
+  assert.equal(row.status,'published','audited retirement must preserve original valid workflow status');
   assert.equal(row.catalog_hidden,1);
   assert.equal(row.images,'[]');
   assert.ok(row.deleted_at);
@@ -208,7 +211,7 @@ test('Pending workflow SKU can be removed without FK violations, never touches i
   const result=await f.call('queued','POST',forceBody('PZ-ASH-001'));
   assert.equal(result.status,200,JSON.stringify(result.body));
   assert.equal(result.body.disposal_mode,'audit_tombstone');
-  assert.equal(f.sql.prepare("SELECT status FROM products WHERE id='queued'").get().status,'archived');
+  assert.equal(f.sql.prepare("SELECT status FROM products WHERE id='queued'").get().status,'pending_admin');
   assert.equal(f.sql.prepare('PRAGMA foreign_key_check').all().length,0);
   f.sql.close();
 });
@@ -357,4 +360,41 @@ test('complete Worker candidates expose deletion-status and force capability dia
     assert.match(bundled,/PRODUCT_DELETE_CONFLICT/);
     assert.match(bundled,/pz_product_retirements/);
   }
+});
+
+
+test('published-but-unlisted product retires without violating real workflow and catalog CHECK constraints',async()=>{
+  const f=enableForce(fixture());
+  f.sql.exec("UPDATE products SET category='tables',images='[\"https://cdn.example.com/oak.jpg\"]',"+
+    "catalog_hidden=1,archived_at='2026-11-09T12:00:00Z' WHERE id='live'");
+  f.sql.exec("CREATE TRIGGER public_product_fields_required BEFORE UPDATE ON products "+
+    "WHEN NEW.status='published' AND "+
+      "(length(trim(NEW.category))=0 OR json_array_length(NEW.images)=0) "+
+    "BEGIN SELECT RAISE(ABORT,'Published product must retain valid category/image'); END");
+  f.sql.prepare("INSERT INTO pz_product_reviews VALUES('history-1','live')").run();
+  const status=await f.call('live','POST',forceBody('PZ-OAK-001'));
+  assert.equal(status.status,200,JSON.stringify(status.body));
+  assert.equal(status.body.disposal_mode,'audit_tombstone');
+  const row=f.sql.prepare('SELECT status,code,catalog_hidden,archived_at,deleted_at FROM products WHERE id=?').get('live');
+  assert.equal(row.status,'published','workflow status must not be rewritten to the invalid archived value');
+  assert.equal(row.catalog_hidden,1);
+  assert.ok(row.archived_at);
+  assert.ok(row.deleted_at);
+  assert.notEqual(row.code,'PZ-OAK-001');
+  assert.equal(f.sql.prepare('PRAGMA foreign_key_check').all().length,0);
+  f.sql.close();
+});
+
+test('Admin can force-remove product already unpublished even with review history',async()=>{
+  const f=enableForce(fixture());
+  f.sql.prepare("INSERT INTO pz_product_reviews VALUES('review-offline','offline')").run();
+  const result=await f.call('offline','POST',forceBody('PZ-SAMAN-001'));
+  assert.equal(result.status,200,JSON.stringify(result.body));
+  assert.equal(result.body.sku_reusable,true);
+  const row=f.sql.prepare("SELECT code,status,deleted_at,catalog_hidden FROM products WHERE id='offline'").get();
+  assert.equal(row.status,'unpublished');
+  assert.ok(row.deleted_at);
+  assert.equal(row.catalog_hidden,1);
+  assert.equal(f.sql.prepare('PRAGMA foreign_key_check').all().length,0);
+  f.sql.close();
 });
