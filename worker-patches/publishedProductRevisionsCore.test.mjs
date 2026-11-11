@@ -30,6 +30,7 @@ function setup(){
     "('p1','Old Table','旧桌','tables','','White Oak','180 cm','matte','PZ-TABLE-01',"+
     "'Old approved description','旧描述','[\"https://cdn.peng-zhan.com/uploads/old.webp\"]',"+
     "'[\"zhaoqing\"]','{}','worker','published','2026-01-01T00:00:00Z','2026-01-02T00:00:00Z')");
+  sql.prepare("UPDATE products SET specs_json=? WHERE id='p1'").run(JSON.stringify({schema_version:1,dimensions_cm:{length:180,width:90,height:74}}));
   const db={
     prepare(text){let args=[];return {
       bind(...p){args=p;return this;},
@@ -87,7 +88,7 @@ test('published revision leaves original live SKU untouched until admin explicit
   const old=structuredClone(product());
   const created=await call('/factory/products/p1/revisions','worker','POST',{
     draft:{name:'Revised Table',description:'New customer copy',size:'200 cm',
-      images:['https://cdn.peng-zhan.com/uploads/old.webp'],specifications:{schema_version:1,net_weight_kg:40}}
+      images:['https://cdn.peng-zhan.com/uploads/old.webp'],specifications:{schema_version:1,net_weight_kg:40,dimensions_cm:{length:180,width:90,height:74}}}
   });
   assert.equal(created.status,201,JSON.stringify(created.data));
   const rid=created.data.id;
@@ -234,4 +235,18 @@ test('revision API refuses the wrong runtime even with a valid account and enabl
   assert.equal(product().name,'Old Table');
   env.PZ_RUNTIME_ENV='staging';
   assert.equal((await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Staging only'}})).status,201);
+});
+
+test('revision submission blocks incomplete published-product drafts without altering the live row',async()=>{
+  const {call,product}=setup();
+  const before=structuredClone(product());
+  const created=await call('/factory/products/p1/revisions','worker','POST',{draft:{
+    name:'123',material:'',description:'',specifications:{schema_version:1,dimensions_cm:{length:180}}
+  }});
+  assert.equal(created.status,201);
+  const blocked=await call('/factory/revisions/'+created.data.id+'/submit','worker','POST',{});
+  assert.equal(blocked.status,400);
+  assert.deepEqual(blocked.data.missing_fields,['name','material','description','dimensions']);
+  assert.equal(product().status,'published');
+  assert.deepEqual(product(),before);
 });
