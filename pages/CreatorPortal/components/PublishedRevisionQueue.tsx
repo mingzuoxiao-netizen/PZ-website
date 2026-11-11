@@ -1,4 +1,6 @@
-import React,{useCallback,useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useState,useRef} from 'react';
+import {renderProductValue} from './ProductChangeSummary';
+import {fetchBackofficePage} from '../../../utils/backofficeLists';
 import {adminFetch} from '../../../utils/adminFetch';
 
 type Role='FACTORY'|'SUPERVISOR'|'ADMIN';
@@ -21,7 +23,7 @@ export type RevisionDetail=RevisionSummary&{
   events:Array<{id:string;action:string;review_version:number;note:string|null;created_at:string}>
 };
 interface Props{
-  role:Role;onEdit?:(revision:RevisionDetail)=>void;
+  role:Role;paged?:boolean;onEdit?:(revision:RevisionDetail)=>void;
   onEnabledChange?:(enabled:boolean)=>void;refreshKey?:number
 }
 const names:Record<string,string>={
@@ -50,39 +52,62 @@ const visibleInternalSpecs=(input:unknown)=>{
   }
   return view;
 };
-const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refreshKey=0})=>{
+const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabledChange,refreshKey=0})=>{
   const prefix=role.toLowerCase();
   const [enabled,setEnabled]=useState(false);
   const [items,setItems]=useState<RevisionSummary[]>([]);
   const [selected,setSelected]=useState<RevisionDetail|null>(null);
+  const detailPanel=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(selected&&typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 1023px)').matches)
+      detailPanel.current?.scrollIntoView({block:'start'});
+  },[selected]);
   const [busy,setBusy]=useState(false);
+  const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [reason,setReason]=useState('');
+  const [page,setPage]=useState(1);
+  const [total,setTotal]=useState<number|null>(null);
+  const [search,setSearch]=useState('');
+  const [query,setQuery]=useState('');
+  const [filter,setFilter]=useState('action');
+  const requestGeneration=useRef(0);
+  const detailGeneration=useRef(0);
+
   const refresh=useCallback(async()=>{
+    const request=++requestGeneration.current;setLoading(true);
     try{
-      const response=await adminFetch<{items:RevisionSummary[]}>('/'+prefix+'/revisions');
+      const response=paged?await fetchBackofficePage<RevisionSummary>(
+        role==='ADMIN'?'admin/revisions':role==='SUPERVISOR'?'supervisor/revisions':'factory/revisions',
+        {page,q:query,status:filter,sort:'oldest'}):await adminFetch<{items:RevisionSummary[]}>('/'+prefix+'/revisions');
+      if(request!==requestGeneration.current)return;
+      setTotal('total' in response?Number(response.total):response.items.length);
+      if(paged&&page>1&&!response.items.length){setPage(Math.max(1,Math.ceil(('total' in response?Number(response.total):0)/50)));return;}
+      setError('');
       const actionable=(response.items||[]).filter(item=>
         isActionableRevisionForRole(role,item.status));
       setEnabled(true);onEnabledChange?.(true);setItems(actionable);
       setSelected(current=>current && !actionable.some(item=>item.id===current.id) ? null : current);
     }catch(e:any){
+      if(request!==requestGeneration.current)return;
       if(/404|not found/i.test(String(e?.message||''))){
         setEnabled(false);onEnabledChange?.(false);setItems([]);setSelected(null);return;
       }
-      setError(e?.message||'无法读取修订申请');
-    }
-  },[prefix,onEnabledChange,role]);
-  useEffect(()=>{void refresh();},[refresh,refreshKey]);
+      setError(e?.message||'无法读取修订申请');setTotal(null);setItems([]);setSelected(null);
+    }finally{if(request===requestGeneration.current)setLoading(false);}
+  },[prefix,onEnabledChange,role,paged,page,query,filter]);
+  useEffect(()=>{setSelected(null);detailGeneration.current++;void refresh();return ()=>{requestGeneration.current++;detailGeneration.current++;};},[refresh,refreshKey]);
   const inspect=async(id:string)=>{
-    setError('');
+    const request=++detailGeneration.current;setBusy(true);setSelected(null);setReason('');setError('');
     try{
       const detail=await adminFetch<RevisionDetail>('/'+prefix+'/revisions/'+encodeURIComponent(id));
-      setSelected(detail);
-    }catch(e:any){setError(e?.message||'无法读取修订详情');}
+      if(request===detailGeneration.current)setSelected(detail);
+    }catch(e:any){if(request===detailGeneration.current)setError(e?.message||'无法读取修订详情');}
+    finally{if(request===detailGeneration.current)setBusy(false);}
   };
   const act=async(action:'submit'|'approve'|'return'|'request-correction'|'publish'|'cancel')=>{
-    if(!selected||busy)return;
+    if(!selected||busy||loading)return;
     if(['return','request-correction'].includes(action)&&reason.trim().length<5){
       setError('请填写不少于 5 个字符的明确退回原因');return;
     }
@@ -118,7 +143,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
       setBusy(false);
     }
   };
-  if(!enabled || (role!=='FACTORY' && !items.length && !error))return null;
+  if((!enabled&&!error) || (role!=='FACTORY' && !items.length && !error))return null;
   const original=selected?.base_snapshot||{};
   const proposed=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
   const diff=fields.filter(([key])=>JSON.stringify(original[key])!==JSON.stringify(proposed[key]));
@@ -129,24 +154,32 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
   const canPublish=role==='ADMIN'&&selected?.status==='approved_pending_publish';
   const actionButton=(label:string,kind:'submit'|'approve'|'return'|'request-correction'|'publish'|'cancel',disabled=false)=>{
     const primary=['submit','approve','publish'].includes(kind);
-    return <button type="button" disabled={busy||disabled} onClick={()=>void act(kind)}
+    return <button type="button" disabled={busy||loading||disabled} onClick={()=>void act(kind)}
       className={'w-full rounded px-4 py-2.5 text-sm font-semibold disabled:opacity-40 sm:w-auto '+
         (primary?'bg-stone-900 text-white hover:bg-stone-800':
           'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50')}>{label}</button>;
   };
   return <section aria-label={role==='FACTORY'?'我的产品修订':'产品修订待办'} className="space-y-4 rounded border border-stone-200 bg-white p-3 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="font-serif text-lg">{role==='FACTORY'?'我的产品修订':'产品修订待办'}（{items.length}）</h2>
+      <div><h2 className="font-serif text-lg">{role==='FACTORY'?'我的产品修订':'产品修订待办'}（{paged?(total===null?'未同步':total):items.length}）</h2>
         <p className="mt-1 text-xs leading-5 text-stone-500">这里只显示当前需要处理的修订。已发布记录保留在产品与审批历史中。</p>
       </div>
       <button type="button" className="rounded border border-stone-300 px-3 py-2 text-xs" onClick={()=>void refresh()}>刷新列表</button>
     </div>
+    {paged&&enabled&&<form aria-label="筛选我的修订" className="flex flex-wrap items-end gap-3" onSubmit={event=>{event.preventDefault();setQuery(search.trim());setPage(1);}}>
+      <label className="flex-1 text-xs">SKU 或产品名称<input aria-label="搜索我的修订" value={search} disabled={busy||loading} type="search" maxLength={120}
+        onChange={e=>setSearch(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm"/></label>
+      <label className="text-xs">修订状态<select aria-label="我的修订状态" value={filter} disabled={busy||loading} onChange={e=>{setFilter(e.target.value);setPage(1);}}
+        className="mt-1 block rounded border px-3 py-2 text-sm"><option value="action">全部进行中</option><option value="draft">修改草稿</option>
+        <option value="returned_to_uploader">待我修改</option><option value="pending_supervisor">等待主管</option><option value="pending_admin">等待管理员</option><option value="approved_pending_publish">等待发布</option></select></label>
+      <button type="submit" disabled={busy||loading} className="rounded border px-4 py-2 text-sm">搜索修订</button>
+    </form>}
     {error&&<p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {notice&&<p role="status" className="rounded bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
-    {!items.length&&<p className="rounded bg-stone-50 p-4 text-sm text-stone-500">当前没有需要处理的修订。</p>}
+    {!error&&!items.length&&<p className="rounded bg-stone-50 p-4 text-sm text-stone-500">当前没有需要处理的修订。</p>}
     <div className="grid gap-4 lg:grid-cols-[minmax(210px,1fr)_minmax(0,2fr)]">
-      <div className="space-y-2 lg:max-h-[70vh] lg:overflow-y-auto" aria-label="修订申请列表">
-        {items.map(item=><button key={item.id} type="button" onClick={()=>void inspect(item.id)}
+      <div className={'space-y-2 lg:max-h-[70vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="修订申请列表">
+        {items.map(item=><button key={item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item.id)}
           aria-current={selected?.id===item.id?'true':undefined}
           className={'w-full rounded border p-3 text-left text-xs hover:border-stone-900 '+
             (selected?.id===item.id?'border-stone-900 bg-stone-50':'border-stone-200')}>
@@ -155,7 +188,8 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
           <span className="block text-amber-700">{names[item.status]||item.status}</span>
         </button>)}
       </div>
-      {selected&&<div className="space-y-3 rounded border p-4">
+      {selected&&<div ref={detailPanel} className="space-y-3 rounded border p-4">
+        <button type="button" disabled={busy||loading} onClick={()=>setSelected(null)} className="rounded border px-3 py-2 text-sm lg:hidden">返回修订列表</button>
         <h3 className="text-base font-semibold">{selected.name_cn||selected.name} · {names[selected.status]||selected.status}</h3>
         {selected.return_reason&&<p className="text-xs text-amber-800">退回原因：{selected.return_reason}</p>}
         <div className="space-y-2" aria-label="修订内容对比">
@@ -165,11 +199,11 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-stone-500">当前官网</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-stone-700 [overflow-wrap:anywhere]">{present(original[key])}</p>
+                <div className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-stone-700 [overflow-wrap:anywhere]">{renderProductValue(key,original[key])}</div>
               </div>
               <div className="min-w-0 sm:border-l sm:border-stone-200 sm:pl-3">
                 <p className="text-[11px] font-semibold text-stone-500">申请修改为</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-stone-900 [overflow-wrap:anywhere]">{present(proposed[key])}</p>
+                <div className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-stone-900 [overflow-wrap:anywhere]">{renderProductValue(key,proposed[key])}</div>
               </div>
             </div>
           </article>)}
@@ -186,7 +220,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
         </details>
         <div className="space-y-3 rounded border border-stone-200 bg-stone-50 p-3" aria-label="修订操作">
           <div className="flex flex-wrap gap-2">
-            {canEdit&&<button type="button" disabled={busy}
+            {canEdit&&<button type="button" disabled={busy||loading}
               className="w-full rounded border border-stone-300 bg-white px-4 py-2.5 text-sm sm:w-auto"
               onClick={()=>onEdit?.(selected)}>编辑草稿</button>}
             {canEdit&&actionButton('提交主管初审','submit')}
@@ -217,6 +251,12 @@ const PublishedRevisionQueue:React.FC<Props>=({role,onEdit,onEnabledChange,refre
         </div>
       </div>}
     </div>
+    {paged&&enabled&&<nav aria-label="我的修订分页" className="flex flex-wrap items-center justify-end gap-3 text-sm">
+      <span role="status">{total===null?'数量未同步':`匹配 ${total} 项 · 第 ${page} 页`}</span>
+      <button type="button" disabled={busy||loading||page===1} onClick={()=>setPage(p=>p-1)} className="rounded border px-3 py-2">上一页</button>
+      <button type="button" disabled={busy||loading||total===null||page*50>=total} onClick={()=>setPage(p=>p+1)} className="rounded border px-3 py-2">下一页</button>
+    </nav>}
   </section>;
 };
 export default PublishedRevisionQueue;
+
