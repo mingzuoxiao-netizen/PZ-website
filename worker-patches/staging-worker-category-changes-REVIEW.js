@@ -5614,6 +5614,11 @@ index_default.fetch = pzOrganizationCreateFetch(pzOrgOriginalFetch, { authorize,
 // audit tombstone + SKU release, WITHOUT modifying immutable review history.
 // Neither route deletes R2 images. Requires migration 016 before enabling
 // PZ_FORCE_PRODUCT_RETIRE_ENABLED. Staging and Production require separate flags.
+// PZ Admin deletion V3.
+// Unreferenced SKUs: physical deletion. Referenced/published SKUs: scrubbed
+// audit tombstone + SKU release, WITHOUT modifying immutable review history.
+// Neither route deletes R2 images. Requires migration 016 before enabling
+// PZ_FORCE_PRODUCT_RETIRE_ENABLED. Staging and Production require separate flags.
 function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expectedRuntime}){
   const fail=(error,status=400,code)=>json({error,...(code?{code}:{})},status);
   const allowStatuses=['draft','rejected','unpublished','inactive','archived'];
@@ -5718,14 +5723,19 @@ function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expectedRun
     // preserves the ID required by immutable FK-linked audit histories.
     const tombstone='PZ-DEL-'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
     let batchError=null;
+    // Production product.status represents the REVIEW/PUBLISH state; 'archived'
+    // is not an allowed workflow status on all D1 schemas. Archive/visibility
+    // is controlled by archived_at/catalog_hidden, never by changing status.
+    // Do not blank category/material/images/specs in this mutation: published
+    // rows may have CHECK constraints on those fields. The existing immutable
+    // approval snapshots also retain the originals. The user-facing product
+    // disappears via deleted_at, archived_at and catalog_hidden instead.
     try{
       await env.DB.batch([
         env.DB.prepare(
-          "UPDATE products SET code=?,status='archived',catalog_hidden=1,archived_at=?,"+
+          "UPDATE products SET code=?,catalog_hidden=1,archived_at=?,"+
           "deleted_at=?,deleted_by=?,name='已移除产品',name_cn='已移除产品',"+
-          "category='',sub_category='',material='',size='',finish='',"+
-          "description='',description_cn='',images='[]',production_sites='[]',"+
-          "specs_json='{}',updated_at=? "+
+          "updated_at=? "+
           "WHERE id=? AND code=? AND updated_at=? AND deleted_at IS NULL"
         ).bind(tombstone,at,at,actor,at,product.id,product.code,product.updated_at),
         env.DB.prepare(
@@ -5737,16 +5747,24 @@ function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expectedRun
       ]);
     }catch(error){
       batchError=error;
-      console.error('Admin audited product retirement batch failed',String(error));
+      const message=String(error?.message||error);
+      const classification=/CHECK constraint failed/i.test(message)?'CHECK_CONSTRAINT':
+        /no such column/i.test(message)?'MISSING_COLUMN':
+        /FOREIGN KEY constraint failed/i.test(message)?'FOREIGN_KEY':
+        /UNIQUE constraint failed/i.test(message)?'UNIQUE_CONSTRAINT':
+        /database is locked|SQLITE_BUSY/i.test(message)?'DATABASE_BUSY':'SQL_ERROR';
+      console.error('Admin audited product retirement batch failed',{
+        classification,productId:product.id,message
+      });
     }
     try{
       const [current,receipt]=await Promise.all([
-        env.DB.prepare("SELECT code,status,deleted_at,catalog_hidden FROM products WHERE id=?").bind(product.id).first(),
+        env.DB.prepare("SELECT code,status,deleted_at,catalog_hidden,archived_at FROM products WHERE id=?").bind(product.id).first(),
         env.DB.prepare("SELECT product_id,original_sku,tombstone_sku,actor_id FROM pz_product_retirements WHERE product_id=?")
           .bind(product.id).first()
       ]);
       if(current&&receipt&&current.code===tombstone&&current.deleted_at===at &&
-        current.status==='archived'&&Number(current.catalog_hidden)===1 &&
+        current.archived_at===at&&Number(current.catalog_hidden)===1 &&
         receipt.tombstone_sku===tombstone&&receipt.original_sku===product.code&&receipt.actor_id===actor){
         return json({success:true,id:product.id,deleted_sku:product.code,
           sku_reusable:true,disposal_mode:'audit_tombstone',physically_removed:false,
@@ -5755,8 +5773,16 @@ function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expectedRun
     }catch(error){
       console.error('Audited product retirement confirmation failed',String(error));
     }
-    return fail(batchError?'无法安全移除产品，事务失败，请刷新检查。':
-      '无法确认产品移除结果，请刷新核对后再重试。',503,'PRODUCT_RETIREMENT_UNCONFIRMED');
+    if(batchError){
+      const msg=String(batchError?.message||batchError);
+      const code=/CHECK constraint failed/i.test(msg)?'RETIREMENT_CHECK_CONSTRAINT':
+        /no such column/i.test(msg)?'RETIREMENT_SCHEMA_MISMATCH':
+        /FOREIGN KEY constraint failed/i.test(msg)?'RETIREMENT_FOREIGN_KEY':
+        /UNIQUE constraint failed/i.test(msg)?'RETIREMENT_UNIQUE_CONFLICT':
+        'RETIREMENT_TRANSACTION_FAILED';
+      return fail('数据库删除事务未完成（'+code+'），产品未确认移除。请刷新后检查，不要重复提交。',503,code);
+    }
+    return fail('无法确认产品移除结果，请刷新核对后再重试。',503,'PRODUCT_RETIREMENT_UNCONFIRMED');
   }
 
   return async function permanentDeleteFetch(request,env,ctx){

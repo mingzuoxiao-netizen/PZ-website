@@ -11,7 +11,7 @@
 - 已发布或有受保护历史的产品执行 **审计保留式永久移除**：
   - `products.id` 不变，保留一个不可编辑的匿名占位行，以维护外键；
   - `products.code` 替换成唯一 `PZ-DEL-...` 编码，原 SKU 解除占用；
-  - 清理当前行的名称、分类、材质、尺寸、说明、图片数组、规格等数据；
+  - 将展示名称替换为“已移除产品”。为兼容真实 D1 的状态/必填字段 CHECK 与不可变审核历史，保留原工作流 `status`、分类、材质、说明和图片引用等已有字段；数据库保留必要的审计占位行，绝不声称全部内容被物理擦除；
   - 设置 `catalog_hidden=1`、`archived_at`、`deleted_at`、`deleted_by`，其余公开/工厂/Admin 产品列表以及审批待办均不再展示该行；
   - `pz_product_retirements` 保留原 SKU、操作者、时间和占位编码，且不允许修改；
   - **原审核版本、审批事件和责任变更日志不删除**，可能包含历史产品详情。
@@ -55,3 +55,11 @@
 先通过 Staging 全链路，再核对生产库状态和当前线上 Worker 源码差异，独立执行生产 D1 016、部署生产 Worker 和正式前端。两环境不能互相覆盖 Worker。
 
 由于本功能不可逆，PR #47 保持 Draft，**不会在此步骤自动触发 Cloudflare 生产部署或强制删除任何真实产品。**
+
+## Staging 删除事务兼容性修复（PR #49）
+- 旧版 SQL 将已发布或待审核产品的 `status` 强制改为 `archived`，但系统使用的是 `catalog_hidden` / `archived_at` 表示下架/归档，真实 D1 的产品状态 CHECK 可能不允许 `archived`，造成整个两语句原子事务失败。
+- 新版删除事务**不修改原有审核/发布 status**，只改唯一 SKU、隐藏及审计字段，展示名称改为“已移除产品”；原 SKU 释放，源 ID 和审核外键仍保留，产品列表和前台依旧过滤已移除 ID。
+- 已发布产品的分类与图片可能受到 CHECK 约束，新版不会在同一个事务盲目置空这些字段。R2 原图和审核快照仍保留。
+- 现在后端会把 D1 事务异常归类成 `RETIREMENT_CHECK_CONSTRAINT`、`RETIREMENT_SCHEMA_MISMATCH`、`RETIREMENT_FOREIGN_KEY`、`RETIREMENT_UNIQUE_CONFLICT` 或 `RETIREMENT_TRANSACTION_FAILED`，详细 SQL 错误仅记录在 Worker 日志，不发到用户界面。
+- Staging 测试应包括 **已下架但 status 仍为 published** 的产品，以及拥有审核历史、受 DB CHECK 约束的产品；必须同时核对 `pz_product_retirements` 回执、SKU 可重用、公开目录不可见及 `PRAGMA foreign_key_check`。
+- 如果 Staging 016 已执行，不要重复执行；本次 Worker 修复不新增数据库迁移。
