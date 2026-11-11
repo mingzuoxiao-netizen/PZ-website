@@ -56,7 +56,7 @@ function fixture(runtime='staging'){
       'https://worker.example/admin/products/'+id+'/permanent-delete',opts),env,{});
     return {status:res.status,body:await res.json()};
   }
-  return {sql,env,call,state:()=>({forwarded,filesDeleted,kvWritten})};
+  return {sql,env,call,route,state:()=>({forwarded,filesDeleted,kvWritten})};
 }
 const confirmation=(sku,version='2026-11-05T10:00:00Z')=>
   ({confirm_sku:sku,expected_updated_at:version});
@@ -289,5 +289,72 @@ test('both standalone Worker bundles hide force-retired products from Admin/fact
     assert.match(source,/WHERE deleted_at IS NULL AND/);
     assert.match(source,/JOIN products p ON p\.id=r\.product_id AND p\.deleted_at IS NULL/);
     assert.doesNotMatch(source,/PRODUCT_IMAGES\.delete\s*\(/);
+  }
+});
+
+
+test('deletion-status distinguishes active, audited removed and already-absent IDs',async()=>{
+  const f=enableForce(fixture());
+  async function status(id,actor='admin'){
+    const request=new Request(
+      'https://worker.example/admin/products/'+id+'/deletion-status',{
+        headers:actor?{'x-actor':actor}:{}
+      });
+    const response=await f.route(request,f.env,{});
+    return{status:response.status,body:await response.json()};
+  }
+  assert.deepEqual((await status('live')).body.state,'active');
+  const unallowed=await status('live','employee');
+  assert.equal(unallowed.status,403);
+  const before=(await status('live')).body;
+  assert.equal(before.removed,false);
+  assert.equal(before.current_sku,'PZ-OAK-001');
+  const finished=await f.call('live','POST',forceBody('PZ-OAK-001'));
+  assert.equal(finished.status,200);
+  const retired=(await status('live')).body;
+  assert.equal(retired.state,'retired');
+  assert.equal(retired.verified,true);
+  assert.equal(retired.original_sku,'PZ-OAK-001');
+  assert.equal(retired.disposal_mode,'audit_tombstone');
+  assert.equal((await f.call('draft','POST',forceBody('PZ-BIRCH-001'))).status,200);
+  const absent=(await status('draft')).body;
+  assert.equal(absent.state,'absent');
+  assert.equal(absent.verified,false);
+  assert.match(absent.reason,/无法单凭/);
+  assert.equal((await status('not-ever-created')).body.state,'absent');
+  assert.equal(f.sql.prepare('PRAGMA foreign_key_check').all().length,0);
+  f.sql.close();
+});
+
+test('force-delete capabilities return actionable flag/schema reasons without disclosing them to non-admins',async()=>{
+  const f=fixture();
+  async function capability(){
+    const response=await f.route(new Request(
+      'https://worker.example/admin/product-delete/capabilities',
+      {headers:{'x-actor':'admin'}}),f.env,{});
+    return await response.json();
+  }
+  f.env.PZ_FORCE_PRODUCT_RETIRE_ENABLED='false';
+  assert.match((await capability()).reason,/PZ_FORCE_PRODUCT_RETIRE_ENABLED/);
+  f.env.PZ_FORCE_PRODUCT_RETIRE_ENABLED='true';
+  assert.match((await capability()).reason,/迁移 016/);
+  enableForce(f);
+  assert.equal((await capability()).force_available,true);
+  assert.equal((await capability()).reason,null);
+  f.env.PZ_PERMANENT_SKU_DELETE_ENABLED='false';
+  const disabled=await capability();
+  assert.equal(disabled.force_available,false);
+  assert.match(disabled.reason,/PZ_PERMANENT_SKU_DELETE_ENABLED/);
+  f.sql.close();
+});
+
+test('complete Worker candidates expose deletion-status and force capability diagnostics',()=>{
+  for(const file of ['staging-worker-category-changes-REVIEW.js',
+    'production-worker-admin-delete-v2-COPY.js']){
+    const bundled=readFileSync(new URL(file,import.meta.url),'utf8');
+    assert.match(bundled,/deletion-status/);
+    assert.match(bundled,/forceDiagnostics\(env\)/);
+    assert.match(bundled,/PRODUCT_DELETE_CONFLICT/);
+    assert.match(bundled,/pz_product_retirements/);
   }
 });
