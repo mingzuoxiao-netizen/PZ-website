@@ -5006,20 +5006,68 @@ var index_default = {
         }
         return json({ success: true, version, publishedAt, count: items.length });
       }
+      // Archive and restore are catalog-visibility operations, NOT workflow
+      // status changes. Expose a read-only state endpoint so the Admin UI can
+      // reconcile an uncertain network response without repeating a mutation.
+      const catalogState=pathname.match(/^\/admin\/products\/([^/]+)\/catalog-state$/);
+      if(catalogState&&request.method==="GET"){
+        const auth=await authorize(request,env,["ADMIN"]);
+        if(auth instanceof Response)return auth;
+        let id;
+        try{id=decodeURIComponent(catalogState[1]);}catch{return json({error:"Invalid product id"},400);}
+        const current=await env.DB.prepare(
+          "SELECT id,status,catalog_hidden,archived_at,deleted_at FROM products WHERE id=? LIMIT 1"
+        ).bind(id).first();
+        if(!current)return json({error:"Product not found",code:"PRODUCT_NOT_FOUND"},404);
+        return json({id:current.id,status:current.status,
+          catalog_hidden:Number(current.catalog_hidden)===1,
+          archived:!!current.archived_at,
+          deleted:!!current.deleted_at});
+      }
       const catalogVisibility = pathname.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist|archive|restore-archive)$/);
       if (catalogVisibility && request.method === "POST") {
         const auth = await authorize(request, env, ["ADMIN"]);
         if (auth instanceof Response) return auth;
         const [, encodedId, action] = catalogVisibility;
-        const id = decodeURIComponent(encodedId);
+        let id;
+        try{id=decodeURIComponent(encodedId);}catch{return json({error:"Invalid product id"},400);}
         if (action === "archive" || action === "restore-archive") {
           const archive = action === "archive";
-          const result = await env.DB.prepare(
-            "UPDATE products SET archived_at=? WHERE id=? AND catalog_hidden=1 AND lower(status)='published' AND " +
-            (archive ? "archived_at IS NULL" : "archived_at IS NOT NULL")
-          ).bind(archive ? new Date().toISOString() : null, id).run();
-          if (result.meta?.changes !== 1) return json({ error: "Product is no longer in the expected state" }, 409);
-          return json({ success: true, id });
+          let updateError=null,updated=false;
+          try{
+            const result=await env.DB.prepare(
+              "UPDATE products SET archived_at=? WHERE id=? AND catalog_hidden=1 "+
+              "AND lower(status)='published' AND deleted_at IS NULL AND "+
+              (archive?"archived_at IS NULL":"archived_at IS NOT NULL")
+            ).bind(archive?new Date().toISOString():null,id).run();
+            updated=Number(result.meta?.changes)===1;
+          }catch(error){
+            updateError=error;
+            console.error("Catalog archive mutation failed",{id,archive,message:String(error)});
+          }
+          // A confirmed D1 UPDATE is enough to acknowledge this mutation.
+          // A later SELECT might read from a lagging replica without a D1 session.
+          if(updated)return json({success:true,id,archived:archive,
+            catalog_hidden:true,already_in_state:false});
+          // If changes were unreported or update threw, reconcile by reading
+          // the product's current state before returning an error.
+          const current=await env.DB.prepare(
+            "SELECT status,catalog_hidden,archived_at,deleted_at FROM products WHERE id=? LIMIT 1"
+          ).bind(id).first();
+          if(!current)return json({error:"Product not found",code:"PRODUCT_NOT_FOUND"},404);
+          if(current.deleted_at)return json({error:"This product was already removed",
+            code:"PRODUCT_RETIRED"},409);
+          const valid=String(current.status||"").toLowerCase()==="published" &&
+            Number(current.catalog_hidden)===1;
+          const target=archive?!!current.archived_at:!current.archived_at;
+          if(valid&&target)return json({success:true,id,archived:archive,
+            catalog_hidden:true,already_in_state:!updated});
+          if(updateError)return json({error:"归档操作未完成，请检查该产品的当前状态。",
+            code:"CATALOG_ARCHIVE_UPDATE_FAILED"},503);
+          return json({error:"产品当前状态不符合归档或恢复条件，请刷新后核对。",
+            code:"PRODUCT_ARCHIVE_CONFLICT",actual_status:current.status,
+            catalog_hidden:Number(current.catalog_hidden)===1,
+            archived:!!current.archived_at},409);
         }
         const hidden = action === "unpublish" ? 1 : 0;
         const result = await env.DB.prepare(

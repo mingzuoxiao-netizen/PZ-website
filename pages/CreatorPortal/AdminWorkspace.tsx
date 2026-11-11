@@ -304,15 +304,56 @@ const AdminWorkspace: React.FC = () => {
     const label = restore ? '恢复为已下架' : '归档';
     if (!window.confirm(label + ' ' + items.length + ' 件产品？')) return;
     setArchiving(true);
+    const failures:{sku:string;reason:string}[]=[];
+    let succeeded=0,reconciled=0;
     try {
-      let failed = 0;
-      for (const item of items) {
+      for(const item of items){
+        const id=encodeURIComponent(String(item.id||''));
+        if(!item.id){
+          failures.push({sku:item.code||item.name||'未标识产品',reason:'缺少产品 ID'});
+          continue;
+        }
         try {
-          await adminFetch('admin/products/' + encodeURIComponent(item.id) + '/' + action, { method: 'POST' });
-        } catch { failed++; }
+          const result=await adminFetch<{success?:boolean;archived?:boolean}>(
+            'admin/products/'+id+'/'+action,{method:'POST'});
+          if(result.success!==true || result.archived!==!restore)
+            throw new Error('服务器未确认目标归档状态');
+          succeeded++;
+        }catch(error:any){
+          // D1 may have committed even though an older Worker returned 409,
+          // or the client lost the response. Never retry the mutation here.
+          try{
+            const current=await adminFetch<{
+              status:string;catalog_hidden:boolean;archived:boolean;deleted:boolean
+            }>('admin/products/'+id+'/catalog-state');
+            if(!current.deleted&&current.status?.toLowerCase()==='published'&&
+              current.catalog_hidden&&current.archived===!restore){
+              succeeded++;
+              reconciled++;
+              continue;
+            }
+            failures.push({sku:item.code||item.name||id,
+              reason:'当前状态不符合目标：'+
+                (current.deleted?'产品已移除':current.status+
+                  ' / '+(current.archived?'已归档':'未归档'))});
+          }catch{
+            failures.push({sku:item.code||item.name||id,
+              reason:(error?.message||'操作结果未确认')+
+                '；数据库状态读取失败，请不要重复点击'});
+          }
+        }
       }
-      await loadProducts();
-      if (failed) alert(failed + ' 件产品操作失败，请刷新后重试。');
+      try{await loadProducts();}
+      catch(error:any){setCatalogError('操作已经结束，但列表刷新失败：'+
+        (error?.message||'请刷新页面核对结果'));}
+      if(failures.length){
+        alert(label+'结果：成功 '+succeeded+' 件，失败 '+failures.length+
+          ' 件。'+(reconciled?'\n其中 '+reconciled+' 件经数据库状态核对确认成功。':'')+
+          '\n'+failures.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n'));
+      }else if(reconciled){
+        alert(label+'成功 '+succeeded+' 件；其中 '+reconciled+
+          ' 件已通过数据库状态核对确认。');
+      }
     } finally {
       setArchiving(false);
     }
