@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import {ProductVariant,Category,ProductionSite} from '../../../types';
 import PZImageManager from './PZImageManager';
 import ProductSpecificationsEditor from './ProductSpecificationsEditor';
@@ -14,6 +14,10 @@ interface ProductFormProps {
   categories:Category[];
   onSave:(data:any)=>void|Promise<void>;
   onSubmit?:(id:string)=>Promise<void>;
+  onSaveAndSubmit?:(data:any)=>Promise<void>;
+  onSaveNext?:(data:any)=>Promise<void>;
+  onDirtyChange?:(dirty:boolean)=>void;
+  onBusyChange?:(busy:boolean)=>void;
   onCancel:()=>void;
   onUpload?:(file:File)=>Promise<string>;
   fixedCategoryId?:string;
@@ -24,13 +28,27 @@ const field='w-full min-w-0 rounded-sm border border-stone-300 bg-white p-3 text
 const label='mb-2 block text-xs font-semibold text-stone-700';
 
 const ProductForm:React.FC<ProductFormProps>=({
-  initialData,categories,onSave,onSubmit,onCancel,fixedCategoryId,userRole,lang='en'
+  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
 })=>{
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const [formData,setFormData]=useState<Partial<ProductVariant>>(initialData);
   const [submitting,setSubmitting]=useState(false);
   const [isPromoting,setIsPromoting]=useState(false);
   const [dirty,setDirty]=useState(false);
+  const [formError,setFormError]=useState('');
+  const [errorField,setErrorField]=useState('');
+  const formRef=useRef<HTMLFormElement>(null);
+  const issue=(message:string,field='')=>{setFormError(message);setErrorField(field);formRef.current?.querySelector<HTMLElement>('[name="'+field+'"]')?.focus();};
+  useEffect(()=>{formRef.current?.parentElement?.scrollIntoView({block:'start'});},[initialData.id]);
+  const saveIntent=useRef<'draft'|'submit'|'next'>('draft');
+  useEffect(()=>{onDirtyChange?.(dirty);return ()=>onDirtyChange?.(false);},[dirty,onDirtyChange]);
+  useEffect(()=>{onBusyChange?.(submitting||isPromoting);return ()=>onBusyChange?.(false);},[submitting,isPromoting,onBusyChange]);
+  useEffect(()=>{
+    if(!dirty||typeof window==='undefined')return;
+    const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};
+    window.addEventListener('beforeunload',warn);return ()=>window.removeEventListener('beforeunload',warn);
+  },[dirty]);
+
   useEffect(()=>{
     setFormData(fixedCategoryId&&!initialData.id
       ? {...initialData,category:fixedCategoryId}:initialData);
@@ -68,29 +86,32 @@ const ProductForm:React.FC<ProductFormProps>=({
   });
   const save=async(e:React.FormEvent)=>{
     e.preventDefault();
-    if(submitting)return;
+    const intent=saveIntent.current;saveIntent.current='draft';
+    if(submitting||isPromoting)return;
+    setFormError('');setErrorField('');
     const code=String(formData.code||'').trim().toUpperCase();
     const categoryId=currentCategory;
     if(!formData.id&&(!categoryId||!categories.some(c=>c.id===categoryId))){
-      alert(T('Select a valid category.','请选择有效的产品分类。'));return;
+      issue(T('Select a valid category.','请选择有效的产品分类。'),'category');return;
     }
     if(!String(formData.name||'').trim()){
-      alert(T('An English product name is required.','请填写产品英文名称。'));return;
+      issue(T('An English product name is required.','请填写产品英文名称。'),'product-name');return;
     }
     if(!formData.id&&!code){
-      alert(T('SKU is required.','新建产品必须填写 SKU。'));return;
+      issue(T('SKU is required.','新建产品必须填写 SKU。'),'code');return;
     }
     if(code&&!/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)){
-      alert(T('SKU must begin with PZ- and use 2–40 letters/numbers/hyphens.','SKU 必须以 PZ- 开头，后续使用 2–40 位字母、数字、横线或下划线。'));return;
+      issue(T('SKU must begin with PZ- and use 2–40 letters/numbers/hyphens.','SKU 必须以 PZ- 开头，后续使用 2–40 位字母、数字、横线或下划线。'),'code');return;
     }
     const validation=specificationIssues(specs);
     if(validation.length){
-      alert(T('Correct the technical data: ','请修正技术数据：')+validation.join('；'));return;
+      issue(T('Correct the technical data: ','请修正技术数据：')+validation.join('；'));return;
     }
     setSubmitting(true);
     try{
       const finalStatus=formData.status||'draft';
-      await onSave({
+      const persist=intent==='submit'&&onSaveAndSubmit?onSaveAndSubmit:intent==='next'&&onSaveNext?onSaveNext:onSave;
+      await persist({
         ...formData,category:categoryId,code,
         size:formatDimensionsForDisplay(specs,categoryLabel)||sizePreview,
         specifications:specs,status:finalStatus,
@@ -98,7 +119,7 @@ const ProductForm:React.FC<ProductFormProps>=({
       });
       setDirty(false);
     }catch(error:any){
-      alert(T('Unable to save: ','保存失败：')+(error?.message||T('Unknown error','未知错误')));
+      issue(T('Operation incomplete: ','操作未完成：')+(error?.message||T('Unknown error','未知错误')));
     }finally{setSubmitting(false);}
   };
   const submitReview=async()=>{
@@ -106,7 +127,7 @@ const ProductForm:React.FC<ProductFormProps>=({
     if(!window.confirm(T('Submit this saved draft for supervisor review?','确认将已保存的草稿提交主管初审吗？')))return;
     setIsPromoting(true);
     try{await onSubmit(formData.id);}
-    catch(error:any){alert(T('Submission failed: ','提交失败：')+(error?.message||''));}
+    catch(error:any){issue(T('Submission failed: ','提交失败：')+(error?.message||''));}
     finally{setIsPromoting(false);}
   };
   const canPromote=userRole==='FACTORY'&&!!onSubmit&&!!formData.id&&
@@ -131,16 +152,21 @@ const ProductForm:React.FC<ProductFormProps>=({
           <div className="flex items-center gap-3"><ClipboardList size={18}/>
             <h3 className="text-sm font-semibold">{T('Product editor','产品资料编辑')}</h3>
           </div>
-          <span className="text-xs text-stone-300">{T('Save first · submit for review second','先保存草稿，再提交审核')}</span>
+          <span className="text-xs text-stone-300">{T('Save first · submit for review second','保存草稿，或保存后提交主管初审')}</span>
         </div>
-        <form onSubmit={save} className="space-y-8 px-5 py-7 md:px-8">
+        <form ref={formRef} onSubmit={save} className="space-y-8 px-5 py-7 md:px-8">
+          {formError&&<div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+            {formError}
+            {errorField&&<button type="button" onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+errorField+'"]')?.focus()}
+              className="ml-3 underline">定位需修改字段</button>}
+          </div>}
           <section aria-label={T('Basic information','基本信息')}>
             {sectionTitle('01','Basic product information','产品基本信息',T('Core product record','产品基础档案'))}
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block"><span className={label}>{T('Product category *','产品分类 *')}</span>
                 {fixedCategoryId
                   ?<div className={field+' bg-stone-100'}>{selectedCategory?(lang==='zh'?(selectedCategory.title_cn||selectedCategory.title_zh||selectedCategory.title):selectedCategory.title):currentCategory}</div>
-                  :<select className={field} value={formData.category||''} onChange={e=>handleChange('category',e.target.value)}>
+                  :<select name="category" required className={field} value={formData.category||''} onChange={e=>handleChange('category',e.target.value)}>
                     <option value="">{T('Select category','请选择分类')}</option>
                     {categories.map(c=><option key={c.id} value={c.id}>
                       {lang==='zh'?(c.title_cn||c.title_zh||c.title):c.title}
@@ -155,7 +181,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               <label className="block"><span className={label}>{T('SKU *','SKU 编号 *')}</span>
                 <div className="flex">
                   <span className="flex items-center border border-r-0 border-stone-300 bg-stone-100 px-3 text-xs font-bold text-stone-600">PZ-</span>
-                  <input className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
+                  <input name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
                     onChange={e=>handleChange('code','PZ-'+e.target.value.toUpperCase())}
                     placeholder="DINING-001"/>
                 </div>
@@ -166,7 +192,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
               <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input className={field} required value={formData.name||''}
+                <input name="product-name" className={field} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
               </label>
@@ -230,7 +256,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             )}</p>
             <PZImageManager lang={lang} images={formData.images||[]}
               onUpdate={reorderImages} onDelete={removeImage}
-              onUpload={uploadImage} onSetMain={setMainImage} onError={alert}/>
+              onUpload={uploadImage} onSetMain={setMainImage} onError={message=>issue(String(message))}/>
             {(formData.images||[]).length>0&&<details className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
               <summary className="cursor-pointer text-sm font-semibold text-stone-800">
                 {T('Advanced: image role labels','高级选项：图片用途标签')}
@@ -270,25 +296,33 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>
           </details>
           <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
-            <button type="button" onClick={onCancel}
+            <button type="button" disabled={submitting||isPromoting} onClick={()=>{if(!onDirtyChange&&dirty&&!window.confirm(T('Leave without saving?','当前资料尚未保存，确认离开吗？')))return;onCancel();}}
               className="flex items-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
               <ArrowLeft size={16}/>{T('Back','返回')}
             </button>
-            <button type="submit" disabled={submitting||isPromoting}
+            <button type="submit" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting}
               className="flex flex-1 items-center justify-center gap-2 rounded bg-stone-900 px-5 py-3 font-semibold text-white disabled:opacity-50">
               {submitting?<Loader2 className="animate-spin" size={16}/>:<Save size={16}/>}
               {T('Save draft','保存草稿')}
             </button>
-            {canPromote&&<button type="button" disabled={submitting||isPromoting||dirty}
+            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting}
+              onClick={()=>{saveIntent.current='submit';}} className="rounded bg-amber-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">
+              保存并提交审核
+            </button>}
+            {userRole==='FACTORY'&&onSaveNext&&<button type="submit" disabled={submitting||isPromoting}
+              onClick={()=>{saveIntent.current='next';}} className="rounded border border-stone-300 px-5 py-3 text-sm disabled:opacity-40">
+              保存并新建下一款
+            </button>}
+            {canPromote&&!onSaveAndSubmit&&<button type="button" disabled={submitting||isPromoting||dirty}
               onClick={submitReview}
               className="flex flex-1 items-center justify-center gap-2 rounded bg-amber-800 px-5 py-3 font-semibold text-white disabled:opacity-40">
               {isPromoting?<Loader2 className="animate-spin" size={16}/>:<Send size={16}/>}
               {T('Submit for review','提交审核')}
             </button>}
-            {dirty&&canPromote&&<p className="w-full text-xs text-amber-700">
+            {dirty&&canPromote&&!onSaveAndSubmit&&<p className="w-full text-xs text-amber-700">
               {T('You have unsaved changes. Save the draft before submitting.',
-                '你修改了资料，请先保存草稿，再提交审核。')}</p>}
-            {userRole==='FACTORY'&&!formData.id&&<p className="w-full text-xs text-stone-500">
+                '你修改了资料，请保存草稿，或保存后提交主管初审。')}</p>}
+            {userRole==='FACTORY'&&!formData.id&&!onSaveAndSubmit&&<p className="w-full text-xs text-stone-500">
               {T('For a new SKU, save the draft first and then submit it from the product list.',
                 '新建产品请先保存草稿，再从产品列表提交审核。')}</p>}
           </div>
@@ -315,3 +349,4 @@ const ProductForm:React.FC<ProductFormProps>=({
   </div>;
 };
 export default ProductForm;
+

@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
-import PublishedRevisionQueue from './PublishedRevisionQueue';
+import ProductChangeSummary from './ProductChangeSummary';
+import {fetchBackofficePage} from '../../../utils/backofficeLists';
 
 type Role = 'ADMIN' | 'SUPERVISOR';
 
@@ -12,12 +13,12 @@ export const isActionableProductReview = (role:Role,status:string):boolean =>
     : ['pending_supervisor','returned_to_supervisor'].includes(status);
 type Review = {
   id:string; product_id:string; name:string; name_cn?:string; code:string;category:string;
-  status:string;latest_version:number;approved_version:number|null;
+  kind?:'product'|'revision';status:string;latest_version:number;approved_version:number|null;
   submitter_id:string;supervisor_id:string;department_id:string;return_reason?:string|null;
 };
 type Version = {version:number;snapshot:Record<string,unknown>;submitted_by:string;created_at:string};
 type ReviewDetail = Review & {
-  versions:Version[];
+  base_snapshot?:Record<string,unknown>;draft?:Record<string,unknown>;versions:Version[];
   events:{id:string;action:string;actor_id:string;actor_role:string;review_version:number;note:string|null;created_at:string}[];
 };
 
@@ -42,10 +43,15 @@ const fields:[string,string][]=[
   ['size','尺寸'],['finish','表面处理'],['description','英文描述'],
   ['description_cn','中文描述'],['images','产品图片'],['production_sites','生产工厂']
 ];
-const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
+const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:string}[]}>=({role,members=[]})=>{
   const base=role==='ADMIN'?'admin':'supervisor';
   const [reviews,setReviews]=useState<Review[]>([]);
   const [selected,setSelected]=useState<ReviewDetail|null>(null);
+  const detailPanel=useRef<HTMLElement>(null);
+  useEffect(()=>{
+    if(selected&&typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 1023px)').matches)
+      detailPanel.current?.scrollIntoView({block:'start'});
+  },[selected]);
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -53,18 +59,46 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
   const [reason,setReason]=useState('');
   const [showAllFields,setShowAllFields]=useState(false);
   const [returnAction,setReturnAction]=useState<'return'|'request-correction'|null>(null);
+  const [page,setPage]=useState(1);
+  const [total,setTotal]=useState<number|null>(null);
+  const [search,setSearch]=useState('');
+  const [query,setQuery]=useState('');
+  const [employee,setEmployee]=useState('');
+  const [kind,setKind]=useState<''|'product'|'revision'>('');
+  const [status,setStatus]=useState('action');
+  const generation=useRef(0);
+  const detailGeneration=useRef(0);
   const refresh=useCallback(async()=>{
-    const result=await adminFetch<{items:Review[]}>('/'+base+'/reviews');
-    const actionable=(result.items||[]).filter(item=>isActionableProductReview(role,item.status));
-    setReviews(actionable);
-    setSelected(current=>current && !actionable.some(item=>item.id===current.id) ? null : current);
-  },[base,role]);
-  useEffect(()=>{void refresh().catch(e=>setError(e?.message||'读取审核列表失败')).finally(()=>setLoading(false));},[refresh]);
-  const inspect=async(id:string)=>{
-    setBusy(true);setError('');setReason('');setShowAllFields(false);setReturnAction(null);
-    try{setSelected(await adminFetch<ReviewDetail>('/'+base+'/reviews/'+encodeURIComponent(id)));}
-    catch(e:any){setError(e?.message||'无法读取审核详情');}
-    finally{setBusy(false);}
+    const request=++generation.current;
+    setLoading(true);
+    try{
+      const result=await fetchBackofficePage<Review>(role==='ADMIN'?'admin/release-queue':'supervisor/release-queue',{
+        page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest'
+      });
+      if(request!==generation.current)return [];
+      if(page>1&&!result.items.length){setPage(Math.max(1,Math.ceil(result.total/50)));return [];}
+      setReviews(result.items);setTotal(result.total);
+      setSelected(current=>current&&!result.items.some(item=>item.id===current.id&&item.kind===current.kind)?null:current);
+      return result.items;
+    }catch(e:any){
+      if(request===generation.current){setError(e?.message||'读取完整审核列表失败');setReviews([]);setTotal(null);setSelected(null);}
+      return [];
+    }finally{if(request===generation.current)setLoading(false);}
+  },[role,page,query,employee,kind,status]);
+  useEffect(()=>{
+    setError('');setSelected(null);detailGeneration.current++;void refresh();
+    return ()=>{generation.current++;detailGeneration.current++;};
+  },[refresh]);
+  const inspect=async(item:Review)=>{
+    const request=++detailGeneration.current;
+    setBusy(true);setSelected(null);setError('');setReason('');setReturnAction(null);
+    try{
+      const detail=await adminFetch<ReviewDetail>('/'+base+'/'+(item.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(item.id));
+      if(request!==detailGeneration.current)return;
+      setShowAllFields(item.kind!=='revision'&&detail.versions.length===1);
+      setSelected({...detail,kind:item.kind});
+    }catch(e:any){if(request===detailGeneration.current)setError(e?.message||'无法读取审核详情');}
+    finally{if(request===detailGeneration.current)setBusy(false);}
   };
   const action=async(name:'approve'|'return'|'request-correction'|'publish')=>{
     if(!selected||busy)return;
@@ -74,7 +108,7 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
     if(name==='publish'&&!confirm('确认将此产品正式发布到网站吗？'))return;
     setBusy(true);setError('');setNotice('');
     try{
-      const result=await adminFetch<{success:boolean;status:string}>('/'+base+'/reviews/'+encodeURIComponent(selected.id)+'/'+name,{
+      const result=await adminFetch<{success:boolean;status:string}>('/'+base+'/'+(selected.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(selected.id)+'/'+name,{
         method:'POST',body:JSON.stringify({note:reason.trim()})
       });
       if(!result.success)throw Error('审核状态未确认');
@@ -84,11 +118,14 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
       // queue, even if a legacy endpoint still includes completed records.
       setSelected(null);
       try {
-        await refresh();
+        const refreshed=await refresh();
         if(isActionableProductReview(role,result.status)){
           const detail=await adminFetch<ReviewDetail>(
-            '/'+base+'/reviews/'+encodeURIComponent(selected.id));
-          setSelected(detail);
+            '/'+base+'/'+(selected.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(selected.id));
+          setSelected({...detail,kind:selected.kind});
+        }else{
+          const next=refreshed.find(item=>isActionableProductReview(role,item.status));
+          if(next)await inspect(next);
         }
       }catch(refreshError:any){
         setError('操作已成功，但列表刷新失败：'+
@@ -97,12 +134,13 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
     }catch(e:any){setError(e?.message||'操作未完成，请刷新检查');await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
-  const original=selected?.versions?.[0]?.snapshot||{};
-  const latest=selected?.versions?.[selected.versions.length-1]?.snapshot||{};
+  const original=selected?.kind==='revision'?selected.base_snapshot||{}:selected?.versions?.[0]?.snapshot||{};
+  const latest=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
   const canApprove=selected&&(role==='ADMIN'?selected.status==='pending_admin':selected.status==='pending_supervisor');
   const canReturn=canApprove;
   const canCorrection=role==='SUPERVISOR'&&selected?.status==='returned_to_supervisor';
   const canPublish=role==='ADMIN'&&selected?.status==='approved_pending_publish';
+  const isFirstSubmission=selected?.kind!=='revision'&&selected?.versions.length===1;
   const changedFields=fields.filter(([key])=>JSON.stringify(original[key])!==JSON.stringify(latest[key]));
   const visibleFields=showAllFields?fields:changedFields;
   const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
@@ -131,46 +169,69 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
           {role==='ADMIN'?'核对变更后决定批准或退回；批准后仍须单独发布。':'核对本部门产品变更，批准或退回给上传员工。'}
         </p>
       </div>
-      <button type="button" onClick={()=>void refresh().catch(e=>setError(e?.message||'刷新失败'))}
+      <button type="button" disabled={busy||loading} onClick={()=>{setError('');void refresh();}}
         className="rounded border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-white">刷新列表</button>
     </div>
     {error&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
     {notice&&<div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
+    <form aria-label="筛选部门审核待办" onSubmit={event=>{event.preventDefault();setQuery(search.trim());setPage(1);}}
+      className="grid gap-3 rounded border bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <label className="text-xs">SKU 或产品名称<input aria-label="搜索部门待办" type="search" maxLength={120}
+        disabled={busy} value={search} onChange={e=>setSearch(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm"/></label>
+      <label className="text-xs">提交员工<select aria-label="部门待办员工" disabled={busy} value={employee}
+        onChange={e=>{setEmployee(e.target.value);setPage(1);}} className="mt-1 w-full rounded border px-3 py-2 text-sm">
+        <option value="">全部员工</option>{members.map(member=><option key={member.id} value={member.id}>{member.username}</option>)}
+      </select></label>
+      <label className="text-xs">申请类型<select aria-label="部门待办类型" disabled={busy} value={kind}
+        onChange={e=>{setKind(e.target.value as typeof kind);setPage(1);}} className="mt-1 w-full rounded border px-3 py-2 text-sm">
+        <option value="">新品与修订</option><option value="product">新品</option><option value="revision">修订</option>
+      </select></label>
+      <label className="text-xs">处理状态<select aria-label="部门待办状态" disabled={busy} value={status}
+        onChange={e=>{setStatus(e.target.value);setPage(1);}} className="mt-1 w-full rounded border px-3 py-2 text-sm">
+        <option value="action">需要我处理</option><option value="pending_supervisor">待初审</option>
+        <option value="returned_to_supervisor">管理员退回</option>
+        {role==='SUPERVISOR'&&<><option value="returned_to_uploader">等待员工补正</option><option value="pending_admin">等待管理员终审</option><option value="approved_pending_publish">等待正式发布</option></>}
+      </select></label>
+      <div className="flex gap-2"><button type="submit" disabled={busy} className="rounded bg-stone-900 px-4 py-2 text-sm text-white">搜索</button>
+        <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setPage(1);}}
+          className="rounded border px-3 py-2 text-sm">清除筛选</button></div>
+    </form>
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">
-      <section className="space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto" aria-label="审核申请列表">
-        <h3 className="px-2 py-2 text-sm font-semibold">产品申请（{reviews.length}）</h3>
+      <section className={'space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="审核申请列表">
+        <h3 className="px-2 py-2 text-sm font-semibold">产品申请（{total===null?'未同步':total}）</h3>
         {loading&&<p className="p-3 text-sm text-stone-500">加载中…</p>}
-        {!loading&&!reviews.length&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
-        {reviews.map(item=><button key={item.id} type="button" onClick={()=>void inspect(item.id)}
-          aria-current={selected?.id===item.id?'true':undefined}
-          className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id?'border-stone-900 bg-stone-50':'border-stone-100')}>
+        {!loading&&total===0&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
+        {reviews.map(item=><button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
+          aria-current={selected?.id===item.id&&selected?.kind===item.kind?'true':undefined}
+          className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id&&selected?.kind===item.kind?'border-stone-900 bg-stone-50':'border-stone-100')}>
           <div className="flex justify-between gap-2"><strong className="text-sm">{item.name_cn||item.name}</strong>
             <span className="text-[11px] text-stone-500">V{item.latest_version}</span></div>
-          <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'}</p>
+          <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {item.kind==='revision'?'修订':'新品'}</p>
           <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
         </button>)}
       </section>
-      <section className="min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5" aria-label="审核详情">
+      <section ref={detailPanel} className="min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5" aria-label="审核详情">
+        {selected&&<button type="button" disabled={busy} onClick={()=>setSelected(null)} className="rounded border px-3 py-2 text-sm lg:hidden">返回申请列表</button>}
         {!selected?<p className="py-12 text-center text-sm text-stone-500">选择一条审核申请，先查看变更，再进行操作。</p>:<>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0"><h3 className="font-serif text-lg font-semibold">{selected.name_cn||selected.name}</h3>
               <p className="mt-1 text-xs text-stone-500">{selected.code} · {statusLabels[selected.status]||selected.status}</p>
             </div>
-            <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">V1 → V{selected.latest_version}</span>
+            <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">{isFirstSubmission?'首次提交 V1':`V1 → V${selected.latest_version}`}</span>
           </div>
           {selected.return_reason&&<p className="rounded border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm font-semibold text-stone-900">
-              {showAllFields?'全部公开字段':'本次变更'} · {changedFields.length} 项变化
+              {isFirstSubmission?'新品完整资料':`${showAllFields?'全部公开字段':'本次变更'} · ${changedFields.length} 项变化`}
               {technicalChanged?' · 技术资料有更新':''}
             </h4>
-            <button type="button" aria-pressed={showAllFields}
+            {!isFirstSubmission&&<button type="button" aria-pressed={showAllFields}
               onClick={()=>setShowAllFields(value=>!value)}
               className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-50">
               {showAllFields?'只看变更':'查看全部字段'}
-            </button>
+            </button>}
           </div>
-          {visibleFields.length===0?<p className="rounded bg-stone-50 p-4 text-sm text-stone-600">
+          {isFirstSubmission?<ProductChangeSummary original={{}} proposed={latest} isNew/>:visibleFields.length===0?<p className="rounded bg-stone-50 p-4 text-sm text-stone-600">
             公开字段没有变化。{technicalChanged?'请展开下方技术资料核对内部信息。':'请核对版本记录后再决定审核。'}
           </p>:<div className="space-y-3" aria-label="初始与提交版本字段比较">
             {visibleFields.map(([field,label])=>{
@@ -220,7 +281,7 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
             <div className="flex flex-wrap items-center gap-2">
               {canApprove&&<button type="button" disabled={busy} onClick={()=>void action('approve')}
                 className="w-full rounded bg-stone-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
-                {role==='ADMIN'?'终审批准（待发布）':'初审通过'}
+                {role==='ADMIN'?'终审批准（待发布）':'初审通过并查看下一条'}
               </button>}
               {canPublish&&<button type="button" disabled={busy} onClick={()=>void action('publish')}
                 className="w-full rounded bg-green-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
@@ -245,6 +306,10 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
                   className="mt-2 w-full rounded border border-stone-300 p-3 text-sm font-normal"
                   rows={3} maxLength={2000} placeholder="说明需要调整的字段和具体要求"/>
               </label>
+              <div className="flex flex-wrap gap-2" aria-label="常用退回说明">
+                {['请补充清晰的产品主图','请核对尺寸及计量单位','请确认材质和表面处理','请调整产品所属分类'].map(text=><button key={text} type="button" disabled={busy}
+                  onClick={()=>setReason(text)} className="rounded border px-3 py-2 text-xs">{text}</button>)}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={busy||reason.trim().length<5}
                   onClick={()=>void action(returnAction)}
@@ -260,7 +325,12 @@ const TwoStageProductReviews:React.FC<{role:Role}>=({role})=>{
         </>}
       </section>
     </div>
-    <PublishedRevisionQueue role={role}/>
+    <nav aria-label="部门待办分页" className="flex flex-wrap items-center justify-end gap-3 text-sm">
+      <span role="status">{total===null?'数量未同步':`匹配 ${total} 项 · 第 ${page} 页 · 每页 50 项`}</span>
+      <button type="button" disabled={busy||loading||page===1} onClick={()=>setPage(p=>p-1)} className="rounded border px-3 py-2">上一页</button>
+      <button type="button" disabled={busy||loading||total===null||page*50>=total} onClick={()=>setPage(p=>p+1)} className="rounded border px-3 py-2">下一页</button>
+    </nav>
   </div>;
 };
 export default TwoStageProductReviews;
+

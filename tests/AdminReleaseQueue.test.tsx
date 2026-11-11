@@ -23,11 +23,24 @@ const setup=(products:Item[],revisions:Item[])=>{
   globalThis.fetch=(async(url:any,options?:RequestInit)=>{
     const path=String(url).replace(/^.*?\/api\//,'');
     const method=options?.method||'GET';
+    const route=path.split('?')[0];
+    const params=new URLSearchParams(path.split('?')[1]||'');
     requests.push(method+' '+path);
-    if(method==='GET'&&path==='admin/reviews')return Response.json({items:dataProducts});
-    if(method==='GET'&&path==='admin/revisions')return Response.json({items:dataRevisions});
-    if(method==='GET'&&path==='admin/org/accounts')return Response.json({
-      users:[{id:'lead',username:'主管甲',department_name:'肇庆产品部'}]});
+    if(method==='GET'&&route==='admin/release-queue'){
+      let rows=[...dataProducts.map(x=>({...x,kind:'product'})),...dataRevisions.map(x=>({...x,kind:'revision'}))]
+        .filter(x=>['pending_admin','approved_pending_publish'].includes(x.status));
+      const q=(params.get('q')||'').toLowerCase();
+      if(q)rows=rows.filter(x=>[x.code,x.name,x.name_cn].some(v=>v.toLowerCase().includes(q)));
+      if(params.get('department'))rows=rows.filter(x=>x.department_id===params.get('department'));
+      if(params.get('supervisor'))rows=rows.filter(x=>x.supervisor_id===params.get('supervisor'));
+      if(params.get('kind'))rows=rows.filter(x=>x.kind===params.get('kind'));
+      const page=Number(params.get('page')||1),size=Number(params.get('page_size')||50);
+      return Response.json({list_version:1,total:rows.length,page,page_size:size,
+        has_more:page*size<rows.length,items:rows.slice((page-1)*size,page*size)});
+    }
+    if(method==='GET'&&route==='admin/org/accounts')return Response.json({
+      users:[{id:'lead',username:'主管甲',department_id:'department-A',department_name:'肇庆产品部',job_type:'supervisor'},
+        {id:'factory',username:'员工甲',department_id:'department-A',department_name:'肇庆产品部',job_type:'staff'}]});
     const match=path.match(/^admin\/(reviews|revisions)\/([^/]+)(?:\/(approve|return|publish))?$/);
     if(match){
       const pool=match[1]==='reviews'?dataProducts:dataRevisions;
@@ -98,10 +111,10 @@ test('Admin safe batch handles approved product and revision sequentially withou
   let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<AdminReleaseQueue onQueueChanged={env.onQueueChanged}/>);});
-    const select=view!.root.findByProps({'aria-label':'全选待发布产品'});
+    const select=view!.root.findByProps({'aria-label':'全选本页待发布产品'});
     await act(async()=>select.props.onChange({target:{checked:true}}));
-    assert.ok(findButton(view!,'发布选中的 2 项'));
-    await act(async()=>findButton(view!,'发布选中的 2 项')!.props.onClick());
+    assert.ok(findButton(view!,'发布本页选中的 2 项'));
+    await act(async()=>findButton(view!,'发布本页选中的 2 项')!.props.onClick());
     assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
       'POST admin/reviews/p/approve','POST admin/reviews/p/publish',
       'POST admin/revisions/r/publish'
@@ -121,7 +134,8 @@ test('Admin return requires a reason; optional difference view does not block pu
     await act(async()=>{view=create(<AdminReleaseQueue/>);});
     assert.equal(view!.root.findAllByType('pre').length,0);
     await act(async()=>findButton(view!,'查看差异')!.props.onClick());
-    assert.equal(view!.root.findAllByType('pre').length,2);
+    assert.match(JSON.stringify(view!.toJSON()),/walnut/);
+    assert.match(JSON.stringify(view!.toJSON()),/修改前/);
     await act(async()=>findButton(view!,'退回主管')!.props.onClick());
     const confirm=findButton(view!,'确认退回主管')!;
     assert.equal(confirm.props.disabled,true);
@@ -135,3 +149,91 @@ test('Admin return requires a reason; optional difference view does not block pu
     env.restore();
   }
 });
+
+test('Admin pagination renders at most 50 mixed requests and only publishes the selected visible page',async()=>{
+  const env=setup(Array.from({length:60},(_,i)=>mk('p'+i,'pending_admin')),
+    Array.from({length:60},(_,i)=>mk('r'+i,'approved_pending_publish')));
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<AdminReleaseQueue/>);});
+    assert.equal(view!.root.findAllByType('article').length,50);
+    assert.match(JSON.stringify(view!.toJSON()),/匹配 120 项/);
+    await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
+    assert.ok(findButton(view!,'发布本页选中的 50 项'));
+    await act(async()=>findButton(view!,'下一页')!.props.onClick());
+    assert.equal(findButton(view!,'发布本页选中的 0 项')!.props.disabled,true,'page change clears hidden selections');
+    assert.equal(view!.root.findAllByType('article').length,50);
+    assert.equal(view!.root.findAllByProps({'aria-label':'选择发布 产品 p0'}).length,0);
+    await act(async()=>view!.root.findByProps({'aria-label':'发布待办类型'}).props.onChange({target:{value:'revision'}}));
+    assert.match(JSON.stringify(view!.toJSON()),/匹配 60 项/);
+    assert.match(JSON.stringify(view!.toJSON()),/第 1 页/);
+    await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
+    await act(async()=>findButton(view!,'发布本页选中的 50 项')!.props.onClick());
+    const posts=env.requests.filter(x=>x.startsWith('POST'));
+    assert.equal(posts.length,50);assert.ok(posts.every(x=>x.startsWith('POST admin/revisions/')));
+    assert.match(JSON.stringify(view!.toJSON()),/匹配 10 项/);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
+test('Admin searches complete queue, resets selection on filters and only lists supervisors in supervisor filter',async()=>{
+  const env=setup([mk('one','pending_admin'),mk('two','pending_admin')],[]);
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<AdminReleaseQueue/>);});
+    const leads=view!.root.findByProps({'aria-label':'发布待办主管'});
+    assert.equal(leads.findAllByType('option').length,2,'all plus the supervisor, not employee accounts');
+    await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
+    await act(async()=>view!.root.findByProps({'aria-label':'搜索发布待办'}).props.onChange({target:{value:'PZ-two'}}));
+    await act(async()=>view!.root.findByProps({'aria-label':'筛选发布待办'}).props.onSubmit({preventDefault(){}}));
+    assert.match(JSON.stringify(view!.toJSON()),/匹配 1 项/);
+    assert.equal(view!.root.findAllByType('article').length,1);
+    assert.equal(findButton(view!,'发布本页选中的 0 项')!.props.disabled,true);
+    assert.ok(env.requests.some(x=>x.includes('q=PZ-two')));
+    assert.equal(env.requests.filter(x=>x.startsWith('POST')).length,0);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
+test('Admin refuses legacy unversioned counts rather than claiming the queue is empty',async()=>{
+  const env=setup([],[]);
+  let view:ReturnType<typeof create>|undefined;
+  const mock=globalThis.fetch;
+  try{
+    globalThis.fetch=(async(input:any,init?:RequestInit)=>String(input).includes('admin/release-queue')
+      ?Response.json({items:[]}):mock(input,init)) as typeof fetch;
+    await act(async()=>{view=create(<AdminReleaseQueue/>);});
+    const rendered=JSON.stringify(view!.toJSON());
+    assert.match(rendered,/当前列表服务需要更新/);
+    assert.match(rendered,/数量未同步/);
+    assert.doesNotMatch(rendered,/当前没有需要 Admin 发布/);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
+test('partial publish stops at the failed SKU and retry does not reapprove or republish successful records',async()=>{
+  const env=setup([mk('one','pending_admin'),mk('two','pending_admin'),mk('three','pending_admin')],[]);
+  let view:ReturnType<typeof create>|undefined;const fetcher=globalThis.fetch;let fail=true;
+  globalThis.fetch=(async(input:any,init?:RequestInit)=>{
+    if(fail&&String(input).includes('/admin/reviews/two/publish')&&init?.method==='POST'){
+      env.requests.push('POST admin/reviews/two/publish');
+      return Response.json({error:'temporary publish failure'},{status:503});
+    }
+    return fetcher(input,init);
+  }) as typeof fetch;
+  try{
+    await act(async()=>{view=create(<AdminReleaseQueue/>);});
+    await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
+    await act(async()=>findButton(view!,'发布本页选中的 3 项')!.props.onClick());
+    assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
+      'POST admin/reviews/one/approve','POST admin/reviews/one/publish',
+      'POST admin/reviews/two/approve','POST admin/reviews/two/publish'
+    ]);
+    assert.match(JSON.stringify(view!.toJSON()),/SKU PZ-two/);
+    assert.ok(findButton(view!,'发布本页选中的 2 项'));
+    fail=false;
+    await act(async()=>findButton(view!,'发布本页选中的 2 项')!.props.onClick());
+    assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')).slice(4),[
+      'POST admin/reviews/two/publish','POST admin/reviews/three/approve','POST admin/reviews/three/publish'
+    ]);
+    assert.match(JSON.stringify(view!.toJSON()),/当前没有需要 Admin 发布/);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+

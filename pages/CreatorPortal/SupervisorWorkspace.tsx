@@ -17,6 +17,9 @@ const SupervisorWorkspace:React.FC=()=>{
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [teamSearch,setTeamSearch]=useState('');
+  const [teamStatus,setTeamStatus]=useState('all');
+  const visibleUsers=users.filter(member=>member.username.toLowerCase().includes(teamSearch.trim().toLowerCase())&&(teamStatus==='all'||(teamStatus==='active'?!!member.is_active:!member.is_active)));
   const refresh=useCallback(async()=>{
     const res=await adminFetch<{users:TeamAccount[]}>('/supervisor/accounts');
     setUsers(res.users||[]);
@@ -50,7 +53,7 @@ const SupervisorWorkspace:React.FC=()=>{
       {id:'team',label:'团队账号管理',icon:<Users size={18}/>}
     ]}
     activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews'|'categories')}>
-    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR"/>:
+    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR" members={users}/>:
     tab==='categories'?<SupervisorCategoryRequests/>:<div className="space-y-6 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-900">产品审批在「产品初审」中进行；「团队账号管理」只负责创建、停用和重置员工账号。</p>
@@ -74,14 +77,21 @@ const SupervisorWorkspace:React.FC=()=>{
       </form>
       <section className="rounded border bg-white p-5">
         <h2 className="mb-3 font-semibold">我的团队（{users.length}）</h2>
+        <div className="mb-3 flex flex-wrap gap-3">
+          <input aria-label="搜索团队账号" type="search" value={teamSearch} onChange={e=>setTeamSearch(e.target.value)} placeholder="搜索员工登录账号" className="rounded border px-3 py-2 text-sm"/>
+          <select aria-label="团队账号状态" value={teamStatus} onChange={e=>setTeamStatus(e.target.value)} className="rounded border px-3 py-2 text-sm">
+            <option value="all">全部账号</option><option value="active">已启用</option><option value="inactive">已停用</option>
+          </select>
+        </div>
         <div className="overflow-auto"><table className="w-full text-left text-sm">
           <thead><tr className="border-b text-stone-500"><th className="p-2">登录账号</th><th className="p-2">岗位</th><th className="p-2">状态</th><th className="p-2">账号操作</th></tr></thead>
-          <tbody>{users.map(member=><tr key={member.id} className="border-b">
+          <tbody>{visibleUsers.map(member=><tr key={member.id} className="border-b">
             <td className="p-2">{member.username}</td><td className="p-2">{labels[member.job_type as Job]||member.job_type}</td>
             <td className="p-2">{member.is_active?'启用':'停用'}</td>
             <td className="flex flex-wrap gap-2 p-2"><button type="button" disabled={busy} onClick={()=>toggle(member)} className="border px-2 py-1 text-xs disabled:opacity-50">{member.is_active?'停用':'启用'}</button><button type="button" disabled={busy} onClick={()=>resetPassword(member)} className="border px-2 py-1 text-xs disabled:opacity-50">重置密码</button></td>
           </tr>)}</tbody>
         </table></div>
+        {!!users.length&&!visibleUsers.length&&<p className="mt-3 text-sm text-stone-500">没有符合筛选条件的团队成员。</p>}
         {!users.length&&<p className="mt-3 text-sm text-stone-500">尚未创建团队账号。</p>}
       </section>
 
@@ -89,3 +99,4 @@ const SupervisorWorkspace:React.FC=()=>{
   </PortalLayout>;
 };
 export default SupervisorWorkspace;
+

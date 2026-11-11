@@ -1,5 +1,6 @@
 import type { ProductVariant } from '../../types';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import {fetchBackofficePage} from '../../utils/backofficeLists';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeAdminInventoryProducts } from '../../utils/normalizeAdminInventoryProducts';
 import { DEFAULT_CONFIG } from '../../utils/siteConfig';
@@ -30,6 +31,10 @@ type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
+  const dirtyProduct=useRef(false);
+  const busyProduct=useRef(false);
+  const rememberProductDirty=useCallback((dirty:boolean)=>{dirtyProduct.current=dirty;},[]);
+  const rememberProductBusy=useCallback((busy:boolean)=>{busyProduct.current=busy;},[]);
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
   const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes'>('products');
 
@@ -111,10 +116,9 @@ const AdminWorkspace: React.FC = () => {
 
   const loadReviewQueue = useCallback(async () => {
     // Load each queue independently. Never misreport a failed fetch as "0 pending".
-    const [categoryResult,productResult,revisionResult,changeResult] = await Promise.allSettled([
+    const [categoryResult,productResult,changeResult] = await Promise.allSettled([
       adminFetch<{items:any[];capabilities?:{targetedCategoryPublish?:boolean;workflowVersion?:string}}>('admin/category-requests'),
-      adminFetch<{items:any[]}>('admin/reviews'),
-      adminFetch<{items:any[]}>('admin/revisions'),
+      fetchBackofficePage<any>('admin/release-queue',{page_size:1}),
       adminFetch<{items:any[]}>('admin/category-change-requests')
     ]);
     if(categoryResult.status==='fulfilled' && Array.isArray(categoryResult.value?.items)){
@@ -134,12 +138,8 @@ const AdminWorkspace: React.FC = () => {
       setCategoryQueueLoaded(false);
       setTargetedPublishSupported(null);
     }
-    if(productResult.status==='fulfilled' && Array.isArray(productResult.value?.items) &&
-       revisionResult.status==='fulfilled' && Array.isArray(revisionResult.value?.items)){
-      const needsAction=(item:{status:string})=>['pending_admin','approved_pending_publish'].includes(item.status);
-      setProductReviewCount(productResult.value.items.filter(needsAction).length+
-        revisionResult.value.items.filter(needsAction).length);
-    }else setProductReviewCount(null);
+    if(productResult.status==='fulfilled')setProductReviewCount(productResult.value.total);
+    else setProductReviewCount(null);
     if(changeResult.status==='fulfilled' && Array.isArray(changeResult.value?.items)){
       setCategoryChangeCount(changeResult.value.items.filter(item=>item.status==='pending').length);
     }else setCategoryChangeCount(null);
@@ -177,9 +177,9 @@ const AdminWorkspace: React.FC = () => {
 
   useEffect(() => {
     if (activeTab !== 'review') return;
-    const sync = () => loadReviewQueue();
+    const sync = () => { if(document.visibilityState!=='hidden')void loadReviewQueue(); };
     sync();
-    const intervalId = setInterval(sync, 10000);
+    const intervalId = setInterval(sync, 30000);
     window.addEventListener('focus', sync);
     return () => { clearInterval(intervalId); window.removeEventListener('focus', sync); };
   }, [activeTab, loadReviewQueue]);
@@ -427,7 +427,7 @@ const AdminWorkspace: React.FC = () => {
   ];
 
   return (
-    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { setActiveTab(id as AdminTab); setEditingProduct(null); setIsCreating(false); }}>
+    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab); setEditingProduct(null); setIsCreating(false); }}>
       {hasPendingDeploy && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
           <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
@@ -574,7 +574,7 @@ const AdminWorkspace: React.FC = () => {
 
         {activeTab === 'inventory' && (
           editingProduct || isCreating ? (
-            <ProductForm initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { setEditingProduct(null); setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
+            <ProductForm onDirtyChange={rememberProductDirty} onBusyChange={rememberProductBusy} initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
