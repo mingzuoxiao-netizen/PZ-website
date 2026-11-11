@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight, Search, Hash, ShieldCheck, Globe2 } from 'lucide-react';
+import { Menu, X, ArrowRight, Search, Hash, Globe2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { NAV_ITEMS } from '../types';
@@ -283,11 +283,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {t.common.startProject} <ArrowRight size={20} className="ml-4 group-hover:translate-x-2 transition-transform" />
                   </Link>
                 </li>
-                <li className="pt-12">
-                   <Link to="/admin-pzf-2025" className="inline-flex items-center gap-2 text-stone-800 hover:text-stone-600 transition-colors text-[8px] font-mono uppercase tracking-[0.5em] border border-stone-900/50 px-4 py-2 rounded-sm">
-                      <ShieldCheck size={12} /> {t.common.adminAccess}
-                   </Link>
-                </li>
               </ul>
             </div>
           </div>
@@ -296,7 +291,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-12 text-center md:text-left">
                <p>&copy; {new Date().getFullYear()} PZ Furniture Studio</p>
                <p>{t.common.rights}</p>
-               {meta?.version && (
+               {meta?.version && /^\d+\.\d+/.test(meta.version) && (
                  <span className="bg-white/5 px-4 py-1 rounded-sm text-stone-600 border border-white/5">
                     Site v{meta.version}
                  </span>
