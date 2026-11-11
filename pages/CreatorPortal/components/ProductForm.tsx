@@ -83,7 +83,11 @@ const ProductForm:React.FC<ProductFormProps>=({
     },400);
     return()=>{current=false;clearTimeout(handle);};
   },[normalizedSku,skuNeedsCheck,onCheckSku]);
-  const preflight=preflightProduct({...formData,category:currentCategory,code:normalizedSku},{
+  const previewSpecifications={
+    ...specs, media_roles:{...(specs.media_roles||{}),
+      ...(formData.images?.[0]?{[formData.images[0]]:'main' as const}:{})}
+  };
+  const preflight=preflightProduct({...formData,specifications:previewSpecifications,category:currentCategory,code:normalizedSku},{
     existingSku:skuNeedsCheck&&skuProbe.code===normalizedSku&&skuProbe.existing
   });
   const warningSignature=JSON.stringify({
@@ -112,7 +116,19 @@ const ProductForm:React.FC<ProductFormProps>=({
   };
   const {removeImage,reorderImages,setMainImage,uploadImage}=useProductImageActions({
     images:formData.images||[],
-    setImages:(images)=>handleChange('images',images)
+    setImages:(images)=>{
+      setDirty(true);
+      setFormData(previous=>{
+        const previousSpecs=readProductSpecifications(previous.specifications);
+        const roles={...(previousSpecs.media_roles||{})};
+        const first=images[0];
+        if(first){
+          for(const key of Object.keys(roles))if(key!==first&&roles[key]==='main')delete roles[key];
+          roles[first]='main';
+        }
+        return {...previous,images,specifications:{...previousSpecs,media_roles:roles}};
+      });
+    }
   });
   const save=async(e:React.FormEvent)=>{
     e.preventDefault();
@@ -166,7 +182,7 @@ const ProductForm:React.FC<ProductFormProps>=({
       const record={
         ...formData,category:categoryId,code,
         size:formatDimensionsForDisplay(specs,categoryLabel)||sizePreview,
-        specifications:specs,status:finalStatus,
+        specifications:previewSpecifications,status:finalStatus,
         is_published:finalStatus==='published'?1:0
       };
       if(intent==='submit'&&onSaveAndSubmit)await onSaveAndSubmit(record,warningCodes);
@@ -202,7 +218,7 @@ const ProductForm:React.FC<ProductFormProps>=({
   };
   const canPromote=userRole==='FACTORY'&&!!onSubmit&&!!formData.id&&
     ['draft','rejected','returned_to_uploader'].includes(formData.status||'');
-  const mediaRoles=specs.media_roles||{};
+  const mediaRoles=previewSpecifications.media_roles||{};
   const changeRole=(url:string,role:string)=>changeSpecs({
     ...specs,media_roles:{...mediaRoles,[url]:role as typeof mediaRoles[string]}
   });
@@ -238,7 +254,12 @@ const ProductForm:React.FC<ProductFormProps>=({
             <ul className="mt-2 space-y-1">{preflight.errors.map((item,i)=>
               <li key={item.code+'-'+item.field+'-'+i}>
                 <button type="button" className="text-left text-xs text-red-800 underline"
-                  onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+item.field+'"]')?.focus()}>
+                  onClick={()=>{
+                    const input=formRef.current?.querySelector<HTMLElement>('[name="'+item.field+'"]');
+                    const target=input||formRef.current?.querySelector<HTMLElement>('[data-preflight-field="'+item.field+'"]');
+                    target?.focus();
+                    target?.scrollIntoView({block:'center',behavior:'smooth'});
+                  }}>
                   {item[lang]}
                 </button>
               </li>)}</ul>
@@ -340,7 +361,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>
           </div>
 
-          <section className="border-t border-stone-200 pt-7">
+          <section data-preflight-field="images" tabIndex={-1} className="border-t border-stone-200 pt-7">
             {sectionTitle('03','Product images','产品图片',T('Existing R2 upload','沿用现有图片上传'))}
             <p className="mb-4 text-xs text-stone-600" role="note">{T(
               'Image additions, removals and ordering are draft changes. Click Save draft to persist them. Removing an image does not delete its R2 file.',
@@ -363,8 +384,9 @@ const ProductForm:React.FC<ProductFormProps>=({
                     <label className="min-w-0 flex-1">
                       <span className={label}>{T('Image','图片')} {i+1}</span>
                       <select className={field} disabled={i===0}
-                        value={i===0?'main':(mediaRoles[url]||'detail')}
+                        value={i===0?'main':(mediaRoles[url]||'')}
                         onChange={e=>changeRole(url,e.target.value)}>
+                        <option value="">{T('Choose role','选择用途')}</option>
                         <option value="main">{T('Main','主图')}</option>
                         <option value="lifestyle">{T('Lifestyle','场景图')}</option>
                         <option value="detail">{T('Detail','细节图')}</option>
