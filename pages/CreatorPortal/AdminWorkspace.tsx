@@ -42,6 +42,7 @@ const AdminWorkspace: React.FC = () => {
   const [catalogError, setCatalogError] = useState('');
   const [archiving, setArchiving] = useState(false);
   const [forceDeleteEnabled,setForceDeleteEnabled]=useState(false);
+  const [forceDeleteReason,setForceDeleteReason]=useState('正在检查 Worker 强制删除配置…');
   const catalogRequest = useRef(0);
   const [products, setProducts] = useState<any[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<any[]>([]);
@@ -184,15 +185,24 @@ const AdminWorkspace: React.FC = () => {
   }, [activeTab, loadReviewQueue]);
 
   useEffect(() => { void loadSiteConfig(); }, [loadSiteConfig]);
+  const loadDeleteCapability=useCallback(async()=>{
+    try{
+      const data=await adminFetch<{force_available?:boolean;reason?:string|null}>('admin/product-delete/capabilities');
+      const enabled=data.force_available===true;
+      setForceDeleteEnabled(enabled);
+      setForceDeleteReason(enabled?'':data.reason||
+        '当前 Worker 未报告强制删除可用，请核对 Staging D1 016、Worker 版本和环境开关。');
+    }catch(error:any){
+      setForceDeleteEnabled(false);
+      setForceDeleteReason('无法检查当前 Worker 强制删除能力：'+
+        (error?.message||'请核对 Pages API 是否连接了正确的 Staging Worker。'));
+    }
+  },[]);
   useEffect(() => {
     if(activeTab!=='inventory')return;
     void loadProducts();
-    let active=true;
-    void adminFetch<{force_available?:boolean}>('admin/product-delete/capabilities')
-      .then(data=>{if(active)setForceDeleteEnabled(data.force_available===true);})
-      .catch(()=>{if(active)setForceDeleteEnabled(false);});
-    return ()=>{active=false;};
-  }, [activeTab, loadProducts]);
+    void loadDeleteCapability();
+  }, [activeTab, loadProducts,loadDeleteCapability]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
   // Update only the two basic fields against the latest D1 draft.
@@ -308,29 +318,57 @@ const AdminWorkspace: React.FC = () => {
     }
   };
 
-  const handlePermanentDelete=async(product:any)=>{
+  const handlePermanentDelete=async(product:any):Promise<{
+    state:'deleted'|'verified_removed'|'already_absent'
+  }>=>{
     const id=String(product?.id||'');
     const sku=String(product?.code||'');
     if(!id||!sku)throw new Error('产品缺少 ID 或 SKU，请刷新后重试。');
     const endpoint='admin/products/'+encodeURIComponent(id)+'/permanent-delete';
-    const check=await adminFetch<{
-      eligible?:boolean;error?:string;product?:{code:string;updated_at:string}
-    }>(endpoint);
-    if(check.eligible!==true||!check.product?.updated_at){
-      throw new Error(check.error||'产品删除资格未确认，请刷新后重试。');
+    try{
+      const check=await adminFetch<{
+        eligible?:boolean;error?:string;force_enabled?:boolean;
+        product?:{code:string;updated_at:string}
+      }>(endpoint);
+      if(check.eligible!==true||!check.product?.updated_at)
+        throw new Error(check.error||'产品删除资格未确认，请刷新后重试。');
+      if(check.product.code!==sku)
+        throw new Error('产品 SKU 已更新，请刷新列表，不要重复操作。');
+      // Fail closed if frontend and Worker do not agree about force deletion.
+      if(forceDeleteEnabled && check.force_enabled!==true)
+        throw new Error('Worker 强制删除能力与页面状态不一致，请重新检查配置。');
+      const result=await adminFetch<{success?:boolean;sku_reusable?:boolean}>(endpoint,{
+        method:'POST',
+        body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at,
+          ...(forceDeleteEnabled?{force:true}:{})})
+      });
+      if(result.success!==true||result.sku_reusable!==true)
+        throw new Error('删除响应尚未确认，正在复查数据库结果。');
+      return {state:'deleted'};
+    }catch(error:any){
+      // A response can be lost after D1 has committed. Do not count this
+      // as "failed" (or retry deletion) until the current persisted state is read.
+      let status;
+      try{
+        status=await adminFetch<{
+          state:'active'|'retired'|'absent'|'inconsistent';
+          original_sku?:string;current_sku?:string;current_status?:string;
+          reason?:string
+        }>('admin/products/'+encodeURIComponent(id)+'/deletion-status');
+      }catch{
+        throw new Error((error?.message||'删除操作未确认')+
+          '；且无法查询当前数据库状态。请刷新核对，暂勿重复删除。');
+      }
+      if(status.state==='retired'&&status.original_sku===sku)
+        return {state:'verified_removed'};
+      if(status.state==='absent')
+        return {state:'already_absent'};
+      if(status.state==='inconsistent')
+        throw new Error('数据库删除记录与审计回执不一致，请暂停删除并检查 D1。');
+      throw new Error((error?.message||'删除未完成')+
+        (status.current_status?'；数据库当前状态：'+status.current_status:'')+
+        '。该产品仍在数据库，请先检查后台配置。');
     }
-    if(check.product.code!==sku)throw new Error('产品 SKU 已更新，请刷新列表，不要重复操作。');
-    // The caller shows one explicit confirmation for single/bulk deletion.
-    // Keep server-side exact SKU + version validation without asking Admin to type.
-    const result=await adminFetch<{success?:boolean;sku_reusable?:boolean}>(endpoint,{
-      method:'POST',
-      body:JSON.stringify({confirm_sku:sku,expected_updated_at:check.product.updated_at,
-        ...(forceDeleteEnabled?{force:true}:{})})
-    });
-    if(result.success!==true||result.sku_reusable!==true)
-      throw new Error('删除结果未确认。请刷新列表检查，不要重复操作。');
-    // Batch caller reconciles the list once after the final item.
-    // Product history guards and original R2 preservation remain enforced.
   };
 
   // Frequently-used work is visible; less-used settings are grouped without
@@ -526,6 +564,13 @@ const AdminWorkspace: React.FC = () => {
                 <p className="text-sm text-stone-600">这份清单用于复核。曾发布的产品按现行规则保留，审核或发布历史仍受永久删除保护。</p>
               )}
               {catalogError && <p role="alert">{catalogError}</p>}
+              {!forceDeleteEnabled&&<div role="status" className="my-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <strong>在售产品强制删除尚未启用。</strong>
+                <p className="mt-1">{forceDeleteReason}</p>
+                <p className="mt-1 text-xs">需要正确的 Staging Worker、D1 016 迁移及两个删除开关。当前不能绕过后端保护。</p>
+                <button type="button" className="mt-2 rounded border border-amber-700 px-3 py-1 text-xs"
+                  onClick={()=>void loadDeleteCapability()}>重新检查删除权限</button>
+              </div>}
             <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} forceDeleteEnabled={forceDeleteEnabled} lang="zh" userRole="ADMIN" />
               <nav aria-label="产品分页" className="flex items-center justify-end gap-3">
                 <button type="button" disabled={catalogPage <= 1 || isProductsLoading} onClick={() => setCatalogPage(page => page - 1)}>上一页</button>
