@@ -14,9 +14,19 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target (staging is the safe default)'
+        type: choice
+        required: true
+        default: staging
+        options:
+          - staging
+          - production
 
 permissions:
   contents: read
+  actions: read # Read-only GitHub deployment approval history
 
 concurrency:
   group: pz-worker-${{ github.ref }}-${{ github.event_name }}
@@ -38,6 +48,9 @@ jobs:
         run: |
           node --check worker/src/index.js
           node --test worker/tests/source-parity.test.mjs
+          node --test worker/tests/release-gates.test.mjs
+          node --test worker/tests/production-review.test.mjs
+          node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
         run: |
           node --test worker-patches/productTwoStageReviewCore.test.mjs
@@ -56,7 +69,11 @@ jobs:
   staging:
     name: Deploy and inspect isolated staging
     needs: validate
-    if: github.event_name == 'push' && vars.PZ_STAGING_CI_ENABLED == 'true'
+    if: >-
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')) &&
+      github.ref == 'refs/heads/main' &&
+      vars.PZ_STAGING_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: staging
@@ -68,6 +85,13 @@ jobs:
       - name: Render verified staging config and stamp commit SHA
         env:
           PZ_STAGING_PARITY_CONFIRMED: ${{ vars.PZ_STAGING_PARITY_CONFIRMED }}
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          # Non-secret production references, recorded ONLY after Cloudflare audit.
+          # Used solely to reject accidental cross-environment bindings.
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_KV_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_KV_ID }}
+          PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET }}
+          PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET }}
           PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
           PZ_D1_ID: ${{ vars.PZ_D1_ID }}
           PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
@@ -78,9 +102,12 @@ jobs:
           node worker/scripts/stamp-version.mjs
       - name: Deploy staging ONLY (no production routes)
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging
+          # These uniquely named secrets belong ONLY to the 'staging' GitHub Environment.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing staging environment deploy credentials'; exit 1; }
+          npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging
       - name: Read-only staging smoke checks
         run: node worker/scripts/staging-smoke.mjs
 
@@ -89,17 +116,26 @@ jobs:
     needs: validate
     if: >-
       (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'pz-worker-v')) ||
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.target == 'production' &&
+       github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # REQUIRED SETUP: Configure production GitHub Environment with required reviewers.
-    # The script also fails closed unless PZ_PRODUCTION_APPROVAL_CONFIRMED=true.
+    # PRIMARY release gate: GitHub Environment 'production' REQUIRED REVIEWERS.
+    # Configure this protection in Settings -> Environments before enabling deploys.
+    # SECONDARY, fail-closed: environment-scoped PZ_PRODUCTION_APPROVAL_CONFIRMED.
+    # Do NOT preset it to true; enable only for an approved release, then reset.
+    # Without Required reviewers, this workflow does not guarantee human approval.
     environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current run has a GitHub production Environment approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node worker/scripts/verify-production-review.mjs
       - name: Check release gate, bindings and stamp commit SHA
         env:
           PZ_PRODUCTION_APPROVAL_CONFIRMED: ${{ vars.PZ_PRODUCTION_APPROVAL_CONFIRMED }}
@@ -113,9 +149,12 @@ jobs:
           node worker/scripts/stamp-version.mjs
       - name: Deploy explicit production Worker name (approval required)
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env production
+          # These uniquely named secrets belong ONLY to the 'production' GitHub Environment.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_PRODUCTION_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_PRODUCTION_CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing production environment deploy credentials'; exit 1; }
+          npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env production
       - name: Verify production Worker commit SHA
         run: |
           node --input-type=module -e "
