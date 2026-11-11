@@ -4,7 +4,7 @@ on:
   push:
     branches: [feature/pz-v2-two-stage-product-approvals]
   pull_request:
-    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac]
+    branches: [main, feature/website-2-editorial-redesign, feature/category-governance-approval, feature/pz-v2-organization-rbac, feat/backoffice-complete-lists-20261110, feat/admin-release-workbench-20261110, feat/supervisor-review-workbench-20261110]
   workflow_dispatch:
 
 permissions:
@@ -56,6 +56,10 @@ jobs:
         run: python3 worker-patches/test_published_revision_production_migration.py
       - name: TypeScript check
         run: npm run typecheck
+      - name: Complete backoffice lists, scope isolation and large-SKU pagination
+        run: |
+          node --check worker-patches/backofficeListsCore.mjs
+          node --test worker-patches/backofficeListsCore.test.mjs
       - name: Automated tests
         run: npm test
       - name: Test staging category API patch
@@ -171,3 +175,4 @@ jobs:
         run: npx --yes wrangler@4.156.0 pages functions build ./functions --outfile ./pz-functions-qa.mjs --output-routes-path ./pz-routes-qa.json
       - name: Check API route
         run: node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('pz-routes-qa.json','utf8'));if(!v.include.includes('/api/*'))process.exit(1)"
+
