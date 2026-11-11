@@ -5045,8 +5045,12 @@ var index_default = {
             updateError=error;
             console.error("Catalog archive mutation failed",{id,archive,message:String(error)});
           }
-          // Even when D1 reports an unexpected meta.changes or the response
-          // acknowledgment is lost, use the persisted state as authority.
+          // A confirmed D1 UPDATE is enough to acknowledge this mutation.
+          // A later SELECT might read from a lagging replica without a D1 session.
+          if(updated)return json({success:true,id,archived:archive,
+            catalog_hidden:true,already_in_state:false});
+          // If changes were unreported or update threw, reconcile by reading
+          // the product's current state before returning an error.
           const current=await env.DB.prepare(
             "SELECT status,catalog_hidden,archived_at,deleted_at FROM products WHERE id=? LIMIT 1"
           ).bind(id).first();
