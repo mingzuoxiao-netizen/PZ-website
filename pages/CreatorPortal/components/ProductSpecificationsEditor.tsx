@@ -32,10 +32,10 @@ const ProductSpecificationsEditor:React.FC<Props>=({
     update({packaging:cartons.map((c,j)=>j===i?{...c,...patch}:c)});
   };
   const numeric=(en:string,zh:string,value:number|undefined,
-    change:(value:number|undefined)=>void,unit:string)=>
+    change:(value:number|undefined)=>void,unit:string,fieldName?:string)=>
     <label className="min-w-0">
       <span className={labelClass}>{T(en,zh)} ({unit})</span>
-      <input className={inputClass} type="number" min="0" max="100000" step="any"
+      <input className={inputClass} name={fieldName} type="number" min="0" max="100000" step="any"
         value={value??''} onChange={e=>change(optionalNumber(e.target.value))}/>
     </label>;
   const heading=(en:string,zh:string)=>
@@ -127,11 +127,11 @@ const ProductSpecificationsEditor:React.FC<Props>=({
           <React.Fragment key={f.key}>
             {numeric(f.en.replace(/ \(cm\)$/,''),f.zh.replace(/ \(cm\)$/,''),
               spec.dimensions_cm?.[f.key],
-              n=>update({dimensions_cm:{...spec.dimensions_cm,[f.key]:n}}),'cm')}
+              n=>update({dimensions_cm:{...spec.dimensions_cm,[f.key]:n}}),'cm','dimensions_cm.'+f.key)}
           </React.Fragment>)}
         {!panel&&/table/i.test(category)&&numeric('Top thickness','台面厚度',
           spec.dimensions_cm?.thickness,
-          n=>update({dimensions_cm:{...spec.dimensions_cm,thickness:n}}),'cm')}
+          n=>update({dimensions_cm:{...spec.dimensions_cm,thickness:n}}),'cm','dimensions_cm.thickness')}
         {numeric('Net weight','产品净重',spec.net_weight_kg,n=>update({net_weight_kg:n}),'kg')}
       </div>
       {attributes.length>0&&<>
