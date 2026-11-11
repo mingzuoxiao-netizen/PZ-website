@@ -3,6 +3,32 @@
 // separate draft implementation, never direct edits to live product rows.
 export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
   const fail=(error,status=400)=>json({error},status);
+  // Mirror of utils/publishReadiness.ts. Standalone Worker candidates do not import browser code.
+  const readinessIssues=product=>{
+    const issues=[];
+    const name=String(product?.name||'').trim();
+    if(!name||/^[0-9\s.,+-]+$/.test(name)||/\b(?:test|demo|sample)\b|测试/i.test(name))issues.push('name');
+    const code=String(product?.code||'').trim().toUpperCase();
+    if(!/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code))issues.push('code');
+    const category=String(product?.category||'').trim();
+    if(!category)issues.push('category');
+    let images=product?.images;
+    if(typeof images==='string'){try{images=JSON.parse(images);}catch{images=[];}}
+    if(!Array.isArray(images)||!images.some(x=>typeof x==='string'&&x.trim()))issues.push('images');
+    if(!String(product?.material||'').trim())issues.push('material');
+    if(!String(product?.description||'').trim())issues.push('description');
+    let specs=product?.specifications??product?.specs_json??{};
+    if(typeof specs==='string'){try{specs=JSON.parse(specs);}catch{specs={};}}
+    const dimensions=specs?.dimensions_cm||{};
+    const keys=/butcher|work.surface|countertop|panel|wood.top|cutting.board/i.test(category)
+      ? ['length','width','thickness']
+      : /chair|bench|stool|seating/i.test(category)
+        ? ['width','length','height']:['length','width','height'];
+    if(keys.some(key=>typeof dimensions[key]!=='number'||!Number.isFinite(dimensions[key])||dimensions[key]<=0))
+      issues.push('dimensions');
+    return issues;
+  };
+
   const now=()=>new Date().toISOString();
   const readBody=async request=>{
     try {const x=await request.json();return x&&typeof x==='object'&&!Array.isArray(x)?x:null;}
@@ -119,14 +145,10 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       if(!['draft','rejected','returned_to_uploader'].includes(currentStatus))
         return json({error:'Product is not ready for submission',current_status:currentStatus,
           code:'PRODUCT_REVIEW_STATE_CONFLICT'},409);
-      if(!String(product.name||'').trim()||!String(product.category||'').trim()||
-        !/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(String(product.code||'').trim().toUpperCase()))
-        return fail('Name, category and valid SKU are required');
       let copy;
       try{copy=snapshot(product);}catch{return fail('Invalid product image or site JSON');}
-      const assets=JSON.parse(copy).images;
-      if(!Array.isArray(assets)||!assets.some(x=>typeof x==='string'&&x.trim()))
-        return fail('At least one product image is required before review');
+      const missing=readinessIssues(JSON.parse(copy));
+      if(missing.length)return json({error:'Product is not ready for review',missing_fields:missing},400);
       const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();
       if(previous&&previous.status!=='returned_to_uploader')return fail('Review cannot be resubmitted in this state',409);
       if(previous&&(previous.submitter_id!==actor||previous.supervisor_id!==assignment.supervisor_id||
@@ -212,6 +234,16 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(action==='return'&&review.status==='pending_admin')
       return transition(env,review,'returned_to_supervisor','ADMIN',actor,'admin_returned',note);
     if(action==='publish'&&review.status==='approved_pending_publish'){
+      if(review.approved_version!==review.latest_version)return fail('Approved version mismatch',409);
+      const approvedRow=await env.DB.prepare(
+        "SELECT snapshot_json FROM pz_product_review_versions WHERE review_id=? AND version=? LIMIT 1"
+      ).bind(review.id,review.approved_version).first();
+      if(!approvedRow)return fail('Approved product snapshot missing',409);
+      let approved;
+      try{approved=JSON.parse(approvedRow.snapshot_json);}catch{return fail('Invalid approved snapshot',409);}
+      const current=await env.DB.prepare(productSql).bind(review.product_id).first();
+      const missing=Array.from(new Set([...readinessIssues(approved),...readinessIssues(current)]));
+      if(missing.length)return json({error:'Publication blocked: incomplete product information',missing_fields:missing},400);
       const result=await transition(env,review,'published','ADMIN',actor,'published');
       if(result.status!==200)return result;
       // Republish catalog KV with existing, authenticated admin endpoint.
