@@ -26,6 +26,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # Read-only GitHub deployment approval history
 
 concurrency:
   group: pz-worker-${{ github.ref }}-${{ github.event_name }}
@@ -48,6 +49,7 @@ jobs:
           node --check worker/src/index.js
           node --test worker/tests/source-parity.test.mjs
           node --test worker/tests/release-gates.test.mjs
+          node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
         run: |
           node --test worker-patches/productTwoStageReviewCore.test.mjs
@@ -129,6 +131,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify current run has a GitHub production Environment approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node worker/scripts/verify-production-review.mjs
       - name: Check release gate, bindings and stamp commit SHA
         env:
           PZ_PRODUCTION_APPROVAL_CONFIRMED: ${{ vars.PZ_PRODUCTION_APPROVAL_CONFIRMED }}
