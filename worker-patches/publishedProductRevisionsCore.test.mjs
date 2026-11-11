@@ -248,5 +248,5 @@ test('revision submission blocks incomplete published-product drafts without alt
   assert.equal(blocked.status,400);
   assert.deepEqual(blocked.data.missing_fields,['name','material','description','dimensions']);
   assert.equal(product().status,'published');
-  assert.deepEqual(product(),before);
+  assert.deepEqual({...product()},before);
 });
