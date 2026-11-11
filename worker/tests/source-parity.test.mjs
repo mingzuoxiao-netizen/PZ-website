@@ -22,9 +22,22 @@ const versionRoute = `
       });
     }`;
 
-test('imported Worker exactly matches unified V2 baseline except read-only version endpoint', () => {
+test('original Worker routes still match imported baseline outside reviewed preflight insertion', () => {
   assert.equal(patch.split(anchor).length, 2, 'entrypoint must remain unique');
-  assert.equal(imported, prefix + patch.replace(anchor, anchor + versionRoute));
+  const importLine="import { preflightProduct } from '../../utils/productPreflight.js';\\n";
+  const start="      const reviewSnapshot=JSON.parse(copy);";
+  const end='      const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();';
+  const oldGate=`      const missing=readinessIssues(JSON.parse(copy));
+      if(missing.length)return json({error:'Product is not ready for review',missing_fields:missing},400);
+`;
+  assert.ok(imported.startsWith(importLine), 'single shared validator import required');
+  const from=imported.indexOf(start),to=imported.indexOf(end,from);
+  assert.ok(from>0&&to>from,'preflight guard must sit immediately before review creation');
+  const restored=imported.slice(importLine.length,from)+oldGate+imported.slice(to);
+  assert.equal(restored,prefix + patch.replace(anchor, anchor + versionRoute));
+  assert.match(imported.slice(from,to),/PREFLIGHT_FAILED/);
+  assert.match(imported.slice(from,to),/PREFLIGHT_CONFIRMATION_REQUIRED/);
+  assert.match(imported.slice(from,to),/id<>\\? LIMIT 1/);
 });
 
 test('new GET /version returns deployment marker without credentials or database bindings', async () => {
