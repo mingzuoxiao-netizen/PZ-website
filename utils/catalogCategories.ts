@@ -32,6 +32,14 @@ export function publishedSiteCategories(configCategories: unknown): Category[] {
   });
 }
 
+/** Show only configured categories that the published catalog actually contains.
+ * The facets API remains the authoritative count source (never count a page). */
+export function categoriesWithPublishedItems(categories: Category[], facets: Array<{ id: string; count: number }>): Category[] {
+  const nonEmpty = new Set(facets.filter(f => f.count > 0).map(f => f.id.toLowerCase().trim()));
+  return categories.filter(cat => nonEmpty.has(cat.id.toLowerCase().trim()) ||
+    nonEmpty.has(cat.title.toLowerCase().trim()));
+}
+
 /** Keep the approved design's three featured cards, then append newly
  * approved categories. Other legacy categories remain on the Products page. */
 export function homepageSiteCategories(configCategories: unknown): Category[] {
