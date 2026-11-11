@@ -208,3 +208,32 @@ test('Admin refuses legacy unversioned counts rather than claiming the queue is 
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });
 
+test('partial publish stops at the failed SKU and retry does not reapprove or republish successful records',async()=>{
+  const env=setup([mk('one','pending_admin'),mk('two','pending_admin'),mk('three','pending_admin')],[]);
+  let view:ReturnType<typeof create>|undefined;const fetcher=globalThis.fetch;let fail=true;
+  globalThis.fetch=(async(input:any,init?:RequestInit)=>{
+    if(fail&&String(input).includes('/admin/reviews/two/publish')&&init?.method==='POST'){
+      env.requests.push('POST admin/reviews/two/publish');
+      return Response.json({error:'temporary publish failure'},{status:503});
+    }
+    return fetcher(input,init);
+  }) as typeof fetch;
+  try{
+    await act(async()=>{view=create(<AdminReleaseQueue/>);});
+    await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
+    await act(async()=>findButton(view!,'发布本页选中的 3 项')!.props.onClick());
+    assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
+      'POST admin/reviews/one/approve','POST admin/reviews/one/publish',
+      'POST admin/reviews/two/approve','POST admin/reviews/two/publish'
+    ]);
+    assert.match(JSON.stringify(view!.toJSON()),/SKU PZ-two/);
+    assert.ok(findButton(view!,'发布本页选中的 2 项'));
+    fail=false;
+    await act(async()=>findButton(view!,'发布本页选中的 2 项')!.props.onClick());
+    assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')).slice(4),[
+      'POST admin/reviews/two/publish','POST admin/reviews/three/approve','POST admin/reviews/three/publish'
+    ]);
+    assert.match(JSON.stringify(view!.toJSON()),/当前没有需要 Admin 发布/);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
