@@ -39,3 +39,10 @@ test('Admin front end reconciles uncertain archive/restore without re-sending th
   assert.equal((section.match(/method:'POST'/g)||[]).length,1,
     'one request per item; reconciliation must be GET only');
 });
+
+test('permanent delete errors keep typed D1 failure codes for diagnosis without changing authorization',()=>{
+  const source=read('../utils/adminFetch.ts');
+  assert.match(source,/normalized\.endsWith\('\/permanent-delete'\)/);
+  assert.match(source,/json\.code/);
+  assert.match(source,/errorDetail \+= ' \['\+json\.code\+'\]'/);
+});
