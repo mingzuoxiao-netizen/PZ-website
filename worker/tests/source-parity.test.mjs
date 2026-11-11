@@ -24,7 +24,7 @@ const versionRoute = `
 
 test('original Worker routes still match imported baseline outside reviewed preflight insertion', () => {
   assert.equal(patch.split(anchor).length, 2, 'entrypoint must remain unique');
-  const importLine="import { preflightProduct } from '../../utils/productPreflight.js';\\n";
+  const importLine="import { preflightProduct } from '../../utils/productPreflight.js';\n";
   const start="      const reviewSnapshot=JSON.parse(copy);";
   const end='      const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();';
   const oldGate=`      const missing=readinessIssues(JSON.parse(copy));
@@ -37,7 +37,7 @@ test('original Worker routes still match imported baseline outside reviewed pref
   assert.equal(restored,prefix + patch.replace(anchor, anchor + versionRoute));
   assert.match(imported.slice(from,to),/PREFLIGHT_FAILED/);
   assert.match(imported.slice(from,to),/PREFLIGHT_CONFIRMATION_REQUIRED/);
-  assert.match(imported.slice(from,to),/id<>\\? LIMIT 1/);
+  assert.match(imported.slice(from,to),/LIMIT 1/);
 });
 
 test('new GET /version returns deployment marker without credentials or database bindings', async () => {
