@@ -41,7 +41,7 @@ test('supervisor review prioritizes changed fields and shows return form only af
       {version:1,snapshot:{name:'Oak Table',material:'oak',finish:'matte',code:'PZ-001'},submitted_by:'staff',created_at:'2026-01-01'},
       {version:2,snapshot:{name:'Oak Table',material:'walnut',finish:'matte',code:'PZ-001'},submitted_by:'staff',created_at:'2026-01-02'}
     ],events:[]});
-    if(url.endsWith('/supervisor/reviews'))return status({items:[item]});
+    if(url.includes('/supervisor/release-queue?'))return status({list_version:1,items:[{...item,kind:'product'}],total:1,page:1,page_size:50,has_more:false});
     throw Error('Unexpected request '+url);
   });
   let view:ReturnType<typeof create>|undefined;
@@ -146,10 +146,7 @@ test('admin product review excludes published records and removes item and detai
         {version:2,snapshot:{name:'Pending Product'},created_at:'2026-10-02'}],
       events:[]
     });
-    if(url.endsWith('/admin/reviews'))return status({items:[
-      make('new',current),make('old','published'),
-      {...make('in-supervisor','pending_supervisor'),name_cn:'待主管初审产品'}
-    ]});
+    if(url.includes('/admin/release-queue?')){const items=current==='published'?[]:[{...make('new',current),kind:'product'}];return status({list_version:1,items,total:items.length,page:1,page_size:50,has_more:false});}
     throw Error('Unexpected '+url);
   });
   let view:ReturnType<typeof create>|undefined;
@@ -226,3 +223,4 @@ test('admin completed revision disappears from review list and does not retain s
     environment.restore();
   }
 });
+

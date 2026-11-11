@@ -12,7 +12,7 @@ test('supervisors land in product first-review, can reach team accounts and retu
   (globalThis as any).sessionStorage={getItem:()=> 'staging-test-session'};
   globalThis.fetch=async(url)=>{
     paths.push(String(url));
-    if(String(url).includes('/supervisor/reviews'))return Response.json({items:[]});
+    if(String(url).includes('/supervisor/release-queue'))return Response.json({list_version:1,items:[],total:0,page:1,page_size:50,has_more:false});
     if(String(url).includes('/supervisor/accounts'))return Response.json({users:[]});
     throw Error('Unexpected request '+url);
   };
@@ -26,7 +26,7 @@ test('supervisors land in product first-review, can reach team accounts and retu
     ));
     const heading=()=>root().findAllByType('h2').map(x=>x.children.join(' ')).join(' ');
     assert.match(heading(),/产品初审队列/);
-    assert.ok(paths.some(p=>p.endsWith('/supervisor/reviews')),'review list loads by default');
+    assert.ok(paths.some(p=>p.includes('/supervisor/release-queue?')),'review list loads by default');
     await act(async()=>nav('团队账号管理')!.props.onClick());
     assert.match(root().findAllByType('h1').map(x=>x.children.join(' ')).join(' '),/团队成员管理/);
     assert.ok(buttons().some(b=>b.children.join('')==='前往产品初审'));
@@ -39,3 +39,4 @@ test('supervisors land in product first-review, can reach team accounts and retu
     else (globalThis as any).sessionStorage=oldStorage;
   }
 });
+
