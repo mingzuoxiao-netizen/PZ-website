@@ -41,7 +41,7 @@ test('supervisor review prioritizes changed fields and shows return form only af
       {version:1,snapshot:{name:'Oak Table',material:'oak',finish:'matte',code:'PZ-001'},submitted_by:'staff',created_at:'2026-01-01'},
       {version:2,snapshot:{name:'Oak Table',material:'walnut',finish:'matte',code:'PZ-001'},submitted_by:'staff',created_at:'2026-01-02'}
     ],events:[]});
-    if(url.endsWith('/supervisor/reviews'))return status({items:[item]});
+    if(url.includes('/supervisor/release-queue?'))return status({list_version:1,items:[{...item,kind:'product'}],total:1,page:1,page_size:50,has_more:false});
     throw Error('Unexpected request '+url);
   });
   let view:ReturnType<typeof create>|undefined;
@@ -146,10 +146,7 @@ test('admin product review excludes published records and removes item and detai
         {version:2,snapshot:{name:'Pending Product'},created_at:'2026-10-02'}],
       events:[]
     });
-    if(url.endsWith('/admin/reviews'))return status({items:[
-      make('new',current),make('old','published'),
-      {...make('in-supervisor','pending_supervisor'),name_cn:'待主管初审产品'}
-    ]});
+    if(url.includes('/admin/release-queue?')){const items=current==='published'?[]:[{...make('new',current),kind:'product'}];return status({list_version:1,items,total:items.length,page:1,page_size:50,has_more:false});}
     throw Error('Unexpected '+url);
   });
   let view:ReturnType<typeof create>|undefined;
@@ -226,3 +223,23 @@ test('admin completed revision disappears from review list and does not retain s
     environment.restore();
   }
 });
+
+test('supervisor action error stays visible after the successful reconciliation read',async()=>{
+  const environment=setup();let view:ReturnType<typeof create>|undefined;
+  const item={id:'failed',kind:'product',name:'Pending Table',code:'PZ-FAILED',status:'pending_supervisor',latest_version:1};
+  environment.install(async(url,init)=>{
+    if(url.includes('/supervisor/release-queue?'))return status({list_version:1,items:[item],total:1,page:1,page_size:50,has_more:false});
+    if(url.endsWith('/supervisor/reviews/failed/approve'))return Response.json({error:'temporary review failure'},{status:503});
+    if(url.endsWith('/supervisor/reviews/failed'))return status({...item,versions:[{version:1,snapshot:{name:item.name}}],events:[]});
+    throw Error('Unexpected '+url+' '+init?.method);
+  });
+  try{
+    await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
+    const row=view!.root.findByProps({'aria-label':'审核申请列表'}).findAllByType('button')[0];
+    await act(async()=>row.props.onClick());
+    await act(async()=>getButton(view!,'初审通过并查看下一条')!.props.onClick());
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/temporary review failure/);
+    assert.equal(environment.calls.filter(call=>call.startsWith('POST')).length,1);
+  }finally{if(view)await act(async()=>view!.unmount());environment.restore();}
+});
+
