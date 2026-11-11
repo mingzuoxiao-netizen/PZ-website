@@ -94,7 +94,7 @@ test('factory submit => supervisor approve => admin approve => explicit publish'
 test('scheme A: admin returns to supervisor, who directs corrections, then repeat first-level review',async()=>{
  const {sql,call}=setup();
  sql.prepare("UPDATE products SET specs_json=? WHERE id='p1'").run(
-   JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:182}}));
+   JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:182,width:80,thickness:4}}));
  const s=await call('/factory/products/p1/submit','worker','POST');
  const rid=s.data.id;
  assert.equal((await call('/supervisor/reviews/'+rid+'/approve','lead','POST')).status,200);
@@ -102,7 +102,7 @@ test('scheme A: admin returns to supervisor, who directs corrections, then repea
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).status,409);
  assert.equal((await call('/supervisor/reviews/'+rid+'/request-correction','lead','POST',{note:'Please correct product description'})).data.status,'returned_to_uploader');
  sql.prepare("UPDATE products SET description=?, specs_json=? WHERE id='p1'").run(
-   'updated description', JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:190}}));
+   'updated description', JSON.stringify({schema_version:1,attributes:{wood_species:'Oak'},dimensions_cm:{length:190,width:80,thickness:4}}));
  assert.equal((await call('/factory/products/p1/submit','worker','POST')).data.version,2);
  const detail=await call('/admin/reviews/'+rid,'admin');
  assert.equal(detail.status,200);
