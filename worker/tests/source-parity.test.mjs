@@ -35,15 +35,21 @@ test('baseline parity is strict outside explicitly changed product-review and li
   one(baseline,anchor);
   const expected=prefix+baseline.replace(anchor,anchor+versionRoute);
   const preflightImport="import { preflightProduct } from '../../utils/productPreflight.js';\n";
+  const notifyImport="import {notificationMiddleware} from '../notificationCore.mjs';\n";
   const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
   const fastLaneImport="import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';\n";
-  assert.ok(imported.startsWith(preflightImport+fastLaneImport+returnsImport));
-  let restored=imported.slice(preflightImport.length+fastLaneImport.length+returnsImport.length);
+  assert.ok(imported.startsWith(preflightImport+notifyImport+fastLaneImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+notifyImport.length+fastLaneImport.length+returnsImport.length);
+  const outerNotice="\n// BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.";
+  const wrapperAt=restored.indexOf(outerNotice);
+  assert.ok(wrapperAt>0,'notification middleware must be appended after all original route wrappers');
+  assert.match(restored.slice(wrapperAt),/index_default.fetch=notificationMiddleware\(pzNotifyOriginalFetch,\{authorize,json\}\);/);
+  restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
   ])restored=restoreLegacyBlock(restored,expected,start,end);
-  assert.equal(restored,expected,'unexpected changes outside the approved review/list modules');
+  assert.equal(restored.trimEnd(),expected.trimEnd(),'unexpected changes outside the approved review/list modules');
 });
 test('review changes retain RBAC, status transition guards and immutable version snapshots',()=>{
   for(const text of [
