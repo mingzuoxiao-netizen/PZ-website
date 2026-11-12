@@ -3378,7 +3378,7 @@ function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passw
             "AND EXISTS(SELECT 1 FROM pz_departments WHERE id=? AND is_active=0)")
             .bind(departmentId,departmentId)
         ]);
-        if (Number(result[0]?.meta?.changes)!==1) return fail('部门状态已变化，请刷新后重试。',409);
+        if (Number(result[0]?.meta?.changes)<1) return fail('部门状态已变化，请刷新后重试。',409);
       } catch (error) {
         console.error('Department archival transaction failed',String(error));
         return fail('部门删除失败。组织成员未修改，请检查 D1 约束。',503);
@@ -3503,12 +3503,12 @@ function pzOrganizationCreateFetch(originalFetch, { authorize, json, hash, passw
         if (error) return fail(error);
         const digest=await hash(body.password,10);
         const updated = await env.DB.prepare("UPDATE users SET password_hash=? WHERE id=? AND deleted_at IS NULL").bind(digest,id).run();
-        if (Number(updated.meta?.changes) !== 1) return fail('Account has been deleted',404);
+        if (Number(updated.meta?.changes) <1) return fail('Account has been deleted',404);
       } else {
         if (typeof body.is_active!=='boolean' || Object.keys(body).some(k=>k!=='is_active'))
           return fail('Only account activation may be changed');
         const updated = await env.DB.prepare("UPDATE users SET is_active=? WHERE id=? AND deleted_at IS NULL").bind(body.is_active?1:0,id).run();
-        if (Number(updated.meta?.changes) !== 1) return fail('Account has been deleted',404);
+        if (Number(updated.meta?.changes) <1) return fail('Account has been deleted',404);
       }
       return json({success:true,id});
     }
@@ -4505,7 +4505,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const inserted = await env.DB.prepare(
         "INSERT INTO category_change_requests (id,category_id,base_json,proposed_json,status,created_by,created_at,updated_at) VALUES (?,?,?,?, 'pending',?,?,?)"
       ).bind(id,categoryId,serial(base),serial(proposed),actor,now,now).run();
-      if (inserted?.meta?.changes !== 1) return json({ error: 'Request not saved' }, 500);
+      if (inserted?.meta?.changes <1) return json({ error: 'Request not saved' }, 500);
     } catch (error) {
       if (/UNIQUE|CONSTRAINT/i.test(String(error?.message ?? error))) return conflict('Category already has a pending change request',json);
       throw error;
@@ -4531,7 +4531,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const done = await env.DB.prepare(
         "UPDATE category_change_requests SET status='approved', reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=? AND status='applying'"
       ).bind(actor,now,now,id).run();
-      if (done?.meta?.changes !== 1) return conflict('Request state changed during reconciliation', json);
+      if (done?.meta?.changes <1) return conflict('Request state changed during reconciliation', json);
       return json({ success:true, id, status:'approved', needsPublish:true, published:false, reconciled:true });
     }
     if (row.status !== 'pending') return conflict('Request has already been processed', json);
@@ -4541,7 +4541,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const result = await env.DB.prepare(
         "UPDATE category_change_requests SET status='rejected', reject_reason=?, reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=? AND status='pending'"
       ).bind(reason,actor,now,now,id).run();
-      if (result?.meta?.changes !== 1) return conflict('Request was processed elsewhere',json);
+      if (result?.meta?.changes <1) return conflict('Request was processed elsewhere',json);
       return json({ success:true, id, status:'rejected' });
     }
 
@@ -4549,7 +4549,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
     const claim = await env.DB.prepare(
       "UPDATE category_change_requests SET status='applying', updated_at=? WHERE id=? AND status='pending'"
     ).bind(now,id).run();
-    if (claim?.meta?.changes !== 1) return conflict('Request was processed elsewhere',json);
+    if (claim?.meta?.changes <1) return conflict('Request was processed elsewhere',json);
     let savedDraft = false;
     try {
       const [publishedRaw,draftRaw] = await Promise.all([
@@ -4583,7 +4583,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const completed = await env.DB.prepare(
         "UPDATE category_change_requests SET status='approved', reviewed_by=?, reviewed_at=?, updated_at=? WHERE id=? AND status='applying'"
       ).bind(actor,now,now,id).run();
-      if (completed?.meta?.changes !== 1) {
+      if (completed?.meta?.changes <1) {
         // Draft may already contain the change. Leave 'applying' for review.
         return json({ error: 'Draft saved but approval status not confirmed. Manual reconciliation required.' }, 503);
       }
@@ -4658,7 +4658,7 @@ async function guardedWrite(env,{expectedRevision,nextConfig,token,requestKind,r
     :[JSON.stringify(nextConfig),token,timestamp,expectedRevision]));
   if(!requestKind) {
     const written=await update.run();
-    return {ok:written?.meta?.changes===1,revision:expectedRevision+1};
+    return {ok:written?.meta?.changes>=1,revision:expectedRevision+1};
   }
   // D1 batch is a single SQLite transaction. The transition can only
   // complete if the exact write token from our D1 draft mutation matches.
@@ -4668,8 +4668,8 @@ async function guardedWrite(env,{expectedRevision,nextConfig,token,requestKind,r
     '(SELECT write_token FROM site_config_state WHERE id=1)=?'
   ).bind(timestamp,requestId,status,token);
   const [saveResult,transitionResult]=await env.DB.batch([update,final]);
-  const ok=saveResult?.meta?.changes===1 && transitionResult?.meta?.changes===1;
-  if(!ok && saveResult?.meta?.changes===1) {
+  const ok=saveResult?.meta?.changes>=1 && transitionResult?.meta?.changes>=1;
+  if(!ok && saveResult?.meta?.changes>=1) {
     throw new Error('Unexpected D1 transaction mismatch; investigate before retrying');
   }
   return {ok,revision:expectedRevision+1};
@@ -4872,7 +4872,7 @@ async function handleD1SiteConfig({request,env,pathname,authorize,json,publishTr
         'VALUES(1,?,1,?,1,?,?,?,?)'
       ).bind(draftRaw,publishedRaw,bootstrapVersion,
         String(meta.publishedAt||timestamp),crypto.randomUUID(),timestamp).run();
-      if(installed?.meta?.changes!==1)return stale(json,'Site config bootstrapped by another request');
+      if(installed?.meta?.changes<1)return stale(json,'Site config bootstrapped by another request');
       return json({success:true,revision:1,draftSha,publishedSha,
         publishedVersion:bootstrapVersion,initialSnapshotVerified:true});
     }
@@ -4926,7 +4926,7 @@ async function handleD1SiteConfig({request,env,pathname,authorize,json,publishTr
       'published_version=?, published_at=?, updated_at=? '+
       'WHERE id=1 AND draft_revision=? AND published_revision=?'
     ).bind(JSON.stringify(snapshot),version,publishedAt,publishedAt,rev,row.published_revision).run();
-    if(saved?.meta?.changes!==1)return stale(json,'Published or draft version changed during review');
+    if(saved?.meta?.changes<1)return stale(json,'Published or draft version changed during review');
     return json({success:true,version,publishedAt,revision:rev});
   }
   if(pathname==='/admin/rollback'&&request.method==='POST'){
@@ -4945,7 +4945,7 @@ async function handleD1SiteConfig({request,env,pathname,authorize,json,publishTr
       'UPDATE site_config_state SET published_json=?,published_revision=published_revision+1,'+
       'published_version=?,published_at=?,updated_at=? WHERE id=1 AND published_revision=?'
     ).bind(JSON.stringify(snapshot),version,now,now,priorRev).run();
-    if(saved?.meta?.changes!==1)return stale(json,'Published revision changed; rollback aborted');
+    if(saved?.meta?.changes<1)return stale(json,'Published revision changed; rollback aborted');
     return json({success:true,version,rolledAt:now});
   }
   return json({error:'Method not allowed'},405);
@@ -5212,7 +5212,7 @@ var index_default = {
               "AND lower(status)='published' AND deleted_at IS NULL AND "+
               (archive?"archived_at IS NULL":"archived_at IS NOT NULL")
             ).bind(archive?new Date().toISOString():null,id).run();
-            updated=Number(result.meta?.changes)===1;
+            updated=Number(result.meta?.changes)>=1;
           }catch(error){
             updateError=error;
             console.error("Catalog archive mutation failed",{id,archive,message:String(error)});
@@ -5245,7 +5245,7 @@ var index_default = {
         const result = await env.DB.prepare(
           "UPDATE products SET catalog_hidden=? WHERE id=? AND lower(status)='published' AND archived_at IS NULL"
         ).bind(hidden, id).run();
-        if (Number(result.meta?.changes) !== 1) {
+        if (Number(result.meta?.changes) <1) {
           // A stale tab or already-completed action should never be reported as
           // an unexplained 409, and must never circumvent published/archived guards.
           const current=await env.DB.prepare(
@@ -5412,7 +5412,7 @@ var index_default = {
           now,
           id
         ).run();
-        if (!result.meta || result.meta.changes !== 1) {
+        if (!result.meta || result.meta.changes <1) {
           return json({ error: "Product not found" }, 404);
         }
         return json({ success: true, publicCatalog: "d1-v2" });
@@ -5609,7 +5609,7 @@ if (
        SET status = ?, updated_at = ?
        WHERE id = ? AND lower(status) IN ('draft','rejected','returned_to_uploader')`
           ).bind("awaiting_review", now, id).run();
-          if (!result.meta || result.meta.changes !== 1) {
+          if (!result.meta || result.meta.changes <1) {
             return json({ error: "Only draft or rejected products can be submitted" }, 409);
           }
           return json({ success: true, id, status: "awaiting_review" });
@@ -5665,7 +5665,7 @@ if (
             id,
             String(env.PZ_TWO_STAGE_REVIEW_ENABLED || '')
           ).run();
-          if (!result.meta || result.meta.changes !== 1) {
+          if (!result.meta || result.meta.changes <1) {
             return json({ error: "Only draft or rejected products are editable by factory" }, 409);
           }
           return json({ success: true, id });
@@ -5773,7 +5773,7 @@ if (
           const updated = await env.DB.prepare(
             "UPDATE category_requests SET status='approved', updated_at=? WHERE id=? AND status IN ('pending','awaiting_review')"
           ).bind(nowIso, id).run();
-          if (updated?.meta?.changes !== 1) {
+          if (updated?.meta?.changes <1) {
             return json({ error: "Draft saved but approval not confirmed; reconcile manually" }, 503);
           }
           return json({
@@ -5793,7 +5793,7 @@ if (
           const rejected = await env.DB.prepare(
             "UPDATE category_requests SET status='rejected', updated_at=? WHERE id=? AND status IN ('pending','awaiting_review')"
           ).bind(nowIso, id).run();
-          if (rejected?.meta?.changes !== 1) {
+          if (rejected?.meta?.changes <1) {
             return json({ error: "Only pending category requests can be rejected" }, 409);
           }
           return json({
@@ -5895,7 +5895,7 @@ if (
         if (passwordError) return badRequest(passwordError);
         const hash2 = await hash(password, 10);
         const updated = await env.DB.prepare(`UPDATE users SET password_hash = ? WHERE id = ? AND deleted_at IS NULL`).bind(hash2, id).run();
-        if (Number(updated.meta?.changes) !== 1) return json({ error: "账号已删除。" }, 404);
+        if (Number(updated.meta?.changes) <1) return json({ error: "账号已删除。" }, 404);
         return json({ success: true });
       }
       if (pathname === "/admin/inquiries" && request.method === "GET") {
@@ -6572,7 +6572,7 @@ function pzProductPermanentDeleteFetch(originalFetch,{authorize,json,expectedRun
         const args=[id,result.product.code,result.product.updated_at,
           ...(forceRequested?[]:allowStatuses)];
         const deleted=await env.DB.prepare(sql).bind(...args).run();
-        if(Number(deleted.meta?.changes)===1)
+        if(Number(deleted.meta?.changes)>=1)
           return json({success:true,id,deleted_sku:result.product.code,
             sku_reusable:true,disposal_mode:'physical',physically_removed:true,
             r2_preserved:true});
@@ -6813,7 +6813,7 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
             'UPDATE site_config_state SET published_json=?,published_revision=published_revision+1,'+
             'published_version=?,published_at=?,updated_at=? WHERE id=1 AND published_revision=?'
           ).bind(serialized,version,publishedAt,publishedAt,row.published_revision).run();
-          if(Number(result?.meta?.changes)!==1)continue;
+          if(Number(result?.meta?.changes)<1)continue;
         }else{
           await env.SITE_CONFIG_KV.put('published:site_config',serialized);
           await env.SITE_CONFIG_KV.put('published:meta',JSON.stringify({version,publishedAt}));
@@ -6891,7 +6891,7 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
     ];
     try{
       const results=await env.DB.batch(statements);
-      if(Number(results[0]?.meta?.changes)!==1 || Number(results[1]?.meta?.changes)!==1)
+      if(Number(results[0]?.meta?.changes)<1 || Number(results[1]?.meta?.changes)<1)
         return respond('申请状态已变化，请刷新后重试。',409);
     }catch(error){
       if(/constraint|unique/i.test(String(error)))return respond('重复审批，请刷新记录。',409);
@@ -7045,7 +7045,7 @@ function pzCategoryTwoStageReviewFetch(originalFetch, { authorize, json, expecte
             "AND status='pending_supervisor' AND revision=?)")
             .bind(crypto.randomUUID(),id,next,actor,now,id,next)
         ]);
-        if(results.some(x=>Number(x.meta?.changes)!==1))
+        if(results.some(x=>Number(x.meta?.changes)<1))
           return respond('申请状态已变化，请刷新后重试。',409);
       }catch(error){console.error('Category resubmit error',String(error));return respond('重新提交失败，请刷新核对记录。',503);}
       return json({success:true,id,status:'pending_supervisor'});
@@ -7864,7 +7864,7 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
       (guards.length ? " AND " + guards.join(" AND ") : "");
     try {
       const result = await env.DB.prepare("DELETE FROM users WHERE " + condition).bind(...bindings).run();
-      if (Number(result.meta?.changes) === 1)
+      if (Number(result.meta?.changes) >=1)
         return json({success:true,id,mode:"permanent",message:"账号已永久删除。"});
     } catch(error) {
       if (!/constraint|foreign key|trigger/i.test(String(error))) {
@@ -7911,7 +7911,7 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
       console.error("Account retirement transaction failed",String(error));
       return json({error:"账号注销事务失败，未执行部分删除。请检查组织关系及 D1 约束。"},503);
     }
-    if (Number(batchResults[0]?.meta?.changes) !== 1)
+    if (Number(batchResults[0]?.meta?.changes) <1)
       return json({error:"账号状态已变化，或该账号是最后一个有效管理员。请刷新后重试。"},409);
     const pendingTotal = inFlightReviews+inFlightRevisions;
     const requiresReassignment = supervisorDepartment !== null &&
