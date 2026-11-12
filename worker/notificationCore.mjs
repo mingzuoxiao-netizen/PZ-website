@@ -139,6 +139,21 @@ export function notificationMiddleware(upstream,{authorize,json}){
           ]);
           return json({items:rows.results||[],unread_count:Number(count?.count||0)});
         }
+        if(pathname==='/notifications/product'&&method==='GET'){
+          // A notification recipient may inspect only the product referenced
+          // by THEIR own event, never enumerate other operators' product IDs.
+          const id=new URL(request.url).searchParams.get('id')||'';
+          if(!id||id.length>120)return json({error:'Invalid product id'},400);
+          const allowed=await env.DB.prepare(
+            "SELECT 1 AS allowed FROM pz_notifications "+
+            "WHERE recipient_id=? AND entity_type='product' AND entity_id=? LIMIT 1"
+          ).bind(uid,id).first();
+          if(!allowed)return json({error:'Not found'},404);
+          const row=await env.DB.prepare(
+            "SELECT id,name,name_cn,code,category,status FROM products WHERE id=? AND deleted_at IS NULL LIMIT 1"
+          ).bind(id).first();
+          return row?json(row):json({error:'Not found'},404);
+        }
         if(pathname==='/notifications/unread-count'&&method==='GET'){
           const row=await env.DB.prepare(
             'SELECT COUNT(*) AS count FROM pz_notifications WHERE recipient_id=? AND read_at IS NULL'
