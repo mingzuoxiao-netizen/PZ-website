@@ -134,6 +134,23 @@ export async function readWorkbook(data){
 }
 const MAIN_TOKEN=/(^|[\s_.\-])(main|cover|主图)(?=[\s_.\-]|$)/i;
 const orderImages=(a,b)=>a.file.localeCompare(b.file,'zh',{numeric:true,sensitivity:'base'});
+export function matchSkuFolder(path){
+  if(typeof path!=='string')return null;
+  const parts=path.split('/');
+  if(parts.length!==3||parts[0].toLowerCase()!=='images'||!mimeFor(path)||!parts[2])
+    return null;
+  const sku=normalizeSku(parts[1]);
+  return /^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(sku)
+    ?{sku,file:parts[2]}:null;
+}
+export function assignInitialImageRoles(items){
+  const group=items.map(x=>({...x})).sort(orderImages);
+  for(const image of group)image.role='lifestyle';
+  const found=group.filter(image=>MAIN_TOKEN.test(image.file));
+  const choice=found[0]||group[0];
+  if(choice)choice.role='main';
+  return {images:group,needsConfirmation:group.length>0&&found.length!==1};
+}
 export async function readProductZip(buffer){
   const zip=inspectZip(buffer);
   const workbooks=zip.entries.filter(e=>!e.isDir&&!e.name.includes('/')&&
@@ -146,16 +163,13 @@ export async function readProductZip(buffer){
   for(const entry of zip.entries){
     if(entry.isDir||entry.name===workbooks[0].name||entry.name==='README.txt')continue;
     if(entry.name.startsWith('__MACOSX/')||entry.name.includes('/.'))continue;
-    const parts=entry.name.split('/');
-    if(parts.length!==3||parts[0].toLowerCase()!=='images'){
-      warnings.push('未使用文件（需位于 images/SKU/ 下）：'+entry.name);continue;
+    const matched=matchSkuFolder(entry.name);
+    if(!matched){
+      warnings.push('非图片或路径不符合 images/SKU/ 的文件已跳过：'+entry.name);continue;
     }
-    const sku=normalizeSku(parts[1]);
+    const sku=matched.sku;
     if(!productSku.has(sku)){
       orphan.push(entry.name);continue;
-    }
-    if(!mimeFor(entry.name)){
-      warnings.push('非图片文件已跳过：'+entry.name);continue;
     }
     const group=bySku.get(sku);
     if(group.length>=12)throw Error('产品 '+sku+' 的图片超过 12 张');
@@ -163,17 +177,16 @@ export async function readProductZip(buffer){
     if(!goodImage(bytes,entry.name))
       throw Error('图片扩展名与实际格式不符：'+entry.name);
     const blob=new Blob([bytes],{type:mimeFor(entry.name)});
-    group.push({file:parts[2],blob,preview:URL.createObjectURL(blob),role:'lifestyle',
+    group.push({file:matched.file,blob,preview:URL.createObjectURL(blob),role:'lifestyle',
       source:entry.name});
   }
   for(const [sku,group] of bySku){
-    group.sort(orderImages);
+    const initial=assignInitialImageRoles(group);
+    bySku.set(sku,initial.images);
     if(!group.length)continue;
-    const matched=group.filter(item=>MAIN_TOKEN.test(item.file));
-    const main=matched[0]||group[0];
-    main.role='main';
-    if(matched.length>1)warnings.push(sku+' 有多个疑似主图，请确认唯一主图');
-    if(!matched.length)warnings.push(sku+' 未标注主图，已临时选择第一张，需要人工确认');
+    const mainCandidates=group.filter(item=>MAIN_TOKEN.test(item.file));
+    if(mainCandidates.length>1)warnings.push(sku+' 有多个疑似主图，请确认唯一主图');
+    if(!mainCandidates.length)warnings.push(sku+' 未标注主图，已临时选择第一张，需要人工确认');
   }
   return {rows,records,images:bySku,warnings,orphan};
 }
