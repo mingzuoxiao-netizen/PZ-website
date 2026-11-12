@@ -158,7 +158,7 @@ export function assignInitialImageRoles(items){
 export async function readProductZip(buffer){
   const zip=inspectZip(buffer);
   const workbooks=zip.entries.filter(e=>!e.isDir&&
-    e.name.toLowerCase().endsWith('.xlsx')&&!e.name.split('/').at(-1).startsWith('~);
+    e.name.toLowerCase().endsWith('.xlsx')&&!e.name.split('/').at(-1).startsWith('~$'));
   if(workbooks.length!==1)throw Error('ZIP 中必须有且只有一个 .xlsx 产品资料文件');
   const workbookParts=workbooks[0].name.split('/');
   if(workbookParts.length>2||workbookParts[0].toLowerCase()==='images')
