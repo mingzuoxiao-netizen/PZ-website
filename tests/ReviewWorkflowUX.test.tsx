@@ -60,7 +60,7 @@ test('supervisor review prioritizes changed fields and shows return form only af
     await act(async()=>getButton(view!,'查看全部字段')!.props.onClick());
     assert.ok(view!.root.findAllByType('article').length>1,'all fields remain inspectable');
     await act(async()=>getButton(view!,'退回员工')!.props.onClick());
-    assert.equal(view!.root.findAllByType('textarea').length,1,'reason appears only after opting to return');
+    assert.equal(view!.root.findAllByType('textarea').length,2,'optional overall note and required field explanation appear only after opting to return');
     assert.ok(getButton(view!,'确认退回员工')!.props.disabled,'no return without enough explanation');
     assert.equal(environment.calls.filter(x=>x.startsWith('POST')).length,0,'opening return form causes no mutation');
   }finally{

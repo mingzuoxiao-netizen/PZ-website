@@ -1,4 +1,5 @@
 import { preflightProduct } from '../../utils/productPreflight.js';
+import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
 // The full inlined patch bundle below is preserved until live Worker parity is proven.
 const PZ_DEPLOY_SHA = "__PZ_GIT_SHA__";
@@ -3576,12 +3577,21 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       env.DB.prepare("SELECT version,snapshot_json,submitted_by,created_at FROM pz_product_review_versions WHERE review_id=? ORDER BY version").bind(review.id).all(),
       env.DB.prepare("SELECT id,action,actor_id,actor_role,review_version,note,created_at FROM pz_product_review_events WHERE review_id=? ORDER BY created_at,id").bind(review.id).all()
     ]);
-    return { ...review,
-      versions:(vs.results||[]).map(v=>({version:v.version,snapshot:JSON.parse(v.snapshot_json),submitted_by:v.submitted_by,created_at:v.created_at})),
-      events:es.results||[]
+    const versions=(vs.results||[]).map(v=>({version:v.version,snapshot:JSON.parse(v.snapshot_json),submitted_by:v.submitted_by,created_at:v.created_at}));
+    const events=(es.results||[]).map(event=>{
+      if(!['supervisor_returned','admin_returned','correction_assigned'].includes(event.action))return event;
+      const parsed=readReturnEvent(event.note);
+      return {...event,note:parsed.note,return_issues:parsed.issues,legacy_return:parsed.legacy};
+    });
+    const lastReturn=[...events].reverse().find(event=>Array.isArray(event.return_issues));
+    const metadata=versions.at(-1)?.snapshot?.review_metadata||null;
+    return { ...review,versions,events,
+      return_issues:lastReturn?.return_issues||[],
+      is_recheck:isRecheck(review),
+      recheck:metadata&&metadata.is_recheck===true?metadata:null
     };
   };
-  async function transition(env,review,target,role,actor,action,note=null){
+  async function transition(env,review,target,role,actor,action,note=null,auditNote=null){
     const stamp=now();
     const writes=[
       env.DB.prepare("UPDATE pz_product_reviews SET status=?,return_reason=?,approved_version="+
@@ -3594,7 +3604,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       env.DB.prepare("INSERT INTO pz_product_review_events"+
         "(id,review_id,action,actor_id,actor_role,review_version,note,created_at) "+
         "SELECT ?,id,?,?,?,?,?,? FROM pz_product_reviews WHERE id=? AND status=? AND latest_version=?")
-        .bind(crypto.randomUUID(),action,actor,role,review.latest_version,note,stamp,review.id,target,review.latest_version)
+        .bind(crypto.randomUUID(),action,actor,role,review.latest_version,auditNote??note,stamp,review.id,target,review.latest_version)
     ];
     const outcome=await env.DB.batch(writes);
     if(outcome.some(x=>Number(x.meta?.changes)!==1))
@@ -3615,6 +3625,32 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       const auth=await authorize(request,env,roles);
       if(auth instanceof Response)return auth;
       return fail('Legacy image removal disabled; edit and save a draft, then submit for review',410);
+    }
+
+    // Return details are visible only to the assigned uploader.
+    const issueRoute=path.match(/^\/factory\/products\/([^/]+)\/return-issues$/);
+    if(issueRoute&&method==='GET'){
+      const auth=await authorize(request,env,['FACTORY']);if(auth instanceof Response)return auth;
+      const productId=decodeURIComponent(issueRoute[1]);
+      const review=await env.DB.prepare(
+        "SELECT r.*,p.created_by FROM pz_product_reviews r JOIN products p ON p.id=r.product_id "+
+        "WHERE r.product_id=? AND p.created_by=? AND r.submitter_id=? LIMIT 1"
+      ).bind(productId,auth.user.id,auth.user.id).first();
+      if(!review)return fail('Return details unavailable',404);
+      if(review.status!=='returned_to_uploader')return fail('Product is not assigned for correction',409);
+      const [event,version]=await Promise.all([
+        env.DB.prepare("SELECT actor_id,actor_role,note,created_at FROM pz_product_review_events "+
+          "WHERE review_id=? AND action IN ('supervisor_returned','correction_assigned') "+
+          "ORDER BY created_at DESC,id DESC LIMIT 1").bind(review.id).first(),
+        env.DB.prepare("SELECT snapshot_json FROM pz_product_review_versions "+
+          "WHERE review_id=? AND version=? LIMIT 1").bind(review.id,review.latest_version).first()
+      ]);
+      if(!version)return fail('Review snapshot missing',409);
+      const parsed=readReturnEvent(event?.note);
+      let baseline;try{baseline=JSON.parse(version.snapshot_json);}catch{return fail('Review snapshot invalid',409);}
+      return json({review_id:review.id,return_reason:review.return_reason||parsed.note,
+        issues:parsed.issues,legacy:parsed.legacy,baseline,version:review.latest_version,
+        returned_by:event?.actor_id||null,returned_at:event?.created_at||null});
     }
 
     // Limit legacy factory save routes to assigned staff, never ADMIN or a
@@ -3697,6 +3733,24 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       if(previous&&(previous.submitter_id!==actor||previous.supervisor_id!==assignment.supervisor_id||
         previous.department_id!==assignment.department_id))
         return fail('Review ownership changed: contact administrator',409);
+      if(previous){
+        const [before,returned]=await Promise.all([
+          env.DB.prepare("SELECT snapshot_json FROM pz_product_review_versions WHERE review_id=? AND version=? LIMIT 1")
+            .bind(previous.id,previous.latest_version).first(),
+          env.DB.prepare("SELECT actor_id,actor_role,note,created_at FROM pz_product_review_events "+
+            "WHERE review_id=? AND action IN ('supervisor_returned','correction_assigned') "+
+            "ORDER BY created_at DESC,id DESC LIMIT 1").bind(previous.id).first()
+        ]);
+        if(!before)return fail('Previous review version not found',409);
+        let prior;try{prior=JSON.parse(before.snapshot_json);}catch{return fail('Previous version is invalid',409);}
+        const parsed=readReturnEvent(returned?.note);
+        copy=JSON.stringify({...JSON.parse(copy),review_metadata:{
+          is_recheck:true,from_version:previous.latest_version,
+          changed_fields:changedProductFields(prior,reviewSnapshot),
+          return_issues:parsed.issues,returned_by:returned?.actor_id||null,
+          returned_at:returned?.created_at||null
+        }});
+      }
       const stamp=now(),rid=previous?.id||crypto.randomUUID(),version=previous?previous.latest_version+1:1;
       const writes=[];
       if(previous)writes.push(env.DB.prepare(
@@ -3760,22 +3814,27 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(factoryDetail)return fail('Uploader cannot approve',403);
     const body=await readBody(request);
     const note=typeof body?.note==='string'?body.note.trim():'';
-    if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
-      return fail('Return reason must be 5–2000 characters');
+    const returning=['return','request-correction'].includes(action);
+    if(returning&&note.length>2000)return fail('Overall return note must be at most 2000 characters');
+    let returnAudit=null;
+    if(returning){
+      try{returnAudit=serializeReturnEvent(note,validateReturnIssues(body?.issues));}
+      catch(error){return json({error:error.message,code:'RETURN_FIELDS_REQUIRED'},400);}
+    }
     if(supervisor){
       if(action==='approve'&&review.status==='pending_supervisor')
         return transition(env,review,'pending_admin','SUPERVISOR',actor,'supervisor_approved');
       if(action==='return'&&review.status==='pending_supervisor')
-        return transition(env,review,'returned_to_uploader','SUPERVISOR',actor,'supervisor_returned',note);
+        return transition(env,review,'returned_to_uploader','SUPERVISOR',actor,'supervisor_returned',note,returnAudit);
       if(action==='request-correction'&&review.status==='returned_to_supervisor')
-        return transition(env,review,'returned_to_uploader','SUPERVISOR',actor,'correction_assigned',note);
+        return transition(env,review,'returned_to_uploader','SUPERVISOR',actor,'correction_assigned',note,returnAudit);
       return fail('Supervisor action not allowed in this state',409);
     }
     if(actor===review.submitter_id||actor===review.supervisor_id)return fail('Self-approval prohibited',403);
     if(action==='approve'&&review.status==='pending_admin')
       return transition(env,review,'approved_pending_publish','ADMIN',actor,'admin_approved');
     if(action==='return'&&review.status==='pending_admin')
-      return transition(env,review,'returned_to_supervisor','ADMIN',actor,'admin_returned',note);
+      return transition(env,review,'returned_to_supervisor','ADMIN',actor,'admin_returned',note,returnAudit);
     if(action==='publish'&&review.status==='approved_pending_publish'){
       if(review.approved_version!==review.latest_version)return fail('Approved version mismatch',409);
       const approvedRow=await env.DB.prepare(
@@ -7574,13 +7633,22 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
-      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
+      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
+        "CASE WHEN "+(release?"r.kind='product' AND ":"")+
+        "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 1 ELSE 0 END AS is_recheck":
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
       'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';
-    const sort=(q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
+    // Priority must happen IN SQL before LIMIT/OFFSET, not after pagination.
+    // New-product resubmissions have immutable version >1; revisions retain their normal order.
+    const recheckPriority=!product&&kind!=='revisions'
+      ?"CASE WHEN "+(release?"r.kind='product' AND ":"")+
+        "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 0 ELSE 1 END, "
+      :'';
+    const sort=recheckPriority+
+      (q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
       alias+'.updated_at '+(order==='oldest'?'ASC':'DESC')+','+alias+'.id '+(order==='oldest'?'ASC':'DESC')+
       (release?',r.kind ASC':'');
     try{

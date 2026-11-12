@@ -127,7 +127,7 @@ test('Admin safe batch handles approved product and revision sequentially withou
   }
 });
 
-test('Admin return requires a reason; optional difference view does not block publishing',async()=>{
+test('Admin return requires a field-specific explanation; optional difference view does not block publishing',async()=>{
   const env=setup([mk('return','pending_admin')],[]);
   let view:ReturnType<typeof create>|undefined;
   try{
@@ -141,6 +141,10 @@ test('Admin return requires a reason; optional difference view does not block pu
     assert.equal(confirm.props.disabled,true);
     const reason=view!.root.findByProps({'aria-label':'退回主管原因'});
     await act(async()=>reason.props.onChange({target:{value:'请核对木种和图片信息'}}));
+    assert.equal(findButton(view!,'确认退回主管')!.props.disabled,true,'overall note alone is insufficient for a new-product return');
+    const issue=view!.root.findByProps({'aria-label':'字段修改原因 1'});
+    await act(async()=>issue.props.onChange({target:{value:'请替换模糊的主图'}}));
+    assert.equal(findButton(view!,'确认退回主管')!.props.disabled,false);
     await act(async()=>findButton(view!,'确认退回主管')!.props.onClick());
     assert.ok(env.requests.includes('POST admin/reviews/return/return'));
     assert.match(JSON.stringify(view!.toJSON()),/当前没有需要 Admin 发布的产品或修订/);

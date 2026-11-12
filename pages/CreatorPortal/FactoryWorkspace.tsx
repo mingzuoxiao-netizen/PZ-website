@@ -15,6 +15,7 @@ import {
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
+import type {ReviewReturnDetails} from '../../utils/reviewReturn.mjs';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
 import BatchCreator from './components/BatchCreator';
@@ -33,6 +34,8 @@ const FactoryWorkspace: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
+  const [returnReview,setReturnReview]=useState<ReviewReturnDetails|null>(null);
+  const [returnReviewError,setReturnReviewError]=useState('');
   const [revisionEditing,setRevisionEditing] = useState<{
     product:ProductVariant;revisionId?:string;draftRevision?:number
   }|null>(null);
@@ -65,6 +68,23 @@ const FactoryWorkspace: React.FC = () => {
   const [categoryFacets,setCategoryFacets]=useState<{category:string|null;count:number}[]>([]);
   const categoryFacetRef=useRef<typeof categoryFacets>([]);
   const catalogGeneration=useRef(0);
+  useEffect(()=>{
+    const id=editingItem?.id;
+    if(!id||editingItem.status!=='returned_to_uploader'){
+      setReturnReview(null);setReturnReviewError('');return;
+    }
+    let active=true;
+    setReturnReview(null);setReturnReviewError('');
+    void factoryFetch<ReviewReturnDetails>('factory/products/'+encodeURIComponent(id)+'/return-issues')
+      .then(result=>{if(active)setReturnReview(result);})
+      .catch(error=>{
+        if(!active)return;
+        setReturnReviewError('无法获取字段退回明细：'+(error?.message||'请刷新重试'));
+        setReturnReview({issues:[],return_reason:editingItem?.return_reason||'',legacy:true,baseline:{}});
+      });
+    return()=>{active=false;};
+  },[editingItem?.id,editingItem?.status]);
+
   const formDirty=useRef(false);
   const formBusy=useRef(false);
   const rememberDirty=useCallback((dirty:boolean)=>{formDirty.current=dirty;},[]);
@@ -456,7 +476,9 @@ const FactoryWorkspace: React.FC = () => {
                 onDirtyChange={rememberDirty} onBusyChange={rememberBusy}
                 onSaveAndSubmit={handleSaveAndSubmit} onSaveNext={handleSaveNext}
                 onCheckSku={async code=>(await checkBatchSkuCodes([code])).includes(code.toUpperCase())}
-                initialData={editingItem || creationTemplate} 
+                initialData={editingItem || creationTemplate}
+                returnReview={editingItem?.status==='returned_to_uploader'?returnReview:undefined}
+                returnReviewError={editingItem?.status==='returned_to_uploader'?returnReviewError:undefined} 
                 fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
                 categories={categories} 
                 onSave={handleSaveDraft} 
