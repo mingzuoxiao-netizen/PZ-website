@@ -7976,7 +7976,8 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
 const pzNotifyOriginalFetch=index_default.fetch;
 index_default.fetch=notificationMiddleware(pzNotifyOriginalFetch,{authorize,json});
 
-\n// BEGIN TASK 15: authenticated, draft-only CSV import middleware.
+
+// BEGIN TASK 15: authenticated, draft-only CSV import middleware.
 const pzImportOriginalFetch=index_default.fetch;
 index_default.fetch=bulkImportFetch(pzImportOriginalFetch,{
   authorize,json,canManageProduct:pzOrgCanManageProduct,
