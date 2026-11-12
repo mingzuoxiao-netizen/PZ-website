@@ -30,8 +30,9 @@ test('returned operator sees clickable field issue and clear corrected-field mar
     assert.ok(view!.root.findByProps({'data-testid':'field-return-panel'}));
     assert.match(printed(view!),/替换模糊主图/);
     assert.doesNotMatch(printed(view!),/已修改/);
-    const issueButton=view!.root.findAllByType('button').find(x=>x.children.includes('images：替换模糊主图'));
+    const issueButton=view!.root.findAllByType('button').find(x=>JSON.stringify(x.children).includes('替换模糊主图'));
     assert.ok(issueButton,'return field can be clicked to jump to images');
+    assert.equal(typeof issueButton!.props.onClick,'function');
     await act(async()=>{
       const manager=view!.root.findByType(PZImageManager);
       manager.props.onUpdate(['new-oak1.jpg',...images.slice(1)]);
