@@ -41,6 +41,8 @@ export function preflightProduct(product,{existingSku=false}={}){
   });
   if(images.length&&roles[images[0]]!=='main')
     add('images','image_cover_role','Set the first image role to main','第一张图片必须设置为主图');
+  if(images.slice(1).some(image=>roles[image]==='main'))
+    add('images','image_extra_main','Only the first image can be assigned main','只能将第一张图片设置为主图');
   if(images.length!==new Set(images).size)
     add('images','image_duplicate','The same image is attached more than once','同一张图片重复使用，请核对','warning');
   const d=specs.dimensions_cm||{};
