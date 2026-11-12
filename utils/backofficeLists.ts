@@ -5,6 +5,7 @@ export type BackofficeListEndpoint = 'admin/reviews'|'admin/revisions'|'admin/re
 export interface BackofficeListQuery {
   page?:number;page_size?:number;q?:string;status?:string;category?:string;categories?:string[];
   department?:string;supervisor?:string;submitter?:string;site?:string;
+  import_batch?:string;
   kind?:'product'|'revision';
   sort?:'oldest'|'newest';
 }
