@@ -3610,7 +3610,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
         .bind(crypto.randomUUID(),action,actor,role,review.latest_version,auditNote??note,stamp,review.id,target,review.latest_version)
     ];
     const outcome=await env.DB.batch(writes);
-    if(outcome.some(x=>Number(x.meta?.changes)!==1))
+    if(outcome.some(x=>Number(x.meta?.changes)<1))
       return fail('Review changed concurrently; refresh before retry',409);
     return json({success:true,id:review.id,product_id:review.product_id,status:target,version:review.latest_version});
   }
@@ -3806,7 +3806,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       ).bind(crypto.randomUUID(),rid,'submitted',actor,'FACTORY',version,stamp,rid,version));
       try {
         const outcome=await env.DB.batch(writes);
-        if(outcome.some(x=>Number(x.meta?.changes)!==1))return fail('Concurrent product change; check record',409);
+        if(outcome.some(x=>Number(x.meta?.changes)<1))return fail('Concurrent product change; check record',409);
       }catch(err){
         if(/UNIQUE|CONSTRAINT|FOREIGN KEY/i.test(String(err)))return fail('Review version conflict; reload',409);
         throw err;
@@ -7312,7 +7312,7 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
         ).bind(crypto.randomUUID(),action,actor,role,revision.latest_version,note,time,
           revision.id,target,revision.latest_version)
       ]);
-      if(results.some(x=>Number(x.meta?.changes)!==1))
+      if(results.some(x=>Number(x.meta?.changes)<1))
         return fail('Revision changed concurrently; refresh',409);
       return json({success:true,id:revision.id,status:target,version:revision.latest_version});
     }catch(err){
@@ -7411,7 +7411,7 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
         "WHERE id=? AND submitter_id=? AND draft_revision=? AND status IN ('draft','returned_to_uploader') "+
         "AND EXISTS(SELECT 1 FROM products WHERE id=product_id AND status='published' AND updated_at=base_updated_at)"
       ).bind(JSON.stringify(draft),stamp(),id,actor,revision.draft_revision).run();
-      if(Number(result.meta?.changes)!==1)return fail('Draft changed concurrently; reload',409);
+      if(Number(result.meta?.changes)<1)return fail('Draft changed concurrently; reload',409);
       return json({success:true,id,status:revision.status,draft_revision:revision.draft_revision+1});
     }
     if(method!=='POST'||!action)return fail('Method not allowed',405);
@@ -7454,7 +7454,7 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
             "WHERE id=? AND status='pending_supervisor' AND latest_version=?"
           ).bind(crypto.randomUUID(),actor,n,time,id,n)
         ]);
-        if(results.some(x=>Number(x.meta?.changes)!==1))
+        if(results.some(x=>Number(x.meta?.changes)<1))
           return fail('Concurrent revision update; reload',409);
       }catch(err){
         if(/constraint|stale|unique/i.test(String(err)))return fail('Review version conflict; reload',409);
@@ -7521,7 +7521,7 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
           "WHERE id=? AND status='published' AND latest_version=?"
         ).bind(crypto.randomUUID(),actor,revision.latest_version,time,id,revision.latest_version)
       ]);
-      if(results.some(x=>Number(x.meta?.changes)!==1))
+      if(results.some(x=>Number(x.meta?.changes)<1))
         return fail('Product changed during publication; inspect before retry',409);
     }catch(err){
       if(/constraint|stale|unique/i.test(String(err)))return fail('Concurrent publication; inspect state',409);
