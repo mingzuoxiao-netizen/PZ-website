@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'worker/**'
+      - 'utils/productPreflight.js'
+      - 'utils/productPreflight.d.ts'
       - '.github/workflows/pz-worker-ci-cd.yml'
       - 'worker-patches/pz-production-unified-v2-2026-11-10.js'
   push:
     branches: [main]
     paths:
       - 'worker/**'
+      - 'utils/productPreflight.js'
+      - 'utils/productPreflight.d.ts'
       - '.github/workflows/pz-worker-ci-cd.yml'
   release:
     types: [published]
