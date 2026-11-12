@@ -36,7 +36,8 @@ export function readReturnEvent(note){
 }
 export function normalizeIssueField(field){
   if(typeof field!=='string')return '';
-  return field.startsWith('specifications.')?field.slice('specifications.'.length):field;
+  const normalized=field.startsWith('specifications.')?field.slice('specifications.'.length):field;
+  return normalized==='media_roles'||normalized.startsWith('media_roles.')?'images':normalized;
 }
 // Avoid ephemeral review/audit fields when computing the return-version delta.
 const EXCLUDED=new Set(['preflight_warnings','review_metadata','return_issues','updated_at','status']);
