@@ -49,7 +49,7 @@ export function changedProductFields(previous,next){
     if(object(a)&&object(b)){
       const keys=new Set([...Object.keys(a),...Object.keys(b)]);
       for(const key of keys){
-        if(!prefix&&EXCLUDED.has(key))continue;
+        if(!prefix&&(!ROOTS.has(key)||EXCLUDED.has(key)))continue;
         visit(a[key],b[key],prefix?prefix+'.'+key:key,depth+1);
       }
       return;
