@@ -23,6 +23,7 @@ import CategoryChangeReview from './components/CategoryChangeReview';
 import AccountsManager from './components/AccountsManager';
 import OrganizationManagement from './components/OrganizationManagement';
 import AdminReleaseQueue from './components/AdminReleaseQueue';
+import AdminFastLanePanel from './components/AdminFastLanePanel';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
@@ -36,7 +37,7 @@ const AdminWorkspace: React.FC = () => {
   const rememberProductDirty=useCallback((dirty:boolean)=>{dirtyProduct.current=dirty;},[]);
   const rememberProductBusy=useCallback((busy:boolean)=>{busyProduct.current=busy;},[]);
   const [activeTab, setActiveTab] = useState<AdminTab>('review');
-  const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes'>('products');
+  const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes' | 'fast-lane'>('products');
 
   const [catalogView, setCatalogView] = useState('action');
   const [catalogPage, setCatalogPage] = useState(1);
@@ -462,6 +463,7 @@ const AdminWorkspace: React.FC = () => {
                   ['products', '产品审核与发布', productReviewCount],
                   ['new-categories', '新增分类申请', actionableCategoryCount],
                   ['category-changes', '分类修改申请', categoryChangeCount],
+                  ['fast-lane', '发布后抽检与可信操作员', null],
                 ] as const).map(([id,label,count])=>(
                   <button key={id} type="button" role="tab"
                     aria-selected={reviewSection === id}
@@ -471,7 +473,7 @@ const AdminWorkspace: React.FC = () => {
                         ? 'border-stone-900 bg-stone-900 text-white'
                         : 'border-stone-200 bg-white text-stone-700 hover:border-stone-500'
                     }`}>
-                    {label}（{count===null?'未同步':count}）
+                    {id==='fast-lane'?label:label+'（'+(count===null?'未同步':count)+'）'}
                   </button>
                 ))}
               </div>
@@ -485,9 +487,11 @@ const AdminWorkspace: React.FC = () => {
             </div>
             <div role="tabpanel" aria-label={
               reviewSection === 'products' ? '产品终审与发布' :
-              reviewSection === 'new-categories' ? '新品类申请审核' : '已有分类修改审核'
+              reviewSection === 'new-categories' ? '新品类申请审核' :
+               reviewSection === 'fast-lane' ? '发布后抽检及可信操作员' : '已有分类修改审核'
             }>
               {reviewSection === 'products' && <AdminReleaseQueue onQueueChanged={loadReviewQueue} />}
+              {reviewSection === 'fast-lane' && <AdminFastLanePanel />}
               {reviewSection === 'new-categories' && (
                 <div className="space-y-5">
                   {waitingCategories.length>0 &&
