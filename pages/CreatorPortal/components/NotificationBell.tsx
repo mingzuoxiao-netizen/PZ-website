@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Bell,Mail,Check,RefreshCw,X} from 'lucide-react';
+import {useLocation} from 'react-router-dom';
 import {adminFetch,ADMIN_SESSION_KEY} from '../../../utils/adminFetch';
 
 type Role='ADMIN'|'SUPERVISOR'|'FACTORY';
@@ -7,10 +8,17 @@ type Notice={id:string;title:string;message:string;event_type:string;
   entity_type:string;entity_id:string;created_at:string;read_at:string|null;
   email_state:string};
 type Pref={email:string;email_masked:string;verified:boolean;enabled:boolean;provider_configured:boolean};
+type ReviewInfo={id:string;product_id?:string;name?:string;name_cn?:string;code?:string;
+  status?:string;category?:string;return_reason?:string|null;
+  versions?:{snapshot?:{name?:string;name_cn?:string;code?:string;description?:string}}[]};
 const blank:Pref={email:'',email_masked:'',verified:false,enabled:false,provider_configured:false};
 
 const NotificationBell:React.FC<{role:Role}>=({role})=>{
+  const location=useLocation();
   const [opened,setOpened]=useState(false);
+  const [focused,setFocused]=useState<{kind:string;id:string;detail:ReviewInfo|null}|null>(null);
+  const [focusBusy,setFocusBusy]=useState(false);
+  const [focusError,setFocusError]=useState('');
   const [settings,setSettings]=useState(false);
   const [items,setItems]=useState<Notice[]>([]);
   const [unread,setUnread]=useState(0);
@@ -65,17 +73,37 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
     catch(e:any){setError(e?.message||'操作未完成，请重试');}
     finally{setBusy(false);}
   };
+  const showReview=async(kind:string,id:string)=>{
+    if(!['review','revision','product'].includes(kind)||!id||id.length>120)return;
+    setSettings(false);setFocused({kind,id,detail:null});setFocusError('');setFocusBusy(true);
+    try{
+      if(kind==='product'){
+        // Sampling-unpublish events link to a product ID, rather than a review.
+        setFocusError('已下架产品可在产品管理里按通知中的 SKU 查询。');
+        return;
+      }
+      const scope=role==='ADMIN'?'admin':role==='SUPERVISOR'?'supervisor':'factory';
+      const detail=await adminFetch<ReviewInfo>(scope+'/'+(kind==='revision'?'revisions':'reviews')+
+        '/'+encodeURIComponent(id));
+      setFocused({kind,id,detail});
+    }catch(e:any){setFocusError('审核详情读取失败：'+(e?.message||'请打开对应待审列表核对'));}
+    finally{setFocusBusy(false);}
+  };
+  useEffect(()=>{
+    const query=new URLSearchParams(location.search);
+    const kind=query.get('noticeType')||'',id=query.get('noticeId')||'';
+    if(!['review','revision','product'].includes(kind)||!id||id.length>120)return;
+    setOpened(true);
+    void showReview(kind,id);
+    void refresh(true);
+  },[location.search,role]);
   const read=async(item:Notice)=>{
     if(!item.read_at){
       try{await adminFetch('notifications/'+encodeURIComponent(item.id)+'/read',{method:'POST'});}
       catch{ /* viewing the item is still possible without read receipt */ }
     }
     await refresh(true);
-    // Role-based navigation only; never put user-provided URLs in the notification.
-    const route=role==='ADMIN'?'admin':role==='SUPERVISOR'?'supervisor':'factory';
-    const query=new URLSearchParams({noticeType:item.entity_type,noticeId:item.entity_id});
-    window.location.hash='#/creator/'+route+'?'+query.toString();
-    setOpened(false);
+    await showReview(item.entity_type,item.entity_id);
   };
   const readAll=()=>void change(()=>adminFetch('notifications/read-all',{method:'POST'}),
     '全部通知已标记为已读');
@@ -102,6 +130,21 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
       </div>
       {error&&<p role="alert" className="mt-3 rounded bg-red-50 p-2 text-xs text-red-700">{error}</p>}
       {notice&&<p role="status" className="mt-3 rounded bg-green-50 p-2 text-xs text-green-800">{notice}</p>}
+      {focused&&<section aria-label="审核产品详情" className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold">审核记录 · {focused.kind==='revision'?'产品修订':'新品'}</h4>
+          <button type="button" className="text-xs underline" onClick={()=>setFocused(null)}>返回通知列表</button>
+        </div>
+        {focusBusy&&<p className="mt-2 text-xs">正在加载审核详情…</p>}
+        {focusError&&<p role="alert" className="mt-2 text-xs text-amber-900">{focusError}</p>}
+        {focused.detail&&<div className="mt-2 space-y-1 text-xs">
+          <p><strong>{focused.detail.name_cn||focused.detail.versions?.at(-1)?.snapshot?.name_cn||
+            focused.detail.name||focused.detail.versions?.at(-1)?.snapshot?.name||'产品'}</strong></p>
+          <p>SKU：{focused.detail.code||focused.detail.versions?.at(-1)?.snapshot?.code||'待核对'}</p>
+          <p>审核状态：{focused.detail.status||'未同步'}</p>
+          {!!focused.detail.return_reason&&<p>退回原因：{focused.detail.return_reason}</p>}
+        </div>}
+      </section>}
       {settings&&<section className="mt-3 space-y-3 rounded border border-stone-200 bg-stone-50 p-3" aria-label="邮件通知设置">
         <h4 className="text-sm font-semibold">审核邮件通知</h4>
         <p className="text-xs text-stone-600">账号没有自动绑定邮箱。请填写您本人可收信的邮箱，收到验证码后进行验证。只有完成验证并开启邮件通知，才会收到审核提醒。</p>
