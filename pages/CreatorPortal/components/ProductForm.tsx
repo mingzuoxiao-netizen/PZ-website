@@ -141,7 +141,7 @@ const ProductForm:React.FC<ProductFormProps>=({
       issue(T('Select a valid category.','请选择有效的产品分类。'),'category');return;
     }
     if(!String(formData.name||'').trim()){
-      issue(T('An English product name is required.','请填写产品英文名称。'),'product-name');return;
+      issue(T('An English product name is required.','请填写产品英文名称。'),'name');return;
     }
     if(!formData.id&&!code){
       issue(T('SKU is required.','新建产品必须填写 SKU。'),'code');return;
@@ -305,12 +305,12 @@ const ProductForm:React.FC<ProductFormProps>=({
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
               <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input name="product-name" className={field} required value={formData.name||''}
+                <input name="name" className={field} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
               </label>
               <label className="block"><span className={label}>{T('Chinese product name','产品中文名称')}</span>
-                <input className={field} value={formData.name_cn||''}
+                <input name="name_cn" className={field} value={formData.name_cn||''}
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
               </label>
               <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
