@@ -84,7 +84,8 @@ export function inspectZip(bytes,{maxArchive=LIMITS.archive,maxTotal=LIMITS.expa
     if((flags&1)||(flags&0x40)||disk||![0,8].includes(method)||
        compressed===0xffffffff||expanded===0xffffffff||localOffset===0xffffffff)
       fail('加密、ZIP64 或未知压缩方式不受支持');
-    if((flags&0x800)===0)fail('请使用 UTF-8 文件名打包 ZIP');
+    if((flags&0x800)===0&&data.subarray(pos+46,pos+46+nameLen).some(byte=>byte>=128))
+      fail('含中文的 ZIP 文件名需要使用 UTF-8 编码');
     const next=pos+46+nameLen+extraLen+commentLen;
     if(next>start+size)fail('目录记录越界');
     let name;try{name=decoder.decode(data.subarray(pos+46,pos+46+nameLen));}
