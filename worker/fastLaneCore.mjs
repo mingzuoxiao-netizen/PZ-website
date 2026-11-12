@@ -10,7 +10,7 @@ const parseBody=async request=>{
   catch{return null;}
 };
 const validReason=value=>typeof value==='string'&&value.trim().length>=5&&value.trim().length<=2000;
-const changed=result=>Number(result?.meta?.changes||0)===1;
+const changed=result=>Number(result?.meta?.changes||0)>=1;
 
 export async function fastLaneEligibility(env,review,product){
   if(env.PZ_FAST_LANE_ENABLED!=='true')return {eligible:false,reason:'worker_disabled'};
