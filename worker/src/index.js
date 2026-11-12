@@ -7647,8 +7647,8 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       ?"CASE WHEN "+(release?"r.kind='product' AND ":"")+
         "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 0 ELSE 1 END, "
       :'';
-    const sort=(q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
-      recheckPriority+
+    const sort=recheckPriority+
+      (q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
       alias+'.updated_at '+(order==='oldest'?'ASC':'DESC')+','+alias+'.id '+(order==='oldest'?'ASC':'DESC')+
       (release?',r.kind ASC':'');
     try{
