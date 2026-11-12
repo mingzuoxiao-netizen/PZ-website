@@ -309,7 +309,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block"><span className={label}>{T('Product category *','产品分类 *')}</span>
                 {fixedCategoryId
-                  ?<div className={field+' bg-stone-100'}>{selectedCategory?(lang==='zh'?(selectedCategory.title_cn||selectedCategory.title_zh||selectedCategory.title):selectedCategory.title):currentCategory}</div>
+                  ?<div data-preflight-field="category" tabIndex={-1} className={field+' bg-stone-100'}>{selectedCategory?(lang==='zh'?(selectedCategory.title_cn||selectedCategory.title_zh||selectedCategory.title):selectedCategory.title):currentCategory}</div>
                   :<select name="category" required className={field} value={formData.category||''} onChange={e=>handleChange('category',e.target.value)}>
                     <option value="">{T('Select category','请选择分类')}</option>
                     {categories.map(c=><option key={c.id} value={c.id}>
@@ -355,7 +355,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   placeholder={T('Water-based matte lacquer','水性哑光漆')}/>
               </label>
             </div>
-            <fieldset className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
+            <fieldset data-preflight-field="production_sites" tabIndex={-1} className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
               <legend className="px-1 text-xs font-semibold">{T('Available production sites','可生产工厂')}</legend>
               <div className="flex flex-wrap gap-6">
                 {([['zhaoqing','肇庆 · 中国'],['cambodia','干丹 · 柬埔寨']] as const).map(([site,name])=>
@@ -381,7 +381,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             </details>
           </section>
 
-          <div className="border-t border-stone-200 pt-7">
+          <div data-preflight-field="specifications" tabIndex={-1} className="border-t border-stone-200 pt-7">
             <ProductSpecificationsEditor category={categoryLabel}
               value={specs} onChange={changeSpecs} lang={lang}/>
             <div className="mt-4 rounded bg-stone-50 px-4 py-3 text-xs text-stone-600">
