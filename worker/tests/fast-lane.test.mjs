@@ -92,7 +92,12 @@ function setup({clean=10,legacy=0}={}){
           };
         },
         async first(){return sql.prepare(text).get()||null;},
-        async all(){return {results:sql.prepare(text).all()};}
+        async all(){return {results:sql.prepare(text).all()};},
+        async execute(){
+          const statement=sql.prepare(text);
+          if(/^\s*SELECT\b/i.test(text))return {results:statement.all()};
+          const r=statement.run();return {meta:{changes:Number(r.changes)}};
+        }
       };
     },
     async batch(items){
