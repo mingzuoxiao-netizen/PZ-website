@@ -148,6 +148,19 @@ try{
   report.push('Supervisor field return, version recheck, Admin-to-supervisor correction and account isolation passed');
   for(let i=0;i<10;i++)await normalPublish(await createProduct('HISTORY-'+i));
   report.push('Ten clean real two-stage publications completed');
+  const publishedId=products.find(id=>db('SELECT status FROM products WHERE id='+quote(id))[0]?.status==='published');
+  const revision=(await call(operator,'/factory/products/'+publishedId+'/revisions',{
+    draft:{description:'Solid oak dining table with refined finish.'}},201)).id;
+  await call(operator,'/factory/revisions/'+revision+'/submit',{});
+  await call(supervisor,'/supervisor/revisions/'+revision+'/return',{note:'请核对产品说明文字'});
+  await call(operator,'/factory/revisions/'+revision+'/submit',{});
+  await call(supervisor,'/supervisor/revisions/'+revision+'/approve',{});
+  const revised=await call(admin,'/admin/revisions/'+revision+'/approve',{});
+  if(revised.status!=='published')await call(admin,'/admin/revisions/'+revision+'/publish',{});
+  assert.equal(db('SELECT description FROM products WHERE id='+quote(publishedId))[0].description,
+    'Solid oak dining table with refined finish.');
+  report.push('Published revision legacy note-only return, resubmit and approval remained functional');
+
   await call(admin,'/admin/fast-lane/operators/'+op.id+'/trust',{trusted:true,reason:'隔离环境合成账号验收授权'});
   await call(admin,'/admin/fast-lane/settings',{enabled:true,reason:'隔离环境快速通道端到端验收'});
   for(let i=0;i<2;i++){
