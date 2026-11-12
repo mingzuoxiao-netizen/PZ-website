@@ -52,6 +52,12 @@ test('dimension plausibility produces warnings that require explicit operator co
   chair.specifications.attributes={seat_height:'65'};
   assert.ok(preflightProduct(chair).warnings.some(x=>x.code==='chair_seat_height'));
 });
+test('additional main-image roles cannot bypass validation',()=>{
+  const bad=clone();
+  bad.specifications.media_roles[bad.images[1]]='main';
+  assert.ok(preflightProduct(bad).errors.some(x=>x.code==='image_extra_main'));
+});
+
 test('duplicate image and non-Chinese localised name are flagged, not silently accepted',()=>{
   const bad=clone();bad.images[2]=bad.images[1];bad.name_cn='Only English';
   const p=preflightProduct(bad);
