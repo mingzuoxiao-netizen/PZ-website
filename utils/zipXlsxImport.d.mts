@@ -10,6 +10,8 @@ export interface ZipProductBatch {
   orphan:string[];
 }
 export function readWorkbook(data:Uint8Array|ArrayBuffer):Promise<ImportRow[]>;
+export function matchSkuFolder(path:string):{sku:string;file:string}|null;
+export function assignInitialImageRoles(items:ZipProductImage[]):{images:ZipProductImage[];needsConfirmation:boolean};
 export function readProductZip(data:Uint8Array|ArrayBuffer):Promise<ZipProductBatch>;
 export function disposePreviews(batch:ZipProductBatch|null|undefined):void;
 export function createTemplateWorkbook(category:string,attributeKeys?:string[]):Uint8Array;
