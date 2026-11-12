@@ -79,7 +79,13 @@ const BulkZipImporter:React.FC<{
   const ready=lookups.filter(row=>row.valid);
   const sourceErrors=lookups.flatMap(row=>row.issues);
   const errors=sourceErrors.filter(x=>x.severity==='error');
-  const toFix=sourceErrors.filter(x=>x.severity==='warning');
+  const toFix:ImportIssue[]=[
+    ...sourceErrors.filter(x=>x.severity==='warning'),
+    ...(batch?.warnings||[]).map(message=>({row:0,field:'ZIP',severity:'warning' as const,message})),
+    ...(batch?.orphan||[]).map(message=>({
+      row:0,field:'未匹配图片',severity:'warning' as const,message:'没有对应 Excel SKU：'+message
+    }))
+  ];
   const currentImages=batch?.images.get(selected)||[];
   const unconfirmed=ready.filter(row=>row.images.length>0&&!confirmed.has(row.code));
   const uploadItems=ready.flatMap(row=>row.images.map(image=>({sku:row.code,image})));
@@ -230,7 +236,8 @@ const BulkZipImporter:React.FC<{
       </h2>
       <p className="mt-2 text-sm text-stone-600">
         一个 ZIP 即可：根目录放产品资料.xlsx，images/ 下按 SKU 建文件夹，图片可以保留相机原名。
-        最多 100 款产品，每款最多 12 张；<strong>只保存草稿，不自动审核或发布。</strong>
+        最多 100 款产品、每款 12 张图片；ZIP 最大 180 MB，安全解压上限 360 MB。
+        <strong>只保存草稿，不自动审核或发布。</strong>
       </p>
     </header>
     <div className="space-y-3 rounded border bg-white p-5">
