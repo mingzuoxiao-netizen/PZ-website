@@ -25,6 +25,7 @@ export interface ProductVariant {
   archived_at?: string | null;
   production_sites?: ProductionSite[];
   created_by?: string | null;
+  import_batch_id?: string | null;
   sub_category?: string;
   category?: string;
   specifications?: ProductSpecifications; // Internal structured technical data (not public by default)

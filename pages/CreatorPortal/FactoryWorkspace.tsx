@@ -15,6 +15,7 @@ import {
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
+import BulkCsvImporter from './components/BulkCsvImporter';
 import type {ReviewReturnDetails} from '../../utils/reviewReturn.mjs';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
@@ -30,7 +31,7 @@ interface Notification {
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'categories'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import'>('inventory');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
@@ -59,6 +60,8 @@ const FactoryWorkspace: React.FC = () => {
   const [catalogPage,setCatalogPage]=useState(1);
   const [catalogSearch,setCatalogSearch]=useState('');
   const [catalogQuery,setCatalogQuery]=useState('');
+  const [catalogImportBatch,setCatalogImportBatch]=useState('');
+  const [catalogImportBatchInput,setCatalogImportBatchInput]=useState('');
   const [catalogStatus,setCatalogStatus]=useState('action');
   const [catalogSite,setCatalogSite]=useState('all');
   const [catalogTotal,setCatalogTotal]=useState<number|null>(null);
@@ -153,7 +156,7 @@ const FactoryWorkspace: React.FC = () => {
       }
       const res=await fetchBackofficePage<ProductVariant>('factory/products',{
         page:catalogPage,q:catalogQuery,status:catalogStatus,site:catalogSite==='all'?undefined:catalogSite,
-        categories:aliases
+        categories:aliases,import_batch:catalogImportBatch||undefined
       });
       if(request!==catalogGeneration.current)return;
       if(catalogPage>1&&!res.items.length){setCatalogPage(Math.max(1,Math.ceil(res.total/50)));return;}
@@ -164,7 +167,7 @@ const FactoryWorkspace: React.FC = () => {
     }catch(e:any){
       if(request===catalogGeneration.current){setCatalogError(e?.message||'无法读取完整产品列表');setCatalogTotal(null);}
     }finally{if(request===catalogGeneration.current)setLoading(false);}
-  },[catalogPage,catalogQuery,catalogStatus,catalogSite,selectedCategoryId]);
+  },[catalogPage,catalogQuery,catalogStatus,catalogSite,selectedCategoryId,catalogImportBatch]);
 
   useEffect(() => { void loadData();return ()=>{catalogGeneration.current++;}; }, [loadData]);
   useEffect(()=>{void loadSiteConfig();},[loadSiteConfig]);
@@ -326,12 +329,18 @@ const FactoryWorkspace: React.FC = () => {
 
   const navItems = [
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
+    { id: 'bulk-import', label: 'CSV 批量导入草稿', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
   ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories');}}>
-      {activeTab === 'categories' ? (
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import');}}>
+      {activeTab === 'bulk-import' ? (
+        <BulkCsvImporter role="FACTORY" categories={categories} onCompleted={id=>{
+          setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
+          setCatalogPage(1);
+        }}/>
+      ) : activeTab === 'categories' ? (
         <FactoryCategoryManagement categories={categories} newCategoryRefreshKey={categoryRequestRefreshKey} onUpload={async file => {
           const form = new FormData(); form.append('file', file);
           const uploaded = await factoryFetch<{url:string}>('upload-image', { method: 'POST', body: form });
@@ -439,6 +448,22 @@ const FactoryWorkspace: React.FC = () => {
           </div>
           <div className="h-px bg-stone-200 w-full mb-8"></div>
       </div>
+
+      <form className="mb-3 flex flex-wrap items-center gap-2 rounded border border-stone-200 bg-white p-3 text-xs"
+        onSubmit={event=>{
+          event.preventDefault();const value=catalogImportBatchInput.trim();
+          if(value&&!/^[0-9a-f-]{36}$/i.test(value)){setCatalogError('请输入完整批次编号');return;}
+          setCatalogImportBatch(value);setCatalogStatus('all');setCatalogPage(1);
+        }}>
+        <label htmlFor="factory-import-batch" className="font-semibold">导入批次</label>
+        <input id="factory-import-batch" value={catalogImportBatchInput} maxLength={36}
+          onChange={e=>setCatalogImportBatchInput(e.target.value)}
+          placeholder="批次 UUID" className="w-64 rounded border p-2"/>
+        <button type="submit" className="rounded border px-3 py-2">按批次筛选</button>
+        <button type="button" className="rounded border px-3 py-2" onClick={()=>{
+          setCatalogImportBatch('');setCatalogImportBatchInput('');setCatalogPage(1);
+        }}>清除</button>
+      </form>
 
       {productActionError&&<div role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
         {productActionError}<button type="button" onClick={()=>setProductActionError('')} className="ml-3 underline">知道了</button>

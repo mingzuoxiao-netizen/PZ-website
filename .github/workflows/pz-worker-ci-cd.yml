@@ -7,6 +7,9 @@ on:
       - 'utils/fastLane.mjs'
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
+      - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
+      - 'utils/bulkImportCore.mjs'
+      - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
       - 'utils/productPreflight.js'
@@ -20,6 +23,9 @@ on:
       - 'utils/fastLane.mjs'
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
+      - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
+      - 'utils/bulkImportCore.mjs'
+      - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
       - 'utils/productPreflight.js'
@@ -66,6 +72,7 @@ jobs:
           node --test worker/tests/field-return.test.mjs
           node --test worker/tests/fast-lane.test.mjs
           node --test worker/tests/notifications.test.mjs
+          node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs
@@ -108,11 +115,13 @@ jobs:
           # Used solely to reject accidental cross-environment bindings.
           PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
           PZ_EXPECTED_PRODUCTION_KV_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_KV_ID }}
+          PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID }}
           PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET }}
           PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET }}
           PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
           PZ_D1_ID: ${{ vars.PZ_D1_ID }}
           PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_ASSETS_KV_ID: ${{ vars.PZ_ASSETS_KV_ID }}
           PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
@@ -160,6 +169,7 @@ jobs:
           PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
           PZ_D1_ID: ${{ vars.PZ_D1_ID }}
           PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_ASSETS_KV_ID: ${{ vars.PZ_ASSETS_KV_ID }}
           PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |

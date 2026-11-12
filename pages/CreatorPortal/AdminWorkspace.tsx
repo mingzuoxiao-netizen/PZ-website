@@ -16,6 +16,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
+import BulkCsvImporter from './components/BulkCsvImporter';
 import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
 import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
@@ -28,7 +29,7 @@ import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -43,6 +44,8 @@ const AdminWorkspace: React.FC = () => {
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogImportBatch,setCatalogImportBatch]=useState('');
+  const [catalogImportBatchInput,setCatalogImportBatchInput]=useState('');
   const [catalogHasMore, setCatalogHasMore] = useState(false);
   const [unpublishedReviewCount, setUnpublishedReviewCount] = useState<number | null>(null);
   const [catalogError, setCatalogError] = useState('');
@@ -91,18 +94,23 @@ const AdminWorkspace: React.FC = () => {
     setCatalogError('');
     try {
       const query = new URLSearchParams({ view: catalogView, page: String(catalogPage), q: catalogQuery });
-      const response = await adminFetch<{ products: ProductVariant[]; has_more: boolean; unpublished_review_count?: number }>('admin/products?' + query);
+      const response = catalogImportBatch
+        ?await fetchBackofficePage<ProductVariant>('factory/products',{
+          page:catalogPage,page_size:50,status:'all',import_batch:catalogImportBatch
+        })
+        :await adminFetch<{ products: ProductVariant[]; has_more: boolean; unpublished_review_count?: number }>('admin/products?' + query);
       if (request !== catalogRequest.current) return;
-      if (!response.products.length && catalogPage > 1) {
+      if (!response.products?.length && catalogPage > 1) {
         setCatalogPage(catalogPage - 1);
         return;
       }
       // For Admin inventory the current D1 status is authoritative. Legacy
       // is_published must not override it: that creates a false "published"
       // badge and a misleading unpublish action on ineligible rows.
-      setProducts(normalizeAdminInventoryProducts(response.products));
+      setProducts(normalizeAdminInventoryProducts(response.products||[]));
       setCatalogHasMore(response.has_more);
-      setUnpublishedReviewCount(response.unpublished_review_count ?? null);
+      setUnpublishedReviewCount('unpublished_review_count' in response
+        ?response.unpublished_review_count ?? null:null);
     } catch {
       if (request === catalogRequest.current) {
         setProducts([]);
@@ -113,7 +121,7 @@ const AdminWorkspace: React.FC = () => {
     } finally {
       if (request === catalogRequest.current) setIsProductsLoading(false);
     }
-  }, [catalogView, catalogPage, catalogQuery]);
+  }, [catalogView, catalogPage, catalogQuery,catalogImportBatch]);
 
   const loadReviewQueue = useCallback(async () => {
     // Load each queue independently. Never misreport a failed fetch as "0 pending".
@@ -418,6 +426,7 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
+    { id: 'bulk-import', label: '批量导入草稿', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
@@ -576,11 +585,33 @@ const AdminWorkspace: React.FC = () => {
           </section>
         )}
 
+        {activeTab === 'bulk-import' && (
+          <BulkCsvImporter role="ADMIN" categories={siteConfig?.categories||DEFAULT_CONFIG.categories}
+            onCompleted={id=>{setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogPage(1);setCatalogView('all');}}/>
+        )}
+
         {activeTab === 'inventory' && (
           editingProduct || isCreating ? (
             <ProductForm onDirtyChange={rememberProductDirty} onBusyChange={rememberProductBusy} initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
             <>
+              <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-stone-200 bg-white p-3">
+                <form className="flex flex-wrap items-center gap-2 text-xs" onSubmit={event=>{
+                  event.preventDefault();const value=catalogImportBatchInput.trim();
+                  if(value&&!/^[0-9a-f-]{36}$/i.test(value)){setCatalogError('请输入完整的导入批次编号');return;}
+                  setCatalogError('');setCatalogImportBatch(value);setCatalogView('all');setCatalogPage(1);
+                }}>
+                  <label htmlFor="admin-import-batch" className="font-semibold">按导入批次筛选</label>
+                  <input id="admin-import-batch" value={catalogImportBatchInput} maxLength={36}
+                    onChange={e=>setCatalogImportBatchInput(e.target.value)}
+                    placeholder="批次 UUID" className="w-64 rounded border p-2"/>
+                  <button type="submit" className="rounded border px-3 py-2">筛选</button>
+                  <button type="button" className="rounded border px-3 py-2" onClick={()=>{
+                    setCatalogImportBatch('');setCatalogImportBatchInput('');setCatalogPage(1);
+                  }}>清除</button>
+                </form>
+                {catalogImportBatch&&<span className="text-xs text-amber-800">仅显示批次 {catalogImportBatch}</span>}
+              </div>
               <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
                 {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['unpublished_review', unpublishedReviewCount === null ? '下架满 30 天' : `下架满 30 天（${unpublishedReviewCount}）`], ['archived', '归档'], ['archive_review', '归档满 30 天']].map(([value, label]) => (
                   <button key={value} type="button" aria-pressed={catalogView === value}

@@ -1,5 +1,6 @@
 import { preflightProduct } from '../../utils/productPreflight.js';
 import {notificationMiddleware} from '../notificationCore.mjs';
+import {bulkImportFetch} from '../bulkImportCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -7598,7 +7599,7 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       pageSize=integer(params,'page_size',50,100);
       q=(params.get('q')||'').trim();
       if(q.length>120)throw Error('Search is too long');
-      for(const key of ['status','category','department','supervisor','submitter','site','kind'])
+      for(const key of ['status','category','department','supervisor','submitter','site','kind','import_batch'])
         if((params.get(key)||'').length>120)throw Error('Filter is too long');
     }catch(error){return fail(error.message);}
     const product=kind==='products';
@@ -7662,6 +7663,13 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
         if(params.get(key)){base.push('r.'+col+'=?');bindings.push(params.get(key));}
       }
     }
+    if(params.get('import_batch')){
+      if(!product)return fail('Unsupported import batch filter');
+      if(env.PZ_BULK_IMPORT_ENABLED!=='true')return fail('Import batch filtering is not enabled',503);
+      const batch=params.get('import_batch');
+      if(!/^[0-9a-f-]{36}$/i.test(batch))return fail('Invalid import batch ID');
+      base.push('p.import_batch_id=?');bindings.push(batch);
+    }
     if(product&&params.get('site')){
       const site=params.get('site');
       if(!['zhaoqing','cambodia','unassigned'].includes(site))return fail('Invalid site');
@@ -7675,6 +7683,7 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     if(!product&&params.get('site'))return fail('Unsupported review filter');
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
+      (env.PZ_BULK_IMPORT_ENABLED==='true'?',p.import_batch_id':',NULL AS import_batch_id')+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
       kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
         "CASE WHEN "+(release?"r.kind='product' AND ":"")+
@@ -7966,3 +7975,11 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
 // BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.
 const pzNotifyOriginalFetch=index_default.fetch;
 index_default.fetch=notificationMiddleware(pzNotifyOriginalFetch,{authorize,json});
+
+
+// BEGIN TASK 15: authenticated, draft-only CSV import middleware.
+const pzImportOriginalFetch=index_default.fetch;
+index_default.fetch=bulkImportFetch(pzImportOriginalFetch,{
+  authorize,json,canManageProduct:pzOrgCanManageProduct,
+  validateSpecs:pzValidateTechnicalSpecs,imageBase:pzConfiguredImageBase
+});
