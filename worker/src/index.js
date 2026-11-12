@@ -1,4 +1,5 @@
 import { preflightProduct } from '../../utils/productPreflight.js';
+import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
 // The full inlined patch bundle below is preserved until live Worker parity is proven.
@@ -3615,6 +3616,9 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     const path=new URL(request.url).pathname,method=request.method;
     if(env.PZ_TWO_STAGE_REVIEW_ENABLED!=='true')return originalFetch.call(this,request,env,ctx);
     if(env.PZ_ORG_RBAC_ENABLED!=='true')return fail('Organization management must be enabled first',503);
+    // Only ADMIN may configure trust/kill switch or review published samples.
+    const fastAdmin=await handleFastLaneAdmin(request,env,{authorize,json,normalizeProductRows});
+    if(fastAdmin)return fastAdmin;
     // Existing direct admin mutations can bypass the new approval state machine.
     if(/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
@@ -3822,8 +3826,23 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
       catch(error){return json({error:error.message,code:'RETURN_FIELDS_REQUIRED'},400);}
     }
     if(supervisor){
-      if(action==='approve'&&review.status==='pending_supervisor')
+      if(action==='approve'&&review.status==='pending_supervisor'){
+        if(env.PZ_FAST_LANE_ENABLED==='true'){
+          const [version,current]=await Promise.all([
+            env.DB.prepare(
+              'SELECT snapshot_json FROM pz_product_review_versions WHERE review_id=? AND version=? LIMIT 1'
+            ).bind(review.id,review.latest_version).first(),
+            env.DB.prepare(productSql).bind(review.product_id).first()
+          ]);
+          if(!version||!current)return fail('Review snapshot or product not found',409);
+          let reviewed;
+          try{reviewed=JSON.parse(version.snapshot_json);}catch{return fail('Invalid review snapshot',409);}
+          const fast=await approveFastLane({env,review,actor,product:current,snapshot:reviewed,
+            readinessIssues,json,normalizeProductRows});
+          if(fast)return fast;
+        }
         return transition(env,review,'pending_admin','SUPERVISOR',actor,'supervisor_approved');
+      }
       if(action==='return'&&review.status==='pending_supervisor')
         return transition(env,review,'returned_to_uploader','SUPERVISOR',actor,'supervisor_returned',note,returnAudit);
       if(action==='request-correction'&&review.status==='returned_to_supervisor')
