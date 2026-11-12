@@ -167,9 +167,10 @@ export async function readProductZip(buffer){
   const rows=await readWorkbook(await zip.read(workbooks[0],ZIP_LIMITS.workbook));
   const records=rows.map(mapImportRow),productSku=new Set(records.map(x=>x.code));
   const bySku=new Map(records.map(x=>[x.code,[]]));
-  const orphan=[],warnings=[];
+  const orphan=[],warnings=[],previews=[];
+  try{
   for(const entry of zip.entries){
-    if(entry.isDir||entry.name===workbooks[0].name||entry.name==='README.txt')continue;
+    if(entry.isDir||entry.name===workbooks[0].name||(entry.name==='README.txt'||entry.name===base+'README.txt'))continue;
     if(entry.name.startsWith('__MACOSX/')||entry.name.includes('/.'))continue;
     const relative=base&&entry.name.startsWith(base)?entry.name.slice(base.length):entry.name;
     const matched=matchSkuFolder(relative);
@@ -185,9 +186,9 @@ export async function readProductZip(buffer){
     const bytes=await zip.read(entry,ZIP_LIMITS.entry);
     if(!goodImage(bytes,entry.name))
       throw Error('图片扩展名与实际格式不符：'+entry.name);
-    const blob=new Blob([bytes],{type:mimeFor(entry.name)});
-    group.push({file:matched.file,blob,preview:URL.createObjectURL(blob),role:'lifestyle',
-      source:entry.name});
+    const blob=new Blob([bytes],{type:mimeFor(entry.name)}),preview=URL.createObjectURL(blob);
+    previews.push(preview);
+    group.push({file:matched.file,blob,preview,role:'lifestyle',source:entry.name});
   }
   for(const [sku,group] of bySku){
     const initial=assignInitialImageRoles(group);
@@ -198,6 +199,10 @@ export async function readProductZip(buffer){
     if(!mainCandidates.length)warnings.push(sku+' 未标注主图，已临时选择第一张，需要人工确认');
   }
   return {rows,records,images:bySku,warnings,orphan};
+  }catch(error){
+    for(const url of previews)URL.revokeObjectURL(url);
+    throw error;
+  }
 }
 export const disposePreviews=batch=>{
   if(!batch)return;
