@@ -233,3 +233,46 @@ test('Admin endpoints never accept a non-admin caller',async()=>{
     assert.equal(response.status,403);
   }finally{t.close();}
 });
+
+test('accepted sample can still be retracted; generic relist and unpublish bypasses are blocked',async()=>{
+  const t=setup();
+  try{
+    await t.approve('p1');
+    const sample=t.sql.prepare('SELECT id FROM pz_fast_lane_publications WHERE product_id=?').get('p1');
+    const accepted=await t.admin('/admin/fast-lane/samples/'+sample.id+'/accept','POST',{});
+    assert.equal((await accepted.json()).status,'sampled_ok');
+    const unpub=await t.admin('/admin/fast-lane/samples/'+sample.id+'/unpublish','POST',{
+      reason:'Customer safety concern after initial sampling'
+    });
+    assert.equal((await unpub.json()).status,'unpublished');
+    assert.equal(t.getProduct('p1').catalog_hidden,1);
+    assert.equal(t.sql.prepare('SELECT catalog_synced FROM pz_fast_lane_publications WHERE id=?').get(sample.id).catalog_synced,1);
+    const code=readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
+    assert.match(code,/Use post-publish sampling to unpublish/);
+    assert.match(code,/Sampled-and-unpublished item cannot be relisted/);
+    assert.throws(()=>t.sql.prepare("UPDATE pz_fast_lane_events SET note='tamper'").run(),/immutable/);
+  }finally{t.close();}
+});
+
+test('post-commit catalog outage reports pending state and Admin retry safely reconciles',async()=>{
+  const t=setup();
+  try{
+    const previous=t.env.SITE_CONFIG_KV.put;
+    let first=true;
+    t.env.SITE_CONFIG_KV.put=async(key,value)=>{
+      if(first){first=false;throw Error('simulated KV outage');}
+      return previous(key,value);
+    };
+    const response=await t.approve('p1');
+    const body=await response.json();
+    assert.equal(body.success,true);
+    assert.equal(body.status,'published');
+    assert.equal(body.catalog_published,false);
+    assert.equal(body.code,'CATALOG_SYNC_PENDING');
+    const sample=t.sql.prepare("SELECT id,catalog_synced FROM pz_fast_lane_publications WHERE product_id='p1'").get();
+    assert.equal(sample.catalog_synced,0);
+    const res=await t.admin('/admin/fast-lane/samples/'+sample.id+'/sync-catalog','POST',{});
+    assert.equal((await res.json()).catalog_published,true);
+    assert.equal(t.sql.prepare('SELECT catalog_synced FROM pz_fast_lane_publications WHERE id=?').get(sample.id).catalog_synced,1);
+  }finally{t.close();}
+});
