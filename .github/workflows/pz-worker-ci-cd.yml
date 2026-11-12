@@ -74,6 +74,7 @@ jobs:
           node --test worker/tests/notifications.test.mjs
           node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
+          node --test worker/tests/runtime-target.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
@@ -126,7 +127,7 @@ jobs:
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
           node worker/scripts/prepare-deployment.mjs staging deploy
-          node worker/scripts/stamp-version.mjs
+          node worker/scripts/stamp-version.mjs staging
       - name: Deploy staging ONLY (no production routes)
         env:
           # These uniquely named secrets belong ONLY to the 'staging' GitHub Environment.
