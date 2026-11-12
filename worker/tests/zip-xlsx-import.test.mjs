@@ -152,6 +152,65 @@ test('ZIP reader rejects traversal, duplicate names, corrupted CRC and excessive
   }))),/文件过多/);
 });
 
+test('compressing the containing batch folder still matches the workbook and camera photos',async()=>{
+  setDom();
+  try{
+    const wb=await workbookWithRow('PZ-TABLE-001');
+    const zipped=createStoredZip([
+      {name:'PZ-batch/产品资料.xlsx',data:wb},
+      {name:'PZ-batch/images/PZ-TABLE-001/IMG_1234.jpg',data:jpg},
+      {name:'PZ-batch/README.txt',data:'instructions'}
+    ]);
+    const result=await readProductZip(zipped);
+    try{
+      assert.equal(result.records.length,1);
+      assert.equal(result.images.get('PZ-TABLE-001').length,1);
+      assert.equal(result.images.get('PZ-TABLE-001')[0].file,'IMG_1234.jpg');
+      assert.ok(result.warnings.some(s=>s.includes('人工确认')));
+    }finally{disposePreviews(result);}
+  }finally{restoreDom();}
+});
+
+test('a single XLSX with 100 products and five malformed rows previews 95 valid drafts',async()=>{
+  setDom();
+  try{
+    const template=inspectZip(createTemplateWorkbook('dining-table'));
+    const columns=templateColumns();
+    const rows=Array.from({length:100},(_,i)=>{
+      const value={code:'PZ-OAK-'+String(i).padStart(4,'0'),
+        name:'Oak Dining Table',category:'dining-table',
+        material:'White Oak',description:'Solid oak dining table',
+        production_sites:'zhaoqing',
+        'dimensions_cm.length':'180','dimensions_cm.width':'90','dimensions_cm.height':'75'};
+      if(i===0)value.code='bad-code';
+      if(i===1)value.material='';
+      if(i===2)value.name='123456';
+      if(i===3)value['dimensions_cm.height']='750cm';
+      if(i===4)value.production_sites='invalid-site';
+      const n=i+3;
+      const cells=columns.map((key,j)=>value[key]?
+        '<c r="'+col(j)+n+'" t="inlineStr"><is><t>'+escape(value[key])+'</t></is></c>':'').join('');
+      return '<row r="'+n+'">'+cells+'</row>';
+    }).join('');
+    const files=[];
+    for(const item of template.entries){
+      const data=await template.read(item);
+      files.push({name:item.name,data:item.name==='xl/worksheets/sheet1.xml'?
+        new TextEncoder().encode(new TextDecoder().decode(data).replace('</sheetData>',
+          rows+'</sheetData>')):data});
+    }
+    const workbook=createStoredZip(files);
+    const zip=createStoredZip([{name:'产品资料.xlsx',data:workbook}]);
+    const result=await readProductZip(zip);
+    try{
+      assert.equal(result.records.length,100);
+      assert.equal(result.records.filter(x=>x.valid).length,95);
+      assert.equal(result.records.filter(x=>!x.valid).length,5);
+      assert.ok(result.records.every(x=>x.product.status==='draft'));
+    }finally{disposePreviews(result);}
+  }finally{restoreDom();}
+});
+
 test('hidden macros, multiple workbooks and missing workbooks fail closed',async()=>{
   setDom();
   try{
