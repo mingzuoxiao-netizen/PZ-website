@@ -233,7 +233,11 @@ export async function handleFastLaneAdmin(request,env,{authorize,json,normalizeP
           return json({success:true,catalog_published:true});
         }catch{return json({error:'Catalog sync failed; retry safely',code:'CATALOG_SYNC_PENDING'},503);}
       }
-      if(sample.status!=='published')return json({error:'Sample already reviewed; refresh state'},409);
+      if((action==='accept'&&sample.status!=='published')||
+         (action==='unpublish'&&!['published','sampled_ok'].includes(sample.status)))
+        return json({error:'Sample already reviewed or unpublished; refresh state'},409);
+      if(action==='accept'&&Number(sample.catalog_synced)!==1)
+        return json({error:'Public catalog sync is pending; sync before accepting the sample'},409);
       const body=await parseBody(request);
       if(action==='unpublish'&&!validReason(body?.reason))
         return json({error:'Unpublish reason must have 5–2000 characters'},400);
@@ -252,34 +256,42 @@ export async function handleFastLaneAdmin(request,env,{authorize,json,normalizeP
       }
       // Keep the historical published review immutable: catalog_hidden is
       // the existing public visibility mechanism. Count repeated retractions.
-      const [resultVisible,resultHidden,resultAudit]=await env.DB.batch([
+      // Retraction, hidden catalog state, auto-revocation and both audit events
+      // belong to ONE D1 transaction. Never acknowledge trust revocation without
+      // committing its immutable audit row.
+      const [resultVisible,resultHidden,resultAudit,resultRevoked,resultRevokeAudit]=await env.DB.batch([
         env.DB.prepare(
-          "UPDATE pz_fast_lane_publications SET status='unpublished',reviewed_by=?,reviewed_at=?,"+
-          "unpublish_reason=? WHERE id=? AND status='published'"
+          "UPDATE pz_fast_lane_publications SET status='unpublished',catalog_synced=0,"+
+          "reviewed_by=?,reviewed_at=?,unpublish_reason=? "+
+          "WHERE id=? AND status IN ('published','sampled_ok')"
         ).bind(actor,at,note,sampleId),
         env.DB.prepare(
           "UPDATE products SET catalog_hidden=1,updated_at=? WHERE id=? AND lower(status)='published' "+
           "AND EXISTS(SELECT 1 FROM pz_fast_lane_publications WHERE id=? AND status='unpublished')"
         ).bind(at,sample.product_id,sampleId),
         audit(env,{event_type:'sample_unpublished',operator_id:sample.operator_id,review_id:sample.review_id,
-          product_id:sample.product_id,actor_id:actor,note,stamp:at})
+          product_id:sample.product_id,actor_id:actor,note,stamp:at}),
+        env.DB.prepare(
+          "UPDATE pz_fast_lane_trust SET trusted=0,updated_by=?,updated_at=? WHERE operator_id=? AND trusted=1 "+
+          "AND (SELECT COUNT(*) FROM pz_fast_lane_publications WHERE operator_id=? AND status='unpublished')>=2"
+        ).bind(actor,at,sample.operator_id,sample.operator_id),
+        env.DB.prepare(
+          "INSERT INTO pz_fast_lane_events(id,lane,event_type,operator_id,review_id,product_id,actor_id,note,created_at) "+
+          "SELECT ?,'fast','trust_auto_revoked',?,NULL,NULL,?,?,? WHERE EXISTS("+
+          "SELECT 1 FROM pz_fast_lane_trust WHERE operator_id=? AND trusted=0 "+
+          "AND updated_by=? AND updated_at=?)"
+        ).bind(uid(),sample.operator_id,actor,'Two post-publish sampling unpublishes',
+          at,sample.operator_id,actor,at)
       ]);
       if(!changed(resultVisible)||!changed(resultHidden)||!changed(resultAudit))
         return json({error:'Sample state changed; refresh before retry'},409);
-      const retracted=await env.DB.prepare(
-        "SELECT COUNT(*) AS total FROM pz_fast_lane_publications WHERE operator_id=? AND status='unpublished'"
-      ).bind(sample.operator_id).first();
-      let autoRevoked=false;
-      if(Number(retracted?.total)>=2){
-        const result=await env.DB.prepare(
-          "UPDATE pz_fast_lane_trust SET trusted=0,updated_by=?,updated_at=? WHERE operator_id=? AND trusted=1"
-        ).bind(actor,at,sample.operator_id).run();
-        autoRevoked=changed(result);
-        if(autoRevoked)await audit(env,{event_type:'trust_auto_revoked',
-          operator_id:sample.operator_id,actor_id:actor,note:'Two post-publish sampling unpublishes',
-          stamp:at}).run();
-      }
-      try{await syncFastLaneCatalog(env,normalizeProductRows);
+      const autoRevoked=changed(resultRevoked);
+      if(autoRevoked!==changed(resultRevokeAudit))
+        return json({error:'Trust auto-revocation audit needs reconciliation',code:'FAST_LANE_AUDIT_RECHECK'},503);
+      try{
+        await syncFastLaneCatalog(env,normalizeProductRows);
+        await env.DB.prepare('UPDATE pz_fast_lane_publications SET catalog_synced=1 WHERE id=?')
+          .bind(sampleId).run();
         return json({success:true,status:'unpublished',auto_revoked:autoRevoked,catalog_published:true});
       }catch{return json({success:true,status:'unpublished',auto_revoked:autoRevoked,
         catalog_published:false,code:'CATALOG_SYNC_PENDING'});}
