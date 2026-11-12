@@ -23,13 +23,15 @@ const origin=env=>{
       ?url.origin:'';
   }catch{return '';}
 };
-function messageLink(env,role){
+function messageLink(env,role,entityType,entityId){
   const base=origin(env);if(!base)return '';
   const page=role==='ADMIN'?'admin':role==='SUPERVISOR'?'supervisor':'factory';
-  return base+'/#/creator/'+page;
+  const query=entityId&&['review','revision','product'].includes(entityType)
+    ?'?'+new URLSearchParams({noticeType:entityType,noticeId:String(entityId).slice(0,120)}):'';
+  return base+'/#/creator/'+page+query;
 }
 export function renderReviewEmail(row,env){
-  const url=messageLink(env,row.role);
+  const url=messageLink(env,row.role,row.entity_type,row.entity_id);
   const subject='PZ Furniture Studio · '+row.title;
   const text=['PZ 家具工作台',row.title,row.message,'',url?'进入后台：'+url:'请登录后台查看详情'].join('\n');
   const html='<div style="font-family:Arial,sans-serif;max-width:600px;color:#263447">'+
