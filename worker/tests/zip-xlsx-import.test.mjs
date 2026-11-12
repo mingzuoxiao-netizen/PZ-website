@@ -1,3 +1,4 @@
+import {deflateRawSync} from 'node:zlib';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {inspectZip,createStoredZip,ZIP_LIMITS} from '../../utils/safeZip.mjs';
@@ -68,6 +69,33 @@ async function workbookWithRow(sku='PZ-TABLE-001'){
   return createStoredZip(files);
 }
 const jpg=new Uint8Array([0xff,0xd8,0xff,0xe1,0,0,0xff,0xd9]);
+
+function deflatedFixture(name,plaintext){
+  const raw=new TextEncoder().encode(plaintext);
+  const stored=createStoredZip([{name,data:raw}]);
+  const nameLength=new DataView(stored.buffer).getUint16(26,true),
+    localSize=30+nameLength,centralLength=46+nameLength,
+    compressed=deflateRawSync(raw);
+  const out=new Uint8Array(localSize+compressed.length+centralLength+22);
+  out.set(stored.subarray(0,localSize),0);
+  out.set(compressed,localSize);
+  out.set(stored.subarray(localSize+raw.length,
+    localSize+raw.length+centralLength),localSize+compressed.length);
+  out.set(stored.subarray(localSize+raw.length+centralLength),
+    localSize+compressed.length+centralLength);
+  const view=new DataView(out.buffer),cd=localSize+compressed.length,eocd=cd+centralLength;
+  view.setUint16(8,8,true);view.setUint32(18,compressed.length,true);
+  view.setUint16(cd+10,8,true);view.setUint32(cd+20,compressed.length,true);
+  view.setUint32(eocd+16,cd,true);
+  return out;
+}
+
+test('ordinary Deflate-compressed ZIP files decompress to their exact original bytes',async()=>{
+  const content='Furniture photo metadata '.repeat(25);
+  const archive=inspectZip(deflatedFixture('file.txt',content));
+  const decoded=new TextDecoder().decode(await archive.read('file.txt'));
+  assert.equal(decoded,content);
+});
 
 test('downloaded ZIP contains real XLSX package, instructions and SKU image folder',async()=>{
   const z=inspectZip(createZipTemplate('dining-table',['seating_capacity']));
