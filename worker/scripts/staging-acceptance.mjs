@@ -206,9 +206,10 @@ try{
   // Preserve immutable QA audit evidence, disable every synthetic account and hide its products.
   try{
     db("UPDATE pz_fast_lane_settings SET enabled=0 WHERE id=1");
-    if(admin&&sampleForSync){
+    if(admin){
       db("UPDATE products SET catalog_hidden=1 WHERE created_by IN ("+users.map(quote).join(',')+")");
-      await call(admin,'/admin/fast-lane/samples/'+sampleForSync+'/sync-catalog',{});
+      if(sampleForSync)await call(admin,'/admin/fast-lane/samples/'+sampleForSync+'/sync-catalog',{});
+      else await call(admin,'/admin/publish/products',{});
     }
     db("UPDATE pz_fast_lane_trust SET trusted=0 WHERE operator_id IN ("+users.map(quote).join(',')+")");
     db("UPDATE users SET is_active=0 WHERE id IN ("+users.map(quote).join(',')+")");
