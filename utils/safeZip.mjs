@@ -15,12 +15,15 @@ const validPath=name=>{
     fail('包含不安全文件路径');
   return name;
 };
+const crcTable=new Uint32Array(256);
+for(let i=0;i<256;i++){
+  let crc=i;
+  for(let j=0;j<8;j++)crc=(crc&1)?0xedb88320^(crc>>>1):crc>>>1;
+  crcTable[i]=crc>>>0;
+}
 const crc32=data=>{
   let crc=0xffffffff;
-  for(const b of data){
-    crc^=b;
-    for(let i=0;i<8;i++)crc=(crc&1)?0xedb88320^(crc>>>1):crc>>>1;
-  }
+  for(const byte of data)crc=crcTable[(crc^byte)&0xff]^(crc>>>8);
   return (crc^0xffffffff)>>>0;
 };
 const packChunks=parts=>{
