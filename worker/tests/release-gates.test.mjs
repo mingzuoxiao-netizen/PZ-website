@@ -15,10 +15,12 @@ const stagingEnvironment = {
   PZ_D1_NAME: 'staging-synthetic-db',
   PZ_D1_ID: '11111111-1111-1111-1111-111111111111',
   PZ_SITE_CONFIG_KV_ID: '1'.repeat(32),
+  PZ_ASSETS_KV_ID: '3'.repeat(32),
   PZ_PRODUCT_IMAGES_BUCKET: 'staging-synthetic-images',
   PZ_SITE_CONFIG_HISTORY_BUCKET: 'staging-synthetic-history',
   PZ_EXPECTED_PRODUCTION_D1_ID: '22222222-2222-2222-2222-222222222222',
   PZ_EXPECTED_PRODUCTION_KV_ID: '2'.repeat(32),
+  PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID: '4'.repeat(32),
   PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET: 'production-synthetic-images',
   PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET: 'production-synthetic-history'
 };
@@ -68,6 +70,9 @@ test('staging deploy rejects any D1, KV, images or history binding shared with p
   const pairs = [
     ['PZ_D1_ID', 'PZ_EXPECTED_PRODUCTION_D1_ID'],
     ['PZ_SITE_CONFIG_KV_ID', 'PZ_EXPECTED_PRODUCTION_KV_ID'],
+    ['PZ_ASSETS_KV_ID', 'PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID'],
+    ['PZ_ASSETS_KV_ID', 'PZ_EXPECTED_PRODUCTION_KV_ID'],
+    ['PZ_SITE_CONFIG_KV_ID', 'PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID'],
     ['PZ_PRODUCT_IMAGES_BUCKET', 'PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET'],
     ['PZ_SITE_CONFIG_HISTORY_BUCKET', 'PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET']
   ];
@@ -91,4 +96,15 @@ test('production deploy requires secondary approval flag, not automatically popu
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /PZ_PRODUCTION_APPROVAL_CONFIRMED/);
+});
+
+test('verified assets KV binding is required and preserved in generated staging config',()=>{
+  const missing=dryPreparation('staging',{...stagingEnvironment,PZ_ASSETS_KV_ID:''});
+  assert.notEqual(missing.status,0);
+  assert.match(missing.stderr,/ASSETS_KV_ID/);
+  const valid=dryPreparation('staging',stagingEnvironment);
+  assert.equal(valid.status,0,valid.stderr);
+  const config=readFileSync(resolve(root,'worker/wrangler.generated.toml'),'utf8');
+  assert.ok(config.includes('binding = "ASSETS_KV"'));
+  assert.ok(config.includes('id = "'+stagingEnvironment.PZ_ASSETS_KV_ID+'"'));
 });
