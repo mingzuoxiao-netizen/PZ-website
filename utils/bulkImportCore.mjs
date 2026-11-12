@@ -39,10 +39,10 @@ const escapeCell=value=>{
   return /[,\n\r"]/.test(safe)?'"'+safe.replace(/"/g,'""')+'"':safe;
 };
 export const csvLine=cells=>cells.map(escapeCell).join(',');
-export function csvTemplate(columns=BASE_COLUMNS){
+export function csvTemplate(columns=BASE_COLUMNS,category='dining-table'){
   const sample={
     __example:'YES',code:'PZ-EXAMPLE-001',name:'Marlow Oak Dining Table',name_cn:'橡木餐桌',
-    category:'dining-table',sub_category:'Dining',material:'White Oak',finish:'Matte',
+    category,sub_category:'Dining',material:'White Oak',finish:'Matte',
     color:'Natural Oak',production_sites:'zhaoqing',description:'Solid oak dining table',
     description_cn:'橡木餐桌', 'dimensions_cm.length':'180','dimensions_cm.width':'90',
     'dimensions_cm.height':'75',net_weight_kg:'38',
