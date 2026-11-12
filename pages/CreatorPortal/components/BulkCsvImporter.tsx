@@ -71,9 +71,12 @@ const BulkCsvImporter:React.FC<{
         message:row.reason||'该行未创建产品'}));
     return [...parsed.flatMap(row=>row.issues),...assetErrors,...serverIssues];
   },[parsed,assetErrors,server]);
+  const blockingIssues=totalIssues.filter(x=>x.severity==='error');
+  const pendingIssues=totalIssues.filter(x=>x.severity==='warning');
+  const failedRows=new Set(blockingIssues.filter(x=>x.row>0).map(x=>x.row)).size;
   const ready=parsed.filter(row=>row.valid);
   const readCsv=async(file?:File)=>{
-    setError('');setServer(null);setUploaded({});setAssets([]);setAssetErrors([]);
+    setError('');setServer(null);setBatch('');setUploaded({});setAssets([]);setAssetErrors([]);
     setExisting([]);setExistingChecked(false);
     if(!file){setRecords([]);setFilename('');return;}
     if(!/\.csv$/i.test(file.name)){setError('目前支持 UTF-8 CSV。请先在 Excel 中另存为 CSV UTF-8 文件。');return;}
@@ -147,6 +150,7 @@ const BulkCsvImporter:React.FC<{
   };
   const confirm=async()=>{
     if(importBusy||uploadBusy||!existingChecked||!ready.length||!filename)return;
+    if(batch&&!server){setError('该批次可能已经部分保存；请先点「核对批次」，不要重复提交。');return;}
     if(role==='ADMIN'&&!owner){setError('请先选择接收草稿的工厂操作员。');return;}
     if(assets.length&&Object.values(uploaded).reduce((n,list)=>n+list.length,0)===0){
       setError('请先上传所选择的图片，或者清除图片选择后只导入无图草稿。');return;
@@ -165,6 +169,18 @@ const BulkCsvImporter:React.FC<{
       setServer(res);setProgress('批次 '+res.batch_id+'：新增 '+res.inserted+' / 已存在 '+res.skipped+' / 无效 '+res.failed);
       await onCompleted?.(res.batch_id);
     }catch(e:any){setError('导入结果尚未确认：'+(e?.message||'请核对批次编号后再重试'));}finally{setImportBusy(false);}
+  };
+  const reconcile=async()=>{
+    if(!batch||importBusy)return;
+    setImportBusy(true);setError('');
+    try{
+      const url=(role==='ADMIN'?'admin':'factory')+'/products/import-batches/'+encodeURIComponent(batch);
+      const result=await api<Result>(url);
+      if(!result.completed){setError('批次仍未完成：请管理员核对该批次数据后再操作');return;}
+      setServer(result);setProgress('已从服务器核对批次：新增 '+result.inserted+' 条草稿');
+      await onCompleted?.(result.batch_id);
+    }catch(e:any){setError('未能核对批次：'+(e?.message||'请联系管理员'));}
+    finally{setImportBusy(false);}
   };
   const reset=()=>{setRecords([]);setFilename('');setAssets([]);setUploaded({});
     setExisting([]);setExistingChecked(false);setServer(null);setError('');setBatch('');setAssetErrors([]);};
@@ -230,12 +246,14 @@ const BulkCsvImporter:React.FC<{
         </table>
       </div>
       {!!totalIssues.length&&<p className="mt-3 text-xs text-amber-800">
-        当前报告有 {totalIssues.filter(x=>x.severity==='error').length} 条错误、
-        {totalIssues.filter(x=>x.severity==='warning').length} 条待补充提醒。
+        <strong>{failedRows} 行导入错误</strong>（{blockingIssues.length} 个原因），
+        {pendingIssues.length} 条图片或预检待补充提醒，两份报告单独下载。
       </p>}
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={()=>saveText('PZ-import-errors.csv',errorReportCsv(totalIssues))}
-          className="flex items-center gap-2 rounded border px-4 py-2 text-sm"><Download size={15}/> 下载错误报告</button>
+        <button type="button" onClick={()=>saveText('PZ-import-errors.csv',errorReportCsv(blockingIssues))}
+          className="flex items-center gap-2 rounded border px-4 py-2 text-sm"><Download size={15}/> 下载失败行报告</button>
+        <button type="button" onClick={()=>saveText('PZ-import-need-fixes.csv',errorReportCsv(pendingIssues))}
+          className="flex items-center gap-2 rounded border px-4 py-2 text-sm"><Download size={15}/> 下载图片/预检提醒</button>
         <button type="button" disabled={!ready.length||importBusy||uploadBusy||!existingChecked||!!server||
           (role==='ADMIN'&&!owner)}
           onClick={()=>void confirm()}
@@ -245,6 +263,10 @@ const BulkCsvImporter:React.FC<{
       </div>
     </div>}
     {error&&<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+    {batch&&!server&&<div className="flex flex-wrap items-center gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs">
+      <span>待核对批次：<code>{batch}</code></span>
+      <button type="button" disabled={importBusy} className="rounded border px-3 py-2" onClick={()=>void reconcile()}>核对批次结果</button>
+    </div>}
     {server&&<div role="status" className="space-y-2 rounded border border-emerald-300 bg-emerald-50 p-4 text-sm">
       <p className="font-semibold">批次已完成：新增 {server.inserted}、跳过已有 {server.skipped}、失败 {server.failed}，正式发布 0。</p>
       <p className="text-xs">批次编号：<code>{server.batch_id}</code>（可在产品总库筛选）</p>
