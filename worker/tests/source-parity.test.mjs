@@ -49,6 +49,7 @@ test('baseline parity is strict outside explicitly changed product-review and li
   restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
+    ['function pzPublishedProductRevisionsFetch(','const pzPublishedRevisionsOriginalFetch'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
   ])restored=restoreLegacyBlock(restored,expected,start,end);
   assert.equal(restored.trimEnd(),expected.trimEnd(),'unexpected changes outside the approved review/list modules');

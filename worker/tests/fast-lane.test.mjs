@@ -31,6 +31,7 @@ function setup({clean=10,legacy=0}={}){
       created_at TEXT,PRIMARY KEY(review_id,version));
   `);
   sql.exec(source);
+  sql.exec('CREATE TABLE qa_trigger_effect(id TEXT); CREATE TRIGGER qa_review_side_effect AFTER INSERT ON pz_product_review_events BEGIN INSERT INTO qa_trigger_effect(id) VALUES(NEW.id); END;');
   const at='2026-11-12T00:00:00Z';
   for(const [id,role] of [['op','FACTORY'],['sup','SUPERVISOR'],['adm','ADMIN']])
     sql.prepare('INSERT INTO users(id,username,role,is_active) VALUES(?,?,?,1)').run(id,id,role);
@@ -86,10 +87,10 @@ function setup({clean=10,legacy=0}={}){
           return {
             async first(){return statement.get(...args)||null;},
             async all(){return {results:statement.all(...args)};},
-            async run(){const r=statement.run(...args);return {meta:{changes:Number(r.changes)}};},
+            async run(){const before=sql.prepare('SELECT total_changes() AS n').get().n;statement.run(...args);return {meta:{changes:sql.prepare('SELECT total_changes() AS n').get().n-before}};},
             async execute(){
               if(/^\s*SELECT\b/i.test(text))return {results:statement.all(...args)};
-              const r=statement.run(...args);return {meta:{changes:Number(r.changes)}};
+              const before=sql.prepare('SELECT total_changes() AS n').get().n;statement.run(...args);return {meta:{changes:sql.prepare('SELECT total_changes() AS n').get().n-before}};
             }
           };
         },
@@ -98,7 +99,7 @@ function setup({clean=10,legacy=0}={}){
         async execute(){
           const statement=sql.prepare(text);
           if(/^\s*SELECT\b/i.test(text))return {results:statement.all()};
-          const r=statement.run();return {meta:{changes:Number(r.changes)}};
+          const before=sql.prepare('SELECT total_changes() AS n').get().n;statement.run();return {meta:{changes:sql.prepare('SELECT total_changes() AS n').get().n-before}};
         }
       };
     },
