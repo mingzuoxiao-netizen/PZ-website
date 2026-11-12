@@ -1,6 +1,8 @@
 import React, {useCallback,useEffect,useMemo,useState,useRef} from 'react';
 import {adminFetch} from '../../../utils/adminFetch';
 import ProductChangeSummary from './ProductChangeSummary';
+import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
+import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
 import {resolveImage} from '../../../utils/imageResolver';
 
@@ -9,12 +11,13 @@ type Kind='product'|'revision';
 type Summary={
   id:string; product_id:string; name:string; name_cn?:string; code:string;
   category?:string; images?:string|string[]|null;
-  status:string;latest_version:number; approved_version:number|null;
+  status:string;latest_version:number; approved_version:number|null;is_recheck?:boolean|number;
   department_id:string; supervisor_id:string; submitter_id:string;
 };
 type WorkItem=Summary&{kind:Kind};
 type ReviewDetail=Summary&{versions?:{version:number;snapshot:Record<string,unknown>}[];
   base_snapshot?:Record<string,unknown>;draft?:Record<string,unknown>;
+  recheck?:{is_recheck:boolean;from_version:number;changed_fields:string[];return_issues?:ReturnIssue[]}|null;
   events?:{id:string;action:string;note?:string|null;created_at:string}[]};
 type TeamMember={id:string;username:string;department_id?:string|null;department_name?:string|null;job_type?:string};
 
@@ -152,13 +155,13 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
     }
   };
 
-  const returnToSupervisor=async(item:WorkItem,note:string)=>{
-    if(busy||loading||item.status!=='pending_admin'||note.trim().length<5)return;
+  const returnToSupervisor=async(item:WorkItem,note:string,issues:ReturnIssue[])=>{
+    if(busy||loading||item.status!=='pending_admin'||!returnIssuesComplete(issues))return;
     setBusy(true);setError('');setNotice('');
     try{
       const prefix='admin/'+(item.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(item.id);
       const response=await adminFetch<{success:boolean;status:string}>(prefix+'/return',{
-        method:'POST',body:JSON.stringify({note:note.trim()})
+        method:'POST',body:JSON.stringify({note:note.trim(),issues})
       });
       if(!response.success||response.status!=='returned_to_supervisor')
         throw new Error('退回状态未确认');
@@ -170,6 +173,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
 
   const [returnKey,setReturnKey]=useState<string|null>(null);
   const [reason,setReason]=useState('');
+  const [returnIssues,setReturnIssues]=useState<ReturnIssue[]>([defaultReturnIssue()]);
   const pendingCount=total;
   const unknown=total===null;
   return <section className="space-y-4" aria-label="管理员快捷发布工作台">
@@ -261,6 +265,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
               <div className="min-w-[160px] flex-1 space-y-1">
                 <p className="text-sm font-semibold">{item.name_cn||item.name}</p>
                 <p className="text-xs text-stone-500">{item.code||'未填写 SKU'} · {item.kind==='revision'?'产品修订':'新品'} · V{item.latest_version}</p>
+                {!!item.is_recheck&&item.kind==='product'&&<span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">复检 · 优先</span>}
                 <p className="text-xs text-stone-500">{departmentOf(item.supervisor_id)} · 主管：{nameOf(item.supervisor_id)}</p>
               </div>
               <span className="text-xs text-amber-700">{item.status==='pending_admin'?'主管初审通过':'已终审待发布'}</span>
@@ -270,7 +275,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
                 {expanded===key?'收起差异':'查看差异'}
               </button>
               {item.status==='pending_admin'&&<button type="button" disabled={busy||loading}
-                onClick={()=>{setReturnKey(returnKey===key?null:key);setReason('');}}
+                onClick={()=>{setReturnKey(returnKey===key?null:key);setReason('');setReturnIssues([defaultReturnIssue()]);}}
                 className="rounded border border-red-200 px-3 py-2 text-xs text-red-700">退回主管</button>}
               <button type="button" disabled={busy||loading} onClick={()=>void release([item])}
                 className="rounded bg-stone-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">确认发布</button>
@@ -278,10 +283,11 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
             {returnKey===key&&item.status==='pending_admin'&&
               <div className="mt-3 space-y-2 border-t pt-3">
                 <textarea aria-label="退回主管原因" value={reason} maxLength={2000}
-                  onChange={e=>setReason(e.target.value)} rows={2} placeholder="说明需要主管重新核查的内容（至少 5 字）"
+                  onChange={e=>setReason(e.target.value)} rows={2} placeholder="整体备注（选填）"
                   className="w-full rounded border p-2 text-sm"/>
-                <button type="button" disabled={busy||loading||reason.trim().length<5}
-                  onClick={()=>void returnToSupervisor(item,reason)}
+                <ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy||loading}/>
+                <button type="button" disabled={busy||loading||!returnIssuesComplete(returnIssues)}
+                  onClick={()=>void returnToSupervisor(item,reason,returnIssues)}
                   className="rounded bg-red-700 px-4 py-2 text-xs text-white disabled:opacity-40">确认退回主管</button>
               </div>}
             {expanded===key&&<div className="mt-3 rounded border-t border-stone-200 p-3 text-xs">
@@ -295,8 +301,17 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
                           <li key={i}>{warning.zh||warning.code} · {warning.field}</li>)}
                       </ul>
                     </aside>}
+                  {item.kind==='product'&&detail.recheck?.is_recheck&&<aside className="rounded border border-amber-300 bg-amber-50 p-3 text-xs">
+                    <strong>复检 V{detail.recheck.from_version} → V{item.latest_version}</strong>
+                    <p>自退回后修改字段：{detail.recheck.changed_fields?.length?detail.recheck.changed_fields.join('、'):'无变化'}</p>
+                    {!!detail.recheck.return_issues?.length&&<ul className="mt-1 list-disc pl-4">
+                      {detail.recheck.return_issues.map((issue,i)=><li key={i}>{issue.field}：{issue.message}</li>)}
+                    </ul>}
+                  </aside>}
                   <ProductChangeSummary
-                    original={item.kind==='revision'?detail.base_snapshot||{}:detail.versions?.[0]?.snapshot||{}}
+                    original={item.kind==='revision'?detail.base_snapshot||{}:
+                      detail.recheck?.is_recheck?detail.versions?.[detail.versions.length-2]?.snapshot||{}:
+                      detail.versions?.[0]?.snapshot||{}}
                     proposed={item.kind==='revision'?detail.draft||{}:detail.versions?.[detail.versions.length-1]?.snapshot||{}}
                     isNew={item.kind==='product'&&(detail.versions?.length||0)<=1}/>
 
