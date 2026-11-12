@@ -3619,6 +3619,29 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     // Only ADMIN may configure trust/kill switch or review published samples.
     const fastAdmin=await handleFastLaneAdmin(request,env,{authorize,json,normalizeProductRows});
     if(fastAdmin)return fastAdmin;
+    // Sampling decisions may not be bypassed by the generic catalog toggles.
+    // All trusted-lane retractions require an immutable reason and may revoke
+    // trust; ordinary product actions must not silently evade this rule.
+    const sampledCatalogRoute=path.match(/^\/admin\/products\/([^/]+)\/(unpublish|relist)$/);
+    if(sampledCatalogRoute&&method==='POST'){
+      const auth=await authorize(request,env,['ADMIN']);
+      if(auth instanceof Response)return auth;
+      const productId=decodeURIComponent(sampledCatalogRoute[1]);
+      let sampling;
+      try{
+        sampling=await env.DB.prepare(
+          'SELECT status FROM pz_fast_lane_publications WHERE product_id=? LIMIT 1'
+        ).bind(productId).first();
+      }catch(error){
+        // Before staging migration, keep the non-fast-lane admin workflow.
+        if(!/no such table/i.test(String(error)))throw error;
+        if(env.PZ_FAST_LANE_ENABLED==='true')return fail('Fast-lane migration 018 required',503);
+      }
+      if(sampling&&sampledCatalogRoute[2]==='unpublish'&&sampling.status!=='unpublished')
+        return fail('Use post-publish sampling to unpublish a fast-lane item with an audit reason',409);
+      if(sampling&&sampledCatalogRoute[2]==='relist'&&sampling.status==='unpublished')
+        return fail('Sampled-and-unpublished item cannot be relisted without a new reviewed revision',409);
+    }
     // Existing direct admin mutations can bypass the new approval state machine.
     if(/^\/admin\/products(?:\/[^/]+)?$/.test(path)&&['POST','PUT','DELETE'].includes(method))
       return fail('Legacy direct admin product writes disabled during two-stage review',409);
