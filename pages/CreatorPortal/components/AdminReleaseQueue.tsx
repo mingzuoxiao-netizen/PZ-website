@@ -156,12 +156,13 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
   };
 
   const returnToSupervisor=async(item:WorkItem,note:string,issues:ReturnIssue[])=>{
-    if(busy||loading||item.status!=='pending_admin'||!returnIssuesComplete(issues))return;
+    if(busy||loading||item.status!=='pending_admin'||
+       (item.kind==='revision'?note.trim().length<5:!returnIssuesComplete(issues)))return;
     setBusy(true);setError('');setNotice('');
     try{
       const prefix='admin/'+(item.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(item.id);
       const response=await adminFetch<{success:boolean;status:string}>(prefix+'/return',{
-        method:'POST',body:JSON.stringify({note:note.trim(),issues})
+        method:'POST',body:JSON.stringify({note:note.trim(),...(item.kind==='product'?{issues}:{})})
       });
       if(!response.success||response.status!=='returned_to_supervisor')
         throw new Error('退回状态未确认');
@@ -285,8 +286,8 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
                 <textarea aria-label="退回主管原因" value={reason} maxLength={2000}
                   onChange={e=>setReason(e.target.value)} rows={2} placeholder="整体备注（选填）"
                   className="w-full rounded border p-2 text-sm"/>
-                <ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy||loading}/>
-                <button type="button" disabled={busy||loading||!returnIssuesComplete(returnIssues)}
+                {item.kind==='product'&&<ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy||loading}/>} 
+                <button type="button" disabled={busy||loading||(item.kind==='revision'?reason.trim().length<5:!returnIssuesComplete(returnIssues))}
                   onClick={()=>void returnToSupervisor(item,reason,returnIssues)}
                   className="rounded bg-red-700 px-4 py-2 text-xs text-white disabled:opacity-40">确认退回主管</button>
               </div>}
