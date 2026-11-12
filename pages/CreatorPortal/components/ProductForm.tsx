@@ -370,10 +370,10 @@ const ProductForm:React.FC<ProductFormProps>=({
             <PZImageManager lang={lang} images={formData.images||[]}
               onUpdate={reorderImages} onDelete={removeImage}
               onUpload={uploadImage} onSetMain={setMainImage} onError={message=>issue(String(message))}/>
-            {(formData.images||[]).length>0&&<details className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-stone-800">
-                {T('Advanced: image role labels','高级选项：图片用途标签')}
-              </summary>
+            {(formData.images||[]).length>0&&<div className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
+              <h4 className="text-sm font-semibold text-stone-800">
+                {T('Required: image role labels','必填：图片用途标签')}
+              </h4>
               <p className="mb-4 text-xs text-stone-500">{T(
                 'The first image is always the main image; change its order above.',
                 '第 1 张图自动是主图；想换主图请在上方图片管理器调整顺序。')}</p>
@@ -387,7 +387,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                         value={i===0?'main':(mediaRoles[url]||'')}
                         onChange={e=>changeRole(url,e.target.value)}>
                         <option value="">{T('Choose role','选择用途')}</option>
-                        <option value="main">{T('Main','主图')}</option>
+                        {i===0&&<option value="main">{T('Main','主图')}</option>}
                         <option value="lifestyle">{T('Lifestyle','场景图')}</option>
                         <option value="detail">{T('Detail','细节图')}</option>
                         <option value="dimension">{T('Dimension diagram','尺寸图')}</option>
@@ -397,7 +397,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                     </label>
                   </div>)}
               </div>
-            </details>}
+            </div>}
           </section>
 
           <details className="border-t border-stone-200 pt-7">
