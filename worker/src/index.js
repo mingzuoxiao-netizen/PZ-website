@@ -7633,13 +7633,22 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
-      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
+      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
+        "CASE WHEN "+(release?"r.kind='product' AND ":"")+
+        "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 1 ELSE 0 END AS is_recheck":
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
       'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';
+    // Priority must happen IN SQL before LIMIT/OFFSET, not after pagination.
+    // New-product resubmissions have immutable version >1; revisions retain their normal order.
+    const recheckPriority=!product&&kind!=='revisions'
+      ?"CASE WHEN "+(release?"r.kind='product' AND ":"")+
+        "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 0 ELSE 1 END, "
+      :'';
     const sort=(q?"CASE WHEN lower(p.code)=lower(?) THEN 0 ELSE 1 END, ":'')+
+      recheckPriority+
       alias+'.updated_at '+(order==='oldest'?'ASC':'DESC')+','+alias+'.id '+(order==='oldest'?'ASC':'DESC')+
       (release?',r.kind ASC':'');
     try{
