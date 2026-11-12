@@ -137,12 +137,12 @@ const AdminFastLanePanel:React.FC=()=>{
         <p className="mt-1 text-xs text-stone-600">操作员：{item.operator_name} · 初审主管：{item.supervisor_name||item.supervisor_id} · 发布：{item.published_at}</p>
         {!!item.unpublish_reason&&<p className="mt-2 text-xs text-amber-900">下架原因：{item.unpublish_reason}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
-          {item.status==='published'&&<>
-            <button type="button" onClick={()=>sampleAction(item,'accept')} disabled={busy}
-              className="rounded border px-3 py-2 text-xs disabled:opacity-40">抽检通过</button>
+          {item.status==='published'&&
+            <button type="button" onClick={()=>sampleAction(item,'accept')} disabled={busy||!Number(item.catalog_synced)}
+              className="rounded border px-3 py-2 text-xs disabled:opacity-40">抽检通过</button>}
+          {item.status!=='unpublished'&&
             <button type="button" onClick={()=>sampleAction(item,'unpublish')} disabled={busy||!reasonOK(reason)}
-              className="rounded border border-red-400 px-3 py-2 text-xs text-red-800 disabled:opacity-40">下架并记录原因</button>
-          </>}
+              className="rounded border border-red-400 px-3 py-2 text-xs text-red-800 disabled:opacity-40">下架并记录原因</button>}
           {!Number(item.catalog_synced)&&<button type="button" onClick={()=>sampleAction(item,'sync-catalog')}
             disabled={busy} className="rounded border px-3 py-2 text-xs">重试目录同步</button>}
         </div>
