@@ -282,3 +282,19 @@ test('post-commit catalog outage reports pending state and Admin retry safely re
     assert.equal(t.sql.prepare('SELECT catalog_synced FROM pz_fast_lane_publications WHERE id=?').get(sample.id).catalog_synced,1);
   }finally{t.close();}
 });
+
+test('certificate attachments require Admin review regardless of visibility or generic file type',()=>{
+  for(const attachment of [
+    {type:'certificate',file_name:'report.pdf',visibility:'internal'},
+    {type:'other',file_name:'load-test.pdf',visibility:'public'},
+    {type:'other',file_name:'认证报告.pdf',visibility:'internal'}
+  ]){
+    const product={specifications:{attachments:[attachment]}};
+    assert.equal(hasEvidenceClaims(product),true);
+    assert.equal(fastLaneDecision({workerEnabled:true,siteEnabled:true,adminTrusted:true,
+      history:{qualifies:true},categoryPreviouslyPublished:true,product}).eligible,false);
+  }
+  assert.equal(hasEvidenceClaims({specifications:{attachments:[
+    {type:'assembly',file_name:'assembly.pdf',visibility:'public'}
+  ]}}),false);
+});
