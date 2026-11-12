@@ -145,3 +145,91 @@ test('notification routes require live authenticated role authorization',async()
   const result=await fn(new Request('https://test/notifications'),{},{});
   assert.equal(result.status,403);
 });
+
+
+test('employee must verify a mailbox before receiving review email; can disable afterward',async()=>{
+  const sql=db();
+  const dbApi={
+    prepare(query){
+      const stmt=sql.prepare(query);
+      return {
+        bind(...args){return{
+          first:async()=>stmt.get(...args)||null,
+          all:async()=>({results:stmt.all(...args)}),
+          run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}})
+        };}
+      };
+    }
+  };
+  const env={DB:dbApi,NOTIFY_RESEND_API_KEY:'test-secret',
+    NOTIFY_FROM_EMAIL:'PZ <notify@example.com>',
+    NOTIFY_VERIFICATION_PEPPER:'a-staging-long-secret-for-email-hmac',
+    NOTIFY_APP_BASE_URL:'https://staging.peng-zhan.com'};
+  const fn=notificationMiddleware(async()=>json({success:true}),{
+    authorize:async()=>({user:{id:'op'}}),
+    json:(data,status=200)=>new Response(JSON.stringify(data),{
+      status,headers:{'content-type':'application/json'}})
+  });
+  const call=async(path,method='GET',body)=>{
+    const res=await fn(new Request('https://worker.test'+path,{method,
+      headers:{'content-type':'application/json'},
+      ...(body?{body:JSON.stringify(body)}:{})}),env,{});
+    return {status:res.status,result:await res.json()};
+  };
+  const original=globalThis.fetch;
+  let sentCode='',calls=0;
+  globalThis.fetch=async(url,options)=>{
+    assert.equal(url,'https://api.resend.com/emails');
+    calls++;
+    const body=JSON.parse(options.body);
+    if(body.subject.includes('验证码'))sentCode=body.text.match(/\d{6}/)?.[0]||'';
+    return new Response(JSON.stringify({id:'msg-'+calls}),{
+      status:200,headers:{'content-type':'application/json'}
+    });
+  };
+  try{
+    const initial=await call('/notifications/email/preferences');
+    assert.equal(initial.result.verified,false);
+    const requested=await call('/notifications/email/request-code','POST',{email:'Operator@Example.com'});
+    assert.equal(requested.status,200);
+    assert.equal(requested.result.verification_sent,true);
+    assert.match(sentCode,/^\d{6}$/);
+    const pending=await call('/notifications/email/preferences');
+    assert.equal(pending.result.verified,false);
+    assert.equal(pending.result.enabled,false);
+    const wrong=await call('/notifications/email/verify','POST',{code:sentCode==='000000'?'999999':'000000'});
+    assert.equal(wrong.status,400);
+    const verified=await call('/notifications/email/verify','POST',{code:sentCode});
+    assert.equal(verified.status,200);
+    assert.equal(verified.result.enabled,true);
+    const disabled=await call('/notifications/email/preferences','POST',{enabled:false});
+    assert.equal(disabled.result.enabled,false);
+    const preference=await call('/notifications/email/preferences');
+    assert.equal(preference.result.email,'operator@example.com');
+    assert.equal(preference.result.verified,true);
+    assert.equal(preference.result.enabled,false);
+    assert.equal(calls,1);
+  }finally{globalThis.fetch=original;sql.close();}
+});
+
+test('expired email verification codes cannot turn on review mail',async()=>{
+  const sql=db();
+  try{
+    sql.prepare(
+      'INSERT INTO pz_notification_email_settings '+
+      '(user_id,email,verification_hash,verification_expires_at,updated_at) VALUES(?,?,?,?,?)'
+    ).run('op','person@example.com','invalid-code','2020-01-01T00:00:00Z',at);
+    const env={DB:{prepare(q){return{bind(...args){const stmt=sql.prepare(q);
+      return{first:async()=>stmt.get(...args)||null};}}}},
+      NOTIFY_VERIFICATION_PEPPER:'long-secret-verification-pepper-2026'};
+    const fn=notificationMiddleware(async()=>json({}),{
+      authorize:async()=>({user:{id:'op'}}),
+      json:(value,status=200)=>new Response(JSON.stringify(value),{
+        status,headers:{'content-type':'application/json'}})
+    });
+    const response=await fn(new Request('https://example.test/notifications/email/verify',{
+      method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:'123456'})
+    }),env,{});
+    assert.equal(response.status,409);
+  }finally{sql.close();}
+});
