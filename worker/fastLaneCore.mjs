@@ -99,6 +99,7 @@ export async function approveFastLane({env,review,actor,product,snapshot,readine
         "WHERE r.id=? AND r.status='pending_supervisor' AND r.latest_version=? "+
         "AND r.supervisor_id=? AND r.submitter_id<>r.supervisor_id "+
         "AND lower(p.status)='pending_supervisor' AND p.deleted_at IS NULL "+
+        "AND COALESCE(p.catalog_hidden,0)=0 "+
         "AND EXISTS(SELECT 1 FROM pz_fast_lane_settings WHERE id=1 AND enabled=1) "+
         "AND EXISTS(SELECT 1 FROM pz_fast_lane_trust t WHERE t.operator_id=r.submitter_id AND t.trusted=1)"
       ).bind(id,snapshot.category,at,review.id,review.latest_version,actor),
