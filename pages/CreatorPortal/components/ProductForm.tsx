@@ -8,6 +8,8 @@ import {
 import LivePreview from './LivePreview';
 import { publishReadinessIssues, publishReadinessLabels } from '../../../utils/publishReadiness';
 import { preflightProduct } from '../../../utils/productPreflight.js';
+import {changedProductFields,normalizeIssueField} from '../../../utils/reviewReturn.mjs';
+import type {ReviewReturnDetails} from '../../../utils/reviewReturn.mjs';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
 
@@ -18,6 +20,8 @@ interface ProductFormProps {
   onSubmit?:(id:string,confirmedWarnings?:string[])=>Promise<void>;
   onSaveAndSubmit?:(data:any,confirmedWarnings?:string[])=>Promise<void>;
   onCheckSku?:(code:string)=>Promise<boolean>;
+  returnReview?:ReviewReturnDetails|null;
+  returnReviewError?:string;
   onSaveNext?:(data:any)=>Promise<void>;
   onDirtyChange?:(dirty:boolean)=>void;
   onBusyChange?:(busy:boolean)=>void;
@@ -31,7 +35,7 @@ const field='w-full min-w-0 rounded-sm border border-stone-300 bg-white p-3 text
 const label='mb-2 block text-xs font-semibold text-stone-700';
 
 const ProductForm:React.FC<ProductFormProps>=({
-  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onCheckSku,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
+  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onCheckSku,returnReview,returnReviewError,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
 })=>{
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const [formData,setFormData]=useState<Partial<ProductVariant>>(initialData);
@@ -96,6 +100,19 @@ const ProductForm:React.FC<ProductFormProps>=({
   });
   const warningsAcknowledged=preflight.warnings.length===0||confirmedWarningSignature===warningSignature;
   const warningCodes=preflight.warnings.map(x=>x.code);
+  const changesSinceReturn=returnReview?.baseline&&Object.keys(returnReview.baseline).length?
+    changedProductFields(returnReview.baseline,{...formData,specifications:previewSpecifications}):[];
+  const hasReturnChange=(field:string)=>changesSinceReturn.some(key=>
+    key===field||key.startsWith(field+'.')||field==='images'&&key.startsWith('media_roles.'));
+  const jumpToField=(raw:string)=>{
+    const fieldName=normalizeIssueField(raw);
+    let target=formRef.current?.querySelector<HTMLElement>('[name="'+fieldName+'"]')||
+      formRef.current?.querySelector<HTMLElement>('[data-preflight-field="'+fieldName+'"]');
+    if(!target&&fieldName.startsWith('media_roles'))target=formRef.current?.querySelector<HTMLElement>('[data-preflight-field="images"]');
+    const collapsible=target?.closest('details') as HTMLDetailsElement|null;
+    if(collapsible)collapsible.open=true;
+    target?.focus();target?.scrollIntoView({block:'center',behavior:'smooth'});
+  };
   const sizePreview=formatDimensionsForDisplay(specs,categoryLabel)||formData.size||'';
   const changeSpecs=(next:typeof specs)=>{
     setDirty(true);
@@ -246,6 +263,23 @@ const ProductForm:React.FC<ProductFormProps>=({
             {errorField&&<button type="button" onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+errorField+'"]')?.focus()}
               className="ml-3 underline">定位需修改字段</button>}
           </div>}
+          {returnReviewError&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{returnReviewError}</div>}
+          {returnReview&&<section aria-label="字段退回修改要求" className="rounded border border-amber-300 bg-amber-50 p-4" data-testid="field-return-panel">
+            <h4 className="font-semibold text-amber-950">本次退回需要修改的字段</h4>
+            {!!returnReview.return_reason&&<p className="mt-1 text-sm text-amber-900">整体备注：{returnReview.return_reason}</p>}
+            {returnReview.issues.length? <ul className="mt-3 space-y-2">
+              {returnReview.issues.map((item,i)=><li key={item.field+'-'+i}>
+                <button type="button" onClick={()=>jumpToField(item.field)}
+                  className="text-left text-sm text-amber-950 underline">
+                  {item.field}：{item.message}
+                </button>
+                {hasReturnChange(item.field)&&<span className="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">已修改</span>}
+              </li>)}
+            </ul> : <p className="mt-2 text-sm text-amber-900">历史退回记录仅有文字说明，请按照备注修改。</p>}
+            {changesSinceReturn.length>0&&<div className="mt-3 text-xs text-emerald-900">
+              自退回后已变更：{changesSinceReturn.join('、')}
+            </div>}
+          </section>}
           {userRole==='FACTORY'&&<section aria-label={T('Machine preflight','机器预检')} className="rounded border border-stone-200 bg-stone-50 p-4" data-testid="pz-preflight-panel">
             <h4 className="text-sm font-bold">{T('Machine preflight','机器预检')}</h4>
             <p className="mt-1 text-xs text-stone-600">{T('Drafts can be saved incomplete. Clear hard errors before review submission.','草稿可以不完整保存，提交审核前必须修正全部错误。')}</p>
@@ -255,10 +289,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               <li key={item.code+'-'+item.field+'-'+i}>
                 <button type="button" className="text-left text-xs text-red-800 underline"
                   onClick={()=>{
-                    const input=formRef.current?.querySelector<HTMLElement>('[name="'+item.field+'"]');
-                    const target=input||formRef.current?.querySelector<HTMLElement>('[data-preflight-field="'+item.field+'"]');
-                    target?.focus();
-                    target?.scrollIntoView({block:'center',behavior:'smooth'});
+                    jumpToField(item.field);
                   }}>
                   {item[lang]}
                 </button>
@@ -287,7 +318,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   </select>}
               </label>
               <label className="block"><span className={label}>{T('Subcategory / product series','子分类 / 产品系列')}</span>
-                <input className={field} value={formData.sub_category||''}
+                <input name="sub_category" className={field+(hasReturnChange('sub_category')?' ring-2 ring-emerald-400':'')} value={formData.sub_category||''}
                   onChange={e=>handleChange('sub_category',e.target.value)}
                   placeholder={T('e.g. Marlow','例如：Marlow 系列')}/>
               </label>
@@ -305,7 +336,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
               <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input name="name" className={field} required value={formData.name||''}
+                <input name="name" className={field+(hasReturnChange('name')?' ring-2 ring-emerald-400':'')} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
               </label>
@@ -314,12 +345,12 @@ const ProductForm:React.FC<ProductFormProps>=({
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
               </label>
               <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
-                <input name="material" className={field} value={formData.material||''}
+                <input name="material" className={field+(hasReturnChange('material')?' ring-2 ring-emerald-400':'')} value={formData.material||''}
                   onChange={e=>handleChange('material',e.target.value)}
                   placeholder={T('Solid white oak','白橡木实木')}/>
               </label>
               <label className="block"><span className={label}>{T('Surface finish','表面处理')}</span>
-                <input className={field} value={formData.finish||''}
+                <input name="finish" className={field+(hasReturnChange('finish')?' ring-2 ring-emerald-400':'')} value={formData.finish||''}
                   onChange={e=>handleChange('finish',e.target.value)}
                   placeholder={T('Water-based matte lacquer','水性哑光漆')}/>
               </label>
@@ -338,12 +369,12 @@ const ProductForm:React.FC<ProductFormProps>=({
               <summary className="cursor-pointer text-sm font-semibold">{T('Product descriptions (English / Chinese)','产品描述（中英文，可展开填写）')}</summary>
               <div className="mt-4 space-y-3">
                 <label className="block"><span className={label}>{T('English description','英文描述')}</span>
-                  <textarea name="description" className={field} rows={3} value={formData.description||''}
+                  <textarea name="description" className={field+(hasReturnChange('description')?' ring-2 ring-emerald-400':'')} rows={3} value={formData.description||''}
                     onChange={e=>handleChange('description',e.target.value)}
                     placeholder={T('Briefly describe product design and benefits.','简洁描述产品外观、功能及特点。')}/>
                 </label>
                 <label className="block"><span className={label}>{T('Chinese description','中文描述')}</span>
-                  <textarea className={field} rows={3} value={formData.description_cn||''}
+                  <textarea name="description_cn" className={field} rows={3} value={formData.description_cn||''}
                     onChange={e=>handleChange('description_cn',e.target.value)}/>
                 </label>
               </div>
@@ -361,7 +392,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>
           </div>
 
-          <section data-preflight-field="images" tabIndex={-1} className="border-t border-stone-200 pt-7">
+          <section data-preflight-field="images" tabIndex={-1} className={'border-t border-stone-200 pt-7 '+(hasReturnChange('images')?'ring-2 ring-emerald-300':'')}>
             {sectionTitle('03','Product images','产品图片',T('Existing R2 upload','沿用现有图片上传'))}
             <p className="mb-4 text-xs text-stone-600" role="note">{T(
               'Image additions, removals and ordering are draft changes. Click Save draft to persist them. Removing an image does not delete its R2 file.',
