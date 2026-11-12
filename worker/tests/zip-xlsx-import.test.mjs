@@ -147,10 +147,9 @@ test('ZIP reader rejects traversal, duplicate names, corrupted CRC and excessive
   const corrupted=valid.slice();const position=corrupted.indexOf(104);
   assert.ok(position>=0);corrupted[position]^=1;
   await assert.rejects(inspectZip(corrupted).read('data.txt'),/CRC|损坏/);
-  const tooMany=createStoredZip(Array.from({length:ZIP_LIMITS.entries+1},(_,i)=>({
+  assert.throws(()=>createStoredZip(Array.from({length:ZIP_LIMITS.entries+1},(_,i)=>({
     name:'file-'+i+'.txt',data:'x'
-  })));
-  assert.throws(()=>inspectZip(tooMany),/数量/);
+  }))),/文件过多/);
 });
 
 test('hidden macros, multiple workbooks and missing workbooks fail closed',async()=>{
