@@ -15,6 +15,7 @@ const db=()=>{
   sql.exec('PRAGMA foreign_keys=ON;');
   sql.exec(`
     CREATE TABLE users(id TEXT PRIMARY KEY,username TEXT,role TEXT,is_active INTEGER,deleted_at TEXT);
+    CREATE TABLE pz_staff_assignments(user_id TEXT,job_type TEXT);
     CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT,name TEXT,name_cn TEXT,category TEXT,status TEXT,deleted_at TEXT);
     CREATE TABLE pz_product_reviews(id TEXT PRIMARY KEY,product_id TEXT,submitter_id TEXT,supervisor_id TEXT,return_reason TEXT);
     CREATE TABLE pz_product_review_events(id TEXT PRIMARY KEY,review_id TEXT,action TEXT,actor_id TEXT,actor_role TEXT,review_version INTEGER,note TEXT,created_at TEXT);
@@ -256,5 +257,83 @@ test('product detail deep link is restricted to recipients of the underlying eve
     assert.equal((await owner.json()).code,'PZ-TABLE-001');
     const stranger=await fnFor('other')(path,{DB:dbApi},{});
     assert.equal(stranger.status,404);
+  }finally{sql.close();}
+});
+
+test('verified opt-in notifications send exactly once; disabled or pre-opt-in events do not send',async()=>{
+  const sql=db();
+  const makeDB=()=>({
+    prepare(query){const stmt=sql.prepare(query);return{
+      bind(...args){return{
+        first:async()=>stmt.get(...args)||null,
+        all:async()=>({results:stmt.all(...args)}),
+        run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}})
+      };}
+    };}
+  });
+  try{
+    sql.prepare("INSERT INTO pz_staff_assignments VALUES('sup','supervisor')").run();
+    sql.prepare(
+      "INSERT INTO pz_notification_email_settings(user_id,email,verified,email_enabled,updated_at) VALUES(?,?,1,1,?)"
+    ).run('sup','supervisor@example.com','2026-11-11T08:00:00Z');
+    event(sql,'email1','submitted','op');
+    const env={DB:makeDB(),NOTIFY_RESEND_API_KEY:'resend-test',
+      NOTIFY_FROM_EMAIL:'PZ <notify@example.com>',NOTIFY_APP_BASE_URL:'https://staging.peng-zhan.com'};
+    let calls=0;
+    const fetcher=async(url,options)=>{
+      calls++;
+      const payload=JSON.parse(options.body);
+      assert.equal(payload.to[0],'supervisor@example.com');
+      assert.match(payload.text,/creator\/supervisor/);
+      return new Response(JSON.stringify({id:'delivered-'+calls}),{
+        status:200,headers:{'content-type':'application/json'}
+      });
+    };
+    const first=await deliverPendingReviewEmails(env,{fetcher});
+    assert.equal(first.sent,1);
+    assert.equal(calls,1);
+    const row=sql.prepare("SELECT email_state,email_provider_id FROM pz_notifications WHERE source_event_id='email1'").get();
+    assert.equal(row.email_state,'sent');
+    assert.equal(row.email_provider_id,'delivered-1');
+    const second=await deliverPendingReviewEmails(env,{fetcher});
+    assert.equal(second.sent,0);
+    assert.equal(calls,1);
+    sql.prepare("UPDATE pz_notification_email_settings SET email_enabled=0 WHERE user_id='sup'").run();
+    event(sql,'email2','submitted','op');
+    await deliverPendingReviewEmails(env,{fetcher});
+    assert.equal(calls,1);
+    assert.equal(sql.prepare("SELECT email_state FROM pz_notifications WHERE source_event_id='email2'").get().email_state,'pending');
+  }finally{sql.close();}
+});
+
+test('email provider outage is logged without mutating underlying review event',async()=>{
+  const sql=db();
+  try{
+    sql.prepare(
+      "INSERT INTO pz_notification_email_settings(user_id,email,verified,email_enabled,updated_at) VALUES(?,?,1,1,?)"
+    ).run('sup','supervisor@example.com','2026-11-11T08:00:00Z');
+    event(sql,'failure1','submitted','op');
+    const dbApi={prepare(query){const stmt=sql.prepare(query);return{
+      bind(...args){return{first:async()=>stmt.get(...args)||null,
+        all:async()=>({results:stmt.all(...args)}),
+        run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}})};}
+    };}};
+    let attempts=0;
+    const fetcher=async()=>{
+      attempts++;return new Response(JSON.stringify({error:'unavailable'}),{status:503});
+    };
+    const result=await deliverPendingReviewEmails({
+      DB:dbApi,NOTIFY_RESEND_API_KEY:'test',NOTIFY_FROM_EMAIL:'notify@example.com'
+    },{fetcher});
+    assert.equal(result.sent,0);
+    assert.equal(result.failed,1);
+    assert.equal(attempts,2);
+    const row=sql.prepare(
+      "SELECT email_state,email_attempts,email_last_error FROM pz_notifications WHERE source_event_id='failure1'"
+    ).get();
+    assert.equal(row.email_state,'failed');
+    assert.equal(row.email_attempts,1);
+    assert.match(row.email_last_error,/Email provider HTTP 503/);
+    assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_review_events WHERE id='failure1'").get().n,1);
   }finally{sql.close();}
 });
