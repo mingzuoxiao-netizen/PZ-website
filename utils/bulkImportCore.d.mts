@@ -15,7 +15,7 @@ export const BASE_COLUMNS:string[];
 export function normalizeSku(value:unknown):string;
 export function columnsForAttributes(keys?:string[]):string[];
 export function templateColumns(keys?:string[]):string[];
-export function csvTemplate(columns?:string[]):string;
+export function csvTemplate(columns?:string[],category?:string):string;
 export function csvLine(cells:unknown[]):string;
 export function parseCsv(content:string):{headers:string[];rows:ImportRow[]};
 export function mapImportRow(row:ImportRow):MappedRow;
