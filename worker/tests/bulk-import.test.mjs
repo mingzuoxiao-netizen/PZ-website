@@ -240,3 +240,22 @@ test('pagination by import_batch_id is applied in SQL without touching other acc
     assert.match(code,/base.push\('p.import_batch_id=\?'\);bindings.push\(batch\)/);
   }finally{t.close();}
 });
+
+test('import and Admin owner selector reject inactive, wrong-role and cross-department supervisors',async()=>{
+  for(const mutation of [
+    "UPDATE users SET is_active=0 WHERE id='sup'",
+    "UPDATE pz_staff_assignments SET job_type='staff' WHERE user_id='sup'",
+    "INSERT INTO pz_departments VALUES('d2',1); UPDATE pz_staff_assignments SET department_id='d2' WHERE user_id='sup'"
+  ]){
+    const t=setup('ADMIN');
+    try{
+      t.sql.exec(mutation);
+      const response=await t.handler(new Request('https://api.example/admin/products/import-operators'),t.env,{});
+      assert.equal(response.status,200);
+      assert.deepEqual((await response.json()).operators,[]);
+      const imported=await t.run([validRow(77)],uuidOne,'op');
+      assert.equal(imported.status,403);
+      assert.equal(t.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n,0);
+    }finally{t.close();}
+  }
+});
