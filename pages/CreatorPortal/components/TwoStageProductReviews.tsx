@@ -109,13 +109,15 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const action=async(name:'approve'|'return'|'request-correction'|'publish')=>{
     if(!selected||busy)return;
     if(name==='return'||name==='request-correction'){
-      if(!returnIssuesComplete(returnIssues)){setError('请填写要退回的字段及具体修改要求');return;}
+      if(selected.kind==='revision'&&reason.trim().length<5){setError('产品修订退回仍需至少 5 字文字说明');return;}
+      if(selected.kind!=='revision'&&!returnIssuesComplete(returnIssues)){setError('请填写要退回的字段及具体修改要求');return;}
     }
     if(name==='publish'&&!confirm('确认将此产品正式发布到网站吗？'))return;
     setBusy(true);setError('');setNotice('');
     try{
       const result=await adminFetch<{success:boolean;status:string}>('/'+base+'/'+(selected.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(selected.id)+'/'+name,{
-        method:'POST',body:JSON.stringify({note:reason.trim(),...(name==='return'||name==='request-correction'?{issues:returnIssues}: {})})
+        method:'POST',body:JSON.stringify({note:reason.trim(),
+          ...(selected.kind!=='revision'&&(name==='return'||name==='request-correction')?{issues:returnIssues}:{})})
       });
       if(!result.success)throw Error('审核状态未确认');
       setNotice(name==='publish'?'产品已发布':name==='approve'?'审核已通过':'已退回并记录原因');
@@ -342,13 +344,13 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
                   className="mt-2 w-full rounded border border-stone-300 p-3 text-sm font-normal"
                   rows={3} maxLength={2000} placeholder="说明需要调整的字段和具体要求"/>
               </label>
-              <ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy}/>
+              {selected.kind!=='revision'&&<ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy}/>} 
               <div className="flex flex-wrap gap-2" aria-label="常用退回说明">
                 {['请补充清晰的产品主图','请核对尺寸及计量单位','请确认材质和表面处理','请调整产品所属分类'].map(text=><button key={text} type="button" disabled={busy}
                   onClick={()=>{setReason(text);setReturnIssues([{field:text.includes('主图')?'images':text.includes('尺寸')?'dimensions_cm.height':text.includes('材质')?'material':'category',message:text}]);}} className="rounded border px-3 py-2 text-xs">{text}</button>)}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={busy||!returnIssuesComplete(returnIssues)}
+                <button type="button" disabled={busy||(selected.kind==='revision'?reason.trim().length<5:!returnIssuesComplete(returnIssues))}
                   onClick={()=>void action(returnAction)}
                   className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
                   确认{role==='ADMIN'?'退回主管':returnAction==='return'?'退回员工':'安排修改'}
