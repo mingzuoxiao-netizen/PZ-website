@@ -9,7 +9,7 @@ type State={
   settings_updated_by?:string|null;settings_updated_at?:string|null;
 };
 type Sample={
-  id:string;review_id:string;product_id:string;operator_id:string;
+  id:string;review_id:string;product_id:string;operator_id:string;supervisor_id:string;
   name:string;name_cn?:string;code:string;operator_name:string;supervisor_name?:string;
   published_at:string;reviewed_at?:string|null;reviewed_by?:string|null;
   status:'published'|'sampled_ok'|'unpublished';
