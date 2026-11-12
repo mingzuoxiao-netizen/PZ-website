@@ -14,7 +14,7 @@ test('staging resolves guarded routes to authentication, never production image 
   const absolute=rendered.replace(/from (['"])(\.{1,2}\/[^'"]+)\1/g,
     (_,quote,path)=>'from '+quote+new URL(path,sourceUrl).href+quote);
   const worker=(await import('data:text/javascript;base64,'+Buffer.from(absolute).toString('base64'))).default;
-  const env={PZ_RUNTIME_ENV:'staging',PZ_TWO_STAGE_REVIEW_ENABLED:'true',
+  const env={DB:{},PZ_RUNTIME_ENV:'staging',PZ_TWO_STAGE_REVIEW_ENABLED:'true',
     PZ_ORG_RBAC_ENABLED:'true',PZ_PRODUCT_REVISIONS_ENABLED:'true',
     PZ_CATEGORY_TWO_STAGE_ENABLED:'true',PZ_IMAGE_BASE_URL:'https://staging-assets.example.com'};
   for(const path of ['/admin/products','/admin/revisions','/admin/product-delete/capabilities',
