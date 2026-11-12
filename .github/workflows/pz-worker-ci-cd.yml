@@ -9,6 +9,10 @@ on:
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
+      - 'utils/safeZip.mjs'
+      - 'utils/safeZip.d.mts'
+      - 'utils/zipXlsxImport.mjs'
+      - 'utils/zipXlsxImport.d.mts'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
@@ -25,6 +29,10 @@ on:
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
+      - 'utils/safeZip.mjs'
+      - 'utils/safeZip.d.mts'
+      - 'utils/zipXlsxImport.mjs'
+      - 'utils/zipXlsxImport.d.mts'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
@@ -80,6 +88,7 @@ jobs:
           node --test worker/tests/fast-lane.test.mjs
           node --test worker/tests/notifications.test.mjs
           node --test worker/tests/bulk-import.test.mjs
+          node --test worker/tests/zip-xlsx-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/runtime-target.test.mjs
           node --test worker/tests/production-review.test.mjs
