@@ -3628,7 +3628,7 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     }
 
     // Return details are visible only to the assigned uploader.
-    const issueRoute=path.match(/^\\/factory\\/products\\/([^/]+)\\/return-issues$/);
+    const issueRoute=path.match(/^\/factory\/products\/([^/]+)\/return-issues$/);
     if(issueRoute&&method==='GET'){
       const auth=await authorize(request,env,['FACTORY']);if(auth instanceof Response)return auth;
       const productId=decodeURIComponent(issueRoute[1]);
