@@ -77,14 +77,11 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
     if(!['review','revision','product'].includes(kind)||!id||id.length>120)return;
     setSettings(false);setFocused({kind,id,detail:null});setFocusError('');setFocusBusy(true);
     try{
-      if(kind==='product'){
-        // Sampling-unpublish events link to a product ID, rather than a review.
-        setFocusError('已下架产品可在产品管理里按通知中的 SKU 查询。');
-        return;
-      }
       const scope=role==='ADMIN'?'admin':role==='SUPERVISOR'?'supervisor':'factory';
-      const detail=await adminFetch<ReviewInfo>(scope+'/'+(kind==='revision'?'revisions':'reviews')+
-        '/'+encodeURIComponent(id));
+      const detail=kind==='product'
+        ?await adminFetch<ReviewInfo>('notifications/product?id='+encodeURIComponent(id))
+        :await adminFetch<ReviewInfo>(scope+'/'+(kind==='revision'?'revisions':'reviews')+
+          '/'+encodeURIComponent(id));
       setFocused({kind,id,detail});
     }catch(e:any){setFocusError('审核详情读取失败：'+(e?.message||'请打开对应待审列表核对'));}
     finally{setFocusBusy(false);}
