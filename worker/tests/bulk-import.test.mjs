@@ -209,3 +209,34 @@ test('error CSV includes row/field/severity, escapes formula injection, and exis
   assert.match(code,/p.import_batch_id/);
   assert.match(code,/bulkImportFetch\(pzImportOriginalFetch/);
 });
+
+
+test('Admin may import on behalf of assigned operator, but never an unassigned account',async()=>{
+  const t=setup('ADMIN');
+  try{
+    const row=validRow(55);
+    const accepted=await t.run([row],uuidOne,'op');
+    assert.equal(accepted.status,200);
+    assert.equal(accepted.data.inserted,1);
+    const p=t.sql.prepare("SELECT created_by,status FROM products WHERE code='PZ-OAK-0055'").get();
+    assert.equal(p.created_by,'op');assert.equal(p.status,'draft');
+    const denied=await t.run([validRow(56)],uuidTwo,'other');
+    assert.equal(denied.status,403);
+    const count=t.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n;
+    assert.equal(count,1);
+  }finally{t.close();}
+});
+
+test('pagination by import_batch_id is applied in SQL without touching other account batches',()=>{
+  const t=setup();
+  try{
+    const query=t.sql.prepare('PRAGMA table_info(products)').all();
+    assert.ok(query.some(row=>row.name==='import_batch_id'));
+    const idx=t.sql.prepare(
+      "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_pz_products_import_batch'"
+    ).get();
+    assert.ok(idx);
+    const code=readFileSync(new URL('../src/index.js',import.meta.url),'utf8');
+    assert.match(code,/base.push\('p.import_batch_id=\?'\);bindings.push\(batch\)/);
+  }finally{t.close();}
+});
