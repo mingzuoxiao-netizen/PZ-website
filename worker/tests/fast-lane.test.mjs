@@ -139,6 +139,10 @@ test('fast lane blocks load, test, evidence and verification claims',()=>{
     {evidence:{file:'lab.pdf'}}
   ])assert.equal(hasEvidenceClaims({specifications:specs}),true,JSON.stringify(specs));
   assert.equal(hasEvidenceClaims({specs_json:'not JSON'}),true,'malformed specs fail closed');
+  assert.equal(hasEvidenceClaims({...baseline,description:'FSC certified oak table'}),true);
+  assert.equal(hasEvidenceClaims({...baseline,description:'Tested load capacity 100kg'}),true);
+  assert.equal(hasEvidenceClaims({...baseline,description_cn:'经检测承重100kg'}),true);
+
 });
 
 test('flag, kill switches, prior-category and minimum history are all required',()=>{
