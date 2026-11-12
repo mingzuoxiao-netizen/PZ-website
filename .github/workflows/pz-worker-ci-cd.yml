@@ -115,11 +115,13 @@ jobs:
           # Used solely to reject accidental cross-environment bindings.
           PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
           PZ_EXPECTED_PRODUCTION_KV_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_KV_ID }}
+          PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_ASSETS_KV_ID }}
           PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_IMAGES_BUCKET }}
           PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET: ${{ vars.PZ_EXPECTED_PRODUCTION_HISTORY_BUCKET }}
           PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
           PZ_D1_ID: ${{ vars.PZ_D1_ID }}
           PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_ASSETS_KV_ID: ${{ vars.PZ_ASSETS_KV_ID }}
           PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
@@ -167,6 +169,7 @@ jobs:
           PZ_D1_NAME: ${{ vars.PZ_D1_NAME }}
           PZ_D1_ID: ${{ vars.PZ_D1_ID }}
           PZ_SITE_CONFIG_KV_ID: ${{ vars.PZ_SITE_CONFIG_KV_ID }}
+          PZ_ASSETS_KV_ID: ${{ vars.PZ_ASSETS_KV_ID }}
           PZ_PRODUCT_IMAGES_BUCKET: ${{ vars.PZ_PRODUCT_IMAGES_BUCKET }}
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
