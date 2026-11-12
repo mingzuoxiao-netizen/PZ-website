@@ -19,6 +19,6 @@ test('the new importer accepts ONE ZIP instead of separate CSV and images',async
     assert.match(rendered,/只保存草稿/);
     assert.doesNotMatch(rendered,/选择 CSV 文件/);
     assert.ok(view!.root.findAllByType('button').some(node=>
-      JSON.stringify(node.children).includes('下载示例 ZIP')));
+      node.children.some(child=>typeof child==='string'&&child.includes('下载示例 ZIP'))));
   }finally{if(view)await act(async()=>view!.unmount());}
 });
