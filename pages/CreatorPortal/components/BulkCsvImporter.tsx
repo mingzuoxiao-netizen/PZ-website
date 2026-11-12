@@ -133,17 +133,24 @@ const BulkCsvImporter:React.FC<{
     setUploadBusy(true);setError('');setProgress('正在上传图片到 R2…');
     const grouped:Record<string,{url:string;role:string}[]>={};
     const errors=[...assetErrors];
-    for(let i=0;i<assets.length;i++){
-      const asset=assets[i];
-      setProgress('上传图片 '+(i+1)+' / '+assets.length+'：'+asset.file.name);
-      try{
-        const form=new FormData();form.append('file',asset.file);
-        const result=await api<{url?:string}>('upload-image',{method:'POST',body:form});
-        if(!result?.url)throw Error('上传没有返回 URL');
-        (grouped[asset.code]??=[]).push({url:result.url,role:asset.role});
-      }catch(e:any){errors.push({row:0,field:'image upload',severity:'error',
-        message:asset.file.name+'：'+(e?.message||'上传失败')});}
-    }
+    let next=0,done=0;
+    // Limit R2 uploads to three simultaneous requests; do not overwhelm the
+    // Worker or block the browser on hundreds of sequential file uploads.
+    const uploadOne=async()=>{
+      while(next<assets.length){
+        const asset=assets[next++];
+        try{
+          const form=new FormData();form.append('file',asset.file);
+          const result=await api<{url?:string}>('upload-image',{method:'POST',body:form});
+          if(!result?.url)throw Error('上传没有返回 URL');
+          (grouped[asset.code]??=[]).push({url:result.url,role:asset.role});
+        }catch(e:any){errors.push({row:0,field:'image upload',severity:'error',
+          message:asset.file.name+'：'+(e?.message||'上传失败')});}
+        done++;
+        setProgress('已处理图片 '+done+' / '+assets.length);
+      }
+    };
+    await Promise.all(Array.from({length:Math.min(3,assets.length)},()=>uploadOne()));
     setUploaded(grouped);setAssetErrors(errors);
     setProgress('已上传 '+Object.values(grouped).reduce((n,list)=>n+list.length,0)+' 张图片。');
     setUploadBusy(false);
