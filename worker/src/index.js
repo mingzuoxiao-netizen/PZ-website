@@ -1,4 +1,5 @@
 import { preflightProduct } from '../../utils/productPreflight.js';
+import {notificationMiddleware} from '../notificationCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -7962,3 +7963,6 @@ async function pzHandleAccountMutation(request, env, { authorize, json, normaliz
   return json({ success: true });
 }
 
+// BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.
+const pzNotifyOriginalFetch=index_default.fetch;
+index_default.fetch=notificationMiddleware(pzNotifyOriginalFetch,{authorize,json});
