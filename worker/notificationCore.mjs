@@ -70,10 +70,13 @@ export async function deliverPendingReviewEmails(env,{fetcher=fetch,limit=20}={}
   const cutoff=new Date(Date.now()-24*3600*1000).toISOString();
   const work=await env.DB.prepare(
     "SELECT n.id,n.title,n.message,n.event_type,n.entity_type,n.entity_id,"+
-      "u.role,p.email FROM pz_notifications n "+
+      "CASE WHEN lower(u.role)='admin' THEN 'ADMIN' "+
+      "WHEN EXISTS(SELECT 1 FROM pz_staff_assignments a WHERE a.user_id=u.id AND a.job_type='supervisor') "+
+      "THEN 'SUPERVISOR' ELSE 'FACTORY' END AS role,p.email FROM pz_notifications n "+
       "JOIN pz_notification_email_settings p ON p.user_id=n.recipient_id "+
       "JOIN users u ON u.id=n.recipient_id "+
-      "WHERE n.email_state='pending' AND n.created_at>=? AND p.verified=1 AND p.email_enabled=1 "+
+      "WHERE n.email_state='pending' AND n.created_at>=? AND n.created_at>=p.updated_at "+
+      "AND p.verified=1 AND p.email_enabled=1 "+
       "AND u.is_active=1 AND u.deleted_at IS NULL "+
       "ORDER BY n.created_at ASC LIMIT ?"
   ).bind(cutoff,Math.min(30,Math.max(1,limit))).all();
@@ -242,7 +245,7 @@ export function notificationMiddleware(upstream,{authorize,json}){
       }
     }
     const response=await upstream.call(this,request,env,ctx);
-    if(response.ok&&isReviewNotificationEvent(pathname,method)&&env.DB&&
+    if(isReviewNotificationEvent(pathname,method)&&env.DB&&
       env.NOTIFY_RESEND_API_KEY&&env.NOTIFY_FROM_EMAIL&&typeof ctx?.waitUntil==='function'){
       ctx.waitUntil(deliverPendingReviewEmails(env).catch(e=>
         console.warn('PZ notification dispatch failed: ',String(e?.name||'unknown'))));
