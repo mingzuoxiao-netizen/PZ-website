@@ -17,12 +17,12 @@ test('staging resolves guarded routes to authentication, never production image 
   const env={DB:{},PZ_RUNTIME_ENV:'staging',PZ_TWO_STAGE_REVIEW_ENABLED:'true',
     PZ_ORG_RBAC_ENABLED:'true',PZ_PRODUCT_REVISIONS_ENABLED:'true',
     PZ_CATEGORY_TWO_STAGE_ENABLED:'true',PZ_IMAGE_BASE_URL:'https://staging-assets.example.com'};
-  for(const path of ['/admin/products?v=2','/admin/revisions?v=2','/admin/product-delete/capabilities',
+  for(const path of ['/factory/products?list_version=1','/admin/revisions?list_version=1','/admin/product-delete/capabilities',
     '/admin/category-change-requests']){
     const response=await worker.fetch(new Request('https://staging.example'+path),env,{});
     assert.equal(response.status,401,path);
   }
-  const wrong=await worker.fetch(new Request('https://staging.example/admin/products?v=2'),
+  const wrong=await worker.fetch(new Request('https://staging.example/factory/products?list_version=1'),
     {...env,PZ_RUNTIME_ENV:'production'},{});
   assert.equal(wrong.status,403);
   assert.ok(rendered.includes("if (runtime !== 'staging') return null;\n  return pzConfiguredImageBase(env);"));
