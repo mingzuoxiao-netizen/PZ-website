@@ -53,7 +53,7 @@ BEGIN
     CASE WHEN NEW.action IN ('submitted') THEN r.supervisor_id
       WHEN NEW.action IN ('supervisor_returned','correction_assigned','published','fast_published') THEN r.submitter_id
       WHEN NEW.action='admin_returned' THEN r.supervisor_id END,
-    NEW.id,NEW.action,NEW.actor_id,'product',r.product_id,
+    NEW.id,NEW.action,NEW.actor_id,'review',r.id,
     CASE NEW.action
       WHEN 'submitted' THEN '待初审产品'
       WHEN 'supervisor_returned' THEN '产品退回修改'
@@ -86,7 +86,7 @@ BEGIN
   INSERT OR IGNORE INTO pz_notifications
   (id,recipient_id,source_event_id,event_type,actor_id,entity_type,entity_id,title,message,created_at)
   SELECT lower(hex(randomblob(16))),u.id,NEW.id,NEW.action,NEW.actor_id,
-    'product',r.product_id,
+    'review',r.id,
     CASE WHEN NEW.action='supervisor_approved' THEN '产品待管理员终审'
       ELSE '快速审核产品已发布，请抽检' END,
     substr('SKU: '||COALESCE(p.code,'')||' · 请进入审核中心查看',1,600),NEW.created_at
