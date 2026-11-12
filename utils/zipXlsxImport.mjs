@@ -13,8 +13,11 @@ const ext=path=>path.split('.').at(-1).toLowerCase();
 const mimeFor=path=>({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'}[ext(path)]||'');
 const goodImage=(bytes,name)=>{
   const suffix=ext(name);
-  if((suffix==='jpg'||suffix==='jpeg')&&bytes.length>4&&bytes[0]===0xff&&bytes[1]===0xd8&&
-      bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9)return true;
+  if((suffix==='jpg'||suffix==='jpeg')&&bytes.length>4&&bytes[0]===0xff&&bytes[1]===0xd8){
+    // Some camera JPEG files contain harmless bytes after the EOI marker.
+    for(let i=Math.max(2,bytes.length-32);i<bytes.length-1;i++)
+      if(bytes[i]===0xff&&bytes[i+1]===0xd9)return true;
+  }
   if(suffix==='png'&&bytes.length>8&&[137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n))return true;
   if(suffix==='webp'&&bytes.length>12&&dec.decode(bytes.subarray(0,4))==='RIFF'&&
       dec.decode(bytes.subarray(8,12))==='WEBP')return true;
@@ -157,8 +160,12 @@ export function assignInitialImageRoles(items){
 }
 export async function readProductZip(buffer){
   const zip=inspectZip(buffer);
-  const workbooks=zip.entries.filter(e=>!e.isDir&&
-    e.name.toLowerCase().endsWith('.xlsx')&&!e.name.split('/').at(-1).startsWith('~$'));
+  const workbooks=zip.entries.filter(e=>{
+    const basename=e.name.split('/').at(-1);
+    return !e.isDir&&!e.name.startsWith('__MACOSX/')&&
+      e.name.toLowerCase().endsWith('.xlsx')&&!basename.startsWith('~$')&&
+      !basename.startsWith('.');
+  });
   if(workbooks.length!==1)throw Error('ZIP 中必须有且只有一个 .xlsx 产品资料文件');
   const workbookParts=workbooks[0].name.split('/');
   if(workbookParts.length>2||workbookParts[0].toLowerCase()==='images')
