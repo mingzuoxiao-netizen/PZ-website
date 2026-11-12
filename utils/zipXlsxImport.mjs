@@ -148,7 +148,11 @@ export function assignInitialImageRoles(items){
   for(const image of group)image.role='lifestyle';
   const found=group.filter(image=>MAIN_TOKEN.test(image.file));
   const choice=found[0]||group[0];
-  if(choice)choice.role='main';
+  if(choice){
+    choice.role='main';
+    group.splice(group.indexOf(choice),1);
+    group.unshift(choice);
+  }
   return {images:group,needsConfirmation:group.length>0&&found.length!==1};
 }
 export async function readProductZip(buffer){
