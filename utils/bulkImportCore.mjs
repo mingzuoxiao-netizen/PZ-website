@@ -27,8 +27,7 @@ const issue=(row,field,message,severity='error')=>({row,field,message,severity})
 export const normalizeSku=code=>text(code).toUpperCase();
 export const columnsForAttributes=(keys=[])=>{
   const keysClean=keys.filter(x=>typeof x==='string'&&/^[a-z][a-z0-9_]{0,59}$/.test(x));
-  return [...BASE_COLUMNS,...new Set(keysClean)].map(x=>x.startsWith('attribute.')?x:'attribute.'+x)
-    .filter(x=>!BASE_COLUMNS.includes(x))];
+  return [...new Set(keysClean)].map(x=>'attribute.'+x);
 };
 export function templateColumns(keys=[]){
   return [...BASE_COLUMNS,...columnsForAttributes(keys)];
