@@ -123,7 +123,7 @@ export function mapImportRow(input){
     if(v!==undefined)dimensions[key]=v;
   }
   const net=fieldNumber(cells.net_weight_kg,'net_weight_kg',issues,row);
-  const carton={carton_no:1},haveCarton=false;
+  const carton={carton_no:1};let haveCarton=false;
   for(const key of ['length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units']){
     const v=fieldNumber(cells['carton_1.'+key],'carton_1.'+key,issues,row);
     if(v!==undefined){carton[key]=v;haveCarton=true;}
