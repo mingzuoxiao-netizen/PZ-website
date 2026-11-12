@@ -6,6 +6,7 @@ on:
       - 'worker/**'
       - 'utils/fastLane.mjs'
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
+      - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
       - 'utils/productPreflight.js'
@@ -18,6 +19,7 @@ on:
       - 'worker/**'
       - 'utils/fastLane.mjs'
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
+      - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
       - 'utils/productPreflight.js'
@@ -63,6 +65,7 @@ jobs:
           node --test worker/tests/preflight.test.mjs
           node --test worker/tests/field-return.test.mjs
           node --test worker/tests/fast-lane.test.mjs
+          node --test worker/tests/notifications.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs

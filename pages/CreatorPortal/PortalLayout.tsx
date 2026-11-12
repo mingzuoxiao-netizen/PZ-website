@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Factory, LogOut, Globe, Menu, ChevronDown } from 'lucide-react';
+import NotificationBell from './components/NotificationBell';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -94,6 +95,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell role={role}/>
             <Link to="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs font-semibold text-[#754831] hover:text-stone-900">
               查看网站 <Globe size={15} aria-hidden="true" />
             </Link>
