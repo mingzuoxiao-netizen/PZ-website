@@ -16,7 +16,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import BulkCsvImporter from './components/BulkCsvImporter';
+import BulkZipImporter from './components/BulkZipImporter';
 import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
 import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
@@ -426,7 +426,7 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
-    { id: 'bulk-import', label: '批量导入草稿', icon: <Package size={18} /> },
+    { id: 'bulk-import', label: 'Excel + 图片一键导入', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
@@ -586,7 +586,7 @@ const AdminWorkspace: React.FC = () => {
         )}
 
         {activeTab === 'bulk-import' && (
-          <BulkCsvImporter role="ADMIN" categories={siteConfig?.categories||DEFAULT_CONFIG.categories}
+          <BulkZipImporter role="ADMIN" categories={siteConfig?.categories||DEFAULT_CONFIG.categories}
             onCompleted={id=>{setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogPage(1);setCatalogView('all');}}/>
         )}
 
