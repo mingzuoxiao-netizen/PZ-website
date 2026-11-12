@@ -36,8 +36,9 @@ test('baseline parity is strict outside explicitly changed product-review and li
   const expected=prefix+baseline.replace(anchor,anchor+versionRoute);
   const preflightImport="import { preflightProduct } from '../../utils/productPreflight.js';\n";
   const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
-  assert.ok(imported.startsWith(preflightImport+returnsImport));
-  let restored=imported.slice(preflightImport.length+returnsImport.length);
+  const fastLaneImport="import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';\n";
+  assert.ok(imported.startsWith(preflightImport+fastLaneImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+fastLaneImport.length+returnsImport.length);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
@@ -50,7 +51,7 @@ test('review changes retain RBAC, status transition guards and immutable version
     "PZ_ORG_RBAC_ENABLED!=='true'",
     'Legacy direct admin product writes disabled',
     'PREFLIGHT_FAILED','PREFLIGHT_CONFIRMATION_REQUIRED',
-    'RETURN_FIELDS_REQUIRED','return-issues',
+    'RETURN_FIELDS_REQUIRED','return-issues','approveFastLane','handleFastLaneAdmin',
     'serializeReturnEvent(note','changedProductFields(prior,reviewSnapshot)',
     'pz_product_review_versions','pz_product_review_events',
     "review.status==='approved_pending_publish'"
