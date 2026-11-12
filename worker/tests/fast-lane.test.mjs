@@ -38,7 +38,9 @@ function setup({clean=10,legacy=0}={}){
   sql.prepare("INSERT INTO pz_staff_assignments VALUES('op','d1','staff')").run();
   sql.prepare("INSERT INTO pz_staff_assignments VALUES('sup','d1','supervisor')").run();
   const images=['a','b','c','d'];
-  const specs={verification:[],attributes:{wood_type:'Oak'}};
+  const specs={verification:[],attributes:{wood_type:'Oak'},
+    dimensions_cm:{length:180,width:90,height:75},
+    media_roles:{a:'main',b:'lifestyle',c:'detail',d:'material'}};
   const product=(id,status='pending_supervisor',category='tables')=>({
     id,created_by:'op',category,name:'Oak Table',name_cn:'橡木餐桌',code:'PZ-'+id.toUpperCase(),
     sub_category:'',material:'Oak',size:'150x90x75 cm',finish:'Matte',description:'Oak dining table',
