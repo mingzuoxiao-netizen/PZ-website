@@ -17,6 +17,10 @@ export function hasEvidenceClaims(product){
   // must go through independent Admin review.
   if(Array.isArray(specs.verification)?specs.verification.length>0:hasValue(specs.verification))
     return true;
+  // Certificate attachments require independent Admin review, including internal files.
+  if(Array.isArray(specs.attachments)&&specs.attachments.some(file=>
+    file?.type==='certificate'||/certif|evidence|load[ _-]?test|认证|检测|承重/i.test(String(file?.file_name||''))))
+    return true;
   for(const [key,value] of Object.entries(specs.attributes||{})){
     if(riskyAttribute.test(key)&&hasValue(value))return true;
   }
