@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
 import ProductChangeSummary from './ProductChangeSummary';
+import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
+import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
 
 type Role = 'ADMIN' | 'SUPERVISOR';
@@ -15,11 +17,14 @@ type Review = {
   id:string; product_id:string; name:string; name_cn?:string; code:string;category:string;
   kind?:'product'|'revision';status:string;latest_version:number;approved_version:number|null;
   submitter_id:string;supervisor_id:string;department_id:string;return_reason?:string|null;
+  is_recheck?:number|boolean;
 };
 type Version = {version:number;snapshot:Record<string,unknown>;submitted_by:string;created_at:string};
 type ReviewDetail = Review & {
   base_snapshot?:Record<string,unknown>;draft?:Record<string,unknown>;versions:Version[];
-  events:{id:string;action:string;actor_id:string;actor_role:string;review_version:number;note:string|null;created_at:string}[];
+  events:{id:string;action:string;actor_id:string;actor_role:string;review_version:number;note:string|null;created_at:string;return_issues?:ReturnIssue[]}[];
+  return_issues?:ReturnIssue[];
+  recheck?:{is_recheck:boolean;from_version:number;changed_fields:string[];return_issues?:ReturnIssue[]}|null;
 };
 
 const statusLabels:Record<string,string>={
@@ -57,6 +62,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [reason,setReason]=useState('');
+  const [returnIssues,setReturnIssues]=useState<ReturnIssue[]>([defaultReturnIssue()]);
   const [showAllFields,setShowAllFields]=useState(false);
   const [returnAction,setReturnAction]=useState<'return'|'request-correction'|null>(null);
   const [page,setPage]=useState(1);
@@ -91,7 +97,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   },[refresh]);
   const inspect=async(item:Review)=>{
     const request=++detailGeneration.current;
-    setBusy(true);setSelected(null);setError('');setReason('');setReturnAction(null);
+    setBusy(true);setSelected(null);setError('');setReason('');setReturnIssues([defaultReturnIssue()]);setReturnAction(null);
     try{
       const detail=await adminFetch<ReviewDetail>('/'+base+'/'+(item.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(item.id));
       if(request!==detailGeneration.current)return;
@@ -103,17 +109,17 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const action=async(name:'approve'|'return'|'request-correction'|'publish')=>{
     if(!selected||busy)return;
     if(name==='return'||name==='request-correction'){
-      if(reason.trim().length<5){setError('请填写至少 5 个字符的明确退回原因');return;}
+      if(!returnIssuesComplete(returnIssues)){setError('请填写要退回的字段及具体修改要求');return;}
     }
     if(name==='publish'&&!confirm('确认将此产品正式发布到网站吗？'))return;
     setBusy(true);setError('');setNotice('');
     try{
       const result=await adminFetch<{success:boolean;status:string}>('/'+base+'/'+(selected.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(selected.id)+'/'+name,{
-        method:'POST',body:JSON.stringify({note:reason.trim()})
+        method:'POST',body:JSON.stringify({note:reason.trim(),...(name==='return'||name==='request-correction'?{issues:returnIssues}: {})})
       });
       if(!result.success)throw Error('审核状态未确认');
       setNotice(name==='publish'?'产品已发布':name==='approve'?'审核已通过':'已退回并记录原因');
-      setReason('');setReturnAction(null);
+      setReason('');setReturnIssues([defaultReturnIssue()]);setReturnAction(null);
       // A successful publish or handoff must immediately leave this role's
       // queue, even if a legacy endpoint still includes completed records.
       setSelected(null);
@@ -134,8 +140,12 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     }catch(e:any){setError(e?.message||'操作未完成，请刷新检查');await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
-  const original=selected?.kind==='revision'?selected.base_snapshot||{}:selected?.versions?.[0]?.snapshot||{};
+  const original=selected?.kind==='revision'?selected.base_snapshot||{}:
+    selected?.recheck?.is_recheck?selected.versions?.[selected.versions.length-2]?.snapshot||{}:
+    selected?.versions?.[0]?.snapshot||{};
   const latest=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
+  const recheckFields=selected?.recheck?.is_recheck?selected.recheck.changed_fields||[]:[];
+  const recheckChanged=(field:string)=>recheckFields.some(change=>change===field||change.startsWith(field+'.'));
   const confirmedPreflightWarnings=Array.isArray(latest.preflight_warnings)?
     latest.preflight_warnings as Array<{field?:string;zh?:string;en?:string;code?:string}>:[];
   const canApprove=selected&&(role==='ADMIN'?selected.status==='pending_admin':selected.status==='pending_supervisor');
@@ -143,7 +153,9 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const canCorrection=role==='SUPERVISOR'&&selected?.status==='returned_to_supervisor';
   const canPublish=role==='ADMIN'&&selected?.status==='approved_pending_publish';
   const isFirstSubmission=selected?.kind!=='revision'&&selected?.versions.length===1;
-  const changedFields=fields.filter(([key])=>JSON.stringify(original[key])!==JSON.stringify(latest[key]));
+  const changedFields=fields.filter(([key])=>recheckFields.length
+    ?recheckChanged(key)||key==='size'&&recheckFields.some(field=>field.startsWith('dimensions_cm.'))
+    :JSON.stringify(original[key])!==JSON.stringify(latest[key]));
   const visibleFields=showAllFields?fields:changedFields;
   const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
   const renderValue=(key:string,value:unknown):React.ReactNode=>{
@@ -208,6 +220,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id&&selected?.kind===item.kind?'border-stone-900 bg-stone-50':'border-stone-100')}>
           <div className="flex justify-between gap-2"><strong className="text-sm">{item.name_cn||item.name}</strong>
             <span className="text-[11px] text-stone-500">V{item.latest_version}</span></div>
+          {!!item.is_recheck&&item.kind!=='revision'&&<span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">复检 · 优先</span>}
           <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {item.kind==='revision'?'修订':'新品'}</p>
           <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
         </button>)}
@@ -222,6 +235,16 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">{isFirstSubmission?'首次提交 V1':`V1 → V${selected.latest_version}`}</span>
           </div>
           {selected.return_reason&&<p className="rounded border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
+          {selected.recheck?.is_recheck&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="复检变更字段">
+            <strong className="text-sm text-amber-950">复检 V{selected.recheck.from_version} → V{selected.latest_version}</strong>
+            <p className="mt-1 text-xs">自上次退回后修改：{recheckFields.length?recheckFields.join('、'):'未检测到字段变化'}</p>
+            {!!selected.recheck.return_issues?.length&&<ul className="mt-1 list-disc pl-5 text-xs">
+              {selected.recheck.return_issues.map((issue,i)=><li key={i}>{issue.field} · {issue.message}</li>)}
+            </ul>}
+          </aside>}
+          {selected.return_issues?.length>0&&<aside className="rounded border border-stone-200 p-3 text-xs" aria-label="退回问题记录">
+            {selected.return_issues.map((issue,i)=><div key={i}>{issue.field}：{issue.message}</div>)}
+          </aside>}
           {confirmedPreflightWarnings.length>0&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="机器预警复核">
             <h4 className="text-sm font-semibold text-amber-950">操作员已确认的机器预警 · 请复核</h4>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">
@@ -247,7 +270,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             {visibleFields.map(([field,label])=>{
               const changed=JSON.stringify(original[field])!==JSON.stringify(latest[field]);
               return <article key={field} className={'rounded border p-3 sm:p-4 '+
-                (changed?'border-amber-200 bg-amber-50/30':'border-stone-200 bg-stone-50')}>
+                (changed||recheckChanged(field)?'border-amber-300 bg-amber-50':'border-stone-200 bg-stone-50')}>
                 <h5 className="mb-2 text-xs font-semibold text-stone-800">{label}{changed?' · 已修改':''}</h5>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="min-w-0">
@@ -284,7 +307,10 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             <ol className="mt-2 space-y-2">{selected.events.map(ev=><li className="border-l-2 border-stone-300 pl-3 text-xs" key={ev.id}>
               {actionLabels[ev.action]||ev.action} · {ev.actor_id} · V{ev.review_version}
               <span className="ml-2 text-stone-500">{ev.created_at}</span>
-              {ev.note&&<p className="mt-1 text-stone-700">原因：{ev.note}</p>}
+              {ev.note&&<p className="mt-1 text-stone-700">备注：{ev.note}</p>}
+              {!!ev.return_issues?.length&&<ul className="mt-1 list-disc pl-4 text-amber-900">
+                {ev.return_issues.map((issue,i)=><li key={i}>{issue.field}：{issue.message}</li>)}
+              </ul>}
             </li>)}</ol>
           </details>
           {(canApprove||canCorrection||canPublish)&&<div className="rounded border border-stone-200 bg-stone-50 p-3 sm:p-4" aria-label="当前审核操作">
@@ -298,12 +324,12 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
                 确认正式发布
               </button>}
               {canReturn&&<button type="button" disabled={busy} aria-expanded={returnAction==='return'}
-                onClick={()=>{setReturnAction(current=>current==='return'?null:'return');setReason('');}}
+                onClick={()=>{setReturnAction(current=>current==='return'?null:'return');setReason('');setReturnIssues([defaultReturnIssue()]);}}
                 className="w-full rounded border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-800 sm:w-auto">
                 {role==='ADMIN'?'退回主管':'退回员工'}
               </button>}
               {canCorrection&&<button type="button" disabled={busy} aria-expanded={returnAction==='request-correction'}
-                onClick={()=>{setReturnAction(current=>current==='request-correction'?null:'request-correction');setReason('');}}
+                onClick={()=>{setReturnAction(current=>current==='request-correction'?null:'request-correction');setReason('');setReturnIssues([defaultReturnIssue()]);}}
                 className="w-full rounded border border-amber-400 bg-white px-4 py-3 text-sm font-medium text-amber-900 sm:w-auto">
                 安排员工修改
               </button>}
@@ -311,22 +337,23 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             {canPublish&&<p className="mt-2 text-xs text-stone-600">发布会更新公开网站，和终审批准是两个独立步骤。</p>}
             {returnAction&&(canReturn||canCorrection)&&<div className="mt-4 space-y-3 rounded border border-amber-200 bg-white p-3">
               <label className="block text-sm font-semibold text-stone-800">
-                修改说明（不少于 5 个字符）
+                整体说明（选填）
                 <textarea value={reason} onChange={e=>setReason(e.target.value)}
                   className="mt-2 w-full rounded border border-stone-300 p-3 text-sm font-normal"
                   rows={3} maxLength={2000} placeholder="说明需要调整的字段和具体要求"/>
               </label>
+              <ReturnIssueEditor issues={returnIssues} onChange={setReturnIssues} disabled={busy}/>
               <div className="flex flex-wrap gap-2" aria-label="常用退回说明">
                 {['请补充清晰的产品主图','请核对尺寸及计量单位','请确认材质和表面处理','请调整产品所属分类'].map(text=><button key={text} type="button" disabled={busy}
-                  onClick={()=>setReason(text)} className="rounded border px-3 py-2 text-xs">{text}</button>)}
+                  onClick={()=>{setReason(text);setReturnIssues([{field:text.includes('主图')?'images':text.includes('尺寸')?'dimensions_cm.height':text.includes('材质')?'material':'category',message:text}]);}} className="rounded border px-3 py-2 text-xs">{text}</button>)}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={busy||reason.trim().length<5}
+                <button type="button" disabled={busy||!returnIssuesComplete(returnIssues)}
                   onClick={()=>void action(returnAction)}
                   className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
                   确认{role==='ADMIN'?'退回主管':returnAction==='return'?'退回员工':'安排修改'}
                 </button>
-                <button type="button" onClick={()=>{setReturnAction(null);setReason('');}}
+                <button type="button" onClick={()=>{setReturnAction(null);setReason('');setReturnIssues([defaultReturnIssue()]);}}
                   className="rounded border border-stone-300 px-4 py-2.5 text-sm">取消</button>
               </div>
             </div>}
