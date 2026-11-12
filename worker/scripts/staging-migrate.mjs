@@ -1,8 +1,6 @@
 // Explicitly invoked only by the manually selected Staging acceptance run.
 import {execFileSync} from 'node:child_process';
-import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {readFileSync} from 'node:fs';
 if(process.env.PZ_STAGING_RESOURCES_VERIFIED!=='true')throw Error('Staging resource audit required');
 if(!process.env.PZ_D1_ID||process.env.PZ_D1_ID===process.env.PZ_EXPECTED_PRODUCTION_D1_ID)
   throw Error('Independent Staging D1 required');
@@ -32,6 +30,9 @@ const apply=file=>{
   command(['d1','execute','DB',...config,'--remote','--file','worker-patches/migrations/'+file,'--json']);
   console.log('Applied Staging migration:',file);
 };
+const duplicates=query("SELECT COUNT(*) AS n FROM (SELECT UPPER(TRIM(code)) FROM products WHERE code IS NOT NULL AND TRIM(code)<>'' GROUP BY UPPER(TRIM(code)) HAVING COUNT(*)>1)");
+if(Number(duplicates[0]?.n)!==0)throw Error('Existing duplicate SKUs require manual reconciliation');
+apply('002_unique_normalized_sku.sql');
 apply('017_backoffice_list_indexes_REVIEW.sql');
 if(!tables.has('pz_fast_lane_settings'))apply('018_trusted_operator_fast_lane_REVIEW.sql');
 if(!tables.has('pz_notifications'))apply('019_review_notifications_email_REVIEW.sql');
