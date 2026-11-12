@@ -1,4 +1,5 @@
 import {hasEvidenceClaims,trustedHistory,fastLaneDecision} from '../utils/fastLane.mjs';
+import {preflightProduct} from '../utils/productPreflight.js';
 
 // Worker flag is the emergency stop. Admin-managed D1 setting is an independent
 // runtime kill switch. If schema or either check is unavailable, use two stages.
@@ -76,8 +77,16 @@ export async function approveFastLane({env,review,actor,product,snapshot,readine
   if(!eligibility.eligible)return null;
   // Re-check current DB row, original submitted version and any claim-bearing
   // properties: never trust client-supplied eligibility or stale snapshots.
+  let live;
+  try{
+    live={...product,
+      images:typeof product.images==='string'?JSON.parse(product.images):product.images,
+      specifications:typeof product.specs_json==='string'?JSON.parse(product.specs_json):product.specs_json
+    };
+  }catch{return null;}
   if(readinessIssues(snapshot).length||readinessIssues(product).length||
-      hasEvidenceClaims(snapshot)||hasEvidenceClaims(product))return null;
+      preflightProduct(snapshot).errors.length||preflightProduct(live).errors.length||
+      hasEvidenceClaims(snapshot)||hasEvidenceClaims(live))return null;
   if(String(product.status).toLowerCase()!=='pending_supervisor')return null;
   const at=time(),id=uid(),auditId=uid(),eventId=uid();
   try {
