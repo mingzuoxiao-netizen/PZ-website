@@ -1,3 +1,4 @@
+import { preflightProduct } from '../../utils/productPreflight.js';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
 // The full inlined patch bundle below is preserved until live Worker parity is proven.
 const PZ_DEPLOY_SHA = "__PZ_GIT_SHA__";
@@ -3667,8 +3668,30 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
           code:'PRODUCT_REVIEW_STATE_CONFLICT'},409);
       let copy;
       try{copy=snapshot(product);}catch{return fail('Invalid product image or site JSON');}
-      const missing=readinessIssues(JSON.parse(copy));
+      const reviewSnapshot=JSON.parse(copy);
+      const missing=readinessIssues(reviewSnapshot);
       if(missing.length)return json({error:'Product is not ready for review',missing_fields:missing},400);
+      const preflight=preflightProduct(reviewSnapshot);
+      const duplicate=await env.DB.prepare(
+        "SELECT id FROM products WHERE UPPER(TRIM(code))=UPPER(TRIM(?)) AND id<>? LIMIT 1"
+      ).bind(product.code,id).first();
+      if(duplicate)preflight.errors.push({
+        field:'code',code:'sku_duplicate',en:'This SKU already exists',
+        zh:'SKU 已经存在，请核对编号',severity:'error'
+      });
+      if(preflight.errors.length)return json({
+        error:'Product preflight failed',code:'PREFLIGHT_FAILED',issues:preflight.errors
+      },400);
+      const confirmation=await readBody(request)||{};
+      const confirmed=Array.isArray(confirmation.confirmed_warnings)?
+        new Set(confirmation.confirmed_warnings.filter(x=>typeof x==='string')):new Set();
+      const unconfirmed=preflight.warnings.filter(x=>!confirmed.has(x.code));
+      if(unconfirmed.length)return json({
+        error:'Preflight warnings require operator confirmation',
+        code:'PREFLIGHT_CONFIRMATION_REQUIRED',issues:unconfirmed
+      },422);
+      // The immutable review-version snapshot exposes confirmed warnings to reviewers.
+      copy=JSON.stringify({...reviewSnapshot,preflight_warnings:preflight.warnings});
       const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();
       if(previous&&previous.status!=='returned_to_uploader')return fail('Review cannot be resubmitted in this state',409);
       if(previous&&(previous.submitter_id!==actor||previous.supervisor_id!==assignment.supervisor_id||

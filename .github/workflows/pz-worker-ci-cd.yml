@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'worker/**'
+      - 'utils/productPreflight.js'
+      - 'utils/productPreflight.d.ts'
       - '.github/workflows/pz-worker-ci-cd.yml'
       - 'worker-patches/pz-production-unified-v2-2026-11-10.js'
   push:
     branches: [main]
     paths:
       - 'worker/**'
+      - 'utils/productPreflight.js'
+      - 'utils/productPreflight.d.ts'
       - '.github/workflows/pz-worker-ci-cd.yml'
   release:
     types: [published]
@@ -48,6 +52,7 @@ jobs:
         run: |
           node --check worker/src/index.js
           node --test worker/tests/source-parity.test.mjs
+          node --test worker/tests/preflight.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs

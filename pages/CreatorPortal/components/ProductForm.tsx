@@ -7,6 +7,7 @@ import {
 } from '../../../utils/productSpecifications';
 import LivePreview from './LivePreview';
 import { publishReadinessIssues, publishReadinessLabels } from '../../../utils/publishReadiness';
+import { preflightProduct } from '../../../utils/productPreflight.js';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
 
@@ -14,8 +15,9 @@ interface ProductFormProps {
   initialData:Partial<ProductVariant>;
   categories:Category[];
   onSave:(data:any)=>void|Promise<void>;
-  onSubmit?:(id:string)=>Promise<void>;
-  onSaveAndSubmit?:(data:any)=>Promise<void>;
+  onSubmit?:(id:string,confirmedWarnings?:string[])=>Promise<void>;
+  onSaveAndSubmit?:(data:any,confirmedWarnings?:string[])=>Promise<void>;
+  onCheckSku?:(code:string)=>Promise<boolean>;
   onSaveNext?:(data:any)=>Promise<void>;
   onDirtyChange?:(dirty:boolean)=>void;
   onBusyChange?:(busy:boolean)=>void;
@@ -29,7 +31,7 @@ const field='w-full min-w-0 rounded-sm border border-stone-300 bg-white p-3 text
 const label='mb-2 block text-xs font-semibold text-stone-700';
 
 const ProductForm:React.FC<ProductFormProps>=({
-  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
+  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onCheckSku,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
 })=>{
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const [formData,setFormData]=useState<Partial<ProductVariant>>(initialData);
@@ -38,6 +40,8 @@ const ProductForm:React.FC<ProductFormProps>=({
   const [dirty,setDirty]=useState(false);
   const [formError,setFormError]=useState('');
   const [errorField,setErrorField]=useState('');
+  const [skuProbe,setSkuProbe]=useState<{code:string;existing:boolean;error:boolean}>({code:'',existing:false,error:false});
+  const [confirmedWarningSignature,setConfirmedWarningSignature]=useState('');
   const formRef=useRef<HTMLFormElement>(null);
   const issue=(message:string,field='')=>{setFormError(message);setErrorField(field);formRef.current?.querySelector<HTMLElement>('[name="'+field+'"]')?.focus();};
   useEffect(()=>{formRef.current?.parentElement?.scrollIntoView({block:'start'});},[initialData.id]);
@@ -63,6 +67,35 @@ const ProductForm:React.FC<ProductFormProps>=({
   const selectedCategory=categories.find(c=>c.id===currentCategory);
   const categoryLabel=[currentCategory,selectedCategory?.title||'',selectedCategory?.title_cn||''].join(' ');
   const specs=readProductSpecifications(formData.specifications);
+  const normalizedSku=String(formData.code||'').trim().toUpperCase();
+  const originalSku=String(initialData.code||'').trim().toUpperCase();
+  const skuNeedsCheck=!!onCheckSku&&/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/.test(normalizedSku) &&
+    (!initialData.id||normalizedSku!==originalSku);
+  useEffect(()=>{
+    if(!skuNeedsCheck){setSkuProbe({code:'',existing:false,error:false});return;}
+    let current=true;
+    const handle=setTimeout(()=>{
+      onCheckSku!(normalizedSku).then(existing=>{
+        if(current)setSkuProbe({code:normalizedSku,existing,error:false});
+      }).catch(()=>{
+        if(current)setSkuProbe({code:normalizedSku,existing:false,error:true});
+      });
+    },400);
+    return()=>{current=false;clearTimeout(handle);};
+  },[normalizedSku,skuNeedsCheck,onCheckSku]);
+  const previewSpecifications={
+    ...specs, media_roles:{...(specs.media_roles||{}),
+      ...(formData.images?.[0]?{[formData.images[0]]:'main' as const}:{})}
+  };
+  const preflight=preflightProduct({...formData,specifications:previewSpecifications,category:currentCategory,code:normalizedSku},{
+    existingSku:skuNeedsCheck&&skuProbe.code===normalizedSku&&skuProbe.existing
+  });
+  const warningSignature=JSON.stringify({
+    warnings:preflight.warnings.map(x=>x.code+':'+x.field).sort(),
+    values:[formData.name,specs.dimensions_cm,specs.attributes,formData.images]
+  });
+  const warningsAcknowledged=preflight.warnings.length===0||confirmedWarningSignature===warningSignature;
+  const warningCodes=preflight.warnings.map(x=>x.code);
   const sizePreview=formatDimensionsForDisplay(specs,categoryLabel)||formData.size||'';
   const changeSpecs=(next:typeof specs)=>{
     setDirty(true);
@@ -83,7 +116,19 @@ const ProductForm:React.FC<ProductFormProps>=({
   };
   const {removeImage,reorderImages,setMainImage,uploadImage}=useProductImageActions({
     images:formData.images||[],
-    setImages:(images)=>handleChange('images',images)
+    setImages:(images)=>{
+      setDirty(true);
+      setFormData(previous=>{
+        const previousSpecs=readProductSpecifications(previous.specifications);
+        const roles={...(previousSpecs.media_roles||{})};
+        const first=images[0];
+        if(first){
+          for(const key of Object.keys(roles))if(key!==first&&roles[key]==='main')delete roles[key];
+          roles[first]='main';
+        }
+        return {...previous,images,specifications:{...previousSpecs,media_roles:roles}};
+      });
+    }
   });
   const save=async(e:React.FormEvent)=>{
     e.preventDefault();
@@ -96,7 +141,7 @@ const ProductForm:React.FC<ProductFormProps>=({
       issue(T('Select a valid category.','请选择有效的产品分类。'),'category');return;
     }
     if(!String(formData.name||'').trim()){
-      issue(T('An English product name is required.','请填写产品英文名称。'),'product-name');return;
+      issue(T('An English product name is required.','请填写产品英文名称。'),'name');return;
     }
     if(!formData.id&&!code){
       issue(T('SKU is required.','新建产品必须填写 SKU。'),'code');return;
@@ -105,10 +150,24 @@ const ProductForm:React.FC<ProductFormProps>=({
       issue(T('SKU must begin with PZ- and use 2–40 letters/numbers/hyphens.','SKU 必须以 PZ- 开头，后续使用 2–40 位字母、数字、横线或下划线。'),'code');return;
     }
     if(intent==='submit'){
+      if(preflight.errors.length){
+        issue(T('Resolve preflight errors: ','请先修正预检错误：')+
+          preflight.errors.map(x=>x[lang]).join(lang==='zh'?'；':'; '),preflight.errors[0].field);
+        return;
+      }
+      if(!warningsAcknowledged){
+        issue(T('Confirm the listed warnings before submitting.','提交前请确认预检提醒。'));
+        return;
+      }
+      if(skuNeedsCheck){
+        try{
+          if(await onCheckSku!(code)){issue(T('SKU already exists.','SKU 已存在。'),'code');return;}
+        }catch{issue(T('SKU lookup unavailable; submission blocked.','SKU 查重不可用，已阻止提交。'),'code');return;}
+      }
       const missing=publishReadinessIssues({...formData,category:categoryId,code},categoryLabel);
       if(missing.length){
-        const fields=missing.map(key=>publishReadinessLabels[key][lang]).join(lang==='zh'?'、':', ');
-        issue(T('Cannot submit for review. Complete: ','提交审核前请补全：')+fields);
+        issue(T('Cannot submit for review. Complete: ','提交审核前请补全：')+
+          missing.map(key=>publishReadinessLabels[key][lang]).join(lang==='zh'?'、':', '));
         return;
       }
     }
@@ -120,12 +179,14 @@ const ProductForm:React.FC<ProductFormProps>=({
     try{
       const finalStatus=formData.status||'draft';
       const persist=intent==='submit'&&onSaveAndSubmit?onSaveAndSubmit:intent==='next'&&onSaveNext?onSaveNext:onSave;
-      await persist({
+      const record={
         ...formData,category:categoryId,code,
         size:formatDimensionsForDisplay(specs,categoryLabel)||sizePreview,
-        specifications:specs,status:finalStatus,
+        specifications:previewSpecifications,status:finalStatus,
         is_published:finalStatus==='published'?1:0
-      });
+      };
+      if(intent==='submit'&&onSaveAndSubmit)await onSaveAndSubmit(record,warningCodes);
+      else await persist(record);
       setDirty(false);
     }catch(error:any){
       issue(T('Operation incomplete: ','操作未完成：')+(error?.message||T('Unknown error','未知错误')));
@@ -133,6 +194,16 @@ const ProductForm:React.FC<ProductFormProps>=({
   };
   const submitReview=async()=>{
     if(!formData.id||!onSubmit||dirty)return;
+    if(preflight.errors.length){
+      issue(T('Resolve preflight errors: ','请先修正预检错误：')+
+        preflight.errors.map(x=>x[lang]).join(lang==='zh'?'；':'; '),preflight.errors[0].field);
+      return;
+    }
+    if(!warningsAcknowledged){issue(T('Confirm the warnings before submission.','请先确认预检提醒。'));return;}
+    if(skuNeedsCheck){
+      try{if(await onCheckSku!(normalizedSku)){issue(T('SKU already exists.','SKU 已存在。'),'code');return;}}
+      catch{issue(T('SKU lookup unavailable; submission blocked.','SKU 查重不可用，已阻止提交。'),'code');return;}
+    }
     const missing=publishReadinessIssues({...formData,category:currentCategory},categoryLabel);
     if(missing.length){
       const fields=missing.map(key=>publishReadinessLabels[key][lang]).join(lang==='zh'?'、':', ');
@@ -141,13 +212,13 @@ const ProductForm:React.FC<ProductFormProps>=({
     }
     if(!window.confirm(T('Submit this saved draft for supervisor review?','确认将已保存的草稿提交主管初审吗？')))return;
     setIsPromoting(true);
-    try{await onSubmit(formData.id);}
+    try{await onSubmit(formData.id,warningCodes);}
     catch(error:any){issue(T('Submission failed: ','提交失败：')+(error?.message||''));}
     finally{setIsPromoting(false);}
   };
   const canPromote=userRole==='FACTORY'&&!!onSubmit&&!!formData.id&&
     ['draft','rejected','returned_to_uploader'].includes(formData.status||'');
-  const mediaRoles=specs.media_roles||{};
+  const mediaRoles=previewSpecifications.media_roles||{};
   const changeRole=(url:string,role:string)=>changeSpecs({
     ...specs,media_roles:{...mediaRoles,[url]:role as typeof mediaRoles[string]}
   });
@@ -175,6 +246,33 @@ const ProductForm:React.FC<ProductFormProps>=({
             {errorField&&<button type="button" onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+errorField+'"]')?.focus()}
               className="ml-3 underline">定位需修改字段</button>}
           </div>}
+          {userRole==='FACTORY'&&<section aria-label={T('Machine preflight','机器预检')} className="rounded border border-stone-200 bg-stone-50 p-4" data-testid="pz-preflight-panel">
+            <h4 className="text-sm font-bold">{T('Machine preflight','机器预检')}</h4>
+            <p className="mt-1 text-xs text-stone-600">{T('Drafts can be saved incomplete. Clear hard errors before review submission.','草稿可以不完整保存，提交审核前必须修正全部错误。')}</p>
+            {skuNeedsCheck&&skuProbe.code===normalizedSku&&skuProbe.error&&<p className="mt-2 text-xs text-red-700">{T('SKU lookup unavailable; submissions will be blocked.','SKU 查重不可用，提交将被阻止。')}</p>}
+            {preflight.errors.length===0&&<p className="mt-2 text-xs text-green-800">{T('No required-field issues.','必填项已通过。')}</p>}
+            <ul className="mt-2 space-y-1">{preflight.errors.map((item,i)=>
+              <li key={item.code+'-'+item.field+'-'+i}>
+                <button type="button" className="text-left text-xs text-red-800 underline"
+                  onClick={()=>{
+                    const input=formRef.current?.querySelector<HTMLElement>('[name="'+item.field+'"]');
+                    const target=input||formRef.current?.querySelector<HTMLElement>('[data-preflight-field="'+item.field+'"]');
+                    target?.focus();
+                    target?.scrollIntoView({block:'center',behavior:'smooth'});
+                  }}>
+                  {item[lang]}
+                </button>
+              </li>)}</ul>
+            {preflight.warnings.length>0&&<div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-900">{T('Warnings (confirm before submitting)','预警（提交前需要确认）')}</p>
+              <ul className="mt-2 space-y-1">{preflight.warnings.map((item,i)=>
+                <li key={item.code+'-'+i} className="text-xs text-amber-900">{item[lang]}</li>)}</ul>
+              <button type="button" onClick={()=>setConfirmedWarningSignature(warningSignature)}
+                className="mt-3 rounded border border-amber-700 px-3 py-1.5 text-xs text-amber-900">
+                {warningsAcknowledged?T('Warnings confirmed','已确认预警'):T('Confirm and continue','确认并继续')}
+              </button>
+            </div>}
+          </section>}
           <section aria-label={T('Basic information','基本信息')}>
             {sectionTitle('01','Basic product information','产品基本信息',T('Core product record','产品基础档案'))}
             <div className="grid gap-5 md:grid-cols-2">
@@ -207,12 +305,12 @@ const ProductForm:React.FC<ProductFormProps>=({
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
               <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input name="product-name" className={field} required value={formData.name||''}
+                <input name="name" className={field} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
               </label>
               <label className="block"><span className={label}>{T('Chinese product name','产品中文名称')}</span>
-                <input className={field} value={formData.name_cn||''}
+                <input name="name_cn" className={field} value={formData.name_cn||''}
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
               </label>
               <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
@@ -263,7 +361,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>
           </div>
 
-          <section className="border-t border-stone-200 pt-7">
+          <section data-preflight-field="images" tabIndex={-1} className="border-t border-stone-200 pt-7">
             {sectionTitle('03','Product images','产品图片',T('Existing R2 upload','沿用现有图片上传'))}
             <p className="mb-4 text-xs text-stone-600" role="note">{T(
               'Image additions, removals and ordering are draft changes. Click Save draft to persist them. Removing an image does not delete its R2 file.',
@@ -272,10 +370,10 @@ const ProductForm:React.FC<ProductFormProps>=({
             <PZImageManager lang={lang} images={formData.images||[]}
               onUpdate={reorderImages} onDelete={removeImage}
               onUpload={uploadImage} onSetMain={setMainImage} onError={message=>issue(String(message))}/>
-            {(formData.images||[]).length>0&&<details className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-stone-800">
-                {T('Advanced: image role labels','高级选项：图片用途标签')}
-              </summary>
+            {(formData.images||[]).length>0&&<div className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
+              <h4 className="text-sm font-semibold text-stone-800">
+                {T('Required: image role labels','必填：图片用途标签')}
+              </h4>
               <p className="mb-4 text-xs text-stone-500">{T(
                 'The first image is always the main image; change its order above.',
                 '第 1 张图自动是主图；想换主图请在上方图片管理器调整顺序。')}</p>
@@ -286,9 +384,10 @@ const ProductForm:React.FC<ProductFormProps>=({
                     <label className="min-w-0 flex-1">
                       <span className={label}>{T('Image','图片')} {i+1}</span>
                       <select className={field} disabled={i===0}
-                        value={i===0?'main':(mediaRoles[url]||'detail')}
+                        value={i===0?'main':(mediaRoles[url]||'')}
                         onChange={e=>changeRole(url,e.target.value)}>
-                        <option value="main">{T('Main','主图')}</option>
+                        <option value="">{T('Choose role','选择用途')}</option>
+                        {i===0&&<option value="main">{T('Main','主图')}</option>}
                         <option value="lifestyle">{T('Lifestyle','场景图')}</option>
                         <option value="detail">{T('Detail','细节图')}</option>
                         <option value="dimension">{T('Dimension diagram','尺寸图')}</option>
@@ -298,7 +397,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                     </label>
                   </div>)}
               </div>
-            </details>}
+            </div>}
           </section>
 
           <details className="border-t border-stone-200 pt-7">
@@ -320,7 +419,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               {submitting?<Loader2 className="animate-spin" size={16}/>:<Save size={16}/>}
               {T('Save draft','保存草稿')}
             </button>
-            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting}
+            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting||preflight.errors.length>0||!warningsAcknowledged}
               onClick={()=>{saveIntent.current='submit';}} className="rounded bg-amber-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">
               保存并提交审核
             </button>}
@@ -328,7 +427,7 @@ const ProductForm:React.FC<ProductFormProps>=({
               onClick={()=>{saveIntent.current='next';}} className="rounded border border-stone-300 px-5 py-3 text-sm disabled:opacity-40">
               保存并新建下一款
             </button>}
-            {canPromote&&!onSaveAndSubmit&&<button type="button" disabled={submitting||isPromoting||dirty}
+            {canPromote&&!onSaveAndSubmit&&<button type="button" disabled={submitting||isPromoting||dirty||preflight.errors.length>0||!warningsAcknowledged}
               onClick={submitReview}
               className="flex flex-1 items-center justify-center gap-2 rounded bg-amber-800 px-5 py-3 font-semibold text-white disabled:opacity-40">
               {isPromoting?<Loader2 className="animate-spin" size={16}/>:<Send size={16}/>}

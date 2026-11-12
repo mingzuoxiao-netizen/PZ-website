@@ -201,17 +201,19 @@ const FactoryWorkspace: React.FC = () => {
   const handleSaveDraft=async(product:ProductVariant)=>{
     await persistDraft(product);setEditingItem(null);setIsCreating(false);setCreationTemplate({});await loadData(true);
   };
-  const handleSubmitForReview=async(productId:string,refreshAfter=true)=>{
+  const handleSubmitForReview=async(productId:string,refreshAfter=true,confirmedWarnings:string[]=[])=>{
     try{
-      const result=await factoryFetch<{success?:boolean;status?:string}>('factory/products/'+encodeURIComponent(productId)+'/submit',{method:'POST'});
+      const result=await factoryFetch<{success?:boolean;status?:string}>('factory/products/'+encodeURIComponent(productId)+'/submit',{
+        method:'POST',body:JSON.stringify({confirmed_warnings:confirmedWarnings})
+      });
       if(result.success!==true||result.status!=='pending_supervisor')throw Error('提交结果未确认，请刷新列表核对，勿重复提交。');
       setEditingItem(null);setIsCreating(false);setCreationTemplate({});
     }catch(e){if(refreshAfter)await loadData(true);throw e;}
     if(refreshAfter)await loadData(true);
   };
-  const handleSaveAndSubmit=async(product:ProductVariant)=>{
+  const handleSaveAndSubmit=async(product:ProductVariant,confirmedWarnings:string[]=[])=>{
     const id=await persistDraft(product);
-    try{await handleSubmitForReview(id,false);}
+    try{await handleSubmitForReview(id,false,confirmedWarnings);}
     catch(e:any){
       setEditingItem(null);setIsCreating(false);setCreationTemplate({});setCatalogSearch(product.code||'');setCatalogQuery(product.code||'');setCatalogStatus('all');setCatalogPage(1);
       const message='草稿已保存，SKU '+product.code+'；提交未完成，请在列表核对状态：'+(e?.message||'');
@@ -453,11 +455,12 @@ const FactoryWorkspace: React.FC = () => {
             <ProductForm key={editingItem?.id||creationKey}
                 onDirtyChange={rememberDirty} onBusyChange={rememberBusy}
                 onSaveAndSubmit={handleSaveAndSubmit} onSaveNext={handleSaveNext}
+                onCheckSku={async code=>(await checkBatchSkuCodes([code])).includes(code.toUpperCase())}
                 initialData={editingItem || creationTemplate} 
                 fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
                 categories={categories} 
                 onSave={handleSaveDraft} 
-                onSubmit={handleSubmitForReview}
+                onSubmit={(id,codes)=>handleSubmitForReview(id,true,codes)}
                 onCancel={handleBack} 
                 userRole="FACTORY" 
                 lang="zh" 

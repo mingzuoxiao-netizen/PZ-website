@@ -287,6 +287,14 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
             {expanded===key&&<div className="mt-3 rounded border-t border-stone-200 p-3 text-xs">
               {!detail?<p className="text-stone-500">正在加载变更差异…</p>:
                 <div className="space-y-2">
+                  {item.kind==='product'&&Array.isArray(detail.versions?.[detail.versions.length-1]?.snapshot?.preflight_warnings)&&
+                    <aside className="rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                      <strong>操作员已确认的机器预警 · Admin 请复核</strong>
+                      <ul className="mt-1 list-disc pl-4">
+                        {(detail.versions?.[detail.versions.length-1]?.snapshot?.preflight_warnings as Array<{zh?:string;field?:string;code?:string}>).map((warning,i)=>
+                          <li key={i}>{warning.zh||warning.code} · {warning.field}</li>)}
+                      </ul>
+                    </aside>}
                   <ProductChangeSummary
                     original={item.kind==='revision'?detail.base_snapshot||{}:detail.versions?.[0]?.snapshot||{}}
                     proposed={item.kind==='revision'?detail.draft||{}:detail.versions?.[detail.versions.length-1]?.snapshot||{}}

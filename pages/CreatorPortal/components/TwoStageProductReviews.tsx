@@ -136,6 +136,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   };
   const original=selected?.kind==='revision'?selected.base_snapshot||{}:selected?.versions?.[0]?.snapshot||{};
   const latest=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
+  const confirmedPreflightWarnings=Array.isArray(latest.preflight_warnings)?
+    latest.preflight_warnings as Array<{field?:string;zh?:string;en?:string;code?:string}>:[];
   const canApprove=selected&&(role==='ADMIN'?selected.status==='pending_admin':selected.status==='pending_supervisor');
   const canReturn=canApprove;
   const canCorrection=role==='SUPERVISOR'&&selected?.status==='returned_to_supervisor';
@@ -220,6 +222,14 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">{isFirstSubmission?'首次提交 V1':`V1 → V${selected.latest_version}`}</span>
           </div>
           {selected.return_reason&&<p className="rounded border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
+          {confirmedPreflightWarnings.length>0&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="机器预警复核">
+            <h4 className="text-sm font-semibold text-amber-950">操作员已确认的机器预警 · 请复核</h4>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">
+              {confirmedPreflightWarnings.map((warning,i)=><li key={warning.code+'-'+i}>
+                {(warning.zh||warning.en||warning.code||'待核查项目')} · {warning.field}
+              </li>)}
+            </ul>
+          </aside>}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm font-semibold text-stone-900">
               {isFirstSubmission?'新品完整资料':`${showAllFields?'全部公开字段':'本次变更'} · ${changedFields.length} 项变化`}

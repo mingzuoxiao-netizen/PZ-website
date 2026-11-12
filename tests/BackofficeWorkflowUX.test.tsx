@@ -87,9 +87,10 @@ test('product list searches Chinese names and uses quick filters without hiding 
   }finally{if(view)await act(async()=>view!.unmount());}
 });
 
-test('complex product editor fields are hidden by default but remain editable',()=>{
+test('required image roles are visible while optional packaging and care remain collapsible',()=>{
   const form=read('../pages/CreatorPortal/components/ProductForm.tsx');
-  assert.match(form,/高级选项：图片用途标签/);
+  assert.match(form,/必填：图片用途标签/);
+  assert.doesNotMatch(form,/高级选项：图片用途标签/);
   assert.match(form,/补充信息：包装、组装与保养（按需展开）/);
   assert.match(form,/ProductSpecificationsEditor mode="factory"/);
   assert.match(form,/onChange=\{changeSpecs\}/);
