@@ -135,7 +135,7 @@ try{
   p.body.specifications.media_roles=Object.fromEntries(p.body.images.map((u,i)=>[u,['main','lifestyle','detail','material'][i]]));
   const save=await fetch(origin+'/factory/products/'+p.id,{method:'PUT',
     headers:{Authorization:'Bearer '+operator,'content-type':'application/json'},body:JSON.stringify(p.body)});
-  assert.equal(save.status,200);
+  assert.equal(save.status,200,'Returned draft save: '+JSON.stringify(await save.json()));
   await submit(p);
   const recheck=await call(supervisor,'/supervisor/reviews/'+rid);
   check(recheck.recheck.changed_fields.includes('images'),'image-only recheck delta');
