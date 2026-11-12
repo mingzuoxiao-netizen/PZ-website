@@ -82,6 +82,9 @@ export function bulkImportFetch(originalFetch,{authorize,json,canManageProduct,v
           "SELECT u.id,u.username,a.department_id FROM users u "+
           "JOIN pz_staff_assignments a ON a.user_id=u.id "+
           "JOIN pz_departments d ON d.id=a.department_id AND d.is_active=1 "+
+          "JOIN users s ON s.id=a.supervisor_id AND s.is_active=1 AND s.deleted_at IS NULL "+
+          "JOIN pz_staff_assignments sa ON sa.user_id=s.id AND sa.job_type='supervisor' "+
+          "AND sa.department_id=a.department_id "+
           "WHERE u.is_active=1 AND u.deleted_at IS NULL "+
           "AND a.job_type IN ('staff','secretary','data_entry') ORDER BY u.username LIMIT 500"
         ).all();
@@ -113,6 +116,8 @@ export function bulkImportFetch(originalFetch,{authorize,json,canManageProduct,v
         "SELECT u.id FROM users u JOIN pz_staff_assignments a ON a.user_id=u.id "+
         "JOIN pz_departments d ON d.id=a.department_id "+
         "JOIN users s ON s.id=a.supervisor_id "+
+        "JOIN pz_staff_assignments sa ON sa.user_id=s.id AND sa.job_type='supervisor' "+
+        "AND sa.department_id=a.department_id "+
         "WHERE u.id=? AND u.is_active=1 AND u.deleted_at IS NULL "+
         "AND a.job_type IN ('staff','secretary','data_entry') AND d.is_active=1 "+
         "AND s.is_active=1 AND s.deleted_at IS NULL LIMIT 1"
