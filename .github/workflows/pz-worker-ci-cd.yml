@@ -44,6 +44,11 @@ on:
           - staging
           - production
 
+      migrate_staging:
+        description: 'Apply audited Staging migrations 017-020 with recovery checkpoint'
+        type: boolean
+        default: false
+
 permissions:
   contents: read
   actions: read # Read-only GitHub deployment approval history
@@ -67,6 +72,8 @@ jobs:
       - name: Verify exact source baseline and read-only version endpoint
         run: |
           node --check worker/src/index.js
+          node --check worker/scripts/staging-migrate.mjs
+          node --check worker/scripts/staging-acceptance.mjs
           node --test worker/tests/source-parity.test.mjs
           node --test worker/tests/preflight.test.mjs
           node --test worker/tests/field-return.test.mjs
@@ -74,6 +81,7 @@ jobs:
           node --test worker/tests/notifications.test.mjs
           node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
+          node --test worker/tests/runtime-target.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
@@ -109,7 +117,7 @@ jobs:
           node-version: '22'
       - name: Render verified staging config and stamp commit SHA
         env:
-          PZ_STAGING_PARITY_CONFIRMED: ${{ vars.PZ_STAGING_PARITY_CONFIRMED }}
+          PZ_STAGING_SOURCE_REVIEWED: ${{ vars.PZ_STAGING_SOURCE_REVIEWED }}
           PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
           # Non-secret production references, recorded ONLY after Cloudflare audit.
           # Used solely to reject accidental cross-environment bindings.
@@ -126,7 +134,16 @@ jobs:
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
           node worker/scripts/prepare-deployment.mjs staging deploy
-          node worker/scripts/stamp-version.mjs
+          node worker/scripts/stamp-version.mjs staging
+      - name: Explicit Staging schema acceptance preparation
+        if: github.event_name == 'workflow_dispatch' && inputs.migrate_staging
+        env:
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: node worker/scripts/staging-migrate.mjs
       - name: Deploy staging ONLY (no production routes)
         env:
           # These uniquely named secrets belong ONLY to the 'staging' GitHub Environment.
@@ -134,9 +151,24 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" && test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Missing staging environment deploy credentials'; exit 1; }
-          npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging
+          if [ "${{ inputs.migrate_staging }}" = "true" ]; then
+            npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging --var PZ_FAST_LANE_ENABLED:true --var PZ_BULK_IMPORT_ENABLED:true
+          else
+            npx --yes wrangler@4.156.0 deploy --config worker/wrangler.generated.toml --env staging
+          fi
       - name: Read-only staging smoke checks
         run: node worker/scripts/staging-smoke.mjs
+
+
+      - name: Real isolated three-role API acceptance
+        if: github.event_name == 'workflow_dispatch' && inputs.migrate_staging
+        env:
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: node worker/scripts/staging-acceptance.mjs
 
   production:
     name: Approval-gated production Worker release

@@ -12,7 +12,7 @@ if (!['staging', 'production'].includes(environment) || !['dry-run', 'deploy'].i
   throw Error('Usage: prepare-deployment.mjs staging|production dry-run|deploy');
 }
 if (mode === 'deploy') {
-  const gate = environment === 'staging' ? 'PZ_STAGING_PARITY_CONFIRMED' : 'PZ_PRODUCTION_APPROVAL_CONFIRMED';
+  const gate = environment === 'staging' ? 'PZ_STAGING_SOURCE_REVIEWED' : 'PZ_PRODUCTION_APPROVAL_CONFIRMED';
   if (process.env[gate] !== 'true') throw Error('Safety gate missing: ' + gate);
 }
 const worker = resolve(dirname(fileURLToPath(import.meta.url)), '..');

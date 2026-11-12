@@ -10,7 +10,7 @@ const workflow = readFileSync(resolve(root, '.github/workflows/pz-worker-ci-cd.y
 const prepare = resolve(root, 'worker/scripts/prepare-deployment.mjs');
 
 const stagingEnvironment = {
-  PZ_STAGING_PARITY_CONFIRMED: 'true',
+  PZ_STAGING_SOURCE_REVIEWED: 'true',
   PZ_STAGING_RESOURCES_VERIFIED: 'true',
   PZ_D1_NAME: 'staging-synthetic-db',
   PZ_D1_ID: '11111111-1111-1111-1111-111111111111',
