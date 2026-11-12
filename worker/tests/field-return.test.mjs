@@ -36,7 +36,7 @@ test('resubmit diff uses only reviewable fields and detects image and structured
       media_roles:{'new.jpg':'main'}},review_metadata:{is_recheck:true}};
   const fields=changedProductFields(before,after);
   assert.ok(fields.includes('images'));
-  assert.ok(fields.some(field=>field.startsWith('media_roles.')));
+  assert.deepEqual(fields,['images'],'media-role changes are summarized under the image field');
   assert.equal(fields.some(field=>field==='created_by'||field==='status'||field==='review_metadata'),false);
   assert.deepEqual(changedProductFields(before,{...before,specifications:{
     ...before.specifications,dimensions_cm:{...before.specifications.dimensions_cm,height:80}
