@@ -1,6 +1,6 @@
 // Browser-native, dependency-free ZIP reader/writer for restricted PZ imports.
 // Extraction is bounded by both central-directory declarations AND streamed bytes.
-const LIMITS={archive:180*1024*1024,expanded:360*1024*1024,entries:850,entry:12*1024*1024,
+const LIMITS={archive:180*1024*1024,expanded:360*1024*1024,entries:1350,entry:12*1024*1024,
   workbook:8*1024*1024,ratio:120};
 const encoder=new TextEncoder();
 const decoder=new TextDecoder('utf-8',{fatal:true});
@@ -87,12 +87,16 @@ export function inspectZip(bytes,{maxArchive=LIMITS.archive,maxTotal=LIMITS.expa
     if((flags&1)||(flags&0x40)||disk||![0,8].includes(method)||
        compressed===0xffffffff||expanded===0xffffffff||localOffset===0xffffffff)
       fail('加密、ZIP64 或未知压缩方式不受支持');
-    if((flags&0x800)===0&&data.subarray(pos+46,pos+46+nameLen).some(byte=>byte>=128))
-      fail('含中文的 ZIP 文件名需要使用 UTF-8 编码');
     const next=pos+46+nameLen+extraLen+commentLen;
     if(next>start+size)fail('目录记录越界');
-    let name;try{name=decoder.decode(data.subarray(pos+46,pos+46+nameLen));}
-    catch{fail('文件名不是 UTF-8');}
+    let name;
+    const nameBytes=data.subarray(pos+46,pos+46+nameLen);
+    try{name=decoder.decode(nameBytes);}
+    catch{
+      if(flags&0x800)fail('ZIP 标记为 UTF-8，但文件名编码无效');
+      try{name=new TextDecoder('gb18030',{fatal:true}).decode(nameBytes);}
+      catch{fail('文件名无法解码，请使用 UTF-8 或简体中文 ZIP 编码');}
+    }
     validPath(name);
     const folded=name.toLocaleLowerCase('en-US');
     if(names.has(folded))fail('ZIP 包含重名文件或大小写冲突');names.add(folded);
@@ -111,6 +115,9 @@ export function inspectZip(bytes,{maxArchive=LIMITS.archive,maxTotal=LIMITS.expa
       localExtraLen=u16(view,localOffset+28),
       offset=localOffset+30+localNameLen+localExtraLen;
     if(method!==localMethod||offset+compressed>start)fail('数据块超出边界');
+    const localName=data.subarray(localOffset+30,localOffset+30+localNameLen);
+    if(localNameLen!==nameLen||localName.some((byte,j)=>byte!==nameBytes[j]))
+      fail('ZIP 文件名与本地文件头不一致');
     entries.push({name,method,checksum,compressed,expanded,offset,isDir});
     pos=next;
   }
