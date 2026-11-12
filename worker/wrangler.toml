@@ -20,6 +20,10 @@ database_id = "__STAGING_D1_ID__"
 binding = "SITE_CONFIG_KV"
 id = "__STAGING_KV_ID__"
 
+[[env.staging.kv_namespaces]]
+binding = "ASSETS_KV"
+id = "__STAGING_ASSETS_KV_ID__"
+
 [[env.staging.r2_buckets]]
 binding = "PRODUCT_IMAGES"
 bucket_name = "__STAGING_IMAGES_BUCKET__"
@@ -43,6 +47,10 @@ database_id = "__PRODUCTION_D1_ID__"
 [[env.production.kv_namespaces]]
 binding = "SITE_CONFIG_KV"
 id = "__PRODUCTION_KV_ID__"
+
+[[env.production.kv_namespaces]]
+binding = "ASSETS_KV"
+id = "__PRODUCTION_ASSETS_KV_ID__"
 
 [[env.production.r2_buckets]]
 binding = "PRODUCT_IMAGES"
