@@ -23,7 +23,7 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
   const [notice,setNotice]=useState('');
   const alive=useRef(true);
   const refresh=useCallback(async(full=false)=>{
-    if(!sessionStorage.getItem(ADMIN_SESSION_KEY))return;
+    if(typeof sessionStorage==='undefined'||!sessionStorage.getItem(ADMIN_SESSION_KEY))return;
     try{
       if(full){
         const result=await adminFetch<{items:Notice[];unread_count:number}>('notifications?limit=40');
@@ -36,6 +36,11 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
     }catch{ /* Do not break authenticated admin screens if Worker migration is pending. */ }
   },[]);
   useEffect(()=>{
+    // React test renderers and non-browser prerenderers may not expose timers
+    // or sessionStorage. Notifications are optional UI, never a crash source.
+    if(typeof window==='undefined'||typeof document==='undefined'||
+       typeof sessionStorage==='undefined'||typeof window.setInterval!=='function'||
+       typeof window.addEventListener!=='function')return;
     alive.current=true;
     void refresh(false);
     const poll=()=>{if(document.visibilityState!=='hidden')void refresh(false);};
