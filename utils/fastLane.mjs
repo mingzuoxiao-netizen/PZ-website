@@ -23,6 +23,14 @@ export function hasEvidenceClaims(product){
   for(const key of ['evidence','certifications','certificates','testing','claims']){
     if(hasValue(specs[key]))return true;
   }
+  // Claim language can also be entered as free text instead of the structured
+  // verification/attribute fields; require Admin review rather than guessing.
+  const claims=[
+    product?.name,product?.name_cn,product?.description,product?.description_cn,
+    specs?.selling_points_en,specs?.selling_points_cn,specs?.selling_points_zh
+  ].flatMap(value=>Array.isArray(value)?value:[value]).filter(x=>typeof x==='string').join(' ');
+  if(/\b(?:tested\s+(?:load|capacity)|load[\s-]?bearing|weight\s+capacity|certif(?:ied|ication)|lab[\s-]?tested|FSC|BIFMA|ASTM|UL\s?\d{2,})\b|承重|检测报告|认证|载重测试|安全测试/i.test(claims))
+    return true;
   return false;
 }
 export function trustedHistory({clean=0,audited=0,legacy=0}={}){
