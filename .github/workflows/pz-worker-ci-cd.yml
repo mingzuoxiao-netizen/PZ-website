@@ -117,7 +117,7 @@ jobs:
           node-version: '22'
       - name: Render verified staging config and stamp commit SHA
         env:
-          PZ_STAGING_PARITY_CONFIRMED: ${{ vars.PZ_STAGING_PARITY_CONFIRMED }}
+          PZ_STAGING_SOURCE_REVIEWED: ${{ vars.PZ_STAGING_SOURCE_REVIEWED }}
           PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
           # Non-secret production references, recorded ONLY after Cloudflare audit.
           # Used solely to reject accidental cross-environment bindings.
