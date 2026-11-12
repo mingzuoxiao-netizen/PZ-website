@@ -44,6 +44,11 @@ on:
           - staging
           - production
 
+      migrate_staging:
+        description: 'Apply audited Staging migrations 017-020 with recovery checkpoint'
+        type: boolean
+        default: false
+
 permissions:
   contents: read
   actions: read # Read-only GitHub deployment approval history
@@ -128,6 +133,15 @@ jobs:
         run: |
           node worker/scripts/prepare-deployment.mjs staging deploy
           node worker/scripts/stamp-version.mjs staging
+      - name: Explicit Staging schema acceptance preparation
+        if: github.event_name == 'workflow_dispatch' && inputs.migrate_staging
+        env:
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: node worker/scripts/staging-migrate.mjs
       - name: Deploy staging ONLY (no production routes)
         env:
           # These uniquely named secrets belong ONLY to the 'staging' GitHub Environment.
