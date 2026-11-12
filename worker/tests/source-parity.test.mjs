@@ -31,6 +31,12 @@ function restoreLegacyBlock(current,previous,start,end){
   assert.ok(at>=0&&stop>at&&from>=0&&until>from,'reviewed function boundary missing: '+start);
   return current.slice(0,at)+previous.slice(from,until)+current.slice(stop);
 }
+// D1 metadata includes trigger side effects. Uniquely guarded mutations
+// require positive changes; zero still signals a stale or missing row.
+const normalizedD1Counts=source=>source.split('\n').map(line=>
+  line.includes('meta')&&line.includes('changes')
+    ?line.replace(/!==\s*1\b/g,'<1').replace(/===\s*1\b/g,'>=1'):line
+).join('\n');
 test('baseline parity is strict outside explicitly changed product-review and list modules',()=>{
   one(baseline,anchor);
   const expected=prefix+baseline.replace(anchor,anchor+versionRoute);
@@ -52,7 +58,7 @@ test('baseline parity is strict outside explicitly changed product-review and li
     ['function pzPublishedProductRevisionsFetch(','const pzPublishedRevisionsOriginalFetch'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
   ])restored=restoreLegacyBlock(restored,expected,start,end);
-  assert.equal(restored.trimEnd(),expected.trimEnd(),'unexpected changes outside the approved review/list modules');
+  assert.equal(normalizedD1Counts(restored).trimEnd(),normalizedD1Counts(expected).trimEnd(),'unexpected changes outside the approved review/list modules');
 });
 test('review changes retain RBAC, status transition guards and immutable version snapshots',()=>{
   for(const text of [
@@ -74,4 +80,11 @@ test('GET /version returns build marker without touching D1',async()=>{
   assert.equal(response.status,200);
   assert.equal(response.headers.get('cache-control'),'no-store');
   assert.deepEqual(await response.json(),{git_sha:'__PZ_GIT_SHA__'});
+});
+
+test('no uniquely guarded mutation mistakes trigger side effects for a failed write',()=>{
+  for(const line of imported.split('\n')){
+    if(line.includes('meta')&&line.includes('changes'))
+      assert.doesNotMatch(line,/!==\s*1\b|===\s*1\b/);
+  }
 });
