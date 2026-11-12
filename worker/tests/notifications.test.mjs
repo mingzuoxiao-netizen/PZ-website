@@ -15,7 +15,7 @@ const db=()=>{
   sql.exec('PRAGMA foreign_keys=ON;');
   sql.exec(`
     CREATE TABLE users(id TEXT PRIMARY KEY,username TEXT,role TEXT,is_active INTEGER,deleted_at TEXT);
-    CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT);
+    CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT,name TEXT,name_cn TEXT,category TEXT,status TEXT,deleted_at TEXT);
     CREATE TABLE pz_product_reviews(id TEXT PRIMARY KEY,product_id TEXT,submitter_id TEXT,supervisor_id TEXT,return_reason TEXT);
     CREATE TABLE pz_product_review_events(id TEXT PRIMARY KEY,review_id TEXT,action TEXT,actor_id TEXT,actor_role TEXT,review_version INTEGER,note TEXT,created_at TEXT);
     CREATE TABLE pz_published_product_revisions(id TEXT PRIMARY KEY,product_id TEXT,submitter_id TEXT,supervisor_id TEXT);
@@ -28,7 +28,7 @@ const db=()=>{
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('sup','supervisor','factory',1);
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('adm','administrator','admin',1);
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('other','unrelated','factory',1);
-  sql.prepare("INSERT INTO products VALUES('p1','PZ-TABLE-001')").run();
+  sql.prepare("INSERT INTO products(id,code,name,name_cn,category,status) VALUES('p1','PZ-TABLE-001','Oak Table','橡木餐桌','tables','published')").run();
   sql.prepare("INSERT INTO pz_product_reviews VALUES('r1','p1','op','sup','')").run();
   sql.prepare("INSERT INTO pz_published_product_revisions VALUES('v1','p1','op','sup')").run();
   sql.prepare("INSERT INTO pz_fast_lane_publications VALUES('f1','r1','p1','op','sup')").run();
@@ -231,5 +231,30 @@ test('expired email verification codes cannot turn on review mail',async()=>{
       method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:'123456'})
     }),env,{});
     assert.equal(response.status,409);
+  }finally{sql.close();}
+});
+
+
+test('product detail deep link is restricted to recipients of the underlying event',async()=>{
+  const sql=db();
+  try{
+    sql.prepare('INSERT INTO pz_fast_lane_events VALUES(?,?,?,?,?,?)').run(
+      'fast-deeplink','r1','sample_unpublished','adm','Quality issue',at);
+    const dbApi={prepare(query){const stmt=sql.prepare(query);return{
+      bind(...args){return{first:async()=>stmt.get(...args)||null,
+        all:async()=>({results:stmt.all(...args)}),
+        run:async()=>({meta:{changes:Number(stmt.run(...args).changes)}})};}
+    };}};
+    const fnFor=user=>notificationMiddleware(async()=>json({success:true}),{
+      authorize:async()=>({user:{id:user}}),
+      json:(data,status=200)=>new Response(JSON.stringify(data),{
+        status,headers:{'content-type':'application/json'}})
+    });
+    const path=new Request('https://worker.test/notifications/product?id=p1');
+    const owner=await fnFor('op')(path,{DB:dbApi},{});
+    assert.equal(owner.status,200);
+    assert.equal((await owner.json()).code,'PZ-TABLE-001');
+    const stranger=await fnFor('other')(path,{DB:dbApi},{});
+    assert.equal(stranger.status,404);
   }finally{sql.close();}
 });
