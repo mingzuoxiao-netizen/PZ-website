@@ -173,7 +173,7 @@ export function bulkImportFetch(originalFetch,{authorize,json,canManageProduct,v
               'draft',at,at,JSON.stringify(p.production_sites),'org-main',owner,
               JSON.stringify(p.specifications),data.batch_id,normalizeSku(p.code)
             ).run();
-            if(Number(result.meta?.changes)===1){disposition='imported';productId=id;inserted++;}
+            if(Number(result.meta?.changes)>=1){disposition='imported';productId=id;inserted++;}
             else{disposition='existing';reason='SKU already exists (not overwritten)';skipped++;}
           }catch(error){
             if(/UNIQUE|constraint/i.test(String(error))){disposition='existing';reason='SKU already exists (not overwritten)';skipped++;}
