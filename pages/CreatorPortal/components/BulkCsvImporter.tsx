@@ -21,8 +21,6 @@ const saveText=(name:string,value:string)=>{
   const link=document.createElement('a');link.href=url;link.download=name;
   document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
 };
-const submitCsv=(endpoint:string,options?:RequestInit)=>
-  adminFetch<any>(endpoint,options);
 const BulkCsvImporter:React.FC<{
  role:Role;categories:Category[];onCompleted?:(batchId:string)=>void|Promise<void>
 }>=({role,categories,onCompleted})=>{
@@ -42,7 +40,8 @@ const BulkCsvImporter:React.FC<{
   const [server,setServer]=useState<Result|null>(null);
   const [error,setError]=useState('');
   const [batch,setBatch]=useState('');
-  const api=role==='ADMIN'?submitCsv:factoryFetch;
+  const api=<T,>(endpoint:string,options?:RequestInit):Promise<T>=>
+    role==='ADMIN'?adminFetch<T>(endpoint,options):factoryFetch<T>(endpoint,options);
   useEffect(()=>{
     if(role!=='ADMIN')return;
     let live=true;
@@ -174,7 +173,7 @@ const BulkCsvImporter:React.FC<{
       <h2 className="flex items-center gap-2 font-serif text-xl font-semibold"><FileSpreadsheet size={21}/> Excel / CSV 批量导入</h2>
       <p className="mt-2 text-sm text-stone-600">
         支持 Excel「另存为 CSV UTF-8」后的文件，一批最多 {IMPORT_LIMIT} 条。先预检后导入；
-        **仅保存为草稿**，不会自动提交审核、覆盖 SKU 或直接发布。
+        <strong>仅保存为草稿</strong>，不会自动提交审核、覆盖 SKU 或直接发布。
       </p>
     </header>
     <div className="rounded border bg-white p-5 space-y-3">
