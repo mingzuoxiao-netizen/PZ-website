@@ -1,19 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname,resolve} from 'node:path';
 
-const workerDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const rootDir = resolve(workerDir, '..');
-const patch = readFileSync(resolve(rootDir, 'worker-patches/pz-production-unified-v2-2026-11-10.js'), 'utf8');
-const imported = readFileSync(resolve(workerDir, 'src/index.js'), 'utf8');
-const prefix = `// Deployment provenance: replaced in CI with the verified Git commit SHA.
+const worker=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const root=resolve(worker,'..');
+const baseline=readFileSync(resolve(root,'worker-patches/pz-production-unified-v2-2026-11-10.js'),'utf8');
+const imported=readFileSync(resolve(worker,'src/index.js'),'utf8');
+const prefix=`// Deployment provenance: replaced in CI with the verified Git commit SHA.
 // The full inlined patch bundle below is preserved until live Worker parity is proven.
 const PZ_DEPLOY_SHA = "__PZ_GIT_SHA__";
 `;
-const anchor = '    const { pathname } = new URL(request.url);';
-const versionRoute = `
+const anchor='    const { pathname } = new URL(request.url);';
+const versionRoute=`
     // Read-only deployment metadata; leave all existing endpoint logic unchanged.
     if (pathname === "/version" && request.method === "GET") {
       return new Response(JSON.stringify({ git_sha: PZ_DEPLOY_SHA }), {
@@ -21,29 +21,47 @@ const versionRoute = `
         headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
       });
     }`;
-
-test('original Worker routes still match imported baseline outside reviewed preflight insertion', () => {
-  assert.equal(patch.split(anchor).length, 2, 'entrypoint must remain unique');
-  const importLine="import { preflightProduct } from '../../utils/productPreflight.js';\n";
-  const start="      const reviewSnapshot=JSON.parse(copy);";
-  const end='      const previous=await env.DB.prepare("SELECT * FROM pz_product_reviews WHERE product_id=?").bind(id).first();';
-  const oldGate=`      const missing=readinessIssues(JSON.parse(copy));
-      if(missing.length)return json({error:'Product is not ready for review',missing_fields:missing},400);
-`;
-  assert.ok(imported.startsWith(importLine), 'single shared validator import required');
-  const from=imported.indexOf(start),to=imported.indexOf(end,from);
-  assert.ok(from>0&&to>from,'preflight guard must sit immediately before review creation');
-  const restored=imported.slice(importLine.length,from)+oldGate+imported.slice(to);
-  assert.equal(restored,prefix + patch.replace(anchor, anchor + versionRoute));
-  assert.match(imported.slice(from,to),/PREFLIGHT_FAILED/);
-  assert.match(imported.slice(from,to),/PREFLIGHT_CONFIRMATION_REQUIRED/);
-  assert.match(imported.slice(from,to),/LIMIT 1/);
+const one=(source,fragment)=>{
+  assert.equal(source.split(fragment).length,2,'expected one instance of '+fragment.slice(0,80));
+  return source;
+};
+function restoreLegacyBlock(current,previous,start,end){
+  const at=current.indexOf(start),stop=current.indexOf(end,at);
+  const from=previous.indexOf(start),until=previous.indexOf(end,from);
+  assert.ok(at>=0&&stop>at&&from>=0&&until>from,'reviewed function boundary missing: '+start);
+  return current.slice(0,at)+previous.slice(from,until)+current.slice(stop);
+}
+test('baseline parity is strict outside explicitly changed product-review and list modules',()=>{
+  one(baseline,anchor);
+  const expected=prefix+baseline.replace(anchor,anchor+versionRoute);
+  const preflightImport="import { preflightProduct } from '../../utils/productPreflight.js';\n";
+  const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
+  assert.ok(imported.startsWith(preflightImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+returnsImport.length);
+  for(const [start,end] of [
+    ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
+    ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
+  ])restored=restoreLegacyBlock(restored,expected,start,end);
+  assert.equal(restored,expected,'unexpected changes outside the approved review/list modules');
 });
-
-test('new GET /version returns deployment marker without credentials or database bindings', async () => {
-  const module = await import('../src/index.js');
-  const response = await module.default.fetch(new Request('https://example.test/version'), {});
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await response.json(), { git_sha: '__PZ_GIT_SHA__' });
+test('review changes retain RBAC, status transition guards and immutable version snapshots',()=>{
+  for(const text of [
+    "PZ_TWO_STAGE_REVIEW_ENABLED!=='true'",
+    "PZ_ORG_RBAC_ENABLED!=='true'",
+    'Legacy direct admin product writes disabled',
+    'PREFLIGHT_FAILED','PREFLIGHT_CONFIRMATION_REQUIRED',
+    'RETURN_FIELDS_REQUIRED','return-issues',
+    'serializeReturnEvent(note','changedProductFields(prior,reviewSnapshot)',
+    'pz_product_review_versions','pz_product_review_events',
+    "review.status==='approved_pending_publish'"
+  ]) assert.ok(imported.includes(text),text);
+  assert.match(imported,/r\.latest_version>1 AND r\.status IN/);
+  assert.match(imported,/ORDER BY '\+sort\+' LIMIT \? OFFSET \?/);
+});
+test('GET /version returns build marker without touching D1',async()=>{
+  const module=await import('../src/index.js');
+  const response=await module.default.fetch(new Request('https://example.test/version'),{});
+  assert.equal(response.status,200);
+  assert.equal(response.headers.get('cache-control'),'no-store');
+  assert.deepEqual(await response.json(),{git_sha:'__PZ_GIT_SHA__'});
 });
