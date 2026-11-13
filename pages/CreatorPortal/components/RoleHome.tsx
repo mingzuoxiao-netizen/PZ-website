@@ -37,7 +37,7 @@ const DashboardCard:React.FC<{
   title:string;value?:number;description:string;onClick?:()=>void;urgent?:boolean;
 }>=({title,value,description,onClick,urgent=false})=>{
   const className='w-full rounded border p-5 text-left shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#385575] '+
-    (urgent&&value>0?'border-amber-300 bg-amber-50':'border-stone-200 bg-white')+
+    (urgent&&(value??0)>0?'border-amber-300 bg-amber-50':'border-stone-200 bg-white')+
     (onClick?' hover:border-stone-400':'');
   const content=<><p className="text-sm font-semibold text-stone-600">{title}</p>
     <p className="mt-3 font-serif text-3xl tabular-nums text-stone-900">{value===undefined?'查看':value}</p>
