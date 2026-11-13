@@ -48,7 +48,7 @@ const fields:[string,string][]=[
   ['size','尺寸'],['finish','表面处理'],['description','英文描述'],
   ['description_cn','中文描述'],['images','产品图片'],['production_sites','生产工厂']
 ];
-const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:string}[]}>=({role,members=[]})=>{
+const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:string}[];initialRecheck?:0|1}>=({role,members=[],initialRecheck})=>{
   const base=role==='ADMIN'?'admin':'supervisor';
   const [reviews,setReviews]=useState<Review[]>([]);
   const [selected,setSelected]=useState<ReviewDetail|null>(null);
@@ -72,6 +72,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const [employee,setEmployee]=useState('');
   const [kind,setKind]=useState<''|'product'|'revision'>('');
   const [status,setStatus]=useState('action');
+  const [recheck,setRecheck]=useState<''|'0'|'1'>(initialRecheck===undefined?'':String(initialRecheck) as '0'|'1');
   const generation=useRef(0);
   const detailGeneration=useRef(0);
   const refresh=useCallback(async()=>{
@@ -79,7 +80,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     setLoading(true);
     try{
       const result=await fetchBackofficePage<Review>(role==='ADMIN'?'admin/release-queue':'supervisor/release-queue',{
-        page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest'
+        page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest',
+        recheck:role==='SUPERVISOR'&&recheck!==''?Number(recheck) as 0|1:undefined
       });
       if(request!==generation.current)return [];
       if(page>1&&!result.items.length){setPage(Math.max(1,Math.ceil(result.total/50)));return [];}
@@ -90,7 +92,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
       if(request===generation.current){setError(e?.message||'读取完整审核列表失败');setReviews([]);setTotal(null);setSelected(null);}
       return [];
     }finally{if(request===generation.current)setLoading(false);}
-  },[role,page,query,employee,kind,status]);
+  },[role,page,query,employee,kind,status,recheck]);
   useEffect(()=>{
     setError('');setSelected(null);detailGeneration.current++;void refresh();
     return ()=>{generation.current++;detailGeneration.current++;};
@@ -208,8 +210,17 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
         <option value="returned_to_supervisor">管理员退回</option>
         {role==='SUPERVISOR'&&<><option value="returned_to_uploader">等待员工补正</option><option value="pending_admin">等待管理员终审</option><option value="approved_pending_publish">等待正式发布</option></>}
       </select></label>
+      {role==='SUPERVISOR'&&<label className="text-xs">复检筛选
+        <select aria-label="部门待办复检类型" value={recheck} disabled={busy}
+          onChange={e=>{setRecheck(e.target.value as typeof recheck);setPage(1);}}
+          className="mt-1 w-full rounded border px-3 py-2 text-sm">
+          <option value="">全部审核申请</option>
+          <option value="0">首次初审</option>
+          <option value="1">退回后复检</option>
+        </select>
+      </label>}
       <div className="flex gap-2"><button type="submit" disabled={busy} className="rounded bg-stone-900 px-4 py-2 text-sm text-white">搜索</button>
-        <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setPage(1);}}
+        <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setRecheck('');setPage(1);}}
           className="rounded border px-3 py-2 text-sm">清除筛选</button></div>
     </form>
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">

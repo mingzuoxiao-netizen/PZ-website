@@ -29,8 +29,11 @@ import AdminFastLanePanel from './components/AdminFastLanePanel';
 import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
+import RoleHome,{type DashboardTarget} from './components/RoleHome';
+import CompletenessBoard from './components/CompletenessBoard';
+import {Home,AlertTriangle} from 'lucide-react';
 
-type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
+type AdminTab = 'home' | 'completeness' | 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
   const location=useLocation();
@@ -40,11 +43,13 @@ const AdminWorkspace: React.FC = () => {
   const rememberProductDirty=useCallback((dirty:boolean)=>{dirtyProduct.current=dirty;},[]);
   const rememberProductBusy=useCallback((busy:boolean)=>{busyProduct.current=busy;},[]);
   const [activeTab, setActiveTab] = useState<AdminTab>(()=>
-    new URLSearchParams(location.search).has('inquiryId')?'inquiries':'review');
+    new URLSearchParams(location.search).has('inquiryId')?'inquiries':'home');
   useEffect(()=>{
     if(new URLSearchParams(location.search).has('inquiryId'))setActiveTab('inquiries');
   },[location.search]);
   const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes' | 'fast-lane'>('products');
+  const [inquiryPreset,setInquiryPreset]=useState<''|'new'|'overdue'>('');
+  const [catalogStaleOnly,setCatalogStaleOnly]=useState(false);
 
   const [catalogView, setCatalogView] = useState('action');
   const [catalogPage, setCatalogPage] = useState(1);
@@ -100,7 +105,11 @@ const AdminWorkspace: React.FC = () => {
     setCatalogError('');
     try {
       const query = new URLSearchParams({ view: catalogView, page: String(catalogPage), q: catalogQuery });
-      const response = catalogImportBatch
+      const response = catalogStaleOnly
+        ?await fetchBackofficePage<ProductVariant>('factory/products',{
+          page:catalogPage,page_size:50,status:'draft',stale:1,q:catalogQuery
+        })
+        :catalogImportBatch
         ?await fetchBackofficePage<ProductVariant>('factory/products',{
           page:catalogPage,page_size:50,status:'all',import_batch:catalogImportBatch
         })
@@ -127,7 +136,7 @@ const AdminWorkspace: React.FC = () => {
     } finally {
       if (request === catalogRequest.current) setIsProductsLoading(false);
     }
-  }, [catalogView, catalogPage, catalogQuery,catalogImportBatch]);
+  }, [catalogView, catalogPage, catalogQuery,catalogImportBatch,catalogStaleOnly]);
 
   const loadReviewQueue = useCallback(async () => {
     // Load each queue independently. Never misreport a failed fetch as "0 pending".
@@ -430,10 +439,12 @@ const AdminWorkspace: React.FC = () => {
   // Frequently-used work is visible; less-used settings are grouped without
   // removing any existing route, permissions, audit view or publish actions.
   const navItems = [
+    { id: 'home', label: '我的待办', icon: <Home size={18}/> },
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'bulk-import', label: '批量导入草稿', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
+    { id: 'completeness',label:'资料完整度',icon:<AlertTriangle size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
     { id: 'basics', label: '网站基础信息', icon: <Settings size={18} />, group: '网站内容' },
@@ -442,8 +453,23 @@ const AdminWorkspace: React.FC = () => {
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} />, group: '系统管理' },
   ];
 
+  const openFromHome=(target:DashboardTarget)=>{
+    if(busyProduct.current)return;
+    if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;
+    setEditingProduct(null);setIsCreating(false);
+    if(target.tab==='inventory'){
+      setCatalogStaleOnly(target.stale===true);
+      setCatalogImportBatch('');setCatalogImportBatchInput('');
+      setCatalogView(target.stale?'draft':'all');
+      setCatalogPage(1);
+      setCatalogQuery(target.sku||'');setCatalogSearch(target.sku||'');
+    }
+    if(target.tab==='review')setReviewSection(target.section||'products');
+    if(target.tab==='inquiries')setInquiryPreset(target.inquiryPreset||'');
+    setActiveTab(target.tab as AdminTab);
+  };
   return (
-    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab); setEditingProduct(null); setIsCreating(false); }}>
+    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab);if(id==='inventory')setCatalogStaleOnly(false);if(id==='inquiries')setInquiryPreset('');setEditingProduct(null); setIsCreating(false); }}>
       {hasPendingDeploy && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
           <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
@@ -459,6 +485,8 @@ const AdminWorkspace: React.FC = () => {
       )}
 
       <div className="pb-32">
+        {activeTab === 'home' && <RoleHome role="ADMIN" onNavigate={openFromHome}/>}
+        {activeTab === 'completeness' && <CompletenessBoard onNavigate={openFromHome}/>}
         {activeTab === 'review' && (
           <section className="space-y-6" aria-label="统一审核中心">
             <div className="rounded border border-stone-200 bg-white p-5">
@@ -621,7 +649,7 @@ const AdminWorkspace: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2" aria-label="产品目录状态">
                 {[['action', '待处理'], ['published', '在售'], ['unpublished', '已下架'], ['unpublished_review', unpublishedReviewCount === null ? '下架满 30 天' : `下架满 30 天（${unpublishedReviewCount}）`], ['archived', '归档'], ['archive_review', '归档满 30 天']].map(([value, label]) => (
                   <button key={value} type="button" aria-pressed={catalogView === value}
-                    onClick={() => { setCatalogView(value); setCatalogPage(1); }}
+                    onClick={() => { setCatalogStaleOnly(false);setCatalogView(value); setCatalogPage(1); }}
                     className="rounded border px-3 py-2 text-sm aria-pressed:bg-stone-900 aria-pressed:text-white">{label}</button>
                 ))}
                 <form className="flex gap-2" onSubmit={event => {
@@ -645,6 +673,9 @@ const AdminWorkspace: React.FC = () => {
               {catalogView === 'archive_review' && (
                 <p className="text-sm text-stone-600">这份清单用于复核。曾发布的产品按现行规则保留，审核或发布历史仍受永久删除保护。</p>
               )}
+              {catalogStaleOnly&&<p role="status" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">仅查看超过 7 天未更新的草稿。
+                <button type="button" className="ml-3 underline" onClick={()=>{setCatalogStaleOnly(false);setCatalogPage(1);}}>清除超期筛选</button>
+              </p>}
               {catalogError && <p role="alert">{catalogError}</p>}
               {!forceDeleteEnabled&&<div role="status" className="my-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                 <strong>在售产品强制删除尚未启用。</strong>
@@ -759,7 +790,7 @@ const AdminWorkspace: React.FC = () => {
           />
         )}
 
-        {activeTab === 'inquiries' && <InquiryManager />}
+        {activeTab === 'inquiries' && <InquiryManager key={inquiryPreset} initialPreset={inquiryPreset}/>}
         {activeTab === 'accounts' && <AccountsManager />}
         {activeTab === 'organization' && <OrganizationManagement />}
         {activeTab === 'audit' && <AuditTimeline />}

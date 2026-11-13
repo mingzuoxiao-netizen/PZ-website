@@ -47,7 +47,7 @@ const DetailField:React.FC<{name:string;value:string|null|undefined}>=({name,val
   <div><dt className="mb-1 text-xs font-semibold text-stone-500">{name}</dt>
     <dd className="break-words text-sm text-stone-900">{readable(value)}</dd></div>;
 
-const InquiryManager:React.FC=()=>{
+const InquiryManager:React.FC<{initialPreset?:''|'new'|'overdue'}>=({initialPreset=''})=>{
   const location=useLocation();
   const requestId=useRef(0);
   const [rows,setRows]=useState<InquiryRow[]>([]);
@@ -55,8 +55,8 @@ const InquiryManager:React.FC=()=>{
   const [page,setPage]=useState(1),[total,setTotal]=useState<number|null>(null);
   const [hasMore,setHasMore]=useState(false);
   const [queryInput,setQueryInput]=useState(''),[query,setQuery]=useState('');
-  const [statusFilter,setStatusFilter]=useState(''),[assigneeFilter,setAssigneeFilter]=useState('');
-  const [overdueOnly,setOverdueOnly]=useState(false);
+  const [statusFilter,setStatusFilter]=useState(initialPreset?'new':''),[assigneeFilter,setAssigneeFilter]=useState('');
+  const [overdueOnly,setOverdueOnly]=useState(initialPreset==='overdue');
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
   const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const [selectedId,setSelectedId]=useState<string|null>(null);

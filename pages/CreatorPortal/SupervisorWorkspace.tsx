@@ -3,13 +3,15 @@ import { Users, ClipboardCheck } from 'lucide-react';
 import TwoStageProductReviews from './components/TwoStageProductReviews';
 import SupervisorCategoryRequests from './components/SupervisorCategoryRequests';
 import PortalLayout from './PortalLayout';
+import RoleHome,{type DashboardTarget} from './components/RoleHome';
+import {Home} from 'lucide-react';
 import { adminFetch } from '../../utils/adminFetch';
 
 type TeamAccount={id:string;username:string;is_active:number;job_type:string};
 type Job='secretary'|'staff'|'data_entry';
 const labels:Record<Job,string>={secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
 const SupervisorWorkspace:React.FC=()=>{
-  const [tab,setTab]=useState<'team'|'reviews'|'categories'>('reviews');
+  const [tab,setTab]=useState<'home'|'team'|'reviews'|'categories'>('home');
   const [users,setUsers]=useState<TeamAccount[]>([]);
   const [username,setUsername]=useState('');
   const [password,setPassword]=useState('');
@@ -19,6 +21,7 @@ const SupervisorWorkspace:React.FC=()=>{
   const [notice,setNotice]=useState('');
   const [teamSearch,setTeamSearch]=useState('');
   const [teamStatus,setTeamStatus]=useState('all');
+  const [recheckPreset,setRecheckPreset]=useState<0|1|undefined>(undefined);
   const visibleUsers=users.filter(member=>member.username.toLowerCase().includes(teamSearch.trim().toLowerCase())&&(teamStatus==='all'||(teamStatus==='active'?!!member.is_active:!member.is_active)));
   const refresh=useCallback(async()=>{
     const res=await adminFetch<{users:TeamAccount[]}>('/supervisor/accounts');
@@ -48,12 +51,14 @@ const SupervisorWorkspace:React.FC=()=>{
   };
   return <PortalLayout role="SUPERVISOR" userName={sessionStorage.getItem('pz_user_name')||'部门主管'}
     navItems={[
+      {id:'home',label:'我的待办',icon:<Home size={18}/>},
       {id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},
       {id:'categories',label:'新品类初审',icon:<ClipboardCheck size={18}/>},
       {id:'team',label:'团队账号管理',icon:<Users size={18}/>}
     ]}
-    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews'|'categories')}>
-    {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR" members={users}/>:
+    activeTab={tab} onTabChange={id=>{if(id==='reviews')setRecheckPreset(undefined);setTab(id as 'home'|'team'|'reviews'|'categories');}}>
+    {tab==='home'?<RoleHome role="SUPERVISOR" onNavigate={(target:DashboardTarget)=>{setRecheckPreset(target.recheck);setTab('reviews');}}/>:
+    tab==='reviews'?<TwoStageProductReviews key={recheckPreset===undefined?'all':String(recheckPreset)} initialRecheck={recheckPreset} role="SUPERVISOR" members={users}/>:
     tab==='categories'?<SupervisorCategoryRequests/>:<div className="space-y-6 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-900">产品审批在「产品初审」中进行；「团队账号管理」只负责创建、停用和重置员工账号。</p>
