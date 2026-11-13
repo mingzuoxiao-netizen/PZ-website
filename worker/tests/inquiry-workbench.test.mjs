@@ -76,7 +76,7 @@ function setup(){
 test('migration preserves old inquiry and starts untracked entries as new and unassigned',()=>{
   const t=setup();try{
     const row=t.sql.prepare('SELECT status,assignee_id,internal_notes,version FROM inquiries WHERE id=?').get('legacy');
-    assert.deepEqual(row,{status:'new',assignee_id:null,internal_notes:'',version:0});
+    assert.deepEqual({...row},{status:'new',assignee_id:null,internal_notes:'',version:0});
     assert.equal(t.sql.prepare("SELECT COUNT(*) AS n FROM pz_inquiry_history").get().n,0);
   }finally{t.close();}
 });
@@ -160,7 +160,7 @@ test('admin status+assignee persist with atomic immutable history and first resp
     assert.ok(details.data.history.every(x=>x.actor_id==='admin1'));
     const assigned=t.sql.prepare(
       "SELECT recipient_id,event_type FROM pz_notifications WHERE event_type='inquiry_assigned'").all();
-    assert.deepEqual(assigned,[{recipient_id:'staff',event_type:'inquiry_assigned'}]);
+    assert.deepEqual(assigned.map(x=>({...x})),[{recipient_id:'staff',event_type:'inquiry_assigned'}]);
     const conflict=await t.call('admin/inquiries/legacy','PUT',{expected_version:0,status:'won'});
     assert.equal(conflict.status,409);
     const updated=await t.call('admin/inquiries/legacy','PUT',{expected_version:1,status:'quoted'});
