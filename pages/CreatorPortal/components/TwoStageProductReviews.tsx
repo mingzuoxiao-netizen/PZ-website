@@ -210,8 +210,17 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
         <option value="returned_to_supervisor">管理员退回</option>
         {role==='SUPERVISOR'&&<><option value="returned_to_uploader">等待员工补正</option><option value="pending_admin">等待管理员终审</option><option value="approved_pending_publish">等待正式发布</option></>}
       </select></label>
+      {role==='SUPERVISOR'&&<label className="text-xs">复检筛选
+        <select aria-label="部门待办复检类型" value={recheck} disabled={busy}
+          onChange={e=>{setRecheck(e.target.value as typeof recheck);setPage(1);}}
+          className="mt-1 w-full rounded border px-3 py-2 text-sm">
+          <option value="">全部审核申请</option>
+          <option value="0">首次初审</option>
+          <option value="1">退回后复检</option>
+        </select>
+      </label>}
       <div className="flex gap-2"><button type="submit" disabled={busy} className="rounded bg-stone-900 px-4 py-2 text-sm text-white">搜索</button>
-        <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setPage(1);}}
+        <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setRecheck('');setPage(1);}}
           className="rounded border px-3 py-2 text-sm">清除筛选</button></div>
     </form>
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">
