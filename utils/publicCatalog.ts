@@ -2,6 +2,7 @@ import { API_BASE } from './siteConfig';
 import { extractProductsArray, isPublishedProduct } from './extractProducts';
 import { normalizeProducts } from './normalizeProduct';
 import type { ProductVariant } from '../types';
+import { productMatchesPublicSearch } from './publicSearch';
 
 export interface CategoryFacet {
   id: string;
@@ -47,9 +48,7 @@ export async function fetchPublicCatalogPage({
       items = items.filter(p => p.sub_category?.toLowerCase() === sub.toLowerCase());
     }
     if (q) {
-      const term = q.toLowerCase();
-      items = items.filter(p => [p.name, p.code, p.description]
-        .some(v => (v || '').toLowerCase().includes(term)));
+      items = items.filter(p => productMatchesPublicSearch(p, q));
     }
   }
   return {
