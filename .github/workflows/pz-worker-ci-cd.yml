@@ -80,6 +80,8 @@ jobs:
       - name: Verify exact source baseline and read-only version endpoint
         run: |
           node --check worker/src/index.js
+          node --check utils/bulkImportCore.mjs
+          node --check utils/zipXlsxImport.mjs
           node --check worker/scripts/staging-migrate.mjs
           node --check worker/scripts/staging-acceptance.mjs
           node --test worker/tests/source-parity.test.mjs
