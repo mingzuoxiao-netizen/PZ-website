@@ -23,6 +23,7 @@ interface ProductFormProps {
   returnReview?:ReviewReturnDetails|null;
   returnReviewError?:string;
   onSaveNext?:(data:any)=>Promise<void>;
+  copySkuHint?:string;
   onDirtyChange?:(dirty:boolean)=>void;
   onBusyChange?:(busy:boolean)=>void;
   onCancel:()=>void;
@@ -35,7 +36,7 @@ const field='w-full min-w-0 rounded-sm border border-stone-300 bg-white p-3 text
 const label='mb-2 block text-xs font-semibold text-stone-700';
 
 const ProductForm:React.FC<ProductFormProps>=({
-  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,onCheckSku,returnReview,returnReviewError,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
+  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,copySkuHint,onCheckSku,returnReview,returnReviewError,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
 })=>{
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const [formData,setFormData]=useState<Partial<ProductVariant>>(initialData);
@@ -258,6 +259,17 @@ const ProductForm:React.FC<ProductFormProps>=({
           <span className="text-xs text-stone-300">{T('Save first · submit for review second','保存草稿，或保存后提交主管初审')}</span>
         </div>
         <form ref={formRef} onSubmit={save} className="space-y-8 px-5 py-7 md:px-8">
+          {!!copySkuHint&&<div role="status" className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+            当前正在复制产品。请填写<strong>新的唯一 SKU</strong>；建议使用 {copySkuHint}，
+            仅作为提示，不会自动占用该编号。复制后仍是草稿，必须重新提交审核。
+            图片共享原 R2 引用，编辑副本不会修改源产品。
+          </div>}
+          {!!readProductSpecifications(formData.specifications).provenance?.inherited_images_from&&
+          <p role="note" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            初始产品图片继承自 SKU：
+            <strong>{readProductSpecifications(formData.specifications).provenance?.inherited_images_from}</strong>。
+            审核人员可以看到该来源，修改本产品图片不会影响原产品。
+          </p>}
           {formError&&<div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
             {formError}
             {errorField&&<button type="button" onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+errorField+'"]')?.focus()}
@@ -327,7 +339,7 @@ const ProductForm:React.FC<ProductFormProps>=({
                   <span className="flex items-center border border-r-0 border-stone-300 bg-stone-100 px-3 text-xs font-bold text-stone-600">PZ-</span>
                   <input name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
                     onChange={e=>handleChange('code','PZ-'+e.target.value.toUpperCase())}
-                    placeholder="DINING-001"/>
+                    placeholder={copySkuHint?copySkuHint.replace(/^PZ-/,""):"DINING-001"}/>
                 </div>
               </label>
               <label className="block"><span className={label}>{T('Color / color code','颜色 / 色号')}</span>
