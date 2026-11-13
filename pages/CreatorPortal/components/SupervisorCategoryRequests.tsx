@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
+import StatusChip from '../ui/StatusChip';
+import {ListShell,ListSkeleton,EmptyState,Toast,Button} from '../ui/BackofficeComponents';
 
 type RequestItem = {
   id:string;title:string;title_cn:string;subtitle:string;image:string;
   status:string;published?:boolean;created_at:string;updated_at:string;
   submitter_name?:string|null;reject_reason?:string|null;
-};
-const statuses:Record<string,string>={
-  pending_supervisor:'待主管初审',pending_admin:'已提交管理员终审',
-  returned_to_supervisor:'管理员退回主管',returned_to_uploader:'已退回员工',
-  approved:'管理员已批准（待发布）'
 };
 const SupervisorCategoryRequests:React.FC=()=>{
   const [items,setItems]=useState<RequestItem[]>([]);
@@ -46,16 +43,16 @@ const SupervisorCategoryRequests:React.FC=()=>{
     }catch(e:any){setError(e?.message||'审核未完成，请刷新后重试。');}
     finally{setBusy(false);}
   };
-  return <div className="space-y-4 p-4 md:p-8">
+  return <ListShell label="新品类初审列表"><div className="space-y-4 p-4 md:p-8">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="font-serif text-2xl">新品类申请 · 主管初审</h1>
       <p className="mt-1 text-sm text-stone-500">仅显示自己部门的申请。主管通过后交给 Admin；退回将保留原因和记录。</p></div>
       <button onClick={()=>void refresh()} disabled={loading||busy} className="rounded border px-4 py-2 text-sm disabled:opacity-50">刷新</button>
     </header>
-    {error&&<p role="alert" className="border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-    {notice&&<p role="status" className="border border-green-200 bg-green-50 p-3 text-sm">{notice}</p>}
-    {loading?<p className="text-sm text-stone-500">正在加载申请…</p>:
-      !items.length?<p className="rounded border bg-white p-8 text-sm text-stone-500">当前部门没有新品类申请。</p>:
+    {error&&<Toast variant="error" message={error}/>}
+    {notice&&<Toast message={notice}/>}
+    {loading?<ListSkeleton/>:
+      !items.length?<EmptyState message="当前部门没有新品类申请。"/>:
       <div className="space-y-3">{items.map(item=>{
         const reviewable=['pending_supervisor','returned_to_supervisor'].includes(item.status);
         return <article key={item.id} className="rounded border border-stone-200 bg-white p-5">
@@ -64,7 +61,7 @@ const SupervisorCategoryRequests:React.FC=()=>{
             <p className="mt-1 text-xs text-stone-500">申请人：{item.submitter_name||'—'} · {item.created_at}</p>
             {item.subtitle&&<p className="mt-2 text-sm">{item.subtitle}</p>}
             {item.reject_reason&&<p className="mt-2 text-xs text-red-700">上次退回原因：{item.reject_reason}</p>}</div>
-            <span className="text-sm text-amber-800">{item.status==='approved' && item.published ? '已发布到网站' : (statuses[item.status]||item.status)}</span>
+            <StatusChip status={item.status==='approved'&&item.published?'published':item.status}/>
           </div>
           {item.image&&<img src={item.image} alt="拟新增分类封面" className="mt-3 h-28 w-44 rounded object-cover" />}
           {reviewable&&(rejectId===item.id?
@@ -87,6 +84,6 @@ const SupervisorCategoryRequests:React.FC=()=>{
             </div>)}
         </article>;
       })}</div>}
-  </div>;
+  </div></ListShell>;
 };
 export default SupervisorCategoryRequests;
