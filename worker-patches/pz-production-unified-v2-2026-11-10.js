@@ -4636,8 +4636,8 @@ async function approveCategoryChange(env,json,id) {
     cleanField(c.title).trim().toLowerCase()===cleanField(proposed.title).trim().toLowerCase()))
     return stale(json,'Proposed category title already exists');
   if(proposed.image && proposed.image!==base.image) {
-    const cdn=String(env.PZ_IMAGE_BASE_URL||'').replace(/\/+$/,'');
-    if(cdn!=='https://cdn.peng-zhan.com'||!env.PRODUCT_IMAGES)
+    const cdn=productionCategoryImageBase(env);
+    if(!cdn||!env.PRODUCT_IMAGES)
       return json({error:'Production image configuration unavailable'},503);
     let key;
     try{
