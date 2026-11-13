@@ -21,6 +21,9 @@ function setup(failSubmit=false){
     const url=new URL(String(input),'https://local.example');
     const method=init?.method||'GET';const body=init?.body?JSON.parse(String(init.body)):undefined;
     requests.push({path:url.pathname+url.search,method,body});
+    if(url.pathname==='/api/factory/dashboard/home')return Response.json({role:'FACTORY',
+      updated_at:'2026-11-12T20:00:00Z',drafts:rows.length,returned:0,
+      oldest_returned_at:null,in_review:0,stale_drafts:0,stale_items:[]});
     if(url.pathname==='/api/site-config')return Response.json({categories:[{id:'tables',title:'Tables',title_cn:'餐桌',subCategories:[]}]});
     if(url.pathname==='/api/factory/revisions')return Response.json({error:'disabled'},{status:404});
     if(url.pathname==='/api/factory/products'&&method==='GET'){
@@ -54,6 +57,13 @@ function setup(failSubmit=false){
     }
   }};
 }
+const openInventory=async(view:ReturnType<typeof create>)=>{
+  const nav=view.root.findAllByType('button').find(button=>button.findAllByType('span').some(
+    span=>span.children.some(child=>child==='工厂产品管理')));
+  assert.ok(nav,'product queue must remain reachable from role home');
+  await act(async()=>nav!.props.onClick());
+};
+
 const product={name:'New Oak Table',name_cn:'新餐桌',code:'PZ-NEW-ONE',category:'tables',
   images:['https://cdn.example/new.jpg'],image:'',production_sites:['zhaoqing'],material:'oak',status:'draft'};
 
@@ -62,6 +72,7 @@ test('factory complete SKU search finds a record beyond 500 while rendering at m
   const env=setup();let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<MemoryRouter><FactoryWorkspace/></MemoryRouter>);});
+    await openInventory(view!);
     assert.match(JSON.stringify(view!.toJSON()),/匹配 10005 件/);
     assert.equal(view!.root.findAllByProps({'aria-label':'选择产品提交审核'}).length,50);
     await act(async()=>view!.root.findByProps({'aria-label':'搜索全部我的产品'}).props.onChange({target:{value:'PZ-10004'}}));
@@ -79,6 +90,7 @@ test('factory saves once before submission and continuous entry clears identity 
   const button=(label:string)=>view!.root.findAllByType('button').find(x=>x.children.join('')===label)!;
   try{
     await act(async()=>{view=create(<MemoryRouter><FactoryWorkspace/></MemoryRouter>);});
+    await openInventory(view!);
     await act(async()=>button('+ 新建产品').props.onClick());
     await act(async()=>view!.root.findByType(ProductForm).props.onSaveNext(product));
     const next=view!.root.findByType(ProductForm).props.initialData;
@@ -99,6 +111,7 @@ test('saved draft survives a failed submission without a second create',async t=
   const env=setup(true);let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<MemoryRouter><FactoryWorkspace/></MemoryRouter>);});
+    await openInventory(view!);
     const createButton=view!.root.findAllByType('button').find(x=>x.children.join('')==='+ 新建产品')!;
     await act(async()=>createButton.props.onClick());
     await act(async()=>{await assert.rejects(view!.root.findByType(ProductForm).props.onSaveAndSubmit(product),/草稿已保存/);});
