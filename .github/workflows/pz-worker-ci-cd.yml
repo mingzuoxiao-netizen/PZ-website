@@ -214,7 +214,7 @@ jobs:
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
           node worker/scripts/prepare-deployment.mjs production deploy
-          node worker/scripts/stamp-version.mjs
+          node worker/scripts/stamp-version.mjs production
       - name: Deploy explicit production Worker name (approval required)
         env:
           # These uniquely named secrets belong ONLY to the 'production' GitHub Environment.
