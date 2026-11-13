@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Bell,Mail,Check,RefreshCw,X} from 'lucide-react';
-import {useLocation} from 'react-router-dom';
+import {useLocation,useNavigate} from 'react-router-dom';
 import {adminFetch,ADMIN_SESSION_KEY} from '../../../utils/adminFetch';
 
 type Role='ADMIN'|'SUPERVISOR'|'FACTORY';
@@ -15,6 +15,7 @@ const blank:Pref={email:'',email_masked:'',verified:false,enabled:false,provider
 
 const NotificationBell:React.FC<{role:Role}>=({role})=>{
   const location=useLocation();
+  const navigate=useNavigate();
   const [opened,setOpened]=useState(false);
   const [focused,setFocused]=useState<{kind:string;id:string;detail:ReviewInfo|null}|null>(null);
   const [focusBusy,setFocusBusy]=useState(false);
@@ -100,6 +101,13 @@ const NotificationBell:React.FC<{role:Role}>=({role})=>{
       catch{ /* viewing the item is still possible without read receipt */ }
     }
     await refresh(true);
+    if(item.entity_type==='inquiry'){
+      if(role==='ADMIN'&&/^[a-zA-Z0-9_-]{1,120}$/.test(item.entity_id)){
+        setOpened(false);setFocused(null);
+        navigate('/creator/admin?inquiryId='+encodeURIComponent(item.entity_id));
+      }else setNotice('询盘已分配；详情暂由管理员查看，请联系管理员跟进。');
+      return;
+    }
     await showReview(item.entity_type,item.entity_id);
   };
   const readAll=()=>void change(()=>adminFetch('notifications/read-all',{method:'POST'}),
