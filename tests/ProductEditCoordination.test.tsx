@@ -132,3 +132,22 @@ test('mobile photo library accepts multiple=4, reports per-file stages, retries 
     for(const name of ['front.jpg','room.jpg','material.jpg'])assert.equal(attempts.get(name),1);
   }finally{if(view)await act(async()=>view!.unmount());}
 });
+
+test('reopening an already-saved draft restores the server last-saved-time indicator',async()=>{
+  const env=session();let view:ReturnType<typeof create>|undefined;
+  function Harness(){
+    const coord=useProductEditCoordination({
+      productId:'p1',status:'draft',initialUpdatedAt:ORIGINAL_TIME,
+      initialRevision:0,enabled:true,dirty:false,busy:false,
+      getDraft:()=>({id:'p1',name:'Oak Table'}),
+      saveDraft:async()=>{throw Error('should not autosave clean draft');},
+      onSaved:()=>{}
+    });
+    return <p>{coord.displayStatus}</p>;
+  }
+  try{
+    await act(async()=>{view=create(<Harness/>);});
+    assert.match(JSON.stringify(view!.toJSON()),/上次保存/);
+    assert.ok(env.calls.some(x=>x.includes('/edit-state')));
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
