@@ -163,6 +163,22 @@ test('stale publish is refused and public data stays unchanged',async()=>{
   assert.equal(f.history.size,1);
 });
 
+test('admin contact channels survive the D1 draft and published snapshot unchanged',async()=>{
+  const f=fixture();
+  const settings={salesEmail:'sales@example.com',phone:'+1 555 123 4567',
+    whatsapp:'+1 555 123 4567',wechatId:'PZ-Sales'};
+  const edit=structuredClone(f.original);
+  edit.contact=settings;
+  assert.equal((await f.call('/site-config',{revision:1,config:edit},'PUT')).status,200);
+  const draft=await(await f.call('/admin/draft/site-config',null,'GET')).json();
+  assert.deepEqual(draft.draft.contact,settings);
+  assert.equal((await f.call('/admin/publish',{revision:2})).status,200);
+  const publicData=await(await f.call('/api/site-config',null,'GET')).json();
+  assert.deepEqual(publicData.config.contact,settings);
+  assert.deepEqual(JSON.parse(f.db.state.published_json).contact,settings);
+  assert.equal((await f.call('/site-config',{revision:2,config:edit},'PUT','FACTORY')).status,403);
+});
+
 test('legacy requests without revision are rejected (428)',async()=>{
   const f=fixture();
   const r=await f.call('/site-config',f.original,'PUT');
