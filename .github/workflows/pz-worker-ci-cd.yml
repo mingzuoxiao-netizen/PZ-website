@@ -74,6 +74,7 @@ jobs:
           node --check worker/src/index.js
           node --check worker/scripts/staging-migrate.mjs
           node --check worker/scripts/staging-acceptance.mjs
+          node --check worker/scripts/staging-tasks3-9-acceptance.mjs
           node --test worker/tests/source-parity.test.mjs
           node --test worker/tests/preflight.test.mjs
           node --test worker/tests/field-return.test.mjs
@@ -161,6 +162,16 @@ jobs:
       - name: Read-only staging smoke checks
         run: node worker/scripts/staging-smoke.mjs
 
+
+      - name: PR84 live contact, category and public-search acceptance
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/tasks3-9-combined-20261113'
+        env:
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: node worker/scripts/staging-tasks3-9-acceptance.mjs
 
       - name: Real isolated three-role API acceptance
         if: github.event_name == 'workflow_dispatch' && inputs.migrate_staging
