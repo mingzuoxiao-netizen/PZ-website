@@ -5,6 +5,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { API_BASE } from '../utils/siteConfig';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import { resolveImage } from '../utils/imageResolver';
+import ContactChannels from '../components/ContactChannels';
 
 const INQUIRY_API = `${API_BASE}/inquiries`;
 const TURNSTILE_SITE_KEY = '0x4AAAAAACCcwDofTxqfYxSe';
@@ -17,7 +18,7 @@ declare global {
 
 const Inquire: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { config } = usePublishedSiteConfig();
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -218,6 +219,7 @@ const Inquire: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <ContactChannels contact={config?.contact} language={language} />
           </div>
 
           <div className="bg-white p-8 md:p-12 border border-stone-200 shadow-xl" id="inquiry-form">
