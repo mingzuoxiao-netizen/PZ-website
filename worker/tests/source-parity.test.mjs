@@ -45,10 +45,11 @@ test('baseline parity is strict outside explicitly changed product-review and li
   const bulkImport="import {bulkImportFetch} from '../bulkImportCore.mjs';\n";
   const inquiryImport="import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';\n";
   const dashImport="import {roleDashboardFetch} from '../dashboardCore.mjs';\n";
+  const productBulkImport="import {productBulkFetch} from '../productBulkCore.mjs';\n";
   const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
   const fastLaneImport="import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';\n";
-  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+fastLaneImport+returnsImport));
-  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+fastLaneImport.length+returnsImport.length);
+  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+productBulkImport+fastLaneImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+productBulkImport.length+fastLaneImport.length+returnsImport.length);
   const outerNotice="\n// BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.";
   const wrapperAt=restored.indexOf(outerNotice);
   assert.ok(wrapperAt>0,'notification middleware must be appended after all original route wrappers');
@@ -56,6 +57,7 @@ test('baseline parity is strict outside explicitly changed product-review and li
   assert.match(restored.slice(wrapperAt),/index_default.fetch=bulkImportFetch\(pzImportOriginalFetch,/);
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,'));
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,'));
+  assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,'));
   restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
