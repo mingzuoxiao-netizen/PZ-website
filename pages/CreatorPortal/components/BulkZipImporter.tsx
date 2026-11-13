@@ -24,6 +24,12 @@ const download=(name:string,bytes:Uint8Array|string,type:string)=>{
   link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
   window.setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
+// The Worker deliberately responds with 404 for a valid, not-yet-created
+// batch UUID. Other errors (including disabled import / missing D1 schema)
+// MUST stop before any R2 photo uploads.
+const batchNotFound=(error:unknown)=>
+  /Import batch not found|Archive endpoint not found \(404\)/i
+    .test(error instanceof Error?error.message:String(error));
 const BulkZipImporter:React.FC<{
   role:Role;categories:Category[];onCompleted?:(batchId:string)=>void|Promise<void>
 }>=({role,categories,onCompleted})=>{
@@ -46,6 +52,8 @@ const BulkZipImporter:React.FC<{
   const [uncertain,setUncertain]=useState(false);
   const api=<T,>(endpoint:string,options?:RequestInit):Promise<T>=>
     role==='ADMIN'?adminFetch<T>(endpoint,options):factoryFetch<T>(endpoint,options);
+  const batchEndpoint=(id:string)=>(role==='ADMIN'?'admin':'factory')+
+    '/products/import-batches/'+encodeURIComponent(id);
   useEffect(()=>()=>{disposePreviews(current.current);},[]);
   useEffect(()=>{
     if(role!=='ADMIN')return;
@@ -176,7 +184,21 @@ const BulkZipImporter:React.FC<{
     const id=batchId||crypto.randomUUID();setBatchId(id);
     setBusy(true);setError('');
     const cache={...uploaded};
+    let startedD1Submission=false;
     try{
+      // Probe the authenticated import route BEFORE uploading to R2. This
+      // prevents orphaned uploads when Production's feature flag or migration
+      // is absent, and makes a same-UUID retry idempotent after lost responses.
+      setProgress('正在检查 Worker 导入开关与 D1 批次状态…');
+      let previous:Result|null=null;
+      try{previous=await api<Result>(batchEndpoint(id));}
+      catch(e){if(!batchNotFound(e))throw e;}
+      if(previous){
+        if(!previous.completed)throw Error('批次正在处理中，请联系管理员核对，暂不可重复上传');
+        setResult(previous);setProgress('已找回 D1 批次结果，无需重复上传图片');
+        await onCompleted?.(previous.batch_id);
+        return;
+      }
       let next=0,done=0;const failures:string[]=[];
       const upload=async()=>{
         while(next<uploadItems.length){
@@ -208,6 +230,7 @@ const BulkZipImporter:React.FC<{
       });
       // Every Excel row, including invalid rows, reaches the Worker so that
       // partial success and row-level error totals are recorded on the server.
+      startedD1Submission=true;
       const response=await api<Result>(role==='ADMIN'?'admin/products/import-drafts':
         'factory/products/import-drafts',{
           method:'POST',body:JSON.stringify({batch_id:id,
@@ -218,22 +241,26 @@ const BulkZipImporter:React.FC<{
       await onCompleted?.(response.batch_id);
     }catch(e:any){
       setError(e?.message||'导入未完成；请核对批次编号');
-      // Only the database submission phase can be uncertain. Upload failures
-      // may be retried with the same ZIP and cached successful R2 URLs.
-      if(uploadItems.every(x=>!!cache[x.image.source]))setUncertain(true);
+      // A preflight or R2 error is known to precede D1 mutation and should
+      // remain retryable. Only an attempted D1 write requires reconciliation.
+      if(startedD1Submission)setUncertain(true);
     }finally{setBusy(false);}
   };
   const reconcile=async()=>{
     if(!batchId||!uncertain||busy)return;
     setBusy(true);setError('');
     try{
-      const saved=await api<Result>((role==='ADMIN'?'admin':'factory')+
-        '/products/import-batches/'+encodeURIComponent(batchId));
+      const saved=await api<Result>(batchEndpoint(batchId));
       if(!saved.completed)throw Error('批次尚未完成，请联系管理员检查已写入数据');
       setResult(saved);setUncertain(false);
       setProgress('已核对 D1 批次结果');
       await onCompleted?.(saved.batch_id);
-    }catch(e:any){setError('暂不能核对批次 '+batchId+'：'+(e?.message||'请联系管理员'));}
+    }catch(e:any){
+      if(batchNotFound(e)){
+        setUncertain(false);
+        setError('已确认批次 '+batchId+' 尚未写入 D1。修复导入环境后，可再次点击“确认导入”；当前页面缓存的图片不会重复上传。');
+      }else setError('暂不能核对批次 '+batchId+'：'+(e?.message||'请联系管理员'));
+    }
     finally{setBusy(false);}
   };
   const makeTemplate=()=>download('PZ-批量导入模板.zip',
