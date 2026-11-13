@@ -532,9 +532,9 @@ const FactoryWorkspace: React.FC = () => {
                     className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
                     申请新品类
                   </button>
-                  <button type="button" onClick={()=>setIsBatchCreating(true)}
+                  <button type="button" onClick={()=>setActiveTab('bulk-import')}
                     className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
-                    批量录入
+                    Excel + 图片 ZIP 导入
                   </button>
                   <button type="button" onClick={()=>setIsCreating(true)}
                     className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800">
