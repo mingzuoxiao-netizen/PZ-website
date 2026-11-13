@@ -51,10 +51,10 @@ export interface SubCategory {
   name: string;
   name_zh?: string;
   description: string;
+  description_zh?: string;
   alt_en?: string;
   alt_zh?: string;
   caption?: string;
-  description_zh?: string;
   image: string;
   variants?: ProductVariant[];
 }
@@ -70,10 +70,10 @@ export interface Category {
   subtitle: string;
   subtitle_zh?: string;
   description: string;
+  description_zh?: string;
   alt_en?: string;
   alt_zh?: string;
   caption?: string;
-  description_zh?: string;
   image: string;
   subCategories: SubCategory[];
   colSpan?: string;
