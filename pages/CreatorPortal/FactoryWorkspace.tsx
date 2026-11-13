@@ -15,7 +15,7 @@ import {
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import BulkCsvImporter from './components/BulkCsvImporter';
+import BulkZipImporter from './components/BulkZipImporter';
 import type {ReviewReturnDetails} from '../../utils/reviewReturn.mjs';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
@@ -329,14 +329,14 @@ const FactoryWorkspace: React.FC = () => {
 
   const navItems = [
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
-    { id: 'bulk-import', label: 'CSV 批量导入草稿', icon: <Package size={18} /> },
+    { id: 'bulk-import', label: 'ZIP 一键导入草稿', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
   ];
 
   return (
     <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import');}}>
       {activeTab === 'bulk-import' ? (
-        <BulkCsvImporter role="FACTORY" categories={categories} onCompleted={id=>{
+        <BulkZipImporter role="FACTORY" categories={categories} onCompleted={id=>{
           setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
           setCatalogPage(1);
         }}/>
