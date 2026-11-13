@@ -4289,6 +4289,17 @@ function pzEscapeLike(value) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 __name(pzEscapeLike, "pzEscapeLike");
+function pzPublicSearchCategoryAlias(term) {
+  const key = term.trim().toLowerCase();
+  const aliases = [
+    ['tables', ['table', 'tables', 'dining table', '餐桌', '桌']],
+    ['seating', ['chair', 'chairs', 'bench', '座椅', '椅', '凳']],
+    ['cabinetry', ['cabinet', 'casegoods', 'storage', '储物柜', '柜']],
+    ['butcher-block', ['butcher block', 'countertop', 'worktop', '台面', '砧板', '岛台']],
+  ];
+  return aliases.find(([, words]) => words.includes(key))?.[0] || null;
+}
+__name(pzPublicSearchCategoryAlias, "pzPublicSearchCategoryAlias");
 async function pzHandlePublicProductsD1(request, env) {
   const params = new URL(request.url).searchParams;
   const category = (params.get("category") || "").toLowerCase().trim();
@@ -4339,9 +4350,15 @@ async function pzHandlePublicProductsD1(request, env) {
     values.push(sub);
   }
   if (search) {
-    predicates.push("(name LIKE ? ESCAPE '\\' OR code LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+    const fields = ['name', 'name_cn', 'code', 'description', 'description_cn',
+      'material', 'category', 'sub_category'];
+    const clauses = fields.map(field => field + " LIKE ? ESCAPE '\\'");
+    const alias = pzPublicSearchCategoryAlias(search);
+    if (alias) clauses.push("category LIKE ? ESCAPE '\\'");
+    predicates.push('(' + clauses.join(' OR ') + ')');
     const pattern = "%" + pzEscapeLike(search) + "%";
-    values.push(pattern, pattern, pattern);
+    values.push(...fields.map(() => pattern));
+    if (alias) values.push('%' + pzEscapeLike(alias) + '%');
   }
   if (cursor) {
     predicates.push("(updated_at < ? OR (updated_at = ? AND id < ?))");
