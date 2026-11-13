@@ -4,6 +4,8 @@ import ProductChangeSummary from './ProductChangeSummary';
 import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
 import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
+import StatusChip from '../ui/StatusChip';
+import {Button,ListShell,ListSkeleton,EmptyState,Toast} from '../ui/BackofficeComponents';
 
 type Role = 'ADMIN' | 'SUPERVISOR';
 
@@ -27,11 +29,6 @@ type ReviewDetail = Review & {
   recheck?:{is_recheck:boolean;from_version:number;changed_fields:string[];return_issues?:ReturnIssue[]}|null;
 };
 
-const statusLabels:Record<string,string>={
-  pending_supervisor:'待主管初审',pending_admin:'待管理员终审',
-  returned_to_supervisor:'管理员已退回主管',returned_to_uploader:'待员工修改',
-  approved_pending_publish:'已批准待发布',published:'已发布'
-};
 const actionLabels:Record<string,string>={
   submitted:'员工提交',supervisor_approved:'主管初审通过',
   supervisor_returned:'主管退回员工',admin_approved:'管理员终审通过',
@@ -177,7 +174,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     return <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{present(value)}</span>;
   };
 
-  return <div className="space-y-4 p-3 sm:p-5">
+  return <ListShell label="产品审核队列"><div className="space-y-4 p-3 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="font-serif text-xl text-stone-900">{role==='ADMIN'?'产品终审与发布':'产品初审队列'}</h2>
@@ -185,11 +182,10 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           {role==='ADMIN'?'核对变更后决定批准或退回；批准后仍须单独发布。':'核对本部门产品变更，批准或退回给上传员工。'}
         </p>
       </div>
-      <button type="button" disabled={busy||loading} onClick={()=>{setError('');void refresh();}}
-        className="rounded border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-white">刷新列表</button>
+      <Button size="sm" disabled={busy||loading} onClick={()=>{setError('');void refresh();}}>刷新列表</Button>
     </div>
-    {error&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {notice&&<div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {notice&&<Toast message={notice} onClose={()=>setNotice('')}/>}
     <form aria-label="筛选部门审核待办" onSubmit={event=>{event.preventDefault();setQuery(search.trim());setPage(1);}}
       className="grid gap-3 rounded border bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
       <label className="text-xs">SKU 或产品名称<input aria-label="搜索部门待办" type="search" maxLength={120}
@@ -215,8 +211,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">
       <section className={'space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="审核申请列表">
         <h3 className="px-2 py-2 text-sm font-semibold">产品申请（{total===null?'未同步':total}）</h3>
-        {loading&&<p className="p-3 text-sm text-stone-500">加载中…</p>}
-        {!loading&&total===0&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
+        {loading&&<ListSkeleton rows={4}/>}
+        {!loading&&total===0&&<EmptyState message="暂无产品审核申请。"/>}
         {reviews.map(item=><button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
           aria-current={selected?.id===item.id&&selected?.kind===item.kind?'true':undefined}
           className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id&&selected?.kind===item.kind?'border-stone-900 bg-stone-50':'border-stone-100')}>
@@ -224,7 +220,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             <span className="text-[11px] text-stone-500">V{item.latest_version}</span></div>
           {!!item.is_recheck&&item.kind!=='revision'&&<span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">复检 · 优先</span>}
           <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {item.kind==='revision'?'修订':'新品'}</p>
-          <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
+          <div className="mt-2"><StatusChip status={item.status}/></div>
         </button>)}
       </section>
       <section ref={detailPanel} className="min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5" aria-label="审核详情">
@@ -232,7 +228,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
         {!selected?<p className="py-12 text-center text-sm text-stone-500">选择一条审核申请，先查看变更，再进行操作。</p>:<>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0"><h3 className="font-serif text-lg font-semibold">{selected.name_cn||selected.name}</h3>
-              <p className="mt-1 text-xs text-stone-500">{selected.code} · {statusLabels[selected.status]||selected.status}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500"><span>{selected.code}</span><StatusChip status={selected.status}/></div>
             </div>
             <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">{isFirstSubmission?'首次提交 V1':`V1 → V${selected.latest_version}`}</span>
           </div>
@@ -369,7 +365,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
       <button type="button" disabled={busy||loading||page===1} onClick={()=>setPage(p=>p-1)} className="rounded border px-3 py-2">上一页</button>
       <button type="button" disabled={busy||loading||total===null||page*50>=total} onClick={()=>setPage(p=>p+1)} className="rounded border px-3 py-2">下一页</button>
     </nav>
-  </div>;
+  </div></ListShell>;
 };
 export default TwoStageProductReviews;
 
