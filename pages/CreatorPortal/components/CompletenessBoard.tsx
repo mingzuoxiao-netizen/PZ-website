@@ -164,7 +164,7 @@ const CompletenessBoard:React.FC<{
           <span>第 {page} 页 · 共 {report.total} 件 · 每页 50 件</span>
           <button type="button" className="min-h-11 rounded border px-4 disabled:opacity-40"
             disabled={page===1} onClick={()=>setPage(v=>Math.max(1,v-1))}>上一页</button>
-          <button type="button" className="min-h-11 rounded border px-4 disabled={!report.has_more}
+          <button type="button" className="min-h-11 rounded border px-4 disabled:opacity-40" disabled={!report.has_more}
             onClick={()=>setPage(v=>v+1)}>下一页</button>
         </nav>
       </section>
