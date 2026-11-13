@@ -7,6 +7,8 @@ import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
 import { publishedSiteCategories } from '../../utils/catalogCategories';
 import PortalLayout from './PortalLayout';
+import RoleHome,{type DashboardTarget} from './components/RoleHome';
+import {House} from 'lucide-react';
 import { 
     Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, 
     Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database 
@@ -31,7 +33,7 @@ interface Notification {
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import'>('inventory');
+  const [activeTab, setActiveTab] = useState<'home' | 'inventory' | 'categories' | 'bulk-import'>('home');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
@@ -63,6 +65,7 @@ const FactoryWorkspace: React.FC = () => {
   const [catalogImportBatch,setCatalogImportBatch]=useState('');
   const [catalogImportBatchInput,setCatalogImportBatchInput]=useState('');
   const [catalogStatus,setCatalogStatus]=useState('action');
+  const [catalogStaleOnly,setCatalogStaleOnly]=useState(false);
   const [catalogSite,setCatalogSite]=useState('all');
   const [catalogTotal,setCatalogTotal]=useState<number|null>(null);
   const [catalogError,setCatalogError]=useState('');
@@ -156,7 +159,8 @@ const FactoryWorkspace: React.FC = () => {
       }
       const res=await fetchBackofficePage<ProductVariant>('factory/products',{
         page:catalogPage,q:catalogQuery,status:catalogStatus,site:catalogSite==='all'?undefined:catalogSite,
-        categories:aliases,import_batch:catalogImportBatch||undefined
+        categories:aliases,import_batch:catalogImportBatch||undefined,
+        stale:catalogStaleOnly?1:undefined
       });
       if(request!==catalogGeneration.current)return;
       if(catalogPage>1&&!res.items.length){setCatalogPage(Math.max(1,Math.ceil(res.total/50)));return;}
@@ -167,14 +171,17 @@ const FactoryWorkspace: React.FC = () => {
     }catch(e:any){
       if(request===catalogGeneration.current){setCatalogError(e?.message||'无法读取完整产品列表');setCatalogTotal(null);}
     }finally{if(request===catalogGeneration.current)setLoading(false);}
-  },[catalogPage,catalogQuery,catalogStatus,catalogSite,selectedCategoryId,catalogImportBatch]);
+  },[catalogPage,catalogQuery,catalogStatus,catalogSite,selectedCategoryId,catalogImportBatch,catalogStaleOnly]);
 
-  useEffect(() => { void loadData();return ()=>{catalogGeneration.current++;}; }, [loadData]);
+  useEffect(() => {
+    if(activeTab!=='inventory')return;
+    void loadData();return ()=>{catalogGeneration.current++;};
+  }, [activeTab,loadData]);
   useEffect(()=>{void loadSiteConfig();},[loadSiteConfig]);
 
   useEffect(() => {
     const dataInterval = setInterval(() => {
-        if (document.visibilityState!=='hidden' && !isCreating && !editingItem && !isBatchCreating && !revisionEditing) {
+        if (activeTab==='inventory' && document.visibilityState!=='hidden' && !isCreating && !editingItem && !isBatchCreating && !revisionEditing) {
             loadData(true);
         }
     }, 30000);
@@ -196,7 +203,7 @@ const FactoryWorkspace: React.FC = () => {
         } catch {}
     }, 30000);
 
-    const handleFocus = () => {if(!isCreating&&!editingItem&&!isBatchCreating&&!revisionEditing)void loadData(true);};
+    const handleFocus = () => {if(activeTab==='inventory'&&!isCreating&&!editingItem&&!isBatchCreating&&!revisionEditing)void loadData(true);};
     window.addEventListener('focus', handleFocus);
 
     return () => {
@@ -328,14 +335,26 @@ const FactoryWorkspace: React.FC = () => {
   };
 
   const navItems = [
+    {id:'home',label:'我的待办',icon:<House size={18}/>},
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
     { id: 'bulk-import', label: 'CSV 批量导入草稿', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
   ];
 
+  const openFromHome=(target:DashboardTarget)=>{
+    if(!canLeave())return;
+    setCatalogPage(1);setSelectedCategoryId(null);
+    setCatalogImportBatch('');setCatalogImportBatchInput('');
+    setCatalogStatus(target.status||'action');
+    setCatalogStaleOnly(target.stale===true);
+    setCatalogQuery(target.sku||'');setCatalogSearch(target.sku||'');
+    setCatalogSite('all');
+    setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);
+    setActiveTab('inventory');
+  };
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import');}}>
-      {activeTab === 'bulk-import' ? (
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);if(tab==='inventory')setCatalogStaleOnly(false);setActiveTab(tab as 'home' | 'inventory' | 'categories' | 'bulk-import');}}>
+      {activeTab === 'home' ? (<RoleHome role="FACTORY" onNavigate={openFromHome}/>) : activeTab === 'bulk-import' ? (
         <BulkCsvImporter role="FACTORY" categories={categories} onCompleted={id=>{
           setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
           setCatalogPage(1);
@@ -575,18 +594,19 @@ const FactoryWorkspace: React.FC = () => {
                 <label className="flex-1 text-xs">SKU 或产品名称<input type="search" maxLength={120} aria-label="搜索全部我的产品" value={catalogSearch}
                   onChange={e=>setCatalogSearch(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm"/></label>
                 <label className="text-xs">状态<select aria-label="我的产品状态" value={catalogStatus}
-                  onChange={e=>{if(formBusy.current)return;setCatalogStatus(e.target.value);setCatalogPage(1);}} className="mt-1 block rounded border px-3 py-2 text-sm">
+                  onChange={e=>{if(formBusy.current)return;setCatalogStaleOnly(false);setCatalogStatus(e.target.value);setCatalogPage(1);}} className="mt-1 block rounded border px-3 py-2 text-sm">
                   <option value="action">需要我处理</option><option value="all">全部产品</option><option value="draft">草稿</option>
-                  <option value="returned_to_uploader">退回待修改</option><option value="waiting">等待审核与发布</option><option value="published">已发布</option>
+                  <option value="returned_to_uploader">退回待修改</option><option value="returned">全部退回</option><option value="waiting">等待审核与发布</option><option value="published">已发布</option>
                 </select></label>
                 <label className="text-xs">生产基地<select aria-label="我的产品生产基地" value={catalogSite}
                   onChange={e=>{if(formBusy.current)return;setCatalogSite(e.target.value);setCatalogPage(1);}} className="mt-1 block rounded border px-3 py-2 text-sm">
                   <option value="all">全部基地</option><option value="zhaoqing">肇庆</option><option value="cambodia">柬埔寨</option><option value="unassigned">未指定</option>
                 </select></label>
                 <button type="submit" className="rounded bg-stone-900 px-4 py-2 text-sm text-white">搜索</button>
-                <button type="button" onClick={()=>{if(formBusy.current)return;setCatalogSearch('');setCatalogQuery('');setCatalogStatus('action');setCatalogSite('all');setSelectedCategoryId(null);setCatalogPage(1);}}
+                <button type="button" onClick={()=>{if(formBusy.current)return;setCatalogSearch('');setCatalogQuery('');setCatalogStatus('action');setCatalogStaleOnly(false);setCatalogSite('all');setSelectedCategoryId(null);setCatalogPage(1);}}
                   className="rounded border px-3 py-2 text-sm">回到我的待办</button>
               </form>
+              {catalogStaleOnly&&<p role="status" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">仅显示超过 7 天未更新的草稿。<button type="button" className="ml-2 underline" onClick={()=>{setCatalogStaleOnly(false);setCatalogPage(1);}}>清除筛选</button></p>}
               {catalogError&&<div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{catalogError}
                 <button type="button" onClick={()=>void loadData()} className="ml-3 underline">重新读取</button></div>}
               <ProductList
