@@ -83,6 +83,7 @@ jobs:
           node --test worker/tests/notifications.test.mjs
           node --test worker/tests/inquiry-workbench.test.mjs
           node --test worker/tests/role-dashboard.test.mjs
+          node --test worker/tests/product-bulk.test.mjs
           node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/runtime-target.test.mjs
