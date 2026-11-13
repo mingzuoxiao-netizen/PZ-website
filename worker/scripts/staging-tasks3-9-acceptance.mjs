@@ -106,6 +106,28 @@ try{
   assert.equal(new Set(imageUrls).size,4,'four distinct uploaded images');
   report.push('Authenticated Admin / Supervisor / Operator login and R2 uploads passed');
 
+  // Opt in only this audited Staging Worker after a recovery checkpoint,
+  // one additive table, exact KV/D1 snapshot comparison, and verified R2 bootstrap.
+  const beforeCutover=await call(admin,'/admin/draft/site-config');
+  if(!Number.isInteger(beforeCutover.revision)){
+    const cli=parts=>execFileSync('npx',['--yes','wrangler@4.156.0',...parts],{encoding:'utf8',maxBuffer:8*1024*1024,stdio:['ignore','pipe','pipe']});
+    const cfg=['--config','worker/wrangler.generated.toml','--env','staging'];
+    console.log('Staging D1 recovery checkpoint: '+cli(['d1','time-travel','info','DB',...cfg,'--json']));
+    db(readFileSync(new URL('../../worker-patches/migrations/006_site_config_d1_versioned_REVIEW.sql',import.meta.url),'utf8'));
+    const existingState=db('SELECT draft_json,published_json FROM site_config_state WHERE id=1')[0];
+    if(existingState){
+      assert.deepEqual(JSON.parse(existingState.draft_json),beforeCutover.draft,'Existing D1 draft must match current KV before cutover');
+      assert.deepEqual(JSON.parse(existingState.published_json),unwrap(await call(null,'/api/site-config')),'Existing D1 published must match current KV before cutover');
+    }else{
+      const ready=await call(admin,'/admin/site-config/bootstrap');
+      const seeded=await call(admin,'/admin/site-config/bootstrap',{draftSha:ready.draftSha,publishedSha:ready.publishedSha});
+      assert.equal(seeded.initialSnapshotVerified,true,'R2 backup required before D1 opt in');
+    }
+    console.log(cli(['deploy',...cfg,'--var','PZ_D1_SITE_CONFIG_ENABLED:true']));
+    const enabled=await call(admin,'/admin/draft/site-config');
+    check(Number.isInteger(enabled.revision),'D1 config authority must be active');
+    console.log('ACCEPTANCE: Staging D1 config opted in after verified bootstrap; original KV retained');
+  }
   const draftBefore=await call(admin,'/admin/draft/site-config');
   originalDraft=draftBefore.draft;
   if(typeof originalDraft==='string')originalDraft=JSON.parse(originalDraft);
