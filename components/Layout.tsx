@@ -8,6 +8,7 @@ import { NAV_ITEMS } from '../types';
 // Import Platform Navs
 import MobileNav from './layout/MobileNav';
 import DesktopNav from './layout/DesktopNav';
+import ContactChannels from './ContactChannels';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
-  const { meta } = usePublishedSiteConfig();
+  const { meta, config } = usePublishedSiteConfig();
 
   // Scroll Detection
   useEffect(() => {
@@ -284,6 +285,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </li>
               </ul>
+              <div className="mt-8"><ContactChannels contact={config?.contact} language={language} variant="dark" /></div>
             </div>
           </div>
 
