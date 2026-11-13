@@ -105,7 +105,9 @@ jobs:
     if: >-
       (github.event_name == 'push' ||
        (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')) &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/integration/tasks3-9-combined-20261113')) &&
       vars.PZ_STAGING_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
