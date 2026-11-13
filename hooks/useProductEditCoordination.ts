@@ -26,7 +26,7 @@ const formatClock=(raw:string)=>new Date(raw).toLocaleTimeString('zh-CN',{
 
 export function useProductEditCoordination(params:Params){
   const [status,setStatus]=useState<DraftSyncState>('idle');
-  const [savedAt,setSavedAt]=useState('');
+  const [savedAt,setSavedAt]=useState(params.initialUpdatedAt||'');
   const [error,setError]=useState('');
   const [peers,setPeers]=useState<EditingPeer[]>([]);
   const [latest,setLatest]=useState<EditSnapshot|null>(null);
@@ -42,7 +42,7 @@ export function useProductEditCoordination(params:Params){
   useEffect(()=>{
     revisionRef.current={timestamp:params.initialUpdatedAt||'',revision:params.initialRevision||0};
     hasConflict.current=false;setConflict('');setLatest(null);
-    setStatus('idle');setError('');setSavedAt('');
+    setStatus('idle');setError('');setSavedAt(params.initialUpdatedAt||'');
   },[params.productId]);
 
   const readLatest=useCallback(async()=>{
@@ -153,6 +153,7 @@ export function useProductEditCoordination(params:Params){
     timestamp:revisionRef.current.timestamp,revision:revisionRef.current.revision,
     displayStatus:status==='saving'?'保存中…':
       status==='saved'&&savedAt?'已自动保存 '+formatClock(savedAt):
+      status==='idle'&&savedAt?'上次保存 '+formatClock(savedAt):
       status==='conflict'?'编辑冲突，未覆盖任何资料':
       status==='error'?'自动保存失败，输入仍在页面':
       pending?'尚有未保存修改':'已同步'};
