@@ -103,7 +103,7 @@ const SearchResults: React.FC = () => {
              {results.map((item, idx) => (
                <Link to={item.link} key={idx} className="bg-white border border-stone-200 group hover:border-safety-700 transition-all shadow-sm hover:shadow-xl rounded-sm overflow-hidden flex flex-col">
                   <div className="aspect-video bg-stone-100 relative overflow-hidden">
-                     <img src={resolveImage(item.image)} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                     <img src={resolveImage(item.image, {width: 400})} loading="lazy" alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                      <div className="absolute top-4 left-4">
                         <span className="bg-stone-900 text-white text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-1 rounded-sm shadow-lg">
                             Archive Entry
