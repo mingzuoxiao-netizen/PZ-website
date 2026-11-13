@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import {act,create} from 'react-test-renderer';
 import ProductList,{type BulkAction,type BulkResponse} from '../pages/CreatorPortal/components/ProductList';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 const product=(id:string,status='draft')=>({
   id,code:'PZ-'+id.toUpperCase(),name:'Solid Oak Table '+id,
@@ -41,7 +42,8 @@ test('admin bulk selection sends checked products, requires unpublish reason, sh
     const reason=view!.root.findByProps({'aria-label':'批量下架原因'});
     await act(async()=>reason.props.onChange({target:{value:'暂停销售，等待内部复核'}}));
     assert.equal(button(view!,'批量下架')!.props.disabled,false);
-    await act(async()=>button(view!,'批量下架')!.props.onClick());
+    await act(async()=>{void button(view!,'批量下架')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(calls,[{action:'unpublish',
       ids:['published1','published2'],category:undefined,reason:'暂停销售，等待内部复核'}]);
     const ui=JSON.stringify(view!.toJSON());
@@ -70,7 +72,8 @@ test('factory bulk submit shows 2 successful items + one preflight failure and k
         ]} as BulkResponse;
       }}/>);});
     await act(async()=>view!.root.findByProps({'aria-label':'全选本页可提交产品'}).props.onChange({target:{checked:true}}));
-    await act(async()=>button(view!,'批量提交审核')!.props.onClick());
+    await act(async()=>{void button(view!,'批量提交审核')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(calls,[{action:'submit',ids:['draft1','draft2','draft3']}]);
     const ui=JSON.stringify(view!.toJSON());
     const summary=view!.root.findAllByType('strong').map(x=>x.children.join(' ')).join(' ');

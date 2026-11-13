@@ -5,6 +5,7 @@ import { Category } from '../../../types';
 import PZImageManager from './PZImageManager';
 import NewCategoryRequestHistory from './NewCategoryRequestHistory';
 import { resolveImage } from '../../../utils/imageResolver';
+import StatusChip from '../ui/StatusChip';
 
 type Editable = { title: string; title_cn: string; subtitle: string; description: string; image: string };
 const fromCategory = (category: Category): Editable => ({
@@ -130,7 +131,7 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload, newC
               <span className="text-xs text-stone-500 ml-2">{r.created_at}</span>
               {r.reject_reason && <p className="text-red-700 text-xs">退回原因：{r.reject_reason}</p>}
             </div>
-            <span className={r.status==='pending'?'text-amber-700':'text-stone-600'}>{r.status}</span>
+            <StatusChip status={r.status==='pending'?'pending_admin':r.status}/>
           </div>
         ))}
       </section>

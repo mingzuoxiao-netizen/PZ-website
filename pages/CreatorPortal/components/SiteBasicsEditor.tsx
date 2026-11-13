@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FileText, Globe, RefreshCw, Save, Upload } from 'lucide-react';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 export interface SiteBasicsValues {
   title: string;
@@ -26,6 +28,7 @@ const same = (a: SiteBasicsValues, b: SiteBasicsValues) =>
 const SiteBasicsEditor: React.FC<Props> = ({
   config, isSaving, onSave, onPublish, onRefresh, onUploadPdf
 }) => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [baseline, setBaseline] = useState<SiteBasicsValues>(() => readValues(config));
   const [values, setValues] = useState<SiteBasicsValues>(() => readValues(config));
   const [busy, setBusy] = useState(false);
@@ -98,7 +101,7 @@ const SiteBasicsEditor: React.FC<Props> = ({
 
   const publish = async () => {
     if (dirty || locked) return;
-    if (!window.confirm('发布将更新所有已保存的网站配置草稿，包括可能由其他管理员修改的图片和分类。确定继续吗？')) return;
+    if (!await ask({title:'发布网站配置',description:'发布将更新所有已保存的网站配置草稿，包括其他管理员修改的图片和分类。确认继续吗？',confirmLabel:'发布'})) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -114,7 +117,7 @@ const SiteBasicsEditor: React.FC<Props> = ({
 
   const refresh = async () => {
     if (locked) return;
-    if (dirty && !window.confirm('放弃尚未保存的网站基础信息修改吗？')) return;
+    if (dirty && !await ask({title:'舍弃本地修改',description:'放弃尚未保存的网站基础信息修改吗？',confirmLabel:'舍弃修改',danger:true})) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -132,6 +135,7 @@ const SiteBasicsEditor: React.FC<Props> = ({
 
   return (
     <div className="max-w-4xl mx-auto pb-24 space-y-6">
+      {confirmationDialog}
       <header className="bg-white border border-stone-200 p-6">
         <h2 className="font-serif text-2xl text-stone-900">网站基础信息</h2>
         <p className="text-sm text-stone-500 mt-2">只管理首页主标题及供访客下载的产品目录 PDF，网站图片请前往「网站图片管理」。</p>

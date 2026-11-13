@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import {act,create} from 'react-test-renderer';
 import AdminReleaseQueue from '../pages/CreatorPortal/components/AdminReleaseQueue';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 type Item={id:string;product_id:string;name:string;name_cn:string;code:string;
   category:string;status:string;latest_version:number;approved_version:number|null;
@@ -91,7 +92,8 @@ test('admin list is compact; no forced detail; single click runs guarded approve
     assert.equal(view!.root.findAllByType('pre').length,0);
     const button=findButton(view!,'确认发布');
     assert.ok(button);
-    await act(async()=>button!.props.onClick());
+    await act(async()=>{void button!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
       'POST admin/reviews/new/approve','POST admin/reviews/new/publish'
     ]);
@@ -114,7 +116,8 @@ test('Admin safe batch handles approved product and revision sequentially withou
     const select=view!.root.findByProps({'aria-label':'全选本页待发布产品'});
     await act(async()=>select.props.onChange({target:{checked:true}}));
     assert.ok(findButton(view!,'发布本页选中的 2 项'));
-    await act(async()=>findButton(view!,'发布本页选中的 2 项')!.props.onClick());
+    await act(async()=>{void findButton(view!,'发布本页选中的 2 项')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
       'POST admin/reviews/p/approve','POST admin/reviews/p/publish',
       'POST admin/revisions/r/publish'
@@ -172,7 +175,8 @@ test('Admin pagination renders at most 50 mixed requests and only publishes the 
     assert.match(JSON.stringify(view!.toJSON()),/匹配 60 项/);
     assert.match(JSON.stringify(view!.toJSON()),/第 1 页/);
     await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
-    await act(async()=>findButton(view!,'发布本页选中的 50 项')!.props.onClick());
+    await act(async()=>{void findButton(view!,'发布本页选中的 50 项')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     const posts=env.requests.filter(x=>x.startsWith('POST'));
     assert.equal(posts.length,50);assert.ok(posts.every(x=>x.startsWith('POST admin/revisions/')));
     assert.match(JSON.stringify(view!.toJSON()),/匹配 10 项/);
@@ -225,7 +229,8 @@ test('partial publish stops at the failed SKU and retry does not reapprove or re
   try{
     await act(async()=>{view=create(<AdminReleaseQueue/>);});
     await act(async()=>view!.root.findByProps({'aria-label':'全选本页待发布产品'}).props.onChange({target:{checked:true}}));
-    await act(async()=>findButton(view!,'发布本页选中的 3 项')!.props.onClick());
+    await act(async()=>{void findButton(view!,'发布本页选中的 3 项')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')),[
       'POST admin/reviews/one/approve','POST admin/reviews/one/publish',
       'POST admin/reviews/two/approve','POST admin/reviews/two/publish'
@@ -233,7 +238,8 @@ test('partial publish stops at the failed SKU and retry does not reapprove or re
     assert.match(JSON.stringify(view!.toJSON()),/SKU PZ-two/);
     assert.ok(findButton(view!,'发布本页选中的 2 项'));
     fail=false;
-    await act(async()=>findButton(view!,'发布本页选中的 2 项')!.props.onClick());
+    await act(async()=>{void findButton(view!,'发布本页选中的 2 项')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(env.requests.filter(x=>x.startsWith('POST')).slice(4),[
       'POST admin/reviews/two/publish','POST admin/reviews/three/approve','POST admin/reviews/three/publish'
     ]);

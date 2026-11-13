@@ -5,6 +5,10 @@ import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './Retur
 import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
 import {resolveImage} from '../../../utils/imageResolver';
+import StatusChip from '../ui/StatusChip';
+import {Button,ListShell,ListSkeleton,EmptyState,Toast} from '../ui/BackofficeComponents';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 type Status='pending_admin'|'approved_pending_publish';
 type Kind='product'|'revision';
@@ -34,6 +38,7 @@ export const firstImage=(images:unknown):string=>{
 };
 
 const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueChanged})=>{
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [rows,setRows]=useState<WorkItem[]>([]);
   const [people,setPeople]=useState<TeamMember[]>([]);
   const [selected,setSelected]=useState<string[]>([]);
@@ -136,7 +141,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
       ?'确认完成该产品的 Admin 终审并正式发布？'
       :'确认逐项终审并发布选中的 '+batch.length+' 条产品/修订？如有一项失败，后续项目将停止处理。';
     const preview='\n'+batch.slice(0,10).map(item=>item.code||item.name).join('、')+(batch.length>10?'…':'');
-    if(!confirm(message+preview))return;
+    if(!await ask({title:'发布产品',description:message+preview,confirmLabel:'发布'}))return;
     setBusy(true);setError('');setNotice('');
     let success=0;
     let current:WorkItem|undefined;
@@ -148,7 +153,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
       remaining=batch.slice(success).map(getKey);
       setNotice('已确认发布 '+success+' 项；其余项目请核对状态。');
       setError('已确认完成 '+success+'/'+batch.length+' 项。'+(current?'SKU '+(current.code||current.name)+'：':'')+
-        (e?.message||'发布中断')+'。请核对网站与产品管理后再操作，不要重复批准。');
+        backofficeError(e,'发布中断，请核对网站与产品管理后再操作，不要重复批准。'));
     }finally{
       setSelected(remaining);setExpanded(null);setDetail(null);
       await reconcile();setBusy(false);
@@ -168,7 +173,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
         throw new Error('退回状态未确认');
       setNotice('已退回主管，当前待办已移除。');
       setSelected([]);setExpanded(null);setDetail(null);
-    }catch(e:any){setError(e?.message||'退回失败');}
+    }catch(e:any){setError(backofficeError(e,'退回失败，请核对当前审核状态。'));}
     finally{await reconcile();setBusy(false);}
   };
 
@@ -177,7 +182,8 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
   const [returnIssues,setReturnIssues]=useState<ReturnIssue[]>([defaultReturnIssue()]);
   const pendingCount=total;
   const unknown=total===null;
-  return <section className="space-y-4" aria-label="管理员快捷发布工作台">
+  return <ListShell label="管理员发布待办"><section className="space-y-4" aria-label="管理员快捷发布工作台">
+    {confirmationDialog}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h2 className="font-serif text-lg text-stone-900">待发布产品与修订（{unknown?'未同步':pendingCount}）</h2>
@@ -189,8 +195,8 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
     {partial.length>0&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
       {partial.join('、')}。
     </p>}
-    {error&&<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {notice&&<p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">{notice}</p>}
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {notice&&<Toast message={notice} onClose={()=>setNotice('')}/>}
     <form className="grid gap-3 rounded border border-stone-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-3"
       aria-label="筛选发布待办" onSubmit={event=>{event.preventDefault();setQuery(search.trim());setPage(1);}}>
       <label className="text-xs text-stone-700">SKU 或产品名称
@@ -235,8 +241,8 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
           className="rounded border px-3 py-2 text-sm">清除筛选</button>
       </div>
     </form>
-    {loading?<p className="rounded border bg-white p-8 text-sm text-stone-500">正在读取待发布项目…</p>:
-      actionable.length===0&&!unknown?<p className="rounded border bg-white p-8 text-center text-sm text-stone-500">当前没有需要 Admin 发布的产品或修订。</p>:
+    {loading?<ListSkeleton rows={4}/>:
+      actionable.length===0&&!unknown?<EmptyState message="当前没有需要 Admin 发布的产品或修订。"/>:
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-stone-200 bg-stone-50 p-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -260,7 +266,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
                 disabled={busy||loading} checked={selected.includes(key)}
                 onChange={e=>setSelected(curr=>e.target.checked?[...curr,key]:curr.filter(x=>x!==key))}/>
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded bg-stone-100">
-                {image?<img src={resolveImage(image)} alt="" className="h-full w-full object-cover"/>:
+                {image?<img src={resolveImage(image)} alt="" loading="lazy" decoding="async" width={56} height={56} className="h-full w-full object-cover"/>:
                   <span className="flex h-full items-center justify-center text-[10px] text-stone-400">产品</span>}
               </div>
               <div className="min-w-[160px] flex-1 space-y-1">
@@ -269,7 +275,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
                 {!!item.is_recheck&&item.kind==='product'&&<span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">复检 · 优先</span>}
                 <p className="text-xs text-stone-500">{departmentOf(item.supervisor_id)} · 主管：{nameOf(item.supervisor_id)}</p>
               </div>
-              <span className="text-xs text-amber-700">{item.status==='pending_admin'?'主管初审通过':'已终审待发布'}</span>
+              <StatusChip status={item.status}/>
               <button type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
                 aria-expanded={expanded===key}
                 className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-600">
@@ -326,7 +332,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
       <button type="button" disabled={busy||loading||page===1} onClick={()=>setPage(p=>p-1)} className="rounded border px-3 py-2">上一页</button>
       <button type="button" disabled={busy||loading||total===null||page*50>=total} onClick={()=>setPage(p=>p+1)} className="rounded border px-3 py-2">下一页</button>
     </nav>
-  </section>;
+  </section></ListShell>;
 };
 export default AdminReleaseQueue;
 

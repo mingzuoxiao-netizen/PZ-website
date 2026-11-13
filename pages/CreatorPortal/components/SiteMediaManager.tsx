@@ -5,6 +5,7 @@ import { getByPath, setByPath } from '../../../utils/objectPath';
 import PZImageManager from './PZImageManager';
 import { resolveImage } from '../../../utils/imageResolver';
 import { getSiteImageChanges } from '../../../utils/siteMediaChanges';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
 
 interface SiteMediaManagerProps {
   config: any;
@@ -41,6 +42,7 @@ const imageLabels: Record<string, string> = {
 };
 
 const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, onSave, onPublish, onRefresh, isSaving, onUpload }) => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -92,11 +94,11 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, o
   };
   const publish = async () => {
     if (dirty || isSaving || busy) return;
-    if (!window.confirm('确认发布全部已保存的网站配置草稿吗？本操作也可能包含其他管理员已保存的图片、文字和分类修改。')) return;
+    if (!await ask({title:'发布网站配置',description:'确认发布全部已保存的网站配置草稿吗？也可能包含其他管理员保存的内容。',confirmLabel:'发布'})) return;
     await perform(onPublish, '网站配置发布操作已完成，请打开公开网站确认实际效果。');
   };
   const reset = async () => {
-    if (dirty && !window.confirm('放弃尚未保存的图片替换操作吗？')) return;
+    if (dirty && !await ask({title:'舍弃图片修改',description:'确认放弃尚未保存的图片替换操作吗？',confirmLabel:'舍弃修改',danger:true})) return;
     await perform(async () => {
       const latest = await onRefresh();
       if (!latest) throw new Error('刷新没有返回网站草稿，请重试。');
@@ -106,6 +108,7 @@ const SiteMediaManager: React.FC<SiteMediaManagerProps> = ({ config, onChange, o
 
   return (
     <div className="max-w-[1200px] mx-auto pb-24">
+      {confirmationDialog}
       <header className="bg-white border border-stone-200 p-6 mb-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
           <div className="text-xs tracking-wide text-[#805036] font-bold flex items-center gap-2"><ImageIcon size={16}/> 网站图片管理</div>

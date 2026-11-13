@@ -1,5 +1,9 @@
 import React,{useCallback,useEffect,useState} from 'react';
 import {adminFetch} from '../../../utils/adminFetch';
+import StatusChip from '../ui/StatusChip';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {Toast} from '../ui/BackofficeComponents';
+import {backofficeError} from '../ui/feedback';
 
 type Operator={
   id:string;username:string;is_active:number;trusted:number;updated_at?:string|null
@@ -18,6 +22,7 @@ type Sample={
 const reasonOK=(text:string)=>text.trim().length>=5&&text.trim().length<=2000;
 
 const AdminFastLanePanel:React.FC=()=>{
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [config,setConfig]=useState<State|null>(null);
   const [samples,setSamples]=useState<Sample[]>([]);
   const [page,setPage]=useState(1);
@@ -39,7 +44,7 @@ const AdminFastLanePanel:React.FC=()=>{
       ]);
       setConfig(state);setSamples(queue.items||[]);setTotal(queue.total||0);
     }catch(e:any){
-      setError('快速通道数据读取失败：'+(e?.message||'请确认 Staging 已执行迁移 018 且 Worker 已部署'));
+      setError(backofficeError(e,'快速通道数据读取失败，请联系管理员核查配置。'));
       setConfig(null);setSamples([]);
     }finally{setLoading(false);}
   },[page,filter]);
@@ -48,39 +53,40 @@ const AdminFastLanePanel:React.FC=()=>{
     if(busy)return;
     setBusy(true);setError('');setNotice('');
     try{await task();setNotice(message);await load();setReason('');}
-    catch(e:any){setError('操作未完成：'+(e?.message||'请刷新后重查状态'));}
+    catch(e:any){setError(backofficeError(e,'操作未完成，请刷新后核对状态。'));}
     finally{setBusy(false);}
   };
-  const updateConfig=(enabled:boolean)=>{
+  const updateConfig=async(enabled:boolean)=>{
     if(!config||!reasonOK(reason))return;
-    if(enabled&&!window.confirm('启用可信操作员快速发布？符合条件的产品将由主管直接发布，并进入 Admin 发布后抽检。'))return;
+    if(enabled&&!await ask({title:'开启快速发布',description:'符合条件的产品将由主管直接发布，随后由管理员抽检。确认开启吗？',confirmLabel:'开启'}))return;
     void run(()=>adminFetch('admin/fast-lane/settings',{
       method:'POST',body:JSON.stringify({enabled,reason:reason.trim()})
     }),enabled?'快速通道已开启，可随时关闭':'已关闭快速通道，下一次审核恢复两级审核');
   };
-  const setTrusted=(operator:Operator,trusted:boolean)=>{
+  const setTrusted=async(operator:Operator,trusted:boolean)=>{
     if(!reasonOK(reason))return;
-    if(trusted&&!window.confirm('授予 '+operator.username+' 可信标记？发布历史与产品风险仍由 Worker 独立校验。'))return;
+    if(trusted&&!await ask({title:'授予可信标记',description:'授予 '+operator.username+' 可信标记？发布历史与产品风险仍由 Worker 独立校验。',confirmLabel:'授予'}))return;
     void run(()=>adminFetch('admin/fast-lane/operators/'+encodeURIComponent(operator.id)+'/trust',{
       method:'POST',body:JSON.stringify({trusted,reason:reason.trim()})
     }),trusted?'已授予可信标记':'已撤销可信标记，下一次审核立即按两级流程');
   };
-  const sampleAction=(sample:Sample,action:'accept'|'unpublish'|'sync-catalog')=>{
+  const sampleAction=async(sample:Sample,action:'accept'|'unpublish'|'sync-catalog')=>{
     if(action==='unpublish'&&!reasonOK(reason))return;
-    if(action==='unpublish'&&!window.confirm('将 '+(sample.code||sample.name)+' 从公开网站下架并记录原因？两次抽检下架会自动撤销该操作员的可信标记。'))return;
+    if(action==='unpublish'&&!await ask({title:'抽检下架',description:'将 '+(sample.code||sample.name)+' 从网站下架并记录原因？两次抽检下架会自动撤销可信标记。',confirmLabel:'下架',danger:true}))return;
     void run(()=>adminFetch('admin/fast-lane/samples/'+encodeURIComponent(sample.id)+'/'+action,{
       method:'POST',body:JSON.stringify({reason:reason.trim()})
     }),action==='accept'?'已记录抽检通过':action==='unpublish'?'已记录抽检下架；请核对可信标记':'已重新同步公开产品目录');
   };
   const filtered=(config?.operators||[]).filter(o=>o.username.toLowerCase().includes(search.toLowerCase()));
   return <section className="space-y-5" aria-label="发布后抽检及可信操作员">
+    {confirmationDialog}
     <header className="rounded border border-stone-200 bg-white p-4">
       <h3 className="font-serif text-xl font-semibold">可信操作员 · 发布后抽检</h3>
       <p className="mt-1 text-sm text-stone-600">低风险产品在主管初审通过后直接发布，随后由 Admin 抽检。此功能必须由 Worker 环境开关和 Admin 开关同时放行。</p>
       <p className="mt-2 text-xs text-amber-900">默认关闭。只有 Admin 明确授权、满足历史合格记录、曾发布过该分类、且不存在承重/检测/认证声明的产品才可进入快捷通道。所有操作留痕，可即时撤销。</p>
     </header>
-    {error&&<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
-    {notice&&<p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">{notice}</p>}
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {notice&&<Toast message={notice} onClose={()=>setNotice('')}/>}
     <div className="rounded border border-stone-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h4 className="text-sm font-semibold">全局发布开关</h4>
@@ -132,7 +138,10 @@ const AdminFastLanePanel:React.FC=()=>{
       <div className="mt-3 space-y-2">{samples.map(item=><article key={item.id} className="rounded border p-3 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <strong>{item.name_cn||item.name} · {item.code}</strong>
-          <span className="text-xs text-stone-500">{item.status==='published'?'待抽检':item.status==='sampled_ok'?'抽检通过':'已下架'} · {item.catalog_synced?'已同步官网':'官网同步待核对'}</span>
+          <span className="flex flex-wrap items-center gap-2 text-xs text-stone-600">
+            <StatusChip status={item.status==='published'?'sampled':item.status}/>
+            {item.catalog_synced?'已同步官网':'官网同步待核对'}
+          </span>
         </div>
         <p className="mt-1 text-xs text-stone-600">操作员：{item.operator_name} · 初审主管：{item.supervisor_name||item.supervisor_id} · 发布：{item.published_at}</p>
         {!!item.unpublish_reason&&<p className="mt-2 text-xs text-amber-900">下架原因：{item.unpublish_reason}</p>}

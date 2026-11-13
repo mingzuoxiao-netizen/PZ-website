@@ -13,6 +13,9 @@ import type {ReviewReturnDetails} from '../../../utils/reviewReturn.mjs';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
 import {useProductEditCoordination,isEditConflict,type AutosaveOutcome} from '../../../hooks/useProductEditCoordination';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
+import {Button,FormField,Toast} from '../ui/BackofficeComponents';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 interface ProductFormProps {
   initialData:Partial<ProductVariant>;
@@ -46,6 +49,8 @@ const ProductForm:React.FC<ProductFormProps>=({
   const [isPromoting,setIsPromoting]=useState(false);
   const [dirty,setDirty]=useState(false);
   const [formError,setFormError]=useState('');
+  const [formNotice,setFormNotice]=useState('');
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [errorField,setErrorField]=useState('');
   const [skuProbe,setSkuProbe]=useState<{code:string;existing:boolean;error:boolean}>({code:'',existing:false,error:false});
   const [confirmedWarningSignature,setConfirmedWarningSignature]=useState('');
@@ -177,7 +182,7 @@ const ProductForm:React.FC<ProductFormProps>=({
     e.preventDefault();
     const intent=saveIntent.current;saveIntent.current='draft';
     if(submitting||isPromoting||coordination.status==='saving')return;
-    setFormError('');setErrorField('');
+    setFormError('');setFormNotice('');setErrorField('');
     const code=String(formData.code||'').trim().toUpperCase();
     const categoryId=currentCategory;
     if(!formData.id&&(!categoryId||!categories.some(c=>c.id===categoryId))){
@@ -231,9 +236,11 @@ const ProductForm:React.FC<ProductFormProps>=({
       if(intent==='submit'&&onSaveAndSubmit)await onSaveAndSubmit(record,warningCodes);
       else await persist(record);
       setDirty(false);
+      setFormNotice(intent==='submit'?'已提交 '+code+' 审核。':
+        intent==='next'?'已保存 '+code+'，正在新建下一款。':'已保存草稿 '+code+'。');
     }catch(error:any){
       if(isEditConflict(error))coordination.markConflict(error?.message||'产品已被另一位操作员修改。');
-      issue(T('Operation incomplete: ','操作未完成：')+(error?.message||T('Unknown error','未知错误')));
+      issue(backofficeError(error,'保存失败，请检查必填字段并核对草稿版本。'));
     }finally{setSubmitting(false);}
   };
   const submitReview=async()=>{
@@ -254,10 +261,10 @@ const ProductForm:React.FC<ProductFormProps>=({
       issue(T('Cannot submit for review. Complete: ','提交审核前请补全：')+fields);
       return;
     }
-    if(!window.confirm(T('Submit this saved draft for supervisor review?','确认将已保存的草稿提交主管初审吗？')))return;
+    if(!await ask({title:'提交审核',description:'确认将 '+normalizedSku+' 提交主管初审吗？',confirmLabel:'提交审核'}))return;
     setIsPromoting(true);
-    try{await onSubmit(formData.id,warningCodes);}
-    catch(error:any){issue(T('Submission failed: ','提交失败：')+(error?.message||''));}
+    try{await onSubmit(formData.id,warningCodes);setFormNotice('已提交 '+normalizedSku+' 审核。');}
+    catch(error:any){issue(backofficeError(error,'提交审核失败，请核对资料后重试。'));}
     finally{setIsPromoting(false);}
   };
   const canPromote=userRole==='FACTORY'&&!!onSubmit&&!!formData.id&&
@@ -276,6 +283,7 @@ const ProductForm:React.FC<ProductFormProps>=({
     </div>;
 
   return <div className="grid grid-cols-1 gap-8 pb-20 lg:grid-cols-12">
+    {confirmationDialog}
     <div className="lg:col-span-8">
       <div className="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-stone-900 px-6 py-4 text-white">
@@ -313,8 +321,8 @@ const ProductForm:React.FC<ProductFormProps>=({
               <p className="mt-1">存在差异的字段：{changedOnServer.map(x=>x[1]).join('、')||'无可见字段差异（可能是审核状态变化）'}</p>
               <p className="mt-2 text-xs">当前输入不会被自动覆盖。可以复制本地修改后手动合并，或明确选择舍弃本地修改。</p>
               <button type="button" className="mt-2 min-h-11 rounded bg-red-800 px-4 text-white"
-                onClick={()=>{
-                  if(!window.confirm('确定放弃本地尚未保存的修改，重新加载服务器最新版本吗？'))return;
+                onClick={async()=>{
+                  if(!await ask({title:'舍弃本地修改',description:'确定舍弃未保存的本地内容，并加载服务器最新版本吗？此操作不可撤销。',danger:true,confirmLabel:'舍弃修改'}))return;
                   const next=coordination.reloadLatest();
                   if(next){setFormData(next);setDirty(false);setFormError('');setConfirmedWarningSignature('');}
                 }}>舍弃本地修改，加载服务器版本</button>
@@ -339,6 +347,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             {errorField&&<button type="button" onClick={()=>formRef.current?.querySelector<HTMLElement>('[name="'+errorField+'"]')?.focus()}
               className="ml-3 underline">定位需修改字段</button>}
           </div>}
+          {formNotice&&<Toast message={formNotice} onClose={()=>setFormNotice('')}/>}
           {returnReviewError&&<div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{returnReviewError}</div>}
           {returnReview&&<section aria-label="字段退回修改要求" className="rounded border border-amber-300 bg-amber-50 p-4" data-testid="field-return-panel">
             <h4 className="font-semibold text-amber-950">本次退回需要修改的字段</h4>
@@ -398,38 +407,38 @@ const ProductForm:React.FC<ProductFormProps>=({
                   onChange={e=>handleChange('sub_category',e.target.value)}
                   placeholder={T('e.g. Marlow','例如：Marlow 系列')}/>
               </label>
-              <label className="block"><span className={label}>{T('SKU *','SKU 编号 *')}</span>
+              <FormField label={T('SKU *','SKU 编号 *')} htmlFor="pz-product-sku" hint="SKU 必须以 PZ- 开头，同一产品只能使用一个编号。">
                 <div className="flex">
                   <span className="flex items-center border border-r-0 border-stone-300 bg-stone-100 px-3 text-xs font-bold text-stone-600">PZ-</span>
-                  <input name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
+                  <input id="pz-product-sku" name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
                     onChange={e=>handleChange('code','PZ-'+e.target.value.toUpperCase())}
                     placeholder={copySkuHint?copySkuHint.replace(/^PZ-/,""):"DINING-001"}/>
                 </div>
-              </label>
+              </FormField>
               <label className="block"><span className={label}>{T('Color / color code','颜色 / 色号')}</span>
                 <input className={field} value={specs.color||''}
                   onChange={e=>changeSpecs({...specs,color:e.target.value})}
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
-              <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input name="name" className={field+(hasReturnChange('name')?' ring-2 ring-emerald-400':'')} required value={formData.name||''}
+              <FormField label={T('English product name *','产品英文名称 *')} htmlFor="pz-product-name">
+                <input id="pz-product-name" name="name" className={field+(hasReturnChange('name')?' ring-2 ring-emerald-400':'')} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
-              </label>
-              <label className="block"><span className={label}>{T('Chinese product name','产品中文名称')}</span>
-                <input name="name_cn" className={field} value={formData.name_cn||''}
+              </FormField>
+              <FormField label={T('Chinese product name','产品中文名称')} htmlFor="pz-product-name-cn">
+                <input id="pz-product-name-cn" name="name_cn" className={field} value={formData.name_cn||''}
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
-              </label>
-              <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
-                <input name="material" className={field+(hasReturnChange('material')?' ring-2 ring-emerald-400':'')} value={formData.material||''}
+              </FormField>
+              <FormField label={T('Primary material','主要材料')} htmlFor="pz-product-material">
+                <input id="pz-product-material" name="material" className={field+(hasReturnChange('material')?' ring-2 ring-emerald-400':'')} value={formData.material||''}
                   onChange={e=>handleChange('material',e.target.value)}
                   placeholder={T('Solid white oak','白橡木实木')}/>
-              </label>
-              <label className="block"><span className={label}>{T('Surface finish','表面处理')}</span>
-                <input name="finish" className={field+(hasReturnChange('finish')?' ring-2 ring-emerald-400':'')} value={formData.finish||''}
+              </FormField>
+              <FormField label={T('Surface finish','表面处理')} htmlFor="pz-product-finish">
+                <input id="pz-product-finish" name="finish" className={field+(hasReturnChange('finish')?' ring-2 ring-emerald-400':'')} value={formData.finish||''}
                   onChange={e=>handleChange('finish',e.target.value)}
                   placeholder={T('Water-based matte lacquer','水性哑光漆')}/>
-              </label>
+              </FormField>
             </div>
             <fieldset data-preflight-field="production_sites" tabIndex={-1} className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
               <legend className="px-1 text-xs font-semibold">{T('Available production sites','可生产工厂')}</legend>
@@ -521,19 +530,18 @@ const ProductForm:React.FC<ProductFormProps>=({
               className="flex min-h-11 items-center justify-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
               <ArrowLeft size={16}/>{T('Back','返回')}
             </button>
-            <button type="submit" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-stone-900 px-5 py-3 font-semibold text-white disabled:opacity-50">
-              {submitting?<Loader2 className="animate-spin" size={16}/>:<Save size={16}/>}
+            <Button type="submit" variant="primary" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict} loading={submitting} className="flex-1">
+              {!submitting&&<Save size={16}/>}
               {T('Save draft','保存草稿')}
-            </button>
-            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict||preflight.errors.length>0||!warningsAcknowledged}
-              onClick={()=>{saveIntent.current='submit';}} className="rounded bg-amber-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">
+            </Button>
+            {userRole==='FACTORY'&&onSaveAndSubmit&&<Button type="submit" variant="primary" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict||preflight.errors.length>0||!warningsAcknowledged}
+              onClick={()=>{saveIntent.current='submit';}}>
               保存并提交审核
-            </button>}
-            {userRole==='FACTORY'&&onSaveNext&&<button type="submit" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict}
-              onClick={()=>{saveIntent.current='next';}} className="rounded border border-stone-300 px-5 py-3 text-sm disabled:opacity-40">
+            </Button>}
+            {userRole==='FACTORY'&&onSaveNext&&<Button type="submit" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict}
+              onClick={()=>{saveIntent.current='next';}}>
               保存并新建下一款
-            </button>}
+            </Button>}
             {canPromote&&!onSaveAndSubmit&&<button type="button" disabled={submitting||isPromoting||dirty||preflight.errors.length>0||!warningsAcknowledged}
               onClick={submitReview}
               className="flex flex-1 items-center justify-center gap-2 rounded bg-amber-800 px-5 py-3 font-semibold text-white disabled:opacity-40">

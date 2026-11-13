@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Task 21B isolated visual fixture output (generated on demand)
+tests/visual/21b-generated.css

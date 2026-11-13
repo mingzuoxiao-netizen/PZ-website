@@ -1,22 +1,15 @@
 import React, {useCallback,useEffect,useState} from 'react';
 import {factoryFetch} from '../../../utils/factoryFetch';
 import PZImageManager from './PZImageManager';
+import StatusChip from '../ui/StatusChip';
+import {ListSkeleton,Toast,Button} from '../ui/BackofficeComponents';
+import {backofficeError} from '../ui/feedback';
 
 export type NewCategoryItem={
   id:string;title:string;title_cn:string;subtitle:string;image:string;
   status:string;published?:boolean;created_at:string;updated_at:string;
   reject_reason?:string|null;supervisor_name?:string|null;legacy?:boolean;
   events?:{revision:number;action:string;actor_id:string;note?:string|null;created_at:string}[];
-};
-const labels:Record<string,string>={
-  pending_supervisor:'待部门主管初审',
-  pending_admin:'主管已通过 · 待 Admin 终审',
-  returned_to_supervisor:'Admin 已退回主管',
-  returned_to_uploader:'已退回 · 请修改后重提',
-  approved:'Admin 已批准 · 待网站发布',
-  published:'已发布',pending:'历史申请 · 待 Admin 审核',
-  awaiting_review:'历史申请 · 待 Admin 审核',
-  rejected:'历史申请 · 已驳回'
 };
 type Props={onUpload:(file:File)=>Promise<string>;refreshKey?:number};
 const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
@@ -33,7 +26,7 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
       const res=await factoryFetch<{items:NewCategoryItem[]}>('factory/category-requests');
       setItems(res.items||[]);
       setError('');
-    }catch(e:any){setError('暂时无法读取新品类申请记录：'+(e?.message||'请检查接口')); }
+    }catch(e:any){setError(backofficeError(e,'暂时无法读取新品类申请，请刷新重试。')); }
     finally{setLoading(false);}
   },[]);
   useEffect(()=>{void refresh();},[refresh,refreshKey]);
@@ -56,7 +49,7 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
       setEditing(null);
       setMessage('已按原申请重新提交，正在等待主管初审。');
       await refresh();
-    }catch(e:any){setError(e?.message||'重新提交失败，请刷新确认状态。');}
+    }catch(e:any){setError(backofficeError(e,'重新提交失败，请刷新核对状态。'));}
     finally{setBusy(false);}
   };
   return <section className="space-y-4 border border-stone-200 bg-white p-5">
@@ -66,9 +59,9 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
       <button disabled={busy||loading} type="button" onClick={()=>void refresh()}
         className="rounded border px-3 py-2 text-xs disabled:opacity-50">刷新申请</button>
     </div>
-    {error&&<p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-    {message&&<p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
-    {loading?<p className="text-sm text-stone-500">正在读取申请…</p>:
+    {error&&<Toast variant="error" message={error}/>}
+    {message&&<Toast message={message}/>}
+    {loading?<ListSkeleton rows={3}/>:
       items.length===0?<p className="text-sm text-stone-500">暂无可以归属到当前账号的新品类申请。</p>:
       <div className="space-y-3">{items.map(item=>
         <div key={item.id} className="rounded border border-stone-200 p-4">
@@ -76,8 +69,8 @@ const NewCategoryRequestHistory:React.FC<Props>=({onUpload,refreshKey})=>{
             <div><p className="font-semibold">{item.title_cn||item.title} <span className="text-sm font-normal text-stone-500">{item.title}</span></p>
               <p className="mt-1 text-xs text-stone-500">{item.created_at}
                 {item.supervisor_name?' · 主管：'+item.supervisor_name:''}</p></div>
-            <span className={item.status.startsWith('returned')?'text-sm text-red-700':'text-sm text-amber-800'}>
-              {item.status==='approved' && item.published ? '已发布到网站' : (labels[item.status]||item.status)}</span>
+            <StatusChip status={item.status==='approved'&&item.published?'published':
+              item.status==='pending'?'pending_admin':item.status==='awaiting_review'?'pending_admin':item.status}/>
           </div>
           {item.reject_reason&&<p className="mt-2 text-sm text-red-700">退回原因：{item.reject_reason}</p>}
           {item.events?.length ? <details className="mt-3 rounded border border-stone-100 bg-stone-50 p-3">

@@ -4,6 +4,7 @@ import React from 'react';
 import {act,create} from 'react-test-renderer';
 import TwoStageProductReviews,{isActionableProductReview} from '../pages/CreatorPortal/components/TwoStageProductReviews';
 import PublishedRevisionQueue,{isActionableRevisionForRole} from '../pages/CreatorPortal/components/PublishedRevisionQueue';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 const status=(response:any)=>Response.json(response);
 const setup=()=>{
@@ -160,7 +161,8 @@ test('admin product review excludes published records and removes item and detai
     const list=view!.root.findByProps({'aria-label':'审核申请列表'});
     await act(async()=>list.findAllByType('button')[0].props.onClick());
     assert.ok(getButton(view!,'确认正式发布'));
-    await act(async()=>getButton(view!,'确认正式发布')!.props.onClick());
+    await act(async()=>{void getButton(view!,'确认正式发布')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     rendered=JSON.stringify(view!.toJSON());
     assert.equal(view!.root.findAllByType('h3').find(x=>x.children.join('').startsWith('产品申请'))?.children.join(''),'产品申请（0）');
     assert.doesNotMatch(rendered,/待发布产品/);
@@ -211,7 +213,8 @@ test('admin completed revision disappears from review list and does not retain s
     const row=view!.root.findByProps({'aria-label':'修订申请列表'}).findAllByType('button')[0];
     await act(async()=>row.props.onClick());
     assert.ok(getButton(view!,'确认发布修订'));
-    await act(async()=>getButton(view!,'确认发布修订')!.props.onClick());
+    await act(async()=>{void getButton(view!,'确认发布修订')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     rendered=JSON.stringify(view!.toJSON());
     assert.doesNotMatch(rendered,/已完成修订|待发布修订|修订已发布/);
     assert.equal(view!.root.findAllByProps({'aria-label':'产品修订待办'}).length,0,
@@ -238,7 +241,7 @@ test('supervisor action error stays visible after the successful reconciliation 
     const row=view!.root.findByProps({'aria-label':'审核申请列表'}).findAllByType('button')[0];
     await act(async()=>row.props.onClick());
     await act(async()=>getButton(view!,'初审通过并查看下一条')!.props.onClick());
-    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/temporary review failure/);
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/操作未完成，请刷新核对审核状态/);
     assert.equal(environment.calls.filter(call=>call.startsWith('POST')).length,1);
   }finally{if(view)await act(async()=>view!.unmount());environment.restore();}
 });

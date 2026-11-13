@@ -4,6 +4,7 @@ import {
   Layers, ArrowUp, ArrowDown, RotateCcw
 } from 'lucide-react';
 import { Category, ProductionSite } from '../../../types';
+import StatusChip from '../ui/StatusChip';
 
 type Mode = 'many-products' | 'one-product';
 type AssetStatus = 'ready' | 'uploading' | 'uploaded' | 'saved' | 'error' | 'verify';
@@ -456,9 +457,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                     <div className="text-xs text-stone-600">{row.file.name}</div>
                   )}
                   <div className="mt-2 text-xs">
-                    <strong className={row.status === 'saved' ? 'text-green-700' : row.status === 'error' || row.status === 'verify' ? 'text-red-700' : 'text-stone-500'}>
-                      {row.status === 'saved' ? T('Draft saved','草稿已保存') : row.status === 'verify' ? T('Save uncertain – verify SKU before retry','保存结果未确认，请核实 SKU 后再重试') : row.status}
-                    </strong>
+                    <StatusChip status={row.status}/>
+                    {row.status==='verify'&&<p className="mt-1 text-amber-900">保存结果未确认，请先核实 SKU 再重试。</p>}
                     {row.error && <p className="mt-1 break-words text-red-700">{row.error}</p>}
                   </div>
                   {row.status === 'verify' && mode === 'many-products' && (

@@ -98,9 +98,9 @@ test('admin opens detail, assigns existing staff, saves status/notes and sees ti
       assignee.props.onChange({target:{value:'staff'}});
       notes.props.onChange({target:{value:'Called the customer'}});
     });
-    await act(async()=>findButton(view!,'保存跟进记录')!.props.onClick());
+    await act(async()=>findButton(view!,'保存')!.props.onClick());
     rendered=JSON.stringify(view!.toJSON());
-    assert.match(rendered,/已保存询盘状态/);
+    assert.match(rendered,/已保存询盘 Buyer 的跟进状态/);
     assert.match(rendered,/Called the customer/);
     assert.match(rendered,/跟进历史/);
     assert.match(rendered,/已回复/);

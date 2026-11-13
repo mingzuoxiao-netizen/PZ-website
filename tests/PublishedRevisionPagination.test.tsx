@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import {act,create} from 'react-test-renderer';
 import PublishedRevisionQueue from '../pages/CreatorPortal/components/PublishedRevisionQueue';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 test('factory revision search reaches beyond 300 and only renders a bounded page',async()=>{
   const oldFetch=globalThis.fetch,oldStorage=(globalThis as any).sessionStorage;
@@ -43,8 +44,9 @@ test('revision submission error is not erased by a successful list refresh',asyn
     await act(async()=>{view=create(<PublishedRevisionQueue role="FACTORY"/>);});
     await act(async()=>view!.root.findByProps({'aria-label':'修订申请列表'}).findAllByType('button')[0].props.onClick());
     const submit=view!.root.findAllByType('button').find(button=>button.children.join('')==='提交主管初审')!;
-    await act(async()=>submit.props.onClick());
-    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/temporary revision failure/);
+    await act(async()=>{void submit.props.onClick();});
+    await acceptBackofficeDialog(view!);
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children),/操作未完成，请核对修订状态/);
   }finally{
     if(view)await act(async()=>view!.unmount());globalThis.fetch=oldFetch;
     if(oldStorage===undefined)delete (globalThis as any).sessionStorage;else (globalThis as any).sessionStorage=oldStorage;

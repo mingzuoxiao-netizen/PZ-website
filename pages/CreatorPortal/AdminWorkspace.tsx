@@ -34,10 +34,15 @@ import InquiryManager from './components/InquiryManager';
 import RoleHome,{type DashboardTarget} from './components/RoleHome';
 import CompletenessBoard from './components/CompletenessBoard';
 import {Home,AlertTriangle} from 'lucide-react';
+import {Toast} from './ui/BackofficeComponents';
+import {useBackofficeConfirm} from './ui/useBackofficeConfirm';
+import {backofficeError} from './ui/feedback';
 
 type AdminTab = 'home' | 'completeness' | 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
+  const [feedback,setFeedback]=useState<{message:string;error?:boolean}|null>(null);
   const location=useLocation();
   const { t } = useLanguage();
   const dirtyProduct=useRef(false);
@@ -273,14 +278,14 @@ const AdminWorkspace: React.FC = () => {
   };
 
   const handleDeployEverything = async () => {
-    if (!confirm('确认同时发布已审核的产品和已保存的网站配置吗？')) return;
+    if (!await ask({title:'发布网站更改',description:'确认同时发布已审核产品及所有已保存的网站配置吗？',confirmLabel:'发布'})) return;
     setIsSyncing(true);
     try {
       await adminFetch('admin/publish/products', { method: 'POST' });
       await publishVersioned();
       setHasPendingDeploy(false);
-      alert('发布成功，公开网站内容已更新。');
-    } catch (e: any) { alert(`发布失败：${e.message}`); }
+      setFeedback({message:'网站更改已发布，公开内容已更新。'});
+    } catch (e: any) { setFeedback({message:backofficeError(e,'发布失败，请核对公开网站状态后重试。'),error:true}); }
     finally { setIsSyncing(false); }
   };
 
@@ -355,12 +360,13 @@ const AdminWorkspace: React.FC = () => {
     const hidden = product.catalog_hidden === true;
     const action = hidden ? 'relist' : 'unpublish';
     const label = hidden ? '重新上架' : '下架';
-    if (!window.confirm(label + ' ' + (product.code || product.name) + '？')) return;
+    if (!await ask({title:label+'产品',description:'确认将 '+(product.code||product.name)+' '+label+'吗？',confirmLabel:label,danger:action==='unpublish'})) return;
     try{
       const result=await adminFetch<{success?:boolean}>(
         'admin/products/' + encodeURIComponent(product.id) + '/' + action,{method:'POST'});
       if(result.success!==true)throw new Error('上架状态没有得到服务器确认，请刷新列表。');
       await loadProducts();
+      setFeedback({message:'已'+label+' '+(product.code||product.name)+'。'});
     }catch(error:any){
       await loadProducts();
       if(/HTTP 409|PRODUCT_VISIBILITY_CONFLICT|expected state/i.test(error?.message||'')){
@@ -374,7 +380,7 @@ const AdminWorkspace: React.FC = () => {
     if (archiving || !items.length) return;
     const action = restore ? 'restore-archive' : 'archive';
     const label = restore ? '恢复为已下架' : '归档';
-    if (!window.confirm(label + ' ' + items.length + ' 件产品？')) return;
+    if (!await ask({title:label+'产品',description:'确认将 '+items.length+' 件产品'+label+'吗？每件独立检查并复核状态。',confirmLabel:label,danger:!restore})) return;
     setArchiving(true);
     const failures:{sku:string;reason:string}[]=[];
     let succeeded=0,reconciled=0;
@@ -419,12 +425,13 @@ const AdminWorkspace: React.FC = () => {
       catch(error:any){setCatalogError('操作已经结束，但列表刷新失败：'+
         (error?.message||'请刷新页面核对结果'));}
       if(failures.length){
-        alert(label+'结果：成功 '+succeeded+' 件，失败 '+failures.length+
+        setFeedback({message:label+'结果：成功 '+succeeded+' 件，失败 '+failures.length+
           ' 件。'+(reconciled?'\n其中 '+reconciled+' 件经数据库状态核对确认成功。':'')+
-          '\n'+failures.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n'));
+          '\n'+failures.slice(0,5).map(x=>x.sku+'：'+backofficeError(x.reason,'请核对该产品状态。')).join('\n'),error:true});
       }else if(reconciled){
-        alert(label+'成功 '+succeeded+' 件；其中 '+reconciled+
-          ' 件已通过数据库状态核对确认。');
+        setFeedback({message:label+'成功 '+succeeded+' 件；其中 '+reconciled+' 件已通过数据库状态核对确认。'});
+      }else{
+        setFeedback({message:'已'+label+' '+succeeded+' 件产品。'});
       }
     } finally {
       setArchiving(false);
@@ -518,6 +525,8 @@ const AdminWorkspace: React.FC = () => {
   };
   return (
     <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab);if(id==='inventory')setCatalogStaleOnly(false);if(id==='inquiries')setInquiryPreset('');setEditingProduct(null); setIsCreating(false);setDuplicateSource(null); }}>
+      {confirmationDialog}
+      {feedback&&<div className="mb-4"><Toast message={feedback.message} variant={feedback.error?'error':'success'} onClose={()=>setFeedback(null)}/></div>}
       {hasPendingDeploy && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
           <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">

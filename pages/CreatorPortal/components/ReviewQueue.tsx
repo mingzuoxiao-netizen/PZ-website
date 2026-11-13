@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ProductVariant, CategoryRequest } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { CheckCircle, XCircle, Package, LayoutGrid, CheckSquare, Square, RefreshCw } from 'lucide-react';
+import StatusChip from '../ui/StatusChip';
 
 interface ReviewQueueProps {
   products: ProductVariant[];
@@ -128,7 +129,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                 <p className="mt-1 text-xs text-stone-500">申请人：{item.submitter_name||'历史申请'}
                   {item.supervisor_name?' · 主管：'+item.supervisor_name:''}</p>
               </div>
-              <span className="text-xs text-amber-700">{(item.status as string)==='pending_admin'?'主管初审通过':'历史申请待审'}</span>
+              <StatusChip status={String(item.status)==='pending_admin'?'pending_admin':item.status}/>
               {rejectId!==item.id&&<button type="button" disabled={isProcessing}
                 onClick={()=>{setRejectId(item.id);setRejectNote('');}}
                 className="rounded border border-red-200 px-3 py-2 text-xs text-red-700">退回主管</button>}
@@ -234,7 +235,7 @@ const ReviewQueue: React.FC<ReviewQueueProps> = ({ products, categoryRequests, o
                                         </div>
                                     </div>
                                     <span className="text-[8px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100">
-                      {activeView==='categories' && item.status==='pending_admin'?'主管已通过 · 待 Admin 终审':'待审核'}
+                      <StatusChip status={item.status==='pending_admin'?'pending_admin':item.status}/>
                     </span>
                                 </div>
                                 <p className="text-stone-500 text-xs line-clamp-2 mb-3 font-light">

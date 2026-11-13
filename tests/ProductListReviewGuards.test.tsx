@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import ProductList from '../pages/CreatorPortal/components/ProductList';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 const products = [
   { id:'draft-1', name:'Oak Table', code:'PZ-TABLE-01', category:'tables',
@@ -60,13 +61,11 @@ test('factory bulk review reports partial failure and keeps only failed draft se
     assert.equal(selects.length,2,'published and pending products cannot be selected');
     await act(async()=>{selects[0].props.onClick();selects[1].props.onClick();});
     const bulk=()=>controls().find(x=>x.children.some((v:any)=>v==='批量提交审核'))!;
-    await act(async()=>{
-      bulk().props.onClick();
-      await new Promise(resolve=>setImmediate(resolve));
-    });
+    await act(async()=>{void bulk().props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(attempted,['draft-1','returned-2']);
     assert.equal(refreshed,1);
-    assert.match(alerts.join(' '),/成功提交 1 个，失败 1 个/);
+    assert.match(JSON.stringify(view!.toJSON()),/成功提交 1 个，失败 1 个/);
     assert.equal(view!.root.findAllByType('svg').length>=0,true);
     assert.match(view!.root.findByType('div').children.length.toString(),/^[0-9]+$/);
     assert.equal(controls().filter(x=>x.props['aria-label']==='选择产品提交审核')
