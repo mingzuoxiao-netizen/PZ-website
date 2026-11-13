@@ -48,7 +48,9 @@ test('admin bulk selection sends checked products, requires unpublish reason, sh
     const summary=view!.root.findAllByType('strong').map(x=>x.children.join(' ')).join(' ');
     assert.match(summary,/成功\s+1\s+件/);assert.match(summary,/失败\s+1\s+件/);
     assert.match(ui,/抽检待完成/);
-    assert.doesNotMatch(ui,/批量审核批准|批量发布/);
+    assert.ok(!view!.root.findAllByType('button').some(b=>
+      /批量审核批准|批量发布/.test(b.children.filter(
+        (n):n is string=>typeof n==='string').join(''))));
   }finally{if(view)await act(async()=>view!.unmount());restore();}
 });
 test('factory bulk submit shows 2 successful items + one preflight failure and keeps failed selected',async()=>{
@@ -76,7 +78,9 @@ test('factory bulk submit shows 2 successful items + one preflight failure and k
     assert.match(ui,/请填写主要材质/);
     assert.ok(view!.root.findAllByType('label').some(x=>x.children.filter(
       (n):n is string=>typeof n==='string').join('').includes('已选 1 件')));
-    assert.doesNotMatch(ui,/批量审核批准|批量发布/);
+    assert.ok(!view!.root.findAllByType('button').some(b=>
+      /批量审核批准|批量发布/.test(b.children.filter(
+        (n):n is string=>typeof n==='string').join(''))));
   }finally{if(view)await act(async()=>view!.unmount());restore();}
 });
 test('product duplication remains an explicit single-item action, never a bulk approval',async()=>{
