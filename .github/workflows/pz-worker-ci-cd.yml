@@ -87,12 +87,7 @@ jobs:
           node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
         run: |
-          node --test worker-patches/productTwoStageReviewCore.test.mjs
-          node --test worker-patches/publishedProductRevisionsCore.test.mjs
-          node --test worker-patches/categoryTwoStageReviewCore.test.mjs
-          node --test worker-patches/backofficeListsCore.test.mjs
-          node --test worker-patches/siteConfigD1Production.test.mjs
-          node --test worker-patches/productionWorkerCutoverSafety.test.mjs
+          node --test worker-patches/*.test.mjs worker/tests/*.test.mjs
       - name: Build frontend and types for shared contract
         run: npm run build && npm run typecheck && npm test
       - name: Safe staging Wrangler dry-run with synthetic binding IDs
