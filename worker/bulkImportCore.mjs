@@ -193,7 +193,7 @@ export function bulkImportFetch(originalFetch,{authorize,json,canManageProduct,v
         completed:true,rows:outcomes},200);
     }catch(error){
       if(/no such table|no such column/i.test(String(error)))
-        return fail(json,'Staging D1 migration 020 required',503);
+        return fail(json,'Bulk import D1 schema missing; administrator must apply the reviewed environment migration',503);
       if(/UNIQUE|constraint/i.test(String(error)))
         return fail(json,'Import conflict; inspect recorded batch before retry',409);
       console.error('Bulk draft import failed; batch may be partially committed',String(error?.name||'Error'));
