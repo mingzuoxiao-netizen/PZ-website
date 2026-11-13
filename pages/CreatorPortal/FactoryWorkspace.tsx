@@ -3,6 +3,7 @@ import { factoryFetch } from '../../utils/factoryFetch';
 import {fetchBackofficePage} from '../../utils/backofficeLists';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
+import {readProductSpecifications} from '../../utils/productSpecifications';
 import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
 import { publishedSiteCategories } from '../../utils/catalogCategories';
