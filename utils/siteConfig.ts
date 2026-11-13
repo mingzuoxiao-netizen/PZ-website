@@ -16,7 +16,15 @@ export interface SiteConfigEnvelope {
   published_at: string | null;
 }
 
+export interface ContactSettings {
+  salesEmail?: string;
+  phone?: string;
+  whatsapp?: string;
+  wechatId?: string;
+}
+
 export interface SiteConfig {
+  contact?: ContactSettings;
   home: {
     hero: {
       title: string;
@@ -86,6 +94,7 @@ export interface SiteConfig {
 }
 
 export const DEFAULT_CONFIG: SiteConfig = {
+  contact: { salesEmail: '', phone: '', whatsapp: '', wechatId: '' },
   home: {
     hero: {
       title: "Engineered for Scalable Manufacturing",
