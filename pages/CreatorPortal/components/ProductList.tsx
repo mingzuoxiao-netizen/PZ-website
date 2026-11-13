@@ -3,6 +3,11 @@ import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, 
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
+import StatusChip from '../ui/StatusChip';
+import {getStatusDefinition} from '../ui/status';
+import {ListShell,Toast} from '../ui/BackofficeComponents';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 export type BulkAction='category'|'submit'|'unpublish';
 export type BulkResult={id:string;code:string;ok:boolean;status?:string;reason?:string;
@@ -50,6 +55,9 @@ const ProductList: React.FC<ProductListProps> = ({
   const [bulkReason,setBulkReason]=useState('');
   const [bulkSummary,setBulkSummary]=useState<BulkResponse|null>(null);
   const [bulkError,setBulkError]=useState('');
+  const [notice,setNotice]=useState<{message:string;error?:boolean}|null>(null);
+  const {ask,confirmationDialog}=useBackofficeConfirm();
+  const notify=(message:string,error=false)=>setNotice({message,error});
   useEffect(()=>{onBusyChange?.(isBulkProcessing||submittingIds.length>0);return ()=>onBusyChange?.(false);},[isBulkProcessing,submittingIds.length,onBusyChange]);
 
 
@@ -61,21 +69,9 @@ const ProductList: React.FC<ProductListProps> = ({
   const adminCanDelete=isAdmin&&!!onPermanentDelete;
   const deletionBusy=deletingId!==null||isBulkProcessing;
 
-  const statusMap: Record<string, { label: string, color: string }> = {
-    all: { label: T('All Statuses','全部状态'), color: '' },
-    published: { label: T('Published','已发布'), color: 'bg-green-100 text-green-700' },
-    awaiting_review: { label: T('Awaiting Audit','待审核'), color: 'bg-amber-100 text-amber-700' },
-    draft: { label: T('Draft','草稿'), color: 'bg-stone-100 text-stone-500' },
-    rejected: { label: T('Correction Req','已退回'), color: 'bg-red-100 text-red-700' },
-    returned_to_uploader: { label: '待修改', color: 'bg-red-100 text-red-700' },
-    pending_supervisor: { label: '待主管初审', color: 'bg-amber-100 text-amber-700' },
-    pending_admin: { label: '待管理员终审', color: 'bg-amber-100 text-amber-700' },
-    returned_to_supervisor: { label: '已退回主管', color: 'bg-orange-100 text-orange-700' },
-    approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' },
-    unpublished: { label: '已下架', color: 'bg-stone-100 text-stone-600' },
-    inactive: { label: '停用', color: 'bg-stone-100 text-stone-600' },
-    archived: { label: '已归档', color: 'bg-stone-100 text-stone-600' }
-  };
+  const statusOptions=['published','awaiting_review','draft','rejected','returned_to_uploader',
+    'pending_supervisor','pending_admin','returned_to_supervisor',
+    'approved_pending_publish','unpublished','inactive','archived'];
 
   const searchTerm=search.trim().toLowerCase();
   const actionStatuses=isFactory
@@ -116,8 +112,9 @@ const ProductList: React.FC<ProductListProps> = ({
     setVisibilityId(item.id);
     try {
       await onCatalogVisibility(item);
+      notify('已更新 '+(item.code||item.name)+' 的公开状态。');
     } catch (error) {
-      alert(error instanceof Error ? error.message : T('Could not update catalog visibility', '更新上架状态失败'));
+      notify(backofficeError(error,'更新上架状态失败，请刷新核对状态。'),true);
     } finally {
       setVisibilityId(null);
     }
@@ -125,32 +122,31 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const handlePermanentDelete=async(item:ProductVariant)=>{
     if(!onPermanentDelete||!item.id||deletionBusy)return;
-    if(!confirm(forceDeleteEnabled
-      ? '确认从产品管理及公开网站移除这件产品？SKU 将释放；有审批历史的产品仅保留内部审计占位记录，R2 原图不删除。操作不可恢复。'
-      : '确定永久删除这件产品？操作不可恢复，SKU 将释放，R2 原图仍保留。已有审核历史或曾发布的产品不可永久删除。'))return;
+    if(!await ask({title:'彻底删除产品',danger:true,confirmLabel:'彻底删除',
+      description:forceDeleteEnabled
+      ? '该操作不可恢复，会从管理与公开目录移除 '+item.code+'，释放 SKU；仅保留必要审计历史及 R2 原图。'
+      : '该操作不可恢复，会释放 '+item.code+' 的 SKU；R2 原图不删除。有审核历史或曾发布的产品受服务端保护。'}))return;
     setDeletingId(item.id);
     try{
       const outcome=await onPermanentDelete(item);
       setSelectedIds(prev=>prev.filter(id=>id!==item.id));
       await onRefresh?.();
       if(outcome&&outcome.state==='already_absent')
-        alert('数据库中已没有这条产品记录，可能由此前操作移除；本次没有重复删除。');
+        notify('数据库中已无 '+item.code+'，未重复删除。');
       else if(outcome&&outcome.state==='verified_removed')
-        alert('状态复查确认产品已移除，原 SKU 可复用；审核历史仍保留。');
-      else alert('产品已从管理及公开目录移除，原 SKU 可复用；必要审计历史仍保留。');
+        notify('已彻底删除 '+item.code+'；已复核 SKU 可复用，必要审计历史保留。');
+      else notify('已彻底删除 '+item.code+'；SKU 可复用，必要审计历史保留。');
     }catch(error:any){
       await onRefresh?.();
-      alert(T('Permanent delete failed: ','永久删除失败：')+(error?.message||'请重试'));
+      notify(backofficeError(error,'彻底删除失败，请刷新核对产品状态后重试。'),true);
     }finally{setDeletingId(null);}
   };
 
   const handleAdminBulkDelete=async()=>{
     if(!onPermanentDelete||deletionBusy||!adminSelected.length)return;
     const batch=[...adminSelected];
-    if(!confirm(forceDeleteEnabled
-      ? '确认一次移除选中的 '+batch.length+' 件产品？无需输入 SKU。包含已发布及有审核历史的产品；成功后原 SKU 可复用，必要审计历史和 R2 原图保留。操作不可恢复。'
-      : '确认永久删除选中的 '+batch.length+
-        ' 件产品？不可恢复，不需要输入 SKU。已有审核历史或曾发布的产品仍受后端保护，R2 原图不会删除。'))return;
+    if(!await ask({title:'批量彻底删除产品',danger:true,confirmLabel:'彻底删除',
+      description:'即将彻底删除选中的 '+batch.length+' 件产品，操作不可恢复。每件独立验证权限；已删除 SKU 可复用，必要审计历史和 R2 原图保留。'}))return;
     setIsBulkProcessing(true);
     const failed:{id:string;sku:string;reason:string}[]=[];
     let succeeded=0,alreadyAbsent=0,verified=0;
@@ -167,7 +163,7 @@ const ProductList: React.FC<ProductListProps> = ({
         }catch(error:any){
           const raw=String(error?.message||'删除结果未确认');
           failed.push({id:item.id!,sku:item.code||item.name||item.id!,
-            reason:raw.replace(/\s*\(HTTP \d+\) @ \/api\/admin\/products\/[^\s]+/g,'').slice(0,220)});
+            reason:backofficeError(raw,'删除失败，请刷新核对该产品状态。')});
         }
       }
       setSelectedIds(failed.map(x=>x.id));
@@ -175,24 +171,25 @@ const ProductList: React.FC<ProductListProps> = ({
       const summary='批量删除结果：成功 '+succeeded+' 件，失败 '+failed.length+
         ' 件'+(alreadyAbsent?'，数据库中已不存在 '+alreadyAbsent+' 件':'')+
         '。'+(verified?'\n其中 '+verified+' 件经状态复查确认已移除。':'');
-      if(failed.length)alert(summary+'\n'+
+      if(failed.length)notify(summary+'\n'+
         failed.slice(0,5).map(x=>x.sku+'：'+x.reason).join('\n')+
         (failed.length>5?'\n其余失败项目请单独核对。':'')+
-        '\n失败产品仍受保护，请核对状态后决定是否重试。');
-      else alert(summary+'\nR2 原图及必要审计历史已保留。');
+        '\n失败产品仍受保护，请核对状态后决定是否重试。',true);
+      else notify(summary+'\nR2 原图及必要审计历史已保留。');
     }finally{setIsBulkProcessing(false);}
   };
 
   const handleSubmitForReview = async (id: string) => {
-      if (!confirm(T("Are you sure you want to submit this record to the master registry audit?","确认提交此产品进行审核吗？"))) return;
+      if (!await ask({title:'提交审核',description:'确认提交此产品进入审核流程吗？',confirmLabel:'提交审核'})) return;
       if (!onSubmit||isBulkProcessing||submittingIds.includes(id)) return;
       setSubmittingIds(prev => [...prev, id]);
       try {
           await onSubmit(id);
+          notify('已提交 '+(items.find(item=>item.id===id)?.code||'产品')+' 审核。');
       } catch (e: any) {
-          alert(T(`Submission failed: ${e.message}`, `提交审核失败：${e.message}`));
+          notify(backofficeError(e,'提交审核失败，请核对必填项及当前状态。'),true);
       } finally {
-          try{await onRefresh?.();}catch{alert(T('Submission ended, but refresh failed.','提交已结束，但列表刷新失败，请刷新核对状态。'));}
+          try{await onRefresh?.();}catch{notify('提交已结束，但列表刷新失败，请刷新核对状态。',true);}
           setSubmittingIds(prev => prev.filter(i => i !== id));
       }
   };
@@ -207,7 +204,7 @@ const ProductList: React.FC<ProductListProps> = ({
       setBulkError('下架必须选中在售产品并填写不少于 5 个字的原因。');return;
     }
     const title=action==='category'?'修改品类':action==='submit'?'提交审核':'下架';
-    if(!confirm('确认对选中 '+ids.length+' 件产品执行'+title+'？每件都将独立进行后端权限及状态检查。'))return;
+    if(!await ask({title,description:'确认对选中 '+ids.length+' 件产品执行'+title+'？每件都将独立进行后端权限及状态检查。',confirmLabel:title,danger:action==='unpublish'}))return;
     setIsBulkProcessing(true);setBulkError('');setBulkSummary(null);
     try{
       const result=await onBulkAction(action,ids,
@@ -217,15 +214,16 @@ const ProductList: React.FC<ProductListProps> = ({
         result.succeeded+result.failed!==ids.length)
         throw Error('服务端批量结果不完整，请刷新后核对产品状态。');
       setBulkSummary(result);setSelectedIds(result.results.filter(item=>!item.ok).map(item=>item.id));
+      notify('批量'+title+'：成功 '+result.succeeded+' 件，失败 '+result.failed+' 件。',result.failed>0);
       try{await onRefresh?.();}
       catch{setBulkError('部分操作可能已成功，但列表刷新失败。请刷新并核对状态。');}
-    }catch(error:any){setBulkError(error?.message||'操作未完成，请刷新列表核对。');}
+    }catch(error:any){setBulkError(backofficeError(error,'操作未完成，请刷新列表核对状态。'));}
     finally{setIsBulkProcessing(false);}
   };
   const handleBulkSubmit = async () => {
       if(onBulkAction){await executeBulk('submit');return;}
       if (selectedIds.length === 0 || !onSubmit || isBulkProcessing || submittingIds.length>0) return;
-      if (!confirm(T(`Confirm submission of ${selectedIds.length} items for technical audit?`,`确认将选中的 ${selectedIds.length} 个产品提交审核吗？`))) return;
+      if (!await ask({title:'批量提交审核',description:'确认将选中的 '+selectedIds.length+' 个产品提交审核吗？',confirmLabel:'提交审核'})) return;
 
       setIsBulkProcessing(true);
       try {
@@ -241,15 +239,15 @@ const ProductList: React.FC<ProductListProps> = ({
           setSelectedIds(failedIds);
           await onRefresh?.();
           if (failedIds.length) {
-              alert(T(
+              notify(T(
                   `${ids.length - failedIds.length} submitted, ${failedIds.length} failed. Failed items remain selected; refresh and inspect their status before retrying.`,
                   `成功提交 ${ids.length - failedIds.length} 个，失败 ${failedIds.length} 个。失败的产品仍保持选中，请刷新核对状态后再决定是否重试。`
-              ));
+              ),true);
           } else {
-              alert(T("Bulk submission successful.","批量提交成功。"));
+              notify('已提交 '+ids.length+' 件产品审核。');
           }
       } catch (e: any) {
-          alert(T("Bulk processing error: ", "批量操作失败：") + e.message);
+          notify(backofficeError(e,'批量提交审核失败，请刷新状态后重试。'),true);
       } finally {
           setIsBulkProcessing(false);
       }
@@ -257,7 +255,10 @@ const ProductList: React.FC<ProductListProps> = ({
 
 
   return (
+    <ListShell label="产品列表">
     <div className="animate-fade-in relative">
+       {notice&&<div className="mb-3"><Toast variant={notice.error?'error':'success'} message={notice.message} onClose={()=>setNotice(null)}/></div>}
+       {confirmationDialog}
        {isAdmin && <p role="note" className="mb-4 rounded border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">
          {T('Product approvals and publishing must go through the Review Center. Approved and published products cannot be directly edited here.',
            '产品审核与发布请在“审核中心”操作；已批准或已发布的产品不能在此直接修改。')}
@@ -299,8 +300,7 @@ const ProductList: React.FC<ProductListProps> = ({
                className="mt-1 block min-w-[160px] rounded border border-stone-300 bg-white px-3 py-2 text-sm">
                <option value="all">{T('All','全部状态')}</option>
                <option value="action">{T('Needs action','待处理')}</option>
-               {Object.entries(statusMap).filter(([key])=>key!=='all').map(([key,v])=>
-                 <option key={key} value={key}>{v.label}</option>)}
+               {statusOptions.map(key=><option key={key} value={key}>{getStatusDefinition(key).label}</option>)}
              </select>
            </label>
            <label className="text-xs font-semibold text-stone-700">
@@ -348,7 +348,6 @@ const ProductList: React.FC<ProductListProps> = ({
                     const isSubmitting = submittingIds.includes(item.id!);
                     const imageUrl = resolveImage(item.images?.[0]);
                     const catalogStatus = item.archived_at ? 'archived' : item.status === 'published' && item.catalog_hidden ? 'unpublished' : item.status;
-                    const statusInfo = statusMap[catalogStatus || 'draft'] || statusMap.draft;
                     
                     const isPublished = item.status === 'published';
                     const hasNoImages = !item.images || item.images.length === 0;
@@ -386,9 +385,7 @@ const ProductList: React.FC<ProductListProps> = ({
                         <div className="flex-grow min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                                 <h4 className="font-bold text-stone-900 text-sm truncate font-serif">{lang === "zh" ? (item.name_cn || item.name) : item.name}</h4>
-                                <span className={`text-xs font-black px-1.5 py-0.5 rounded border-none uppercase tracking-tighter ${statusInfo.color}`}>
-                                    {statusInfo.label}
-                                </span>
+                                <StatusChip status={catalogStatus||'draft'}/>
                                 {isPublished && hasNoImages && (
                                     <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title={T("Due to lack of valid assets, this product is automatically suppressed on the public site.","缺少有效图片，该产品不会在公开网站展示。")}>
                                         <AlertTriangle size={10} /> {T("Hidden (Missing Assets)","因缺少图片未公开")}
@@ -560,6 +557,7 @@ const ProductList: React.FC<ProductListProps> = ({
            </div>
        )}
     </div>
+    </ListShell>
   );
 };
 

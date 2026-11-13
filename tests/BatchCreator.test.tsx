@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { act, create, ReactTestRenderer } from 'react-test-renderer';
 import BatchCreator from '../pages/CreatorPortal/components/BatchCreator';
 import { normalizeProduct } from '../utils/normalizeProduct';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 let view: ReactTestRenderer;
 let saved: any[];
@@ -26,7 +27,15 @@ const codes = (...codes: string[]) => act(() => {
   const inputs = view.root.findAllByType('input').filter(node => !node.props.type);
   codes.forEach((code, index) => inputs[index * 4 + 1].props.onChange({ target: { value: code } }));
 });
-const submit = () => act(async () => { await button('Validate & Create Drafts').props.onClick(); });
+const submit = async () => {
+  let completion:Promise<void>|undefined;
+  act(() => { completion=button('Validate & Create Drafts').props.onClick(); });
+  for(let i=0;i<4&&!view.root.findAllByProps({role:'alertdialog'}).length;i++){
+    await act(async()=>{await Promise.resolve();});
+  }
+  if(view.root.findAllByProps({role:'alertdialog'}).length)await acceptBackofficeDialog(view);
+  await act(async()=>{await completion;});
+};
 
 beforeEach(() => {
   saved = []; uploaded = []; checked = [];
@@ -70,7 +79,7 @@ test('empty per-product sites block the whole batch before SKU lookup or upload'
   add('A.png'); codes('PZ-AA'); toggle(0, 0);
   await submit();
   assert.equal(checked.length, 0); assert.equal(uploaded.length, 0); assert.equal(saved.length, 0);
-  assert.match(text(view.root.findByProps({ role: 'alert' })), /each product/);
+  assert.match(text(view.root.findByProps({ role: 'alert' })), /每个产品必须选择至少一个生产基地/);
   toggle(1, 0); await submit(); assert.equal(saved.length, 1);
 });
 
@@ -106,7 +115,10 @@ test('uncertain save locks sites until explicit verification and reuses upload o
   saveImpl = async () => { throw new Error('network timeout'); }; await submit();
   assert.ok(boxes(1).every(input => input.props.disabled));
   await submit(); assert.equal(uploaded.length, 1);
-  act(() => button('I checked Registry; retry').props.onClick());
+  let retry:Promise<void>;
+  act(() => {retry=button('I checked Registry; retry').props.onClick();});
+  await acceptBackofficeDialog(view);
+  await act(async()=>{await retry;});
   saveImpl = normalSave; await submit();
   assert.equal(uploaded.length, 1); assert.deepEqual(saved[0].production_sites, ['cambodia']);
 });

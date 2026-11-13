@@ -4,6 +4,7 @@ import React from 'react';
 import {act,create, type ReactTestRenderer} from 'react-test-renderer';
 import ProductList from '../pages/CreatorPortal/components/ProductList';
 import {normalizeAdminInventoryProducts} from '../utils/normalizeAdminInventoryProducts';
+import {acceptBackofficeDialog} from './backofficeDialogTest';
 
 const products=[
   {id:'d1',code:'PZ-DRAFT-1',name:'Draft table',status:'draft',images:[],production_sites:[]},
@@ -55,16 +56,13 @@ test('Admin deletion UI supports a single confirmation for selected products, no
       view!.root.findByProps({'aria-label':'选择永久删除 PZ-REJECT-2'}).props.onClick();
     });
     assert.equal(getButton(view!,'批量删除')!.props.disabled,false);
-    await act(async()=>{
-      await getButton(view!,'批量删除')!.props.onClick();
-    });
+    await act(async()=>{void getButton(view!,'批量删除')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(calls,['d1','d2']);
-    assert.equal(env.confirmations.length,1,'one confirmation for a batch');
-    assert.ok(env.confirmations[0].includes('2 件产品'));
-    assert.ok(env.confirmations[0].includes('不需要输入 SKU'));
+    assert.equal(env.confirmations.length,0,'uses the shared dialog, not a browser-native confirmation');
     assert.equal(refreshed,1,'refresh only once at batch completion');
-    assert.match(env.alerts.join(' '),/成功 1 件，失败 1 件/);
-    assert.match(env.alerts.join(' '),/PRODUCT_HAS_HISTORY/);
+    assert.match(JSON.stringify(view!.toJSON()),/成功 1 件，失败 1 件/);
+    assert.match(JSON.stringify(view!.toJSON()),/删除失败，请刷新核对该产品状态/);
     const failed=view!.root.findByProps({'aria-label':'选择永久删除 PZ-REJECT-2'});
     assert.equal(failed.props['aria-pressed'],true);
   }finally{
@@ -83,10 +81,11 @@ test('Admin single product delete also uses only a confirmation, never a SKU pro
       onPermanentDelete={async item=>{called.push(item.id!);}} onRefresh={()=>{}}
     />);});
     const single=view!.root.findByProps({'aria-label':'永久删除 SKU'});
-    await act(async()=>{await single.props.onClick();});
+    await act(async()=>{void single.props.onClick();});
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(called,['d1']);
-    assert.equal(env.confirmations.length,1);
-    assert.match(env.alerts.join(' '),/产品已从管理及公开目录移除/);
+    assert.equal(env.confirmations.length,0);
+    assert.match(JSON.stringify(view!.toJSON()),/已彻底删除 PZ-DRAFT-1/);
   }finally{
     if(view)await act(async()=>view!.unmount());
     env.restore();
@@ -123,11 +122,11 @@ test('Admin force mode can select published and in-review SKUs for one-confirmat
       reviewing.props.onClick();
     });
     assert.equal(getButton(view!,'批量删除')!.props.disabled,false);
-    await act(async()=>{await getButton(view!,'批量删除')!.props.onClick();});
+    await act(async()=>{void getButton(view!,'批量删除')!.props.onClick();});
+    assert.match(JSON.stringify(view!.toJSON()),/必要审计历史/);
+    await acceptBackofficeDialog(view!);
     assert.deepEqual(called,['p3','w4']);
-    assert.equal(env.confirmations.length,1);
-    assert.match(env.confirmations[0],/包含已发布及有审核历史的产品/);
-    assert.match(env.confirmations[0],/必要审计历史/);
+    assert.equal(env.confirmations.length,0);
   }finally{
     if(view)await act(async()=>view!.unmount());
     env.restore();
@@ -172,14 +171,15 @@ test('batch deletion reports confirmed success separately from already-absent re
     await act(async()=>{
       view!.root.findByProps({'aria-label':'全选本页可删除产品'}).props.onChange({target:{checked:true}});
     });
-    await act(async()=>{await getButton(view!,'批量删除')!.props.onClick();});
-    const summary=env.alerts.join(' ');
+    await act(async()=>{void getButton(view!,'批量删除')!.props.onClick();});
+    await acceptBackofficeDialog(view!);
+    const summary=JSON.stringify(view!.toJSON());
     assert.match(summary,/成功 2 件，失败 1 件/);
     assert.match(summary,/数据库中已不存在 1 件/);
     assert.match(summary,/其中 1 件经状态复查确认已移除/);
-    assert.match(summary,/Unrelated record/);
+    assert.match(summary,/删除失败，请刷新核对该产品状态/);
     assert.doesNotMatch(summary,/HTTP 409/);
-    assert.equal(env.confirmations.length,1);
+    assert.equal(env.confirmations.length,0);
   }finally{
     if(view)await act(async()=>view!.unmount());
     env.restore();

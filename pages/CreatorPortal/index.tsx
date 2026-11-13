@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { FormSkeleton } from './ui/BackofficeComponents';
 
 const CreatorPortal: React.FC = () => {
   const navigate = useNavigate();
@@ -23,9 +23,9 @@ const CreatorPortal: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-stone-50">
-        <Loader2 className="animate-spin text-stone-400 mb-4" size={32} />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 font-mono">Routing to Secure Workspace...</p>
+    <div className="mx-auto max-w-xl space-y-4 p-6" aria-label="正在进入后台工作台">
+        <p className="text-sm text-stone-700">正在进入后台工作台…</p>
+        <FormSkeleton />
     </div>
   );
 };

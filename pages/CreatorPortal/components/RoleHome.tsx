@@ -1,6 +1,8 @@
 import React,{useCallback,useEffect,useState} from 'react';
 import {RefreshCw,AlertCircle,Clock} from 'lucide-react';
 import {adminFetch} from '../../../utils/adminFetch';
+import {Button,ListSkeleton,Toast} from '../ui/BackofficeComponents';
+import {backofficeError} from '../ui/feedback';
 
 export type DashboardRole='FACTORY'|'SUPERVISOR'|'ADMIN';
 export type DashboardTarget={
@@ -57,7 +59,7 @@ const RoleHome:React.FC<{
       const result=await adminFetch<HomeData>(endpoint[role]);
       if(result?.role!==role)throw Error('服务器返回了不同角色的统计，已停止显示。');
       setData(result);
-    }catch(e:any){setError(e?.message||'无法同步工作台统计。');}
+    }catch(e:any){setError(backofficeError(e,'无法同步工作台统计，请刷新后重试。'));}
     finally{setLoading(false);}
   },[role]);
   useEffect(()=>{void load();},[load]);
@@ -65,16 +67,12 @@ const RoleHome:React.FC<{
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="font-serif text-2xl text-stone-900">我的待办</h1>
         <p className="mt-1 text-sm text-stone-600">根据你当前的工作权限实时统计，不缓存其他账号的数据。</p></div>
-      <button type="button" onClick={()=>void load()} disabled={loading}
-        className="inline-flex min-h-11 items-center gap-2 rounded border border-stone-300 px-4 text-sm disabled:opacity-50">
+      <Button type="button" onClick={()=>void load()} disabled={loading}>
         <RefreshCw size={16} className={loading?'animate-spin':''}/>刷新待办
-      </button>
+      </Button>
     </div>
-    {error&&<div role="alert" className="flex items-center gap-2 rounded border border-red-300 bg-red-50 p-4 text-sm text-red-800">
-      <AlertCircle size={18}/>{error}</div>}
-    {loading?<div role="status" aria-label="正在同步待办" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {[1,2,3,4].map(n=><div key={n} className="h-36 animate-pulse rounded bg-stone-100"/>)}
-    </div>:
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {loading?<ListSkeleton rows={4}/>:
       data?.role==='FACTORY'?<>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <DashboardCard title="我的进行中草稿" value={data.drafts}

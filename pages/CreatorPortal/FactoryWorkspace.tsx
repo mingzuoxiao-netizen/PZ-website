@@ -25,6 +25,7 @@ import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
 import BatchCreator from './components/BatchCreator';
 import PublishedRevisionQueue, {type RevisionDetail} from './components/PublishedRevisionQueue';
+import {useBackofficeConfirm} from './ui/useBackofficeConfirm';
 
 interface Notification {
     id: string;
@@ -34,6 +35,7 @@ interface Notification {
 }
 
 const FactoryWorkspace: React.FC = () => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [products, setProducts] = useState<ProductVariant[]>([]);
   const [activeTab, setActiveTab] = useState<'home' | 'inventory' | 'categories' | 'bulk-import'>('home');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
@@ -100,7 +102,12 @@ const FactoryWorkspace: React.FC = () => {
   const [creationKey,setCreationKey]=useState(0);
   const [creationTemplate,setCreationTemplate]=useState<Partial<ProductVariant>>({});
   const [duplicateSource,setDuplicateSource]=useState<{id:string;code:string}|null>(null);
-  const canLeave=()=>!formBusy.current&&(!formDirty.current||window.confirm('当前产品资料尚未保存，确认离开吗？'));
+  const canLeave=async()=>{
+    if(formBusy.current)return false;
+    if(formDirty.current)return ask({title:'离开产品编辑',description:'当前产品资料尚未保存，确认离开吗？',danger:true,confirmLabel:'离开'});
+    if(isBatchCreating)return ask({title:'离开批量录入',description:'尚未完成的图片和输入可能丢失，确定离开吗？',danger:true,confirmLabel:'离开'});
+    return true;
+  };
 
 
   const ownerTotal=statusCounts.reduce((sum,row)=>sum+row.count,0);
@@ -359,10 +366,9 @@ const FactoryWorkspace: React.FC = () => {
       if (response?.success !== true) throw new Error('草稿保存结果未确认，请到产品总库核对 SKU。');
   };
 
-  const handleBack = () => {
-      if(!canLeave())return;
+  const handleBack = async () => {
+      if(!await canLeave())return;
       setCreationTemplate({});setDuplicateSource(null);
-      if (isBatchCreating && !window.confirm('确认离开批量录入吗？未完成的输入将丢失。')) return;
       if (isCreating || editingItem || isBatchCreating || revisionEditing) {
           setIsCreating(false);
           setIsBatchCreating(false);
@@ -388,8 +394,8 @@ const FactoryWorkspace: React.FC = () => {
     { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
   ];
 
-  const openFromHome=(target:DashboardTarget)=>{
-    if(!canLeave())return;
+  const openFromHome=async(target:DashboardTarget)=>{
+    if(!await canLeave())return;
     setCatalogPage(1);setSelectedCategoryId(null);
     setCatalogImportBatch('');setCatalogImportBatchInput('');
     setCatalogStatus(target.status||'action');
@@ -400,7 +406,8 @@ const FactoryWorkspace: React.FC = () => {
     setActiveTab('inventory');
   };
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);if(tab==='inventory')setCatalogStaleOnly(false);setActiveTab(tab as 'home' | 'inventory' | 'categories' | 'bulk-import');}}>
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={async(tab) => {if(!await canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);if(tab==='inventory')setCatalogStaleOnly(false);setActiveTab(tab as 'home' | 'inventory' | 'categories' | 'bulk-import');}}>
+      {confirmationDialog}
       {activeTab === 'home' ? (<RoleHome role="FACTORY" onNavigate={openFromHome}/>) : activeTab === 'bulk-import' ? (
         <BulkCsvImporter role="FACTORY" categories={categories} onCompleted={id=>{
           setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
@@ -540,7 +547,7 @@ const FactoryWorkspace: React.FC = () => {
           <BatchCreator lang="zh"
               fixedCategoryId={selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
               categories={categories}
-              onCancel={handleBack}
+              onCancel={()=>{setIsBatchCreating(false);}}
               onCreateDraft={createBatchDraft}
               onCheckSkuCodes={checkBatchSkuCodes}
               onCompleted={async () => { await loadData(); }}

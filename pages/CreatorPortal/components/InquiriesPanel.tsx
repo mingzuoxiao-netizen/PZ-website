@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
 import { Inquiry } from '../../../types';
-import { Loader2 } from 'lucide-react';
+import {ListSkeleton} from '../ui/BackofficeComponents';
+import {backofficeError} from '../ui/feedback';
 
 const InquiriesPanel: React.FC = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -64,9 +65,9 @@ const InquiriesPanel: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-stone-100">
             {loading ? (
-              <tr><td colSpan={4} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/> {labels.loading}</td></tr>
+              <tr><td colSpan={4} className="p-4"><ListSkeleton rows={3}/></td></tr>
             ) : error ? (
-              <tr><td colSpan={4} role="alert" className="p-8 text-center text-red-600">{error}</td></tr>
+              <tr><td colSpan={4} role="alert" className="p-8 text-center text-red-700">{backofficeError(error,'询盘读取失败，请刷新后重试。')}</td></tr>
             ) : inquiries.length === 0 ? (
               <tr><td colSpan={4} className="p-8 text-center text-stone-400 font-mono text-xs">{labels.empty}</td></tr>
             ) : (

@@ -2,6 +2,9 @@ import React,{useCallback,useEffect,useState,useRef} from 'react';
 import {renderProductValue} from './ProductChangeSummary';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
 import {adminFetch} from '../../../utils/adminFetch';
+import {Toast} from '../ui/BackofficeComponents';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 type Role='FACTORY'|'SUPERVISOR'|'ADMIN';
 // Completed revisions remain in the audit/product history, never in work queues.
@@ -53,6 +56,7 @@ const visibleInternalSpecs=(input:unknown)=>{
   return view;
 };
 const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabledChange,refreshKey=0})=>{
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const prefix=role.toLowerCase();
   const [enabled,setEnabled]=useState(false);
   const [items,setItems]=useState<RevisionSummary[]>([]);
@@ -110,9 +114,13 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
     if(['return','request-correction'].includes(action)&&reason.trim().length<5){
       setError('请填写不少于 5 个字符的明确退回原因');return;
     }
-    if(action==='publish'&&!confirm('确认用已批准的版本替换官网现有产品吗？'))return;
-    if(action==='submit'&&!confirm('确认提交主管初审吗？'))return;
-    if(action==='cancel'&&!confirm('确认取消修订草稿吗？'))return;
+    if(['publish','submit','cancel'].includes(action)&&!await ask({
+      title:action==='publish'?'发布修订':action==='submit'?'提交审核':'取消修订',
+      description:action==='publish'?'确认用已批准的 '+selected.code+' 修订版本替换官网现有产品吗？':
+        action==='submit'?'确认提交 '+selected.code+' 进入主管初审吗？':'确认取消 '+selected.code+' 的修订草稿吗？',
+      confirmLabel:action==='publish'?'发布':action==='submit'?'提交审核':'取消修订',
+      danger:action==='cancel'
+    }))return;
     setBusy(true);setError('');setNotice('');
     let updated=false;
     try{
@@ -123,9 +131,9 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
       if(result.success!==true)throw Error('修订结果未确认，请刷新核对');
       updated=true;
       setNotice(action==='publish'
-        ? '修订已发布并退出待办；可在产品管理中查看已发布产品。'
-        : '修订审核状态已更新');
-    }catch(e:any){setError(e?.message||'操作未完成，请核对状态');}
+        ? '已发布 '+selected.code+' 的修订版本，已退出待办。'
+        : '已更新 '+selected.code+' 的修订审核状态。');
+    }catch(e:any){setError(backofficeError(e,'操作未完成，请核对修订状态。'));}
     finally{
       // D1 publish may commit before catalog sync fails; always reconcile state.
       // Never reselect a completed revision in the review center.
@@ -137,7 +145,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
       }catch(e:any){
         setSelected(null);
         setError(updated ? '操作已成功，但刷新修订列表失败，请手动刷新核对。' :
-          (e?.message||'无法刷新修订状态。'));
+          backofficeError(e,'无法刷新修订状态。'));
       }
       setBusy(false);
     }
@@ -159,6 +167,7 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
           'border border-stone-300 bg-white text-stone-700 hover:bg-stone-50')}>{label}</button>;
   };
   return <section aria-label={role==='FACTORY'?'我的产品修订':'产品修订待办'} className="space-y-4 rounded border border-stone-200 bg-white p-3 sm:p-5">
+    {confirmationDialog}
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h2 className="font-serif text-lg">{role==='FACTORY'?'我的产品修订':'产品修订待办'}（{paged?(total===null?'未同步':total):items.length}）</h2>
         <p className="mt-1 text-xs leading-5 text-stone-500">这里只显示当前需要处理的修订。已发布记录保留在产品与审批历史中。</p>
@@ -173,8 +182,8 @@ const PublishedRevisionQueue:React.FC<Props>=({role,paged=false,onEdit,onEnabled
         <option value="returned_to_uploader">待我修改</option><option value="pending_supervisor">等待主管</option><option value="pending_admin">等待管理员</option><option value="approved_pending_publish">等待发布</option></select></label>
       <button type="submit" disabled={busy||loading} className="rounded border px-4 py-2 text-sm">搜索修订</button>
     </form>}
-    {error&&<p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-    {notice&&<p role="status" className="rounded bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {notice&&<Toast message={notice} onClose={()=>setNotice('')}/>}
     {!error&&!items.length&&<p className="rounded bg-stone-50 p-4 text-sm text-stone-500">当前没有需要处理的修订。</p>}
     <div className="grid gap-4 lg:grid-cols-[minmax(210px,1fr)_minmax(0,2fr)]">
       <div className={'space-y-2 lg:max-h-[70vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="修订申请列表">

@@ -110,7 +110,7 @@ test('failed full save keeps the image edit unsaved and prevents review submissi
       await view!.root.findByType('form').props.onSubmit({preventDefault() {}});
     });
     assert.equal(saveAttempts, 1);
-    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children), /Network unavailable/);
+    assert.match(JSON.stringify(view!.root.findByProps({role:'alert'}).children), /网络连接不稳定/);
     assert.equal(alerts.length,0,'save failures remain in the editor instead of blocking alerts');
     assert.deepEqual(media().props.images, [second, third], 'failed save does not discard edits');
     assert.equal(submitButton().props.disabled, true, 'failed save must not unlock review');

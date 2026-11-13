@@ -4,6 +4,10 @@ import {
   Save, Factory, ShieldAlert, CheckCircle, Power, Lock, Pencil, Trash2
 } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
+import {ListSkeleton,Toast} from '../ui/BackofficeComponents';
+import StatusChip from '../ui/StatusChip';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 type UiRole = 'ADMIN' | 'FACTORY';
 type UiStatus = 'Active' | 'Disabled';
@@ -51,6 +55,8 @@ function mapApiUserToAccount(u: ApiUserRow): Account {
 }
 
 const AccountsManager: React.FC = () => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
+  const [notice,setNotice]=useState<{message:string;error?:boolean}|null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError,setLoadError]=useState('');
@@ -142,13 +148,13 @@ const AccountsManager: React.FC = () => {
         setPassword("");
         setRole("FACTORY");
         setIsCreating(false);
-        alert("账号创建成功。");
+        setNotice({message:'账号 '+u+' 已创建。'});
         await fetchAccounts();
       } else {
-        setError("Kernel rejected the provision request.");
+        setError('服务器未确认创建成功，请刷新账号列表核对。');
       }
     } catch (e: any) {
-      setError(e?.message || "Communication fault during provisioning.");
+      setError(backofficeError(e,'创建账号失败，请检查资料和权限。'));
     } finally {
       setIsSaving(false);
     }
@@ -157,7 +163,7 @@ const AccountsManager: React.FC = () => {
   const handleToggleStatus = async (id: string, currentStatus: UiStatus) => {
     const isActive = currentStatus === 'Active';
     const action = isActive ? "disable" : "restore";
-    if (!confirm(`确认执行账号操作 ${action} 吗？`)) return;
+    if (!await ask({title:isActive?'停用账号':'恢复账号',description:'确认'+(isActive?'停用':'恢复')+'该账号吗？',confirmLabel:isActive?'停用':'恢复',danger:isActive})) return;
 
     try {
       await adminFetch(`/admin/accounts/${id}`, {
@@ -165,8 +171,9 @@ const AccountsManager: React.FC = () => {
         body: JSON.stringify({ is_active: !isActive }),
       });
       await fetchAccounts();
+      setNotice({message:'账号已'+(isActive?'停用':'恢复')+'。'});
     } catch (e: any) {
-      alert(`操作失败：${e.message}`);
+      setNotice({message:backofficeError(e,'账号操作失败，请刷新核对状态。'),error:true});
     }
   };
 
@@ -177,7 +184,7 @@ const AccountsManager: React.FC = () => {
     const pwd = newPassword;
     if (pwd.length < 12 || new TextEncoder().encode(pwd).length > 72 ||
         (resettingUser.username.length >= 3 && pwd.toLowerCase().includes(resettingUser.username.toLowerCase()))) {
-      alert("新密码至少 12 个字符、最多 72 字节，且不能包含账号名称。");
+      setNotice({message:'新密码至少 12 个字符、最多 72 字节，且不能包含账号名称。',error:true});
       return;
     }
 
@@ -188,12 +195,12 @@ const AccountsManager: React.FC = () => {
         body: JSON.stringify({ password: pwd }),
       });
 
-      alert(`账号 ${resettingUser.username} 的密码已重置。`);
+      setNotice({message:'账号 '+resettingUser.username+' 的密码已重置。'});
       setResettingUser(null);
       setNewPassword("");
       await fetchAccounts();
     } catch (e: any) {
-      alert(`密码重置失败：${e.message}`);
+      setNotice({message:backofficeError(e,'密码重置失败，请确认权限后重试。'),error:true});
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -235,6 +242,8 @@ const AccountsManager: React.FC = () => {
 
   return (
     <div className="animate-fade-in relative min-h-[600px]">
+      {confirmationDialog}
+      {notice&&<div className="mb-4"><Toast variant={notice.error?'error':'success'} message={notice.message} onClose={()=>setNotice(null)}/></div>}
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h3 className="font-serif text-2xl text-stone-900 flex items-center">
@@ -469,10 +478,7 @@ const AccountsManager: React.FC = () => {
       {/* Identity Matrix */}
       <div className="bg-white border border-stone-200 shadow-sm overflow-hidden rounded-sm">
         {loading && accounts.length === 0 ? (
-          <div className="p-32 text-center text-stone-400 flex flex-col items-center">
-            <RefreshCw className="animate-spin mb-4" size={32} />
-            <span className="text-[10px] font-bold font-mono tracking-widest">正在加载账号…</span>
-          </div>
+          <div className="p-4"><ListSkeleton rows={5}/></div>
         ) : accounts.length === 0 ? (
           <div className="p-32 text-center text-stone-400 flex flex-col items-center border-2 border-dashed border-stone-100 m-6">
             <Users className="mb-4 opacity-20" size={48} />
@@ -521,14 +527,7 @@ const AccountsManager: React.FC = () => {
                     </td>
 
                     <td className="px-8 py-5 text-xs text-stone-600">{account.department_name||(account.role==='ADMIN'?'全站':'待分配')}</td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${account.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-stone-300'}`}></div>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${account.status === 'Active' ? 'text-stone-900' : 'text-stone-400'}`}>
-                          {account.status === 'Active' ? '已启用' : '已停用'}
-                        </span>
-                      </div>
-                    </td>
+                    <td className="px-8 py-5"><StatusChip status={account.status}/></td>
 
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-2 flex-wrap">

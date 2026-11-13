@@ -4,6 +4,9 @@ import {
   Layers, ArrowUp, ArrowDown, RotateCcw
 } from 'lucide-react';
 import { Category, ProductionSite } from '../../../types';
+import StatusChip from '../ui/StatusChip';
+import { useBackofficeConfirm } from '../ui/useBackofficeConfirm';
+import { backofficeError } from '../ui/feedback';
 
 type Mode = 'many-products' | 'one-product';
 type AssetStatus = 'ready' | 'uploading' | 'uploaded' | 'saved' | 'error' | 'verify';
@@ -72,6 +75,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const inFlight = useRef(false);
   const previewUrls = useRef<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { ask, confirmationDialog } = useBackofficeConfirm();
 
   useEffect(() => () => {
     previewUrls.current.forEach(url => URL.revokeObjectURL(url));
@@ -117,7 +121,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       };
     });
     setRows(prev => [...prev, ...added]);
-    setFeedback(unique.length ? '' : 'These image files are already in the queue.');
+    setFeedback(unique.length ? '' : '这些图片已在当前队列中。');
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -128,9 +132,9 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     setProgress('');
   };
 
-  const switchMode = (next: Mode) => {
+  const switchMode = async (next: Mode) => {
     if (next === mode || inFlight.current) return;
-    if (rows.length > 0 && !window.confirm(T('Switching upload mode clears this queue. Continue?', '切换上传模式将清空当前队列，确认继续吗？'))) return;
+    if (rows.length > 0 && !await ask({title:'切换上传模式',description:'切换上传模式将清空当前队列，确认继续吗？',danger:true,confirmLabel:'切换并清空'})) return;
     clearRows();
     setMode(next);
   };
@@ -160,8 +164,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       : [...prev, site]);
   };
 
-  const verifyAndRetry = (rowId?: number) => {
-    if (!window.confirm(T('First check Master Registry to confirm the SKU was NOT created. Retry only after checking.', '请先在产品总库确认该 SKU 未被创建，再尝试重试。'))) return;
+  const verifyAndRetry = async (rowId?: number) => {
+    if (!await ask({title:'核实后重试',description:'请先在产品总库确认该 SKU 尚未创建，核实完成后才能重试。',confirmLabel:'已核实，重试'})) return;
     setRows(prev => prev.map(row =>
       row.status === 'verify' && (rowId === undefined || row.id === rowId)
         ? { ...row, status: row.url ? 'uploaded' : 'ready', error: undefined }
@@ -193,7 +197,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
     const remaining = rows.filter(row => row.status !== 'saved');
     if (remaining.length === 0) return setFeedback('当前队列的草稿已全部保存。');
     if (mode === 'many-products' && remaining.some(row => row.production_sites.length === 0)) {
-      return setFeedback(T('Select at least one production site for each product.', '每个产品必须选择至少一个生产基地。'));
+      return setFeedback('每个产品必须选择至少一个生产基地。');
     }
 
     const candidates = mode === 'one-product'
@@ -213,13 +217,15 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
       // Indexed backend lookup; the SQLite UNIQUE index remains authoritative.
       knownCodes = (await onCheckSkuCodes(codes)).map(normalizeCode);
     } catch (error: any) {
-      return setFeedback('无法核对已有 SKU：' + (error?.message || '网络异常'));
+      return setFeedback('无法核对已有 SKU：' + backofficeError(error, '网络异常，请稍后重试。'));
     }
     const existing = new Set(knownCodes);
     const collisions = codes.filter(code => existing.has(code));
     if (collisions.length) return setFeedback('以下 SKU 已存在：' + collisions.join(', '));
 
-    if (!window.confirm('Create ' + (mode === 'one-product' ? '1 product with ' + rows.length + ' images' : remaining.length + ' product drafts') + '? All new records will remain Draft.')) return;
+    if (!await ask({title:'确认创建草稿',description:mode === 'one-product'
+      ? `将为同一款产品上传 ${rows.length} 张图片，创建 1 份草稿。`
+      : `即将创建 ${remaining.length} 份产品草稿。新记录均不会直接发布。`,confirmLabel:'创建草稿'})) return;
 
     inFlight.current = true;
     setIsProcessing(true);
@@ -231,7 +237,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         const imageUrls: string[] = [];
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
-          setProgress('Uploading image ' + (i + 1) + '/' + rows.length);
+          setProgress('正在上传图片 ' + (i + 1) + '/' + rows.length);
           if (row.url) {
             imageUrls.push(row.url);
             continue;
@@ -244,12 +250,12 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
             updateRow(row.id, { url, status: 'uploaded' });
           } catch (error: any) {
             failed++;
-            updateRow(row.id, { status: 'error', error: error?.message || 'Image upload failed' });
+            updateRow(row.id, { status: 'error', error: backofficeError(error, '图片上传失败') });
             setFeedback('图片上传失败，请修正后重试；已成功上传的图片会继续使用。');
             return;
           }
         }
-        setProgress('Saving one draft with ' + imageUrls.length + ' images');
+        setProgress('正在保存产品草稿，共 ' + imageUrls.length + ' 张图片');
         try {
           await createDraft(single, imageUrls, selectedSites);
           saved++;
@@ -257,17 +263,17 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         } catch (error: any) {
           failed++;
           if (isKnownSkuConflict(error)) {
-            setRows(prev => prev.map(row => ({ ...row, status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' })));
+            setRows(prev => prev.map(row => ({ ...row, status: 'error', error: 'SKU 已存在，请更换后重试。' })));
             setFeedback('上传期间发现 SKU 已被占用，请更换 SKU 后重试，已上传图片仍会保留。');
           } else {
-            setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: error?.message || T('Save outcome unknown','保存结果未确认') })));
-            setFeedback(T('Save result uncertain. Check Master Registry for SKU ', '保存结果不明确，请到产品总库核查 SKU ') + normalizeCode(single.code) + ' before retrying.');
+            setRows(prev => prev.map(row => ({ ...row, status: 'verify', error: backofficeError(error, '保存结果未确认') })));
+            setFeedback('保存结果不明确，请到产品总库核查 SKU ' + normalizeCode(single.code) + ' 后再重试。');
           }
         }
       } else {
         for (let i = 0; i < remaining.length; i++) {
           const row = remaining[i];
-          setProgress('Processing product ' + (i + 1) + '/' + remaining.length);
+          setProgress('正在处理产品 ' + (i + 1) + '/' + remaining.length);
           let url = row.url;
           if (!url) {
             updateRow(row.id, { status: 'uploading', error: undefined });
@@ -277,7 +283,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
               updateRow(row.id, { url, status: 'uploaded' });
             } catch (error: any) {
               failed++;
-              updateRow(row.id, { status: 'error', error: error?.message || 'Image upload failed' });
+              updateRow(row.id, { status: 'error', error: backofficeError(error, '图片上传失败') });
               continue;
             }
           }
@@ -288,8 +294,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
           } catch (error: any) {
             failed++;
             updateRow(row.id, isKnownSkuConflict(error)
-              ? { status: 'error', error: 'SKU already exists. Choose a new SKU and retry.' }
-              : { status: 'verify', error: error?.message || T('Save outcome unknown','保存结果未确认') });
+              ? { status: 'error', error: 'SKU 已存在，请更换后重试。' }
+              : { status: 'verify', error: backofficeError(error, '保存结果未确认') });
           }
         }
       }
@@ -301,7 +307,7 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
         try { await onCompleted(); } catch (error) { console.error('Registry refresh failed', error); }
       }
       if (!failed && saved) setFeedback('已创建 ' + saved + ' 个产品草稿；成功记录不会重复提交。');
-      if (failed && mode === 'many-products') setFeedback(saved + ' saved; ' + failed + ' failed or need verification. Review each row before retrying.');
+      if (failed && mode === 'many-products') setFeedback('已保存 '+saved+' 项，另有 '+failed+' 项失败或待核实，请逐项检查后再重试。');
     }
   };
 
@@ -309,15 +315,16 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
   const hasUncertain = rows.some(row => row.status === 'verify');
   const canEditSingle = !hasSaved;
 
-  const leaveBatch = () => {
+  const leaveBatch = async () => {
     if (inFlight.current) return;
     if (rows.some(row => row.status !== 'saved') && rows.length > 0 &&
-      !window.confirm(T('Leave Batch Induction? Unfinished inputs will be lost.', '离开批量录入会丢失尚未保存的内容，确定离开吗？'))) return;
+      !await ask({title:'离开批量录入',description:'未完成的图片和输入将丢失，确定离开吗？',danger:true,confirmLabel:'离开'})) return;
     onCancel();
   };
 
   return (
     <div className="mx-auto max-w-6xl overflow-hidden rounded-sm border border-stone-200 bg-white shadow-xl">
+      {confirmationDialog}
       <div className="flex items-center justify-between bg-stone-900 p-6 text-white">
         <div className="flex items-center gap-3">
           <Layers size={20} className="text-safety-700" />
@@ -406,8 +413,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
               <Upload size={15} /> 选择图片
             </button>
             {rows.length > 0 && !hasSaved && (
-              <button type="button" disabled={isProcessing} onClick={() => {
-                if (window.confirm(T('Clear all selected images and unsaved inputs?', '清空已选图片和未保存内容吗？'))) clearRows();
+              <button type="button" disabled={isProcessing} onClick={async () => {
+                if (await ask({title:'清空队列',description:'清空已选图片和未保存内容吗？',danger:true,confirmLabel:'清空'})) clearRows();
               }} className="border border-stone-200 px-4 py-3 text-xs">{T("Clear","清空")}</button>
             )}
           </div>
@@ -456,9 +463,8 @@ const BatchCreator: React.FC<BatchCreatorProps> = ({
                     <div className="text-xs text-stone-600">{row.file.name}</div>
                   )}
                   <div className="mt-2 text-xs">
-                    <strong className={row.status === 'saved' ? 'text-green-700' : row.status === 'error' || row.status === 'verify' ? 'text-red-700' : 'text-stone-500'}>
-                      {row.status === 'saved' ? T('Draft saved','草稿已保存') : row.status === 'verify' ? T('Save uncertain – verify SKU before retry','保存结果未确认，请核实 SKU 后再重试') : row.status}
-                    </strong>
+                    <StatusChip status={row.status}/>
+                    {row.status==='verify'&&<p className="mt-1 text-amber-900">保存结果未确认，请先核实 SKU 再重试。</p>}
                     {row.error && <p className="mt-1 break-words text-red-700">{row.error}</p>}
                   </div>
                   {row.status === 'verify' && mode === 'many-products' && (

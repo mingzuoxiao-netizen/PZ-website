@@ -2,6 +2,8 @@ import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {AlertCircle,Download,AlertTriangle,RefreshCw} from 'lucide-react';
 import {adminFetch} from '../../../utils/adminFetch';
 import type {DashboardTarget} from './RoleHome';
+import {Button,EmptyState,ListShell,ListSkeleton,Toast} from '../ui/BackofficeComponents';
+import {backofficeError} from '../ui/feedback';
 
 type GapKey='material'|'description'|'dimensions'|'images'|'name';
 const GAP_LABELS:Record<GapKey,string>={
@@ -22,7 +24,7 @@ const CompletenessBoard:React.FC<{
   const [page,setPage]=useState(1),[category,setCategory]=useState(''),[owner,setOwner]=useState('');
   const [report,setReport]=useState<GapReport|null>(null);
   const [loading,setLoading]=useState(true),[exporting,setExporting]=useState(false);
-  const [error,setError]=useState('');
+  const [error,setError]=useState(''),[notice,setNotice]=useState('');
   const params=useCallback((exportCsv=false)=>new URLSearchParams({
     page:String(page),page_size:'50',
     ...(category?{category}:{}),...(owner?{owner}:{}),
@@ -37,7 +39,7 @@ const CompletenessBoard:React.FC<{
          !Array.isArray(result.by_category)||!Array.isArray(result.by_owner))
         throw Error('完整度统计响应不符合当前版本，已停止展示。');
       if(current===requestNumber.current)setReport(result);
-    }catch(e:any){if(current===requestNumber.current)setError(e?.message||'无法同步数据缺口。');}
+    }catch(e:any){if(current===requestNumber.current)setError(backofficeError(e,'无法同步资料缺口，请刷新重试。'));}
     finally{if(current===requestNumber.current)setLoading(false);}
   },[params]);
   useEffect(()=>{void load();return()=>{requestNumber.current++;};},[load]);
@@ -53,7 +55,8 @@ const CompletenessBoard:React.FC<{
       const href=URL.createObjectURL(blob),link=document.createElement('a');
       link.href=href;link.download='PZ_产品资料缺口.csv';document.body.append(link);
       link.click();link.remove();URL.revokeObjectURL(href);
-    }catch(e:any){setError(e?.message||'导出失败，请刷新重试。');}
+      setNotice('已导出产品资料缺口 CSV。');
+    }catch(e:any){setError(backofficeError(e,'导出失败，请刷新重试。'));}
     finally{setExporting(false);}
   };
   return <section aria-label="产品资料完整度看板" className="space-y-5">
@@ -66,23 +69,18 @@ const CompletenessBoard:React.FC<{
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={loading||exporting} onClick={()=>void load()}
-          className="inline-flex min-h-11 items-center gap-2 rounded border px-4 text-sm disabled:opacity-50">
+        <Button type="button" disabled={loading||exporting} onClick={()=>void load()}>
           <RefreshCw size={16}/>刷新
-        </button>
-        <button type="button" disabled={loading||exporting||!report}
-          onClick={()=>void exportCsv()}
-          className="inline-flex min-h-11 items-center gap-2 rounded bg-stone-900 px-4 text-sm text-white disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="primary" disabled={loading||exporting||!report}
+          loading={exporting} onClick={()=>void exportCsv()}>
           <Download size={16}/>{exporting?'正在导出…':'导出缺口 CSV'}
-        </button>
+        </Button>
       </div>
     </header>
-    {error&&<div role="alert" className="flex items-center gap-2 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-900">
-      <AlertCircle size={18}/>{error}</div>}
-    {loading?<div role="status" aria-label="正在计算资料完整度" className="space-y-3">
-      <div className="h-24 animate-pulse rounded bg-stone-100"/>
-      <div className="h-40 animate-pulse rounded bg-stone-100"/>
-    </div>:report&&<>
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
+    {notice&&<Toast message={notice} onClose={()=>setNotice('')}/>}
+    {loading?<ListSkeleton rows={3}/>:report&&<>
       <div className="grid gap-3 sm:grid-cols-3">
         {[
           ['检查产品总数',report.total_scanned],
@@ -145,7 +143,8 @@ const CompletenessBoard:React.FC<{
             </ul>}
         </section>
       </div>
-      <section aria-label="产品缺口明细" className="rounded border border-stone-200 bg-white p-4">
+      <ListShell label="产品缺口明细" page={page} hasMore={report.has_more} onPageChange={setPage}>
+      <section aria-label="产品缺口明细" className="min-w-0 rounded border border-stone-200 bg-white p-4">
         <h2 className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle size={18}/>缺口明细</h2>
         {report.items.length===0?<p className="py-8 text-center text-sm text-stone-500">当前筛选没有缺口记录。</p>:
           <div className="space-y-2">
@@ -160,14 +159,8 @@ const CompletenessBoard:React.FC<{
                 onClick={()=>onNavigate({tab:'inventory',sku:item.code||''})}>定位产品</button>
             </article>)}
           </div>}
-        <nav aria-label="缺口明细分页" className="mt-4 flex flex-wrap items-center justify-end gap-3 text-sm">
-          <span>第 {page} 页 · 共 {report.total} 件 · 每页 50 件</span>
-          <button type="button" className="min-h-11 rounded border px-4 disabled:opacity-40"
-            disabled={page===1} onClick={()=>setPage(v=>Math.max(1,v-1))}>上一页</button>
-          <button type="button" className="min-h-11 rounded border px-4 disabled:opacity-40" disabled={!report.has_more}
-            onClick={()=>setPage(v=>v+1)}>下一页</button>
-        </nav>
       </section>
+      </ListShell>
     </>}
   </section>;
 };

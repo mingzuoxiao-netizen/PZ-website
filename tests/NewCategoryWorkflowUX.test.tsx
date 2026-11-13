@@ -41,7 +41,7 @@ test('factory request history shows a submitted request and rejection reason, th
     await act(async()=>form.props.onSubmit({preventDefault(){}}));
     assert.equal(calls.length,1);
     assert.equal(calls[0].title_cn,'实木餐桌');
-    assert.match(JSON.stringify(view!.toJSON()),/待部门主管初审/);
+    assert.match(JSON.stringify(view!.toJSON()),/待初审/);
   }finally{
     if(view)await act(async()=>view!.unmount());
     globalThis.fetch=originalFetch;
@@ -72,7 +72,7 @@ test('supervisor category queue retains returned requests and requires a reason 
   let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<SupervisorCategoryRequests/>);});
-    assert.match(JSON.stringify(view!.toJSON()),/待主管初审/);
+    assert.match(JSON.stringify(view!.toJSON()),/待初审/);
     await act(async()=>findButton(view!,'退回员工')!.props.onClick());
     assert.equal(view!.root.findByProps({'aria-label':'新品类退回原因'}).props.value,'');
     assert.equal(findButton(view!,'确认退回员工')!.props.disabled,true);
@@ -80,7 +80,7 @@ test('supervisor category queue retains returned requests and requires a reason 
     await act(async()=>findButton(view!,'确认退回员工')!.props.onClick());
     assert.equal(calls.length,1);assert.equal(calls[0].note,'请补充木材规格');
     assert.match(JSON.stringify(view!.toJSON()),/请补充木材规格/);
-    assert.match(JSON.stringify(view!.toJSON()),/已退回员工/);
+    assert.match(JSON.stringify(view!.toJSON()),/已退回/);
   }finally{
     if(view)await act(async()=>view!.unmount());
     globalThis.fetch=originalFetch;

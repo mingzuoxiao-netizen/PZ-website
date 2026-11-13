@@ -9,6 +9,9 @@ import {
 } from '../../../utils/bulkImportCore.mjs';
 import {adminFetch} from '../../../utils/adminFetch';
 import {factoryFetch} from '../../../utils/factoryFetch';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
+import {Toast} from '../ui/BackofficeComponents';
 
 type Role='ADMIN'|'FACTORY';
 type Operator={id:string;username:string;department_id?:string};
@@ -24,6 +27,7 @@ const saveText=(name:string,value:string)=>{
 const BulkCsvImporter:React.FC<{
  role:Role;categories:Category[];onCompleted?:(batchId:string)=>void|Promise<void>
 }>=({role,categories,onCompleted})=>{
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [category,setCategory]=useState(categories[0]?.id||'');
   const [operators,setOperators]=useState<Operator[]>([]);
   const [owner,setOwner]=useState('');
@@ -162,7 +166,7 @@ const BulkCsvImporter:React.FC<{
     if(assets.length&&Object.values(uploaded).reduce((n,list)=>n+list.length,0)===0){
       setError('请先上传所选择的图片，或者清除图片选择后只导入无图草稿。');return;
     }
-    if(!window.confirm('确认将 '+ready.length+' 条有效记录保存为草稿？不会提交审核或发布到官网。'))return;
+    if(!await ask({title:'批量保存草稿',description:'确认将 '+ready.length+' 条有效记录保存为草稿？不会提交审核或发布到官网。',confirmLabel:'保存'}))return;
     const batchId=batch||crypto.randomUUID();
     setBatch(batchId);setImportBusy(true);setError('');
     try{
@@ -175,7 +179,7 @@ const BulkCsvImporter:React.FC<{
       if(!res.completed)throw Error('Worker 未确认批次完成，请先查询批次编号');
       setServer(res);setProgress('批次 '+res.batch_id+'：新增 '+res.inserted+' / 已存在 '+res.skipped+' / 无效 '+res.failed);
       await onCompleted?.(res.batch_id);
-    }catch(e:any){setError('导入结果尚未确认：'+(e?.message||'请核对批次编号后再重试'));}finally{setImportBusy(false);}
+    }catch(e:any){setError('导入结果尚未确认。'+backofficeError(e,'请先核对批次编号，不要重复导入。'));}finally{setImportBusy(false);}
   };
   const reconcile=async()=>{
     if(!batch||importBusy)return;
@@ -186,12 +190,13 @@ const BulkCsvImporter:React.FC<{
       if(!result.completed){setError('批次仍未完成：请管理员核对该批次数据后再操作');return;}
       setServer(result);setProgress('已从服务器核对批次：新增 '+result.inserted+' 条草稿');
       await onCompleted?.(result.batch_id);
-    }catch(e:any){setError('未能核对批次：'+(e?.message||'请联系管理员'));}
+    }catch(e:any){setError(backofficeError(e,'无法核对批次，请联系管理员并保留批次编号。'));}
     finally{setImportBusy(false);}
   };
   const reset=()=>{setRecords([]);setFilename('');setAssets([]);setUploaded({});
     setExisting([]);setExistingChecked(false);setServer(null);setError('');setBatch('');setAssetErrors([]);};
   return <section className="space-y-5" aria-label="CSV 批量导入产品草稿">
+    {confirmationDialog}
     <header className="rounded border border-stone-200 bg-white p-5">
       <h2 className="flex items-center gap-2 font-serif text-xl font-semibold"><FileSpreadsheet size={21}/> Excel / CSV 批量导入</h2>
       <p className="mt-2 text-sm text-stone-600">
@@ -269,7 +274,7 @@ const BulkCsvImporter:React.FC<{
         </button>
       </div>
     </div>}
-    {error&&<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+    {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
     {batch&&!server&&<div className="flex flex-wrap items-center gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs">
       <span>待核对批次：<code>{batch}</code></span>
       <button type="button" disabled={importBusy} className="rounded border px-3 py-2" onClick={()=>void reconcile()}>核对批次结果</button>

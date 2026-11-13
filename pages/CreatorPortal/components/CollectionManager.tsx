@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Edit2, Save, X, LayoutGrid, Trash2 } from 'lucide-react';
 import { Category } from '../../../types';
 import PZImageManager from './PZImageManager';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {Toast} from '../ui/BackofficeComponents';
 
 interface CollectionManagerProps {
   categories: Category[];
@@ -12,6 +14,8 @@ interface CollectionManagerProps {
 }
 
 const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpdate, onDelete, onUpload }) => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
+  const [error,setError]=useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Category>>({});
 
@@ -30,10 +34,12 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
 
   return (
     <div className="animate-fade-in">
+      {confirmationDialog}
+      {error&&<Toast variant="error" message={error} onClose={()=>setError('')}/>}
       <div className="bg-white p-8 border border-stone-200 shadow-sm mb-8">
         <h3 className="font-serif text-2xl text-stone-900 mb-2 flex items-center">
            <LayoutGrid className="mr-3 text-amber-700" size={24} />
-           Collection Management
+           分类内容管理
         </h3>
         <p className="text-stone-500 text-sm max-w-3xl leading-relaxed">
           Manage titles, descriptions, and cover images for your collections.
@@ -129,11 +135,13 @@ const CollectionManager: React.FC<CollectionManagerProps> = ({ categories, onUpd
                        <span className="text-[10px] text-stone-400 uppercase font-bold tracking-widest">{cat.subCategories?.length || 0} Sub-categories</span>
                        
                        <button 
-                         onClick={() => {
-                           if(confirm('Are you sure you want to delete this collection? Products in it will remain but may be hidden.')) onDelete(cat.id);
+                         onClick={async() => {
+                           if(await ask({title:'删除分类',description:'确定删除 '+cat.title+' 吗？分类内的产品不会删除，但可能在公开网站隐藏。',danger:true,confirmLabel:'删除分类'})){
+                             try{onDelete(cat.id);}catch{setError('删除分类失败，请核对分类及产品状态。');}
+                           }
                          }}
                          className="text-red-400 hover:text-red-600 p-1 bg-red-50 rounded-sm hover:bg-red-100 transition-colors"
-                         title="Delete Collection"
+                         title="删除分类"
                        >
                          <Trash2 size={14} />
                        </button>

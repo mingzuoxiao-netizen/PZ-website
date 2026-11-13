@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, ChevronDown, ChevronUp, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
+import StatusChip from '../ui/StatusChip';
+import {ListSkeleton} from '../ui/BackofficeComponents';
 
 interface AuditEvent {
   id: string;
@@ -210,7 +212,7 @@ const AuditTimeline: React.FC = () => {
       </div>}
 
       <div className="bg-white border border-stone-200 divide-y divide-stone-100">
-        {loading && <p className="p-8 text-center text-sm text-stone-500">正在读取真实操作记录…</p>}
+        {loading && <div className="p-4"><ListSkeleton rows={4}/></div>}
         {!loading && result?.items.length === 0 && (
           <p className="p-10 text-center text-sm text-stone-500">当前筛选条件下没有操作记录；启用前的历史操作不会自动补齐。</p>
         )}
@@ -227,9 +229,7 @@ const AuditTimeline: React.FC = () => {
                 {item.entity_id && <p className="font-mono text-xs text-stone-400 mt-1 break-all">对象 ID：{item.entity_id}</p>}
               </div>
               <div className="flex gap-3 items-center">
-                <span className={'text-xs font-semibold ' + (item.status === 'success' ? 'text-emerald-700' : item.status === 'failed' ? 'text-red-700' : 'text-amber-700')}>
-                  {item.status === 'success' ? '成功' : item.status === 'failed' ? '失败' : '结果待确认'}
-                </span>
+                <StatusChip status={'audit_'+item.status}/>
                 <button type="button" onClick={() => setExpanded(x => x === item.id ? null : item.id)}
                   aria-expanded={expanded === item.id} className="border border-stone-200 px-3 py-2 text-xs inline-flex items-center gap-1">
                   {expanded === item.id ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}详情

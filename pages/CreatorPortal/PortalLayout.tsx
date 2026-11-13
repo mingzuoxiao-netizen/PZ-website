@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Factory, LogOut, Globe, Menu, ChevronDown } from 'lucide-react';
 import NotificationBell from './components/NotificationBell';
+import {ConfirmDialog} from './ui/BackofficeComponents';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -15,16 +16,24 @@ interface PortalLayoutProps {
 const PortalLayout: React.FC<PortalLayoutProps> = ({
   children, role, userName, navItems, activeTab, onTabChange
 }) => {
-  const handleLogout = () => {
-    if (confirm('确认退出当前登录账号吗？')) {
-      sessionStorage.clear();
-      window.location.href = '#/admin-pzf-2025';
-    }
+  const [showLogout,setShowLogout]=React.useState(false);
+  const handleLogout = () => setShowLogout(true);
+  const confirmLogout=()=>{
+    sessionStorage.clear();
+    window.location.href = '#/admin-pzf-2025';
   };
 
   const [expandedGroups,setExpandedGroups]=React.useState<Record<string,boolean>>({});
-  const hasGroups=navItems.some(item=>!!item.group);
-  const groupNames=Array.from(new Set(navItems.flatMap(item=>item.group?[item.group]:[])));
+  // All roles share four navigation groups; only the supplied role-specific items are visible.
+  const groupFor=(item:typeof navItems[number])=>{
+    if(['review','reviews'].includes(item.id))return '待办';
+    if(['inventory','bulk-import','categories'].includes(item.id))return '产品';
+    if(item.id==='inquiries')return '询盘';
+    return '系统';
+  };
+  const groupedItems=navItems.map(item=>({...item,group:groupFor(item)}));
+  const groupNames=['待办','产品','询盘','系统'].filter(group=>groupedItems.some(item=>item.group===group));
+  const hasGroups=groupNames.length>0;
   const navList = (mobile: boolean, items: typeof navItems = navItems) => items.map(item => (
     <button
       type="button"
@@ -44,16 +53,15 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
   ));
 
   return (
-    <div className="flex min-h-screen flex-col bg-stone-50 lg:flex-row">
+    <div className="pz-backoffice flex min-h-screen flex-col bg-stone-50 lg:flex-row">
       <aside className="hidden lg:sticky lg:top-0 lg:z-20 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col bg-[#1e3045] text-white">
         <div className="flex items-center gap-3 border-b border-white/10 p-7">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-[#476b9a] font-serif font-bold text-white">P</div>
           <div className="text-[11px] font-bold tracking-[0.1em]">PZ 中文管理后台</div>
         </div>
         <nav aria-label="后台功能" className="flex-grow space-y-2 overflow-y-auto p-4">
-          {navList(false,navItems.filter(item=>!item.group))}
           {groupNames.map(group=><details key={group}
-            open={expandedGroups[group] ?? navItems.some(item=>item.group===group&&item.id===activeTab)}
+            open={expandedGroups[group] ?? groupedItems.some(item=>item.group===group&&item.id===activeTab)}
             onToggle={event=>{
               const isOpen=event.currentTarget.open;
               setExpandedGroups(prev=>prev[group]===isOpen?prev:{...prev,[group]:isOpen});
@@ -64,7 +72,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
               <ChevronDown size={15} aria-hidden="true" className="transition-transform group-open:rotate-180"/>
             </summary>
             <div className="space-y-1 border-t border-white/10 p-1">
-              {navList(false,navItems.filter(item=>item.group===group))}
+              {navList(false,groupedItems.filter(item=>item.group===group))}
             </div>
           </details>)}
         </nav>
@@ -86,7 +94,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
       <div className="flex min-w-0 flex-1 flex-col lg:h-screen">
         <header className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-4 md:px-8 lg:min-h-20 lg:py-0">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#1e3045] text-white"><Menu size={19} aria-hidden="true" /></div>
+            <label htmlFor="pz-mobile-backoffice-section" className="lg:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[#1e3045] text-white"><Menu size={19} aria-hidden="true" /><span className="sr-only">选择后台功能</span></label>
             <h1 className="min-w-0 truncate font-serif text-xl text-stone-900">
               {navItems.find(i => i.id === activeTab)?.label || '管理后台'}
             </h1>
@@ -112,8 +120,8 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
               <select id="pz-mobile-backoffice-section" aria-label="手机端后台功能"
                 value={activeTab} onChange={event=>onTabChange(event.target.value)}
                 className="w-full rounded border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900">
-                {navItems.map(item=><option key={item.id} value={item.id}>
-                  {item.group?item.group+' · ':''}{item.label}
+                {groupedItems.map(item=><option key={item.id} value={item.id}>
+                  {item.group+' · '}{item.label}
                 </option>)}
               </select>
             </div>
@@ -125,6 +133,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
           <div className="mx-auto max-w-[1600px] min-w-0">{children}</div>
         </main>
       </div>
+      <ConfirmDialog open={showLogout} title="确认退出" description="确认退出当前登录账号吗？" confirmLabel="安全退出" onConfirm={confirmLogout} onCancel={()=>setShowLogout(false)}/>
     </div>
   );
 };

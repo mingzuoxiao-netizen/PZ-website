@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { adminFetch } from '../../../utils/adminFetch';
 import { resolveImage } from '../../../utils/imageResolver';
+import {ListShell,EmptyState,Toast} from '../ui/BackofficeComponents';
+import StatusChip from '../ui/StatusChip';
+import {useBackofficeConfirm} from '../ui/useBackofficeConfirm';
+import {backofficeError} from '../ui/feedback';
 
 type Payload = { title: string; title_cn: string; subtitle: string; description: string; image: string };
 type RequestItem = { id: string; category_id: string; status: string; base: Payload; proposed: Payload; created_by: string; created_at: string };
@@ -9,6 +13,7 @@ const labels: Record<string,string> = { title:'英文名称', title_cn:'中文�
 interface Props { onApproved: () => Promise<void> }
 
 const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
+  const {ask,confirmationDialog}=useBackofficeConfirm();
   const [rows,setRows] = useState<RequestItem[]>([]);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -18,12 +23,14 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
       const response = await adminFetch<{ items: RequestItem[] }>('admin/category-change-requests');
       setRows((response.items || []).filter(item => item.status === 'pending'));
       setError('');
-    } catch (e:any) { setError('分类修改申请接口未就绪：'+(e?.message||'未知错误')); }
+    } catch (e:any) { setError(backofficeError(e,'分类修改申请读取失败，请刷新后重试。')); }
   };
   useEffect(()=>{void load();},[]);
   const review = async (request: RequestItem, action:'approve'|'reject') => {
     if (busy) return;
-    if (!confirm(action==='approve'?'批准修改并保存到网站草稿？不会自动发布。':'确认驳回此分类修改申请？')) return;
+    if (!await ask({title:action==='approve'?'批准分类修改':'退回分类修改',
+      description:action==='approve'?'批准修改并保存到网站草稿？不会自动发布。':'确认退回此分类修改申请吗？',
+      confirmLabel:action==='approve'?'批准修改':'退回'})) return;
     const reason = action==='reject' ? (prompt('填写驳回原因（可留空）') || '') : '';
     setBusy(true);setError('');setNotice('');
     try {
@@ -38,15 +45,16 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
     finally {setBusy(false);}
   };
   return (
-    <section className="bg-white border border-stone-200 p-6 mb-8">
+    <ListShell label="分类修改审核列表"><section className="bg-white border border-stone-200 p-6 mb-8">
+      {confirmationDialog}
       <header className="flex items-center justify-between gap-4 mb-4">
         <div><h3 className="font-serif text-xl">待审核 · 已有分类修改（{rows.length}）</h3>
         <p className="text-xs text-stone-500 mt-1">管理员可在简洁列表中直接处理；需要时再展开差异。当前分类修改接口只保存草稿，不会自动发布。</p></div>
         <button disabled={busy} className="border px-3 py-2 text-xs flex gap-2 items-center" onClick={()=>void load()}><RefreshCw size={14}/>刷新</button>
       </header>
-      {error && <div role="alert" className="bg-amber-50 text-amber-900 text-sm p-3 mb-3">{error}</div>}
-      {notice && <div role="status" className="bg-green-50 text-green-800 text-sm p-3 mb-3">{notice}</div>}
-      {!rows.length&&!error&&<div className="text-stone-500 text-sm py-5">目前没有待审核的分类修改。</div>}
+      {error && <Toast variant="error" message={error}/>}
+      {notice && <Toast message={notice}/>}
+      {!rows.length&&!error&&<EmptyState message="目前没有待审核的分类修改。"/>}
       <div className="space-y-5">{rows.map(request=>{
         const altered=Object.keys(labels).filter(key=>request.base?.[key as keyof Payload]!==request.proposed?.[key as keyof Payload]);
         return <article key={request.id} className="rounded border border-stone-200 p-3">
@@ -57,7 +65,7 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
                   <span className="flex h-full items-center justify-center text-[10px] text-stone-400">分类</span>}
               </div>
               <div><h4 className="text-sm font-semibold text-stone-900">{request.category_id}</h4>
-                <p className="mt-1 text-xs text-stone-500">申请人：{request.created_by} · 修改 {altered.length} 项 · 待管理员审核</p></div>
+                <p className="mt-1 text-xs text-stone-500">申请人：{request.created_by} · 修改 {altered.length} 项</p><StatusChip status="pending_admin"/></div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button disabled={busy} onClick={()=>void review(request,'reject')}
@@ -89,7 +97,7 @@ const CategoryChangeReview: React.FC<Props> = ({ onApproved }) => {
           </details>
         </article>;
       })}</div>
-    </section>
+    </section></ListShell>
   );
 };
 export default CategoryChangeReview;
