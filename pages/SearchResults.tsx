@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { resolveImage } from '../utils/imageResolver';
-import { fetchPublicCatalogPage } from '../utils/publicCatalog';
+import { fetchPublicCatalogPage, fetchPublicCatalogFacets, CategoryFacet } from '../utils/publicCatalog';
+import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
 import type { ProductVariant } from '../types';
 // Added ArrowRight to the imports from lucide-react
 import { Loader2, Search as SearchIcon, PackageX, ArrowRight } from 'lucide-react';
@@ -31,16 +32,19 @@ const toSearchItem = (p: ProductVariant): SearchResultItem => ({
 const SearchResults: React.FC = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { config } = usePublishedSiteConfig();
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<CategoryFacet[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
     setResults([]);
     setNextCursor(null);
+    setSuggestions([]);
     if (!query.trim()) {
       setLoading(false);
       return () => controller.abort();
@@ -51,6 +55,11 @@ const SearchResults: React.FC = () => {
         if (controller.signal.aborted) return;
         setResults(page.items.map(toSearchItem));
         setNextCursor(page.nextCursor);
+        if (!page.items.length) {
+          void fetchPublicCatalogFacets(controller.signal)
+            .then(facets => { if (!controller.signal.aborted) setSuggestions(facets.filter(f => f.count > 0)); })
+            .catch(() => { /* no fabricated category counts when facets are unavailable */ });
+        }
       })
       .catch(e => {
         if (!controller.signal.aborted) console.error('Search failed', e);
@@ -96,6 +105,21 @@ const SearchResults: React.FC = () => {
             <PackageX size={48} strokeWidth={1} className="mb-4 opacity-20" />
             <p className="font-mono text-sm uppercase tracking-widest mb-2">Zero Matches Found</p>
             <p className="text-stone-400 text-xs">{t.common.searchRefine}</p>
+            {suggestions.length > 0 && (
+              <nav aria-label={language === 'zh' ? '有产品的分类' : 'Categories with products'} className="mt-8 text-center">
+                <p className="text-stone-600 text-sm mb-3">{language === 'zh' ? '试试这些有产品的分类' : 'Explore categories with available products'}</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {suggestions.map(facet => {
+                    const category = config?.categories?.find(item => item.id.toLowerCase() === facet.id.toLowerCase());
+                    const label = language === 'zh' ? (category?.title_cn || category?.title_zh || category?.title || facet.id) : (category?.title || facet.id);
+                    return <Link key={facet.id} to={`/collections?category=${encodeURIComponent(facet.id)}`}
+                      className="rounded border border-stone-300 px-4 py-2 text-sm text-stone-800 hover:border-safety-700">
+                      {label} ({facet.count})
+                    </Link>;
+                  })}
+                </div>
+              </nav>
+            )}
           </div>
         ) : (
           <>
