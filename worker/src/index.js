@@ -4,6 +4,8 @@ import {bulkImportFetch} from '../bulkImportCore.mjs';
 import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';
 import {roleDashboardFetch} from '../dashboardCore.mjs';
 import {productBulkFetch} from '../productBulkCore.mjs';
+import {productPresenceFetch} from '../productPresenceCore.mjs';
+import {saveDraftWithCas} from '../productDraftCas.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -4194,7 +4196,8 @@ function normalizeProductRows(rows) {
       status: (r.status ?? "draft").toLowerCase(),
       ...(r.catalog_hidden !== undefined ? { catalog_hidden: r.catalog_hidden === 1, archived_at: r.archived_at ?? null } : {}),
       created_at: r.created_at ?? null,
-      updated_at: r.updated_at ?? null
+      updated_at: r.updated_at ?? null,
+      edit_revision: Number(r.edit_revision ?? 0)
     };
   });
 }
@@ -5627,51 +5630,23 @@ if (
           if (env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY" && !(await pzOrgCanManageProduct(env, auth.user.id, id))) return json({error:"Product ownership or assignment required"},403);
           if (!id) return badRequest("Missing product id");
           const body = await request.json();
+          // Required on each save; the SQL WHERE predicate is atomic.
+          const expected=body?.expected_updated_at;
+          const revision=body?.expected_revision;
+          if(typeof expected!=='string'||!expected||expected.length>64||
+             !Number.isSafeInteger(revision)||revision<0)
+            return json({error:'缺少编辑版本信息，请重新打开产品后保存。',
+              code:'PRODUCT_EDIT_VERSION_REQUIRED'},428);
           const db = coerceProductForDb(body);
           if (db.production_sites_error) return badRequest(db.production_sites_error);
         if (db.specs_error) return badRequest(db.specs_error);
           const skuError = pzSkuValidationError(db.code);
           if (skuError) return badRequest(skuError);
-          const now = (/* @__PURE__ */ new Date()).toISOString();
-          const result = await env.DB.prepare(
-            `UPDATE products SET
-          name = ?,
-          name_cn = ?,
-          category = ?,
-          sub_category = ?,
-          material = ?,
-          size = ?,
-        finish = ?,
-          code = ?,
-          description = ?,
-          description_cn = ?,
-          images = ?,
-          production_sites = COALESCE(?, production_sites),
-           specs_json = COALESCE(?, specs_json),
-          updated_at = ?
-       WHERE id = ? AND (lower(status) IN ('draft','rejected') OR (lower(status) = 'returned_to_uploader' AND ? = 'true'))`
-          ).bind(
-            db.name,
-            db.name_cn,
-            db.category,
-            db.sub_category,
-            db.material,
-            db.size,
-          db.finish,
-            db.code,
-            db.description,
-            db.description_cn,
-            db.images_json,
-            db.production_sites_json,
-            db.specs_json,
-            now,
-            id,
-            String(env.PZ_TWO_STAGE_REVIEW_ENABLED || '')
-          ).run();
-          if (!result.meta || result.meta.changes <1) {
-            return json({ error: "Only draft or rejected products are editable by factory" }, 409);
-          }
-          return json({ success: true, id });
+          const saved=await saveDraftWithCas(env,{
+            id,actor:auth.user.id,expectedUpdatedAt:expected,expectedRevision:revision,db,
+            allowReturned:String(env.PZ_TWO_STAGE_REVIEW_ENABLED||'')==='true'
+          });
+          return json(saved.body,saved.status);
         }
       }
       // Admin-only catalog documents: keep the existing image upload route image-only.
@@ -7708,7 +7683,7 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
-      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
+      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at,p.edit_revision'+
       (env.PZ_BULK_IMPORT_ENABLED==='true'?',p.import_batch_id':',NULL AS import_batch_id')+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
       kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
@@ -8021,3 +7996,7 @@ index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,{authorize,j
 // BEGIN TASK 18: duplicate and per-item delegated bulk actions.
 const pzProductBulkOriginalFetch=index_default.fetch;
 index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,{authorize,json});
+
+// BEGIN TASK 20: role-scoped edit presence and latest-version comparison.
+const pzProductEditOriginalFetch=index_default.fetch;
+index_default.fetch=productPresenceFetch(pzProductEditOriginalFetch,{authorize,json});

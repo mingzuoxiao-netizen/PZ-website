@@ -22,7 +22,7 @@ function setup(){
       id TEXT PRIMARY KEY,code TEXT UNIQUE,name TEXT,name_cn TEXT,category TEXT,sub_category TEXT,
       material TEXT,size TEXT,finish TEXT,description TEXT,description_cn TEXT,images TEXT,
       production_sites TEXT,specs_json TEXT,created_by TEXT,status TEXT,updated_at TEXT,
-      deleted_at TEXT,catalog_hidden INTEGER,archived_at TEXT);
+      deleted_at TEXT,catalog_hidden INTEGER,archived_at TEXT,edit_revision INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE audit_logs(id TEXT PRIMARY KEY,action TEXT,entity_id TEXT,reason TEXT);
     CREATE TABLE reviews(product_id TEXT PRIMARY KEY,status TEXT);
   `);
@@ -40,7 +40,7 @@ function setup(){
       production_sites:'["zhaoqing"]',specs_json:JSON.stringify(validSpecs),
       created_by:'u1',status:'draft',updated_at:'2026-11-12T10:00:00Z',
       deleted_at:null,catalog_hidden:0,archived_at:null,...overrides};
-    db.prepare('INSERT INTO products VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
+    db.prepare('INSERT INTO products(id,code,name,name_cn,category,sub_category,material,size,finish,description,description_cn,images,production_sites,specs_json,created_by,status,updated_at,deleted_at,catalog_hidden,archived_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
       ...Object.keys(p).map(k=>p[k]));
     return p;
   };

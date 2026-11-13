@@ -40,11 +40,15 @@ if(!columns.has('import_batch_id'))apply('020_bulk_draft_import_REVIEW.sql');
 if(!tables.has('inquiries'))throw Error('Missing baseline inquiry table');
 const inquiryColumns=new Set(query('PRAGMA table_info(inquiries)').map(x=>x.name));
 if(!inquiryColumns.has('assignee_id'))apply('021_inquiry_workbench_REVIEW.sql');
+if(!columns.has('edit_revision'))apply('022_product_edit_presence_REVIEW.sql');
 const after=new Set(query("SELECT name FROM sqlite_master WHERE type='table'").map(x=>x.name));
 for(const name of ['pz_fast_lane_settings','pz_fast_lane_trust','pz_fast_lane_publications',
   'pz_fast_lane_events','pz_notifications','pz_notification_email_settings',
-  'pz_product_import_batches','pz_product_import_rows','pz_inquiry_history'])
+  'pz_product_import_batches','pz_product_import_rows','pz_inquiry_history','pz_product_edit_presence'])
   if(!after.has(name))throw Error('Partial migration requires reconciliation: '+name);
+const editCols=new Set(query('PRAGMA table_info(products)').map(x=>x.name));
+if(!editCols.has('edit_revision')||!editCols.has('last_editor_id'))
+  throw Error('Missing edit-revision migration columns');
 const triggers=new Set(query("SELECT name FROM sqlite_master WHERE type='trigger'").map(x=>x.name));
 for(const name of ['pz_notify_new_product_event','pz_notify_revision_event','pz_notify_sample_retracted',
   'pz_fast_lane_events_no_update','pz_fast_lane_events_no_delete',

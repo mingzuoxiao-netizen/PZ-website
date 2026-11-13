@@ -284,6 +284,16 @@ const AdminWorkspace: React.FC = () => {
     finally { setIsSyncing(false); }
   };
 
+  const handleAutoSaveProduct=async(product:ProductVariant)=>{
+    if(!product.id)throw Error('请先创建草稿。');
+    const result=await adminFetch<{success:boolean;updated_at:string;edit_revision:number}>(
+      'factory/products/'+encodeURIComponent(product.id),{
+        method:'PUT',body:JSON.stringify({...product,status:product.status||'draft'})
+      });
+    if(result.success!==true||!result.updated_at||!Number.isSafeInteger(result.edit_revision))
+      throw Error('草稿版本未确认，请刷新产品状态。');
+    return {...result,success:true as const};
+  };
   const handleSaveProduct = async (product: any) => {
     // The two-stage review workflow forbids direct admin product writes.
     // Admin may maintain an unpublished draft through the guarded factory
@@ -665,7 +675,7 @@ const AdminWorkspace: React.FC = () => {
         {activeTab === 'inventory' && (
           editingProduct || isCreating ? (
             <ProductForm key={editingProduct?.id||creationKey} onDirtyChange={rememberProductDirty} onBusyChange={rememberProductBusy} initialData={editingProduct || creationTemplate}
-              copySkuHint={duplicateSource?duplicateSource.code+'-COPY':undefined} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false);setDuplicateSource(null);setCreationTemplate({}); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
+              copySkuHint={duplicateSource?duplicateSource.code+'-COPY':undefined} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onAutoSave={editingProduct?.id?handleAutoSaveProduct:undefined} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false);setDuplicateSource(null);setCreationTemplate({}); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
             <>
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-stone-200 bg-white p-3">

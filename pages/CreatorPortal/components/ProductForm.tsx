@@ -11,12 +11,14 @@ import { preflightProduct } from '../../../utils/productPreflight.js';
 import {changedProductFields,normalizeIssueField} from '../../../utils/reviewReturn.mjs';
 import type {ReviewReturnDetails} from '../../../utils/reviewReturn.mjs';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
+import {useProductEditCoordination,isEditConflict,type AutosaveOutcome} from '../../../hooks/useProductEditCoordination';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
 
 interface ProductFormProps {
   initialData:Partial<ProductVariant>;
   categories:Category[];
   onSave:(data:any)=>void|Promise<void>;
+  onAutoSave?:(data:any)=>Promise<AutosaveOutcome>;
   onSubmit?:(id:string,confirmedWarnings?:string[])=>Promise<void>;
   onSaveAndSubmit?:(data:any,confirmedWarnings?:string[])=>Promise<void>;
   onCheckSku?:(code:string)=>Promise<boolean>;
@@ -36,7 +38,7 @@ const field='w-full min-w-0 rounded-sm border border-stone-300 bg-white p-3 text
 const label='mb-2 block text-xs font-semibold text-stone-700';
 
 const ProductForm:React.FC<ProductFormProps>=({
-  initialData,categories,onSave,onSubmit,onSaveAndSubmit,onSaveNext,copySkuHint,onCheckSku,returnReview,returnReviewError,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
+  initialData,categories,onSave,onAutoSave,onSubmit,onSaveAndSubmit,onSaveNext,copySkuHint,onCheckSku,returnReview,returnReviewError,onDirtyChange,onBusyChange,onCancel,fixedCategoryId,userRole,lang='en'
 })=>{
   const T=(en:string,zh:string)=>lang==='zh'?zh:en;
   const [formData,setFormData]=useState<Partial<ProductVariant>>(initialData);
@@ -148,10 +150,33 @@ const ProductForm:React.FC<ProductFormProps>=({
       });
     }
   });
+  const getDraft=()=>({
+    ...formData,category:currentCategory,code:normalizedSku,
+    size:formatDimensionsForDisplay(specs,categoryLabel)||sizePreview,
+    specifications:previewSpecifications,status:formData.status||'draft',is_published:0
+  });
+  const coordination=useProductEditCoordination({
+    productId:formData.id,status:formData.status,
+    initialUpdatedAt:initialData.updated_at,initialRevision:initialData.edit_revision,
+    enabled:!!onAutoSave&&!!formData.id&&['draft','rejected','returned_to_uploader'].includes(formData.status||''),
+    dirty,busy:submitting||isPromoting,
+    getDraft,saveDraft:onAutoSave||(async()=>{throw Error('自动保存未启用');}),
+    onSaved:(result,stillDirty)=>{
+      setFormData(prev=>({...prev,updated_at:result.updated_at,edit_revision:result.edit_revision}));
+      setDirty(stillDirty);
+    }
+  });
+  const compareFields=[
+    ['code','SKU'],['name','英文产品名'],['name_cn','中文产品名'],
+    ['category','品类'],['material','材质'],['description','英文描述'],
+    ['images','图片'],['specifications','技术资料']
+  ] as const;
+  const changedOnServer=coordination.latest?compareFields.filter(([key])=>
+    JSON.stringify(formData[key])!==JSON.stringify(coordination.latest!.product[key])):[];
   const save=async(e:React.FormEvent)=>{
     e.preventDefault();
     const intent=saveIntent.current;saveIntent.current='draft';
-    if(submitting||isPromoting)return;
+    if(submitting||isPromoting||coordination.status==='saving')return;
     setFormError('');setErrorField('');
     const code=String(formData.code||'').trim().toUpperCase();
     const categoryId=currentCategory;
@@ -198,15 +223,16 @@ const ProductForm:React.FC<ProductFormProps>=({
       const finalStatus=formData.status||'draft';
       const persist=intent==='submit'&&onSaveAndSubmit?onSaveAndSubmit:intent==='next'&&onSaveNext?onSaveNext:onSave;
       const record={
-        ...formData,category:categoryId,code,
-        size:formatDimensionsForDisplay(specs,categoryLabel)||sizePreview,
-        specifications:previewSpecifications,status:finalStatus,
-        is_published:finalStatus==='published'?1:0
+        ...getDraft(),category:categoryId,code,status:finalStatus,
+        is_published:finalStatus==='published'?1:0,
+        ...(formData.id?{expected_updated_at:coordination.timestamp,
+          expected_revision:coordination.revision}:{})
       };
       if(intent==='submit'&&onSaveAndSubmit)await onSaveAndSubmit(record,warningCodes);
       else await persist(record);
       setDirty(false);
     }catch(error:any){
+      if(isEditConflict(error))coordination.markConflict(error?.message||'产品已被另一位操作员修改。');
       issue(T('Operation incomplete: ','操作未完成：')+(error?.message||T('Unknown error','未知错误')));
     }finally{setSubmitting(false);}
   };
@@ -258,7 +284,45 @@ const ProductForm:React.FC<ProductFormProps>=({
           </div>
           <span className="text-xs text-stone-300">{T('Save first · submit for review second','保存草稿，或保存后提交主管初审')}</span>
         </div>
-        <form ref={formRef} onSubmit={save} className="space-y-8 px-5 py-7 md:px-8">
+        <form ref={formRef} onBlurCapture={coordination.onBlur} onSubmit={save}
+          className="min-w-0 space-y-8 px-4 py-6 sm:px-5 sm:py-7 md:px-8">
+          {!!onAutoSave&&!!formData.id&&<section aria-label="草稿自动保存状态"
+            className="flex flex-wrap items-center justify-between gap-2 rounded border border-stone-200 bg-stone-50 p-3 text-sm">
+            <span role="status">{coordination.displayStatus}</span>
+            <span className="text-xs text-stone-500">草稿每 20 秒或失焦后自动保存；不会提交审核</span>
+            {coordination.status==='error'&&<button type="button" onClick={()=>void coordination.autosave()}
+              className="min-h-11 rounded border px-3 text-sm font-semibold">重试保存</button>}
+          </section>}
+          {coordination.peers.length>0&&<div role="status" aria-label="其他编辑者"
+            className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            {coordination.peers.map(peer=>peer.name+' 正在编辑（从 '+
+              new Date(peer.started_at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})+
+              ' 开始）').join('；')}
+            。这是协作提醒，不是锁；保存时仍进行版本检查。
+          </div>}
+          {coordination.conflict&&<section role="alert" aria-label="编辑冲突保护"
+            className="space-y-3 rounded border-2 border-red-400 bg-red-50 p-4 text-sm text-red-950">
+            <h4 className="font-semibold">检测到编辑冲突，本地填写的资料仍保留</h4>
+            <p className="break-words">{coordination.conflict}</p>
+            <button type="button" onClick={()=>void coordination.readLatest()}
+              className="min-h-11 rounded border border-red-700 px-4 font-semibold">
+              {coordination.loadingLatest?'正在读取…':'查看服务器最新版本并比较'}
+            </button>
+            {coordination.latest&&<div>
+              <p className="font-semibold">服务器最后更新时间：{coordination.latest.updated_at}</p>
+              <p className="mt-1">存在差异的字段：{changedOnServer.map(x=>x[1]).join('、')||'无可见字段差异（可能是审核状态变化）'}</p>
+              <p className="mt-2 text-xs">当前输入不会被自动覆盖。可以复制本地修改后手动合并，或明确选择舍弃本地修改。</p>
+              <button type="button" className="mt-2 min-h-11 rounded bg-red-800 px-4 text-white"
+                onClick={()=>{
+                  if(!window.confirm('确定放弃本地尚未保存的修改，重新加载服务器最新版本吗？'))return;
+                  const next=coordination.reloadLatest();
+                  if(next){setFormData(next);setDirty(false);setFormError('');setConfirmedWarningSignature('');}
+                }}>舍弃本地修改，加载服务器版本</button>
+            </div>}
+          </section>}
+          {coordination.error&&<p role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            {coordination.error}
+          </p>}
           {!!copySkuHint&&<div role="status" className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
             当前正在复制产品。请填写<strong>新的唯一 SKU</strong>；建议使用 {copySkuHint}，
             仅作为提示，不会自动占用该编号。复制后仍是草稿，必须重新提交审核。
@@ -452,21 +516,21 @@ const ProductForm:React.FC<ProductFormProps>=({
                 category={categoryLabel} value={specs} onChange={changeSpecs} lang={lang}/>
             </div>
           </details>
-          <div className="flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
+          <div className="flex min-w-0 flex-col gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:flex-wrap sm:items-center">
             <button type="button" disabled={submitting||isPromoting} onClick={()=>{if(!onDirtyChange&&dirty&&!window.confirm(T('Leave without saving?','当前资料尚未保存，确认离开吗？')))return;onCancel();}}
-              className="flex items-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
+              className="flex min-h-11 items-center justify-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
               <ArrowLeft size={16}/>{T('Back','返回')}
             </button>
-            <button type="submit" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-stone-900 px-5 py-3 font-semibold text-white disabled:opacity-50">
+            <button type="submit" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict}
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded bg-stone-900 px-5 py-3 font-semibold text-white disabled:opacity-50">
               {submitting?<Loader2 className="animate-spin" size={16}/>:<Save size={16}/>}
               {T('Save draft','保存草稿')}
             </button>
-            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting||preflight.errors.length>0||!warningsAcknowledged}
+            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict||preflight.errors.length>0||!warningsAcknowledged}
               onClick={()=>{saveIntent.current='submit';}} className="rounded bg-amber-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">
               保存并提交审核
             </button>}
-            {userRole==='FACTORY'&&onSaveNext&&<button type="submit" disabled={submitting||isPromoting}
+            {userRole==='FACTORY'&&onSaveNext&&<button type="submit" disabled={submitting||isPromoting||coordination.status==='saving'||!!coordination.conflict}
               onClick={()=>{saveIntent.current='next';}} className="rounded border border-stone-300 px-5 py-3 text-sm disabled:opacity-40">
               保存并新建下一款
             </button>}
