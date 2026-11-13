@@ -4075,7 +4075,7 @@ function pzValidateTechnicalSpecs(input) {
     assembly:['required','minutes','instructions_file'],
     attachment:['file_name','type','visibility'],
     verification:['claim','evidence_file','status'],
-    provenance:['provider','reviewer','source_factory']
+    provenance:['provider','reviewer','source_factory','inherited_images_from','inherited_product_id']
   };
   const fail=msg=>{throw Error(msg);};
   const object=(value,fields,path)=>{
