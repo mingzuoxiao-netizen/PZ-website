@@ -31,7 +31,7 @@ import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 import RoleHome,{type DashboardTarget} from './components/RoleHome';
 import CompletenessBoard from './components/CompletenessBoard';
-import {House,FileWarning} from 'lucide-react';
+import {Home,AlertTriangle} from 'lucide-react';
 
 type AdminTab = 'home' | 'completeness' | 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
@@ -439,12 +439,12 @@ const AdminWorkspace: React.FC = () => {
   // Frequently-used work is visible; less-used settings are grouped without
   // removing any existing route, permissions, audit view or publish actions.
   const navItems = [
-    { id: 'home', label: '我的待办', icon: <House size={18}/> },
+    { id: 'home', label: '我的待办', icon: <Home size={18}/> },
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
     { id: 'bulk-import', label: '批量导入草稿', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
-    { id: 'completeness',label:'资料完整度',icon:<FileWarning size={18} /> },
+    { id: 'completeness',label:'资料完整度',icon:<AlertTriangle size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
     { id: 'basics', label: '网站基础信息', icon: <Settings size={18} />, group: '网站内容' },
