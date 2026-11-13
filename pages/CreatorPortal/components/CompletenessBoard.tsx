@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {AlertCircle,Download,FileWarning,RefreshCw} from 'lucide-react';
+import {AlertCircle,Download,AlertTriangle,RefreshCw} from 'lucide-react';
 import {adminFetch} from '../../../utils/adminFetch';
 import type {DashboardTarget} from './RoleHome';
 
@@ -146,7 +146,7 @@ const CompletenessBoard:React.FC<{
         </section>
       </div>
       <section aria-label="产品缺口明细" className="rounded border border-stone-200 bg-white p-4">
-        <h2 className="mb-2 flex items-center gap-2 font-semibold"><FileWarning size={18}/>缺口明细</h2>
+        <h2 className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle size={18}/>缺口明细</h2>
         {report.items.length===0?<p className="py-8 text-center text-sm text-stone-500">当前筛选没有缺口记录。</p>:
           <div className="space-y-2">
             {report.items.map(item=><article key={item.id}
