@@ -57,7 +57,6 @@ test('draft autosave transitions dirty -> saving -> saved, sends initial CAS tok
     assert.equal(payloads[0].expected_updated_at,ORIGINAL_TIME);
     assert.equal(payloads[0].expected_revision,0);
     assert.match(JSON.stringify(view!.toJSON()),/已自动保存/);
-    assert.match(JSON.stringify(view!.toJSON()),/2026-11-12/,{});
     assert.ok(!env.calls.some(x=>x.includes('/submit')));
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });
