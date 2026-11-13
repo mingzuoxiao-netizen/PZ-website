@@ -64,6 +64,24 @@ test('baseline parity is strict outside explicitly changed product-review and li
     ['function pzPublishedProductRevisionsFetch(','const pzPublishedRevisionsOriginalFetch'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
   ])restored=restoreLegacyBlock(restored,expected,start,end);
+  // Task 18 extends only two existing guards: the bounded, validated provenance
+  // allow-list and the existing audit log's per-item unpublish reason. Normalize
+  // these EXACT additive blocks; all other legacy Worker bytes stay protected.
+  const extendedProvenance="provenance:['provider','reviewer','source_factory','inherited_images_from','inherited_product_id']";
+  one(restored,extendedProvenance);
+  restored=restored.replace(extendedProvenance,"provenance:['provider','reviewer','source_factory']");
+  const auditAddon=`      // Task 18: retain the reason on EACH audited single-item unpublish.
+      // The bulk endpoint delegates each item to this existing audit wrapper;
+      // no audit is inferred from a failed or unconfirmed operation.
+      if(success && event.action === "product.unpublish"){
+        const input=await request.clone().json().catch(()=>null);
+        const reason=typeof input?.reason==="string"?input.reason.trim():"";
+        if(reason.length>=5&&reason.length<=500)
+          diff.push("bulk_unpublish_reason: "+reason);
+      }
+`;
+  one(restored,auditAddon);
+  restored=restored.replace(auditAddon,'');
   assert.equal(normalizedD1Counts(restored).trimEnd(),normalizedD1Counts(expected).trimEnd(),'unexpected changes outside the approved review/list modules');
 });
 test('review changes retain RBAC, status transition guards and immutable version snapshots',()=>{
