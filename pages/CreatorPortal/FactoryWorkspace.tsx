@@ -245,6 +245,16 @@ const FactoryWorkspace: React.FC = () => {
     if(isDuplicating)setDuplicateSource(null);
     return id;
   };
+  const handleAutoSaveDraft=async(product:ProductVariant)=>{
+    if(!product.id)throw Error('请先为新产品保存草稿，然后开启自动保存。');
+    const result=await factoryFetch<{success:boolean;updated_at:string;edit_revision:number}>(
+      'factory/products/'+encodeURIComponent(product.id),{
+        method:'PUT',body:JSON.stringify({...product,status:product.status||'draft'})
+      });
+    if(result.success!==true||!result.updated_at||!Number.isSafeInteger(result.edit_revision))
+      throw Error('未收到草稿版本确认，请核对产品状态后再试。');
+    return {...result,success:true as const};
+  };
   const handleSaveDraft=async(product:ProductVariant)=>{
     await persistDraft(product);setEditingItem(null);setIsCreating(false);setCreationTemplate({});await loadData(true);
   };
@@ -563,7 +573,8 @@ const FactoryWorkspace: React.FC = () => {
                 returnReviewError={editingItem?.status==='returned_to_uploader'?returnReviewError:undefined} 
                 fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
                 categories={categories} 
-                onSave={handleSaveDraft} 
+                onSave={handleSaveDraft}
+                onAutoSave={editingItem?.id?handleAutoSaveDraft:undefined} 
                 onSubmit={(id,codes)=>handleSubmitForReview(id,true,codes)}
                 onCancel={handleBack} 
                 userRole="FACTORY" 
