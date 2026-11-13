@@ -1,3 +1,4 @@
+import {productionCategoryImageBase} from './factoryCategoryChangesProduction.mjs';
 /**
  * Production review only. Atomic, revisioned site-config in D1.
  *
@@ -16,8 +17,12 @@ const cleanField = value => String(value == null ? '' : value);
 const editableFields = c => ({
   title:cleanField(c?.title), title_cn:cleanField(c?.title_cn || c?.title_zh),
   subtitle:cleanField(c?.subtitle), description:cleanField(c?.description),
-  image:cleanField(c?.image)
+  image:cleanField(c?.image), alt_en:cleanField(c?.alt_en),
+  alt_zh:cleanField(c?.alt_zh), caption:cleanField(c?.caption)
 });
+const matchesEditable = (category, expected) => expected &&
+  Object.keys(expected).every(key => Object.prototype.hasOwnProperty.call(editableFields(category),key) &&
+    editableFields(category)[key] === expected[key]);
 const jsonResponse=(json,obj,status=200)=>json(obj,status);
 const stale=(json,msg='Site configuration changed. Refresh and retry.')=>
   json({error:msg,code:'DRAFT_REVISION_CONFLICT'},409);
@@ -125,15 +130,14 @@ async function approveCategoryChange(env,json,id) {
   const current=draft.categories.find(c=>c.id===change.category_id);
   const base=parse(change.base_json),proposed=parse(change.proposed_json);
   if(!old||!current||!base||!proposed||
-     JSON.stringify(editableFields(old))!==JSON.stringify(base)||
-     JSON.stringify(editableFields(current))!==JSON.stringify(base))
+     !matchesEditable(old,base)||!matchesEditable(current,base))
     return stale(json,'Category data changed since factory submitted the request');
   if(draft.categories.some(c=>c.id!==change.category_id &&
     cleanField(c.title).trim().toLowerCase()===cleanField(proposed.title).trim().toLowerCase()))
     return stale(json,'Proposed category title already exists');
   if(proposed.image && proposed.image!==base.image) {
-    const cdn=String(env.PZ_IMAGE_BASE_URL||'').replace(/\/+$/,'');
-    if(cdn!=='https://cdn.peng-zhan.com'||!env.PRODUCT_IMAGES)
+    const cdn=productionCategoryImageBase(env);
+    if(!cdn||!env.PRODUCT_IMAGES)
       return json({error:'Production image configuration unavailable'},503);
     let key;
     try{

@@ -8,6 +8,7 @@ import { NAV_ITEMS } from '../types';
 // Import Platform Navs
 import MobileNav from './layout/MobileNav';
 import DesktopNav from './layout/DesktopNav';
+import ContactChannels from './ContactChannels';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
-  const { meta } = usePublishedSiteConfig();
+  const { meta, config } = usePublishedSiteConfig();
 
   // Scroll Detection
   useEffect(() => {
@@ -220,13 +221,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   placeholder={language === 'zh' ? '例如：胡桃木餐桌' : 'e.g. Solid walnut dining table'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-3xl md:text-7xl font-serif text-stone-900 placeholder-stone-100 border-b border-stone-100 pb-8 focus:border-safety-700 focus:outline-none transition-all duration-700 uppercase"
+                  className="w-full bg-transparent text-3xl md:text-7xl font-serif text-stone-900 placeholder-stone-600 border-b border-stone-300 pb-8 focus:border-safety-700 focus:outline-none transition-all duration-700 uppercase"
                   autoComplete="off"
                 />
                 <button
                   type="submit"
                   aria-label={language === 'zh' ? '提交搜索' : 'Submit search'}
-                  className="absolute right-0 bottom-8 text-stone-200 hover:text-safety-700 transition-all p-2"
+                  className="absolute right-0 bottom-8 text-stone-600 hover:text-safety-800 transition-all p-2"
                 >
                   <ArrowRight size={48} strokeWidth={1} />
                 </button>
@@ -248,11 +249,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Link>
               <p className="text-stone-400 max-w-sm mb-12 leading-relaxed text-lg font-light">
                 Furniture and wood component manufacturing for brands, importers and commercial buyers. <br/>
-                <span className="text-stone-600 italic mt-6 block text-sm border-l border-white/10 pl-6">Designed with intention. Built for scale.</span>
+                <span className="text-stone-300 italic mt-6 block text-sm border-l border-white/10 pl-6">Designed with intention. Built for scale.</span>
               </p>
-              <div className="flex flex-wrap gap-8 text-[9px] uppercase tracking-[0.4em] font-black text-stone-600">
-                <div className="space-y-2"><span className="text-stone-800 block">CHINA HQ</span> Zhaoqing</div>
-                <div className="space-y-2"><span className="text-stone-800 block">CAMBODIA</span> Kandal</div>
+              <div className="flex flex-wrap gap-8 text-[9px] uppercase tracking-[0.4em] font-black text-stone-300">
+                <div className="space-y-2"><span className="text-stone-300 block">CHINA HQ</span> Zhaoqing</div>
+                <div className="space-y-2"><span className="text-stone-300 block">CAMBODIA</span> Kandal</div>
                 
               </div>
             </div>
@@ -266,7 +267,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <li key={item.path}>
                     <Link 
                       to={item.path} 
-                      className="text-stone-500 hover:text-safety-700 transition-all text-xs font-bold uppercase tracking-widest"
+                      className="text-stone-300 hover:text-safety-300 transition-all text-xs font-bold uppercase tracking-widest"
                     >
                       {t.nav.header[item.key]}
                     </Link>
@@ -284,15 +285,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 </li>
               </ul>
+              <div className="mt-8"><ContactChannels contact={config?.contact} language={language} variant="dark" /></div>
             </div>
           </div>
 
-          <div className="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center text-[9px] font-mono text-stone-700 uppercase tracking-[0.4em] gap-8">
+          <div className="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center text-[9px] font-mono text-stone-300 uppercase tracking-[0.4em] gap-8">
             <div className="flex flex-col md:flex-row items-center gap-4 md:gap-12 text-center md:text-left">
                <p>&copy; {new Date().getFullYear()} PZ Furniture Studio</p>
                <p>{t.common.rights}</p>
                {meta?.version && /^\d+\.\d+/.test(meta.version) && (
-                 <span className="bg-white/5 px-4 py-1 rounded-sm text-stone-600 border border-white/5">
+                 <span className="bg-white/5 px-4 py-1 rounded-sm text-stone-300 border border-white/5">
                     Site v{meta.version}
                  </span>
                )}

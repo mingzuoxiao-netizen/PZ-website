@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Globe, Truck, MapPin, Factory, X, ChevronRight, Calendar, Anchor, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { DEFAULT_CONFIG } from '../utils/siteConfig';
+import { resolveImage } from '../utils/imageResolver';
 
 // 1. Data Structure for Map Pins
 interface MapLocationDetails {
@@ -48,7 +50,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.usa_title,
         description: t.capacity.locations.usa_desc,
         stats: ["Primary Export Market", "LA Logistics Hub", "Domestic Fulfillment"],
-        imageSrc: config.capacity?.loc_usa
+        imageSrc: resolveImage(config.capacity?.loc_usa?.trim() || DEFAULT_CONFIG.capacity.loc_usa)
       }
     },
     { 
@@ -61,7 +63,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.can_title,
         description: t.capacity.locations.can_desc,
         stats: ["Cold-Chain Logistics", "Retail Partnerships"],
-        imageSrc: config.capacity?.loc_can
+        imageSrc: resolveImage(config.capacity?.loc_can?.trim() || DEFAULT_CONFIG.capacity.loc_can)
       }
     },
     { 
@@ -74,7 +76,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.uk_title,
         description: t.capacity.locations.uk_desc,
         stats: ["UKFR Compliant", "FOB Shipping"],
-        imageSrc: config.capacity?.loc_uk
+        imageSrc: resolveImage(config.capacity?.loc_uk?.trim() || DEFAULT_CONFIG.capacity.loc_uk)
       }
     },
     { 
@@ -87,7 +89,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.de_title,
         description: t.capacity.locations.de_desc,
         stats: ["EUTR Compliant", "Sustainable Sourcing"],
-        imageSrc: config.capacity?.loc_de
+        imageSrc: resolveImage(config.capacity?.loc_de?.trim() || DEFAULT_CONFIG.capacity.loc_de)
       }
     },
     { 
@@ -100,7 +102,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.me_title,
         description: t.capacity.locations.me_desc,
         stats: ["Hospitality Projects", "Luxury Finishes"],
-        imageSrc: config.capacity?.loc_me
+        imageSrc: resolveImage(config.capacity?.loc_me?.trim() || DEFAULT_CONFIG.capacity.loc_me)
       }
     },
     { 
@@ -113,7 +115,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.cn_title,
         description: t.capacity.locations.cn_desc,
         stats: ["645,835 sq.ft Facility", "50k+ Monthly Capacity", "R&D Center"],
-        imageSrc: config.capacity?.card_cn
+        imageSrc: resolveImage(config.capacity?.card_cn?.trim() || DEFAULT_CONFIG.capacity.card_cn)
       }
     },
     { 
@@ -126,7 +128,7 @@ const GlobalCapacity: React.FC = () => {
         title: t.capacity.locations.kh_title,
         description: t.capacity.locations.kh_desc,
         stats: ["398,000 sq.ft Facility", "Low Tariff", "High Volume Lines"],
-        imageSrc: config.capacity?.card_kh
+        imageSrc: resolveImage(config.capacity?.card_kh?.trim() || DEFAULT_CONFIG.capacity.card_kh)
       }
     },
   ];
@@ -261,7 +263,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• 50k+ Monthly Capacity</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={config.capacity?.card_cn} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
+                 <img src={resolveImage(config.capacity?.card_cn?.trim() || DEFAULT_CONFIG.capacity.card_cn)} loading="lazy" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
               </div>
             </div>
 
@@ -284,7 +286,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• Specialized in High-Volume SKU Runs</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={config.capacity?.card_kh} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
+                 <img src={resolveImage(config.capacity?.card_kh?.trim() || DEFAULT_CONFIG.capacity.card_kh)} loading="lazy" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
               </div>
             </div>
          </div>
@@ -346,7 +348,8 @@ const GlobalCapacity: React.FC = () => {
             
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                <img 
-                src={config.capacity?.map_bg}
+                src={resolveImage(config.capacity?.map_bg?.trim() || DEFAULT_CONFIG.capacity.map_bg)}
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />

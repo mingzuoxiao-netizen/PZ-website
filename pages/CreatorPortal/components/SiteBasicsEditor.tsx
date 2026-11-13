@@ -1,9 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FileText, Globe, RefreshCw, Save, Upload } from 'lucide-react';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import type { ContactSettings } from '../../../utils/siteConfig';
+import { validateContactSettings } from '../../../utils/contactChannels';
 
 export interface SiteBasicsValues {
   title: string;
   catalogUrl: string;
+  contact: Required<ContactSettings>;
 }
 
 interface Props {
@@ -17,15 +21,24 @@ interface Props {
 
 const readValues = (config: any): SiteBasicsValues => ({
   title: String(config?.home?.hero?.title ?? ''),
-  catalogUrl: String(config?.catalog?.url ?? '')
+  catalogUrl: String(config?.catalog?.url ?? ''),
+  contact: {
+    salesEmail: String(config?.contact?.salesEmail ?? ''),
+    phone: String(config?.contact?.phone ?? ''),
+    whatsapp: String(config?.contact?.whatsapp ?? ''),
+    wechatId: String(config?.contact?.wechatId ?? ''),
+  },
 });
 
 const same = (a: SiteBasicsValues, b: SiteBasicsValues) =>
-  a.title === b.title && a.catalogUrl === b.catalogUrl;
+  a.title === b.title && a.catalogUrl === b.catalogUrl &&
+  (Object.keys(a.contact) as (keyof ContactSettings)[]).every(key => a.contact[key] === b.contact[key]);
 
 const SiteBasicsEditor: React.FC<Props> = ({
   config, isSaving, onSave, onPublish, onRefresh, onUploadPdf
 }) => {
+  const { language } = useLanguage();
+  const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const [baseline, setBaseline] = useState<SiteBasicsValues>(() => readValues(config));
   const [values, setValues] = useState<SiteBasicsValues>(() => readValues(config));
   const [busy, setBusy] = useState(false);
@@ -83,11 +96,23 @@ const SiteBasicsEditor: React.FC<Props> = ({
         return;
       }
     }
+    const contactError = validateContactSettings(values.contact);
+    if (contactError) {
+      setError(contactError);
+      return;
+    }
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      await onSave({ title: values.title.trim(), catalogUrl: values.catalogUrl.trim() }, baseline);
+      await onSave({ title: values.title.trim(), catalogUrl: values.catalogUrl.trim(),
+        contact: {
+          salesEmail: values.contact.salesEmail.trim(),
+          phone: values.contact.phone.trim(),
+          whatsapp: values.contact.whatsapp.trim(),
+          wechatId: values.contact.wechatId.trim(),
+        }
+      }, baseline);
       setNotice('网站基础信息草稿已保存；公开网站不会立即改变，仍需发布。');
     } catch (e: any) {
       setError(e?.message || '草稿保存失败，请重试。');
@@ -134,7 +159,7 @@ const SiteBasicsEditor: React.FC<Props> = ({
     <div className="max-w-4xl mx-auto pb-24 space-y-6">
       <header className="bg-white border border-stone-200 p-6">
         <h2 className="font-serif text-2xl text-stone-900">网站基础信息</h2>
-        <p className="text-sm text-stone-500 mt-2">只管理首页主标题及供访客下载的产品目录 PDF，网站图片请前往「网站图片管理」。</p>
+        <p className="text-sm text-stone-500 mt-2">管理首页主标题、产品目录 PDF 和联系方式；网站图片请前往「网站图片管理」。</p>
         <p className="text-xs text-amber-800 mt-2">先保存草稿，再发布到网站。发布会同时公开全部已保存的网站配置草稿。</p>
         <div className="flex flex-wrap gap-2 mt-5">
           <button type="button" onClick={refresh} disabled={locked} className="inline-flex gap-2 items-center border border-stone-300 px-4 py-2.5 text-sm disabled:opacity-40"><RefreshCw size={15}/>刷新 / 放弃更改</button>
@@ -152,7 +177,27 @@ const SiteBasicsEditor: React.FC<Props> = ({
         <input id="site-home-title" type="text" value={values.title} disabled={locked}
           onChange={e => setValues(prev => ({ ...prev, title: e.target.value }))}
           className="w-full border border-stone-300 px-4 py-3 text-sm disabled:opacity-60" />
-        <p className="text-xs text-stone-500">公开网站首页主视觉区域显示的标题。</p>
+        <p className="text-xs text-stone-600">{L('Shown on the public homepage hero.', '公开网站首页主视觉区域显示的标题。')} {L(`${values.title.length} characters`, `已输入 ${values.title.length} 个字符`)}</p>
+        {values.title.length > 80 && <p role="status" className="text-xs text-amber-800">{L('Long headline: consider shortening to 80 characters to prevent overflow on mobile. Existing titles can still be saved.', '标题较长，建议控制在 80 字符以内，以避免手机端排版溢出；不会阻止保存。')}</p>}
+      </section>
+
+      <section className="bg-white border border-stone-200 p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-stone-900">销售联系方式 / Sales Contact</h3>
+        <p className="text-xs text-stone-600">留空即不在网站显示。所有修改都需要保存草稿并发布。/ Leave blank to hide. Save and publish to make changes public.</p>
+        {([
+          ['salesEmail', '销售邮箱 / Sales Email', 'sales@example.com'],
+          ['phone', '电话 / Phone', '+1 555 000 0000'],
+          ['whatsapp', 'WhatsApp（含国家区号 / Country Code）', '+1 555 000 0000'],
+          ['wechatId', '微信号 / WeChat ID', ''],
+        ] as [keyof ContactSettings, string, string][]).map(([key, label, placeholder]) => (
+          <div key={key}>
+            <label htmlFor={`site-contact-${key}`} className="block text-xs font-medium text-stone-700 mb-1">{label}</label>
+            <input id={`site-contact-${key}`} type={key === 'salesEmail' ? 'email' : 'text'}
+              value={values.contact[key]} placeholder={placeholder} disabled={locked}
+              onChange={event => setValues(prev => ({ ...prev, contact: { ...prev.contact, [key]: event.target.value } }))}
+              className="w-full border border-stone-300 px-4 py-3 text-sm disabled:opacity-60" />
+          </div>
+        ))}
       </section>
 
       <section className="bg-white border border-stone-200 p-6 space-y-3">

@@ -124,3 +124,8 @@ export function usePublishedSiteConfig() {
   }
   return ctx;
 }
+
+/** Public product details can also render as an isolated editor preview. */
+export function useOptionalPublishedSiteConfig() {
+  return useContext(SiteConfigContext);
+}

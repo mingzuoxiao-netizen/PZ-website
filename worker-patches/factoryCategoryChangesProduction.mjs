@@ -12,8 +12,8 @@
  *
  * Never deploy without Production migration, concurrency review and approval.
  */
-const EDITABLE = ['title','title_cn','subtitle','description','image'];
-const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048 };
+const EDITABLE = ['title','title_cn','subtitle','description','image','alt_en','alt_zh','caption'];
+const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048, alt_en: 300, alt_zh: 300, caption: 500 };
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const serial = (value) => JSON.stringify(value);
 
@@ -23,6 +23,14 @@ function fields(category) {
   // Some existing categories use title_zh as the Chinese display name.
   if (!out.title_cn) out.title_cn = String(category?.title_zh ?? '');
   return out;
+}
+
+// Existing pending requests contain the five original editable fields.
+// Compare only the fields stored at submission, so upgrading the schema does
+// not turn otherwise valid pending approvals into false conflicts.
+function fieldsAtSubmission(category, expected) {
+  const current = fields(category);
+  return Object.fromEntries(Object.keys(expected).map(key => [key, current[key]]));
 }
 
 function conflict(message, json) {
@@ -161,7 +169,7 @@ export async function handleProductionCategoryChanges({ request, env, pathname, 
       const draft = parseConfig(await env.SITE_CONFIG_KV.get('draft:site_config'));
       const actual = draft?.categories.find(c => c.id === row.category_id);
       const proposed = JSON.parse(row.proposed_json);
-      if (!actual || serial(fields(actual)) !== serial(proposed)) {
+      if (!actual || serial(fieldsAtSubmission(actual, proposed)) !== serial(proposed)) {
         return json({ error: 'Draft has not confirmed the proposal; keep applying and investigate', status:'applying' }, 409);
       }
       const done = await env.DB.prepare(
@@ -198,8 +206,8 @@ export async function handleProductionCategoryChanges({ request, env, pathname, 
       const live = published.categories.find(c => c.id === row.category_id);
       const editable = draft.categories.find(c => c.id === row.category_id);
       const base = JSON.parse(row.base_json);
-      if (!live || !editable || serial(fields(live)) !== serial(base) ||
-          serial(fields(editable)) !== serial(base)) {
+      if (!live || !editable || serial(fieldsAtSubmission(live, base)) !== serial(base) ||
+          serial(fieldsAtSubmission(editable, base)) !== serial(base)) {
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);

@@ -4,7 +4,7 @@
  * Resizes and center-crops image to target aspect ratio.
  * Converts to JPEG for consistency and compression.
  */
-export const processImage = (file: File, aspect: number, maxWidth: number = 2000): Promise<File> => {
+export const processImage = (file: File, aspect?: number, maxWidth: number = 2000): Promise<File> => {
   return new Promise((resolve, reject) => {
     // If not an image, return original
     if (!file.type.startsWith('image/')) {
@@ -34,12 +34,12 @@ export const processImage = (file: File, aspect: number, maxWidth: number = 2000
         // Calculate Crop (Center Weighted)
         const srcAspect = srcW / srcH;
         
-        if (srcAspect > aspect) {
+        if (aspect && srcAspect > aspect) {
             // Image is wider than target -> Crop sides
             const newW = srcH * aspect;
             srcX = (srcW - newW) / 2;
             srcW = newW;
-        } else {
+        } else if (aspect) {
             // Image is taller than target -> Crop top/bottom
             const newH = srcW / aspect;
             srcY = (srcH - newH) / 2;
@@ -50,9 +50,13 @@ export const processImage = (file: File, aspect: number, maxWidth: number = 2000
         let dstW = srcW;
         let dstH = srcH;
         
-        if (dstW > maxWidth) {
-            dstW = maxWidth;
-            dstH = maxWidth / aspect;
+        // Without a requested crop, retain the source aspect ratio and cap
+        // the longest side (portrait images must be resized too).
+        const largestSide = Math.max(dstW, dstH);
+        if (largestSide > maxWidth) {
+            const scale = maxWidth / largestSide;
+            dstW = Math.max(1, Math.round(dstW * scale));
+            dstH = Math.max(1, Math.round(dstH * scale));
         }
 
         canvas.width = dstW;

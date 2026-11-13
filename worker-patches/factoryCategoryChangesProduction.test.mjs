@@ -148,6 +148,43 @@ test('admin approval modifies draft only and preserves category identity',async(
   assert.equal((await f.call('/admin/category-change-requests/'+created.id+'/approve',{})).status,409);
 });
 
+test('category image alt and caption survive factory submission and admin approval',async()=>{
+  const f=fixture('ADMIN');
+  const proposed={category_id:'sofa',proposed:{alt_en:'Oak dining table with tapered legs',
+    alt_zh:'橡木餐桌与锥形桌腿',caption:'Approved photography, November 2026'}};
+  const created=await(await f.call('/factory/category-change-requests',proposed)).json();
+  assert.equal(created.status,'pending');
+  assert.equal(f.storage['draft:site_config'],f.storage['published:site_config']);
+  const result=await f.call('/admin/category-change-requests/'+created.id+'/approve',{});
+  assert.equal(result.status,200);
+  const draft=JSON.parse(f.storage['draft:site_config']).categories[0];
+  assert.equal(draft.alt_en,proposed.proposed.alt_en);
+  assert.equal(draft.alt_zh,proposed.proposed.alt_zh);
+  assert.equal(draft.caption,proposed.proposed.caption);
+  assert.equal(JSON.parse(f.storage['published:site_config']).categories[0].alt_en,undefined);
+});
+
+test('an existing five-field pending request remains approvable after adding alt fields',async()=>{
+  const f=fixture('ADMIN');
+  const created=await(await f.call('/factory/category-change-requests',f.proposal)).json();
+  const row=f.records[0];
+  for(const key of ['alt_en','alt_zh','caption']) {
+    const base=JSON.parse(row.base_json),proposed=JSON.parse(row.proposed_json);
+    delete base[key];delete proposed[key];
+    row.base_json=JSON.stringify(base);row.proposed_json=JSON.stringify(proposed);
+  }
+  assert.equal((await f.call('/admin/category-change-requests/'+created.id+'/approve',{})).status,200);
+  assert.equal(JSON.parse(f.storage['draft:site_config']).categories[0].title_cn,'精品沙发');
+});
+
+test('image alt/caption length limits are enforced',async()=>{
+  const f=fixture();
+  assert.equal((await f.call('/factory/category-change-requests',{
+    category_id:'sofa',proposed:{alt_zh:'超'.repeat(301)}
+  })).status,400);
+  assert.equal(f.records.length,0);
+});
+
 test('stale changes conflict instead of overwriting admin edits',async()=>{
   const f=fixture('ADMIN');
   const created=await(await f.call('/factory/category-change-requests',f.proposal)).json();
