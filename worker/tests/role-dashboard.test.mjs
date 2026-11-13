@@ -187,7 +187,8 @@ test('CSV export includes all missing rows with no formula injection and never l
   const t=setup();try{
     const csv=await t.call('admin/dashboard/completeness?export=csv&page=1&page_size=1');
     assert.equal(csv.status,200);
-    assert.ok(csv.data.startsWith('\uFEFF'));
+    // Fetch Response.text() strips the BOM; the exported source still includes one.
+    assert.ok(completenessCsv([{code:'PZ-TABLE-001',name:'Oak Table',category:'dining-table',owner_name:'staff',missing:['name']}]).startsWith('\uFEFF'));
     assert.match(csv.data,/主要材质/);
     assert.match(csv.data,/英文产品名称/);
     assert.equal(csv.data.split('\r\n').filter(Boolean).length,4);
