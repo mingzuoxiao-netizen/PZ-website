@@ -123,9 +123,9 @@ function setup(){
     SITE_CONFIG_KV:{get:async()=>JSON.stringify({categories:[
       {id:'dining-table',title:'Tables'},{id:'chairs',title:'Chairs'}]})}};
   const execute=productBulkFetch(upstream,{authorize,json});
-  const call=async(path,body={},role='FACTORY',actor=role==='ADMIN'?'admin1':'u1')=>{
+  const call=async(path,body={},role='FACTORY',actor=role==='ADMIN'?'admin1':'u1',method='POST')=>{
     const res=await execute(new Request('https://api.test'+path,{
-      method:'POST',headers:{'content-type':'application/json','x-role':role,'x-actor':actor},
+      method,headers:{'content-type':'application/json','x-role':role,'x-actor':actor},
       body:JSON.stringify(body)
     }),env,{});
     return {status:res.status,data:await res.json()};
@@ -149,7 +149,7 @@ test('duplicate published product makes a new DRAFT owned by copier; packaging a
     // Updating only the duplicate's images/roles never changes the source row/R2 objects.
     const edited={...copy,images:['https://cdn.peng-zhan.com/new.jpg'],
       specifications:{...JSON.parse(copy.specs_json),media_roles:{'https://cdn.peng-zhan.com/new.jpg':'main'}}};
-    const update=await t.call('/factory/products/'+copy.id,'PUT',edited);
+    const update=await t.call('/factory/products/'+copy.id,edited,'FACTORY','u1','PUT');
     assert.equal(update.status,200);
     const sourceAfter=t.db.prepare("SELECT images,specs_json FROM products WHERE id='published'").get();
     assert.equal(sourceAfter.images,source.images);
