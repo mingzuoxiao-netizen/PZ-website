@@ -282,10 +282,7 @@ test('XLSX retains a legacy machine-header workbook without the Chinese first ro
       let bytes=await old.read(entry);
       if(entry.name==='xl/worksheets/sheet1.xml'){
         let source=new TextDecoder().decode(bytes);
-        source=source.replace(/<row r="1">.*?<\/row>/,'')
-          .replace('r="2" hidden="1"','r="1"')
-          .replace(/<row r="3">/,'<row r="2">')
-          .replace(/([A-Z]+)2\"/g,'$1'+'1"');
+        source=source.replace(/<row r="1">.*?<\/row>/,'');
         bytes=new TextEncoder().encode(source);
       }
       files.push({name:entry.name,data:bytes});
