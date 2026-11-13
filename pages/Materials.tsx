@@ -47,7 +47,7 @@ const Materials: React.FC = () => {
               <div className="bg-white p-8 border border-stone-200 hover:border-stone-900 transition-colors group shadow-sm">
                  <h4 className="font-display font-bold text-xl text-stone-900 mb-6 uppercase tracking-wide">{t.materials.fingerJoint}</h4>
                  <div className="h-48 bg-stone-100 mb-6 relative overflow-hidden border border-stone-100">
-                    <img src={config.materials?.const_finger} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Finger Joint" />
+                    <img src={config.materials?.const_finger} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Finger Joint" />
                  </div>
                  <p className="text-stone-600 text-sm leading-relaxed">
                     {t.materials.fingerJointDesc}
@@ -56,7 +56,7 @@ const Materials: React.FC = () => {
               <div className="bg-white p-8 border border-stone-200 hover:border-stone-900 transition-colors group shadow-sm">
                  <h4 className="font-display font-bold text-xl text-stone-900 mb-6 uppercase tracking-wide">{t.materials.edgeGlue}</h4>
                  <div className="h-48 bg-stone-100 mb-6 relative overflow-hidden border border-stone-100">
-                    <img src={config.materials?.const_edge} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Edge Glue" />
+                    <img src={config.materials?.const_edge} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Edge Glue" />
                  </div>
                  <p className="text-stone-600 text-sm leading-relaxed">
                     {t.materials.edgeGlueDesc}
@@ -66,7 +66,7 @@ const Materials: React.FC = () => {
                  <h4 className="font-display font-bold text-xl text-stone-900 mb-6 uppercase tracking-wide">{t.materials.butcherBlock}</h4>
                  <div className="h-48 bg-stone-100 mb-6 relative overflow-hidden flex items-center justify-center border border-stone-100">
                     {butcherBlockImg ? (
-                        <img src={butcherBlockImg} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Butcher Block" />
+                        <img src={butcherBlockImg} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Butcher Block" />
                     ) : (
                         <PanelTop size={48} className="text-stone-300" />
                     )}
@@ -88,7 +88,7 @@ const Materials: React.FC = () => {
           {woods.map((wood) => (
             <div key={wood.name} className="group bg-white border border-stone-200 hover:border-safety-700 transition-all cursor-default shadow-sm">
               <div className="aspect-square w-full relative overflow-hidden">
-                 <img 
+                 <img loading="lazy"
                     src={wood.image} 
                     alt={wood.name} 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 

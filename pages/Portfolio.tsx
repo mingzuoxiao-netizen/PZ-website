@@ -269,7 +269,7 @@ const Portfolio: React.FC = () => {
                                 return (
                                     <button type="button" key={cat.id} className="group cursor-pointer flex flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#754831]" onClick={() => handleCategorySelect(cat.id)} aria-label={T('View collection: ', '查看产品分类：') + (language === 'zh' ? (cat.title_zh || cat.title) : cat.title)}>
                                         <div className="relative aspect-[4/5] bg-stone-100 overflow-hidden mb-8 shadow-inner">
-                                            <img src={resolveImage(cat.image)} loading="lazy" alt={language === 'zh' ? (cat.title_zh || cat.title) : cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                            <img src={resolveImage(cat.image, {width: 800})} loading="lazy" alt={language === 'zh' ? (cat.title_zh || cat.title) : cat.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
                                             <div className="absolute inset-0 bg-stone-950/20 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
                                                 <div className="w-16 h-16 bg-white flex items-center justify-center rounded-full scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-500">
                                                     <ArrowRight size={24} className="text-stone-900" />
@@ -336,7 +336,7 @@ const Portfolio: React.FC = () => {
                                         <button type="button" key={product.id || idx} className="group w-full cursor-pointer text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#754831]" onClick={() => openProduct(product)} aria-label={T('View details: ','查看详情：') + (language === 'zh' ? (product.name_cn || product.name) : product.name)}>
                                             <div className="aspect-square w-full bg-stone-100 relative overflow-hidden mb-6 shadow-sm transition-all duration-500 group-hover:shadow-xl">
                                                 <img 
-                                                    src={resolveImage(product.images[0])} 
+                                                    src={resolveImage(product.images[0], {width: 400})}
                                                     loading="lazy"
                                                     alt={product.name} 
                                                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
