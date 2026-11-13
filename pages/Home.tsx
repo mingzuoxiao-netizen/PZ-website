@@ -80,7 +80,7 @@ const Home: React.FC = () => {
                 <span className="h-px w-9 bg-[#986344]" aria-hidden="true" />
                 <p className={sectionKicker}>{L('Independent Furniture Manufacturing Partner','家具品牌的制造合作伙伴')}</p>
               </div>
-              <h1 className={editorialHeading + ' mt-8 text-[clamp(2.8rem,5.2vw,5.75rem)] break-words'}>
+              <h1 className={editorialHeading + ' mt-8 text-[clamp(2.8rem,5.2vw,5.75rem)] break-normal'}>
                 {heroHeadline}
               </h1>
               <p className="text-[#5f5952] text-[15px] md:text-[16px] leading-[1.85] mt-7 max-w-[495px]">
@@ -135,7 +135,7 @@ const Home: React.FC = () => {
               <Icon size={27} strokeWidth={1.5} className="text-[#885338] shrink-0 mt-0.5" />
               <div>
                 <h2 className="font-semibold text-[13px] text-[#38271f]">{language === 'zh' ? titleZh : title}</h2>
-                <p className="text-[#807a75] text-[11px] leading-[1.6] mt-1">{language === 'zh' ? descZh : desc}</p>
+                <p className="text-[#66594f] text-[11px] leading-[1.6] mt-1">{language === 'zh' ? descZh : desc}</p>
               </div>
             </div>
           ))}
@@ -148,7 +148,7 @@ const Home: React.FC = () => {
           <div className="lg:pr-12 flex flex-col justify-center">
             <p className={sectionKicker}>{L("Curated Wood & Furniture Categories","精选实木与家具系列")}</p>
             <h2 id="what-we-make" className={editorialHeading + ' text-4xl md:text-5xl mt-4'}>{L("What We Make","我们能够制造什么")}</h2>
-            <p className="text-[#77716a] text-[14px] leading-[1.8] mt-5 max-w-[340px]">
+            <p className="text-[#66594f] text-[14px] leading-[1.8] mt-5 max-w-[340px]">
               {L('Explore our furniture and wood product capabilities, developed for different markets, applications and commercial requirements.','浏览我们面向不同市场与商业项目的家具及木制品系列。')}
             </p>
             <Link to="/collections" className="group inline-flex items-center gap-3 mt-7 text-[#754831] font-semibold text-[13px] underline underline-offset-4">
@@ -175,7 +175,7 @@ const Home: React.FC = () => {
                   <div className="px-4 py-4 relative">
                     <ArrowUpRight size={15} aria-hidden="true" className="absolute right-4 top-5 text-[#91593d]"/>
                     <h3 className="font-serif text-[18px] leading-snug pr-5 text-[#30221b]">{title}</h3>
-                    <p className="text-[#82786f] text-[11px] leading-relaxed mt-2">{description}</p>
+                    <p className="text-[#66594f] text-[11px] leading-relaxed mt-2">{description}</p>
                   </div>
                 </Link>
               );
@@ -209,7 +209,7 @@ const Home: React.FC = () => {
                 <span className="font-serif text-2xl text-[#885338] mr-2">{number}</span>
                 <h3 className="inline text-[#3a2a22] text-[14px] font-semibold leading-snug">{language === "zh" ? titleZh : title}</h3>
               </div>
-              <p className="text-[12px] text-[#817a72] leading-[1.75]">{language === "zh" ? textZh : text}</p>
+              <p className="text-[12px] text-[#66594f] leading-[1.75]">{language === "zh" ? textZh : text}</p>
             </div>
           ))}
         </div>
@@ -221,7 +221,7 @@ const Home: React.FC = () => {
           <div className="lg:pr-8">
             <p className={sectionKicker}>{L("Our Manufacturing Network","我们的制造网络")}</p>
             <h2 className={editorialHeading + ' text-3xl md:text-4xl mt-3'}>{L("China & Cambodia","中国与柬埔寨")}</h2>
-            <p className="text-[#77716a] text-[13px] leading-[1.75] mt-4">{L("Coordinated product management and manufacturing across two locations, supporting a flexible supply network.","两地生产基地协同开展产品管理与制造，为客户提供灵活的供应支持。")}</p>
+            <p className="text-[#66594f] text-[13px] leading-[1.75] mt-4">{L("Coordinated product management and manufacturing across two locations, supporting a flexible supply network.","两地生产基地协同开展产品管理与制造，为客户提供灵活的供应支持。")}</p>
             <Link to="/capacity" className="inline-flex items-center gap-2 text-[#754831] text-[13px] font-semibold underline underline-offset-4 mt-5">{L('Explore Our Facilities','了解生产基地')} <ArrowRight size={14}/></Link>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:pr-8">
@@ -232,14 +232,14 @@ const Home: React.FC = () => {
               <Link to="/capacity" key={item.name} className="group">
                 <div className="aspect-[4/3] bg-[#e5ded5] overflow-hidden"><img src={item.image} alt={item.name + ' manufacturing facility'} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/></div>
                 <h3 className="font-serif text-[14px] text-[#30221b] text-center mt-3">{language === "zh" ? item.nameZh : item.name}</h3>
-                <p className="text-[#817a72] text-[11px] leading-snug text-center mt-1">{language === "zh" ? item.descZh : item.desc}</p>
+                <p className="text-[#66594f] text-[11px] leading-snug text-center mt-1">{language === "zh" ? item.descZh : item.desc}</p>
               </Link>
             ))}
           </div>
           <div className="border-t lg:border-t-0 lg:border-l border-[#dbd0c5] pt-7 lg:pt-0 lg:pl-9">
             <p className={sectionKicker}>{L("Materials & Craftsmanship","材料与工艺")}</p>
             <h2 className={editorialHeading + ' text-3xl md:text-4xl mt-3'}>{L("Detail in Every Material.","从材料细节开始。")}</h2>
-            <p className="text-[#77716a] text-[13px] leading-[1.75] mt-4">{L("Wood species, construction methods and finish options to support different product designs.","提供多种木材、结构工艺与涂装选择，满足不同产品设计需求。")}</p>
+            <p className="text-[#66594f] text-[13px] leading-[1.75] mt-4">{L("Wood species, construction methods and finish options to support different product designs.","提供多种木材、结构工艺与涂装选择，满足不同产品设计需求。")}</p>
             <div className="flex gap-1.5 mt-5" aria-label="Material examples">
               {materialImages.length ? materialImages.map((image, idx) => <img key={idx} src={resolveImage(image)} alt={'Wood material sample ' + (idx + 1)} loading="lazy" className="h-9 w-16 object-cover" />) :
                 ['#b67b49','#845432','#d4aa78','#9b6943'].map(color => <span key={color} className="h-9 w-14" style={{backgroundColor:color}} aria-hidden="true"/>)}

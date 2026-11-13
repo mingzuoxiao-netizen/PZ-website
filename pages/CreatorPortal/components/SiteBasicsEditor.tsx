@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FileText, Globe, RefreshCw, Save, Upload } from 'lucide-react';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 export interface SiteBasicsValues {
   title: string;
@@ -26,6 +27,8 @@ const same = (a: SiteBasicsValues, b: SiteBasicsValues) =>
 const SiteBasicsEditor: React.FC<Props> = ({
   config, isSaving, onSave, onPublish, onRefresh, onUploadPdf
 }) => {
+  const { language } = useLanguage();
+  const L = (en: string, zh: string) => language === 'zh' ? zh : en;
   const [baseline, setBaseline] = useState<SiteBasicsValues>(() => readValues(config));
   const [values, setValues] = useState<SiteBasicsValues>(() => readValues(config));
   const [busy, setBusy] = useState(false);
@@ -152,7 +155,8 @@ const SiteBasicsEditor: React.FC<Props> = ({
         <input id="site-home-title" type="text" value={values.title} disabled={locked}
           onChange={e => setValues(prev => ({ ...prev, title: e.target.value }))}
           className="w-full border border-stone-300 px-4 py-3 text-sm disabled:opacity-60" />
-        <p className="text-xs text-stone-500">公开网站首页主视觉区域显示的标题。</p>
+        <p className="text-xs text-stone-600">{L('Shown on the public homepage hero.', '公开网站首页主视觉区域显示的标题。')} {L(`${values.title.length} characters`, `已输入 ${values.title.length} 个字符`)}</p>
+        {values.title.length > 80 && <p role="status" className="text-xs text-amber-800">{L('Long headline: consider shortening to 80 characters to prevent overflow on mobile. Existing titles can still be saved.', '标题较长，建议控制在 80 字符以内，以避免手机端排版溢出；不会阻止保存。')}</p>}
       </section>
 
       <section className="bg-white border border-stone-200 p-6 space-y-3">
