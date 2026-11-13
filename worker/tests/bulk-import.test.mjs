@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {
   csvTemplate,parseCsv,csvLine,mapImportRow,attachImageRoles,matchImageFilename,
-  templateColumns,errorReportCsv
+  templateColumns,errorReportCsv,BASE_COLUMNS,COLUMN_GUIDE,IMPORT_REQUIRED_COLUMNS,guideForColumns
 } from '../../utils/bulkImportCore.mjs';
 import {preflightProduct} from '../../utils/productPreflight.js';
 import {bulkImportFetch} from '../bulkImportCore.mjs';
@@ -103,7 +103,7 @@ test('CSV template includes units and non-imported example; parser handles comma
   const parsed=parseCsv(csv);
   assert.equal(parsed.rows.length,1);
   assert.equal(parsed.rows[0].cells.name,'Marlow, "Oak" Table');
-  assert.equal(parsed.rows[0].row,4);
+  assert.equal(parsed.rows[0].row,7);
   assert.throws(()=>parseCsv('code,code\na,b'),/Duplicate CSV header/);
 });
 
@@ -258,4 +258,73 @@ test('import and Admin owner selector reject inactive, wrong-role and cross-depa
       assert.equal(t.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n,0);
     }finally{t.close();}
   }
+});
+
+test('Chinese column guide covers all base fields and required tier matches parser enforcement',()=>{
+  assert.deepEqual(Object.keys(COLUMN_GUIDE),BASE_COLUMNS);
+  assert.deepEqual(IMPORT_REQUIRED_COLUMNS,['code','name','category','material','description']);
+  for(const key of IMPORT_REQUIRED_COLUMNS){
+    const missing=BASE_COLUMNS.filter(x=>x!==key);
+    assert.throws(()=>parseCsv(missing.join(',')+'\n'),/Missing CSV columns/);
+  }
+  const optional=BASE_COLUMNS.filter(x=>!IMPORT_REQUIRED_COLUMNS.includes(x)&&x!=='__example');
+  for(const key of optional){
+    const columns=BASE_COLUMNS.filter(x=>x!==key);
+    assert.doesNotThrow(()=>parseCsv(columns.join(',')+'\n'));
+  }
+  const guide=guideForColumns(templateColumns(['seating_capacity']),
+    [{key:'seating_capacity',labelZh:'适用座位数',unit:'人'}]);
+  assert.equal(guide.find(x=>x.key==='attribute.seating_capacity').zhLabel,'适用座位数');
+  assert.ok(guide.some(x=>x.key==='carton_3.height_cm'&&x.unit==='cm'));
+});
+
+test('legacy one-comment CSV and no-comment CSV still parse; new template groups Chinese guidance',()=>{
+  const columns=BASE_COLUMNS;
+  const header=columns.join(',')+'\r\n';
+  const legacy='# old English unit note\r\n'+header;
+  assert.deepEqual(parseCsv(legacy).headers,columns);
+  assert.deepEqual(parseCsv(header).headers,columns);
+  const current=csvTemplate(columns,'dining-table');
+  assert.match(current,/导入必填/);
+  assert.match(current,/审核前必填/);
+  assert.match(current,/第3箱包装高/);
+  assert.equal(parseCsv(current).rows.length,0);
+});
+
+test('three cartons, incomplete carton warning, Chinese delimiters and evidence warning',()=>{
+  const row=validRow(42);
+  Object.assign(row.cells,{
+    selling_points_en:'Solid oak；Easy assembly;Natural',
+    production_sites:'zhaoqing；cambodia',
+    'carton_1.length_cm':'188','carton_1.width_cm':'92','carton_1.height_cm':'20',
+    'carton_2.length_cm':'110','carton_2.width_cm':'50','carton_2.height_cm':'15',
+    'carton_3.length_cm':'40','carton_3.width_cm':'25','carton_3.height_cm':'10',
+    'attribute.tested_load':'150'
+  });
+  const result=mapImportRow(row);
+  assert.equal(result.valid,true,JSON.stringify(result.issues));
+  assert.deepEqual(result.product.production_sites,['zhaoqing','cambodia']);
+  assert.deepEqual(result.product.specifications.selling_points_en,['Solid oak','Easy assembly','Natural']);
+  assert.deepEqual(result.product.specifications.packaging.map(x=>x.carton_no),[1,2,3]);
+  assert.ok(result.issues.some(x=>x.severity==='warning'&&x.message.includes('证据文件')));
+  delete row.cells['carton_2.height_cm'];
+  const partial=mapImportRow(row);
+  assert.equal(partial.valid,true);
+  assert.ok(partial.issues.some(x=>x.field==='carton_2'&&x.severity==='warning'));
+});
+
+test('category ID and existing sub-category checked against supplied active category list',()=>{
+  const row=validRow(5);
+  const categories=[{id:'dining-table',subCategories:[{name:'Dining Chairs'},{name:'Dining Tables'}]}];
+  row.cells.category='not-real';
+  const bad=mapImportRow(row,{categories});
+  assert.equal(bad.valid,false);
+  assert.ok(bad.issues.some(x=>x.field==='category'&&x.message.includes('dining-table')));
+  row.cells.category='dining-table';
+  row.cells.sub_category='not-real';
+  const badSub=mapImportRow(row,{categories});
+  assert.equal(badSub.valid,false);
+  assert.ok(badSub.issues.some(x=>x.field==='sub_category'&&x.message.includes('Dining Tables')));
+  row.cells.sub_category='Dining Tables';
+  assert.equal(mapImportRow(row,{categories}).valid,true);
 });
