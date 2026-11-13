@@ -3,6 +3,9 @@ import { Edit, Search, PackageX, X, CheckSquare, Square, Send, Loader2, FileUp, 
 import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
+import StatusChip from '../ui/StatusChip';
+import {getStatusDefinition} from '../ui/status';
+import {ListShell} from '../ui/BackofficeComponents';
 
 interface ProductListProps {
   items: ProductVariant[];
@@ -51,21 +54,9 @@ const ProductList: React.FC<ProductListProps> = ({
   const adminCanDelete=isAdmin&&!!onPermanentDelete;
   const deletionBusy=deletingId!==null||isBulkProcessing;
 
-  const statusMap: Record<string, { label: string, color: string }> = {
-    all: { label: T('All Statuses','全部状态'), color: '' },
-    published: { label: T('Published','已发布'), color: 'bg-green-100 text-green-700' },
-    awaiting_review: { label: T('Awaiting Audit','待审核'), color: 'bg-amber-100 text-amber-700' },
-    draft: { label: T('Draft','草稿'), color: 'bg-stone-100 text-stone-500' },
-    rejected: { label: T('Correction Req','已退回'), color: 'bg-red-100 text-red-700' },
-    returned_to_uploader: { label: '待修改', color: 'bg-red-100 text-red-700' },
-    pending_supervisor: { label: '待主管初审', color: 'bg-amber-100 text-amber-700' },
-    pending_admin: { label: '待管理员终审', color: 'bg-amber-100 text-amber-700' },
-    returned_to_supervisor: { label: '已退回主管', color: 'bg-orange-100 text-orange-700' },
-    approved_pending_publish: { label: '已批准待发布', color: 'bg-green-100 text-green-700' },
-    unpublished: { label: '已下架', color: 'bg-stone-100 text-stone-600' },
-    inactive: { label: '停用', color: 'bg-stone-100 text-stone-600' },
-    archived: { label: '已归档', color: 'bg-stone-100 text-stone-600' }
-  };
+  const statusOptions=['published','awaiting_review','draft','rejected','returned_to_uploader',
+    'pending_supervisor','pending_admin','returned_to_supervisor',
+    'approved_pending_publish','unpublished','inactive','archived'];
 
   const searchTerm=search.trim().toLowerCase();
   const actionStatuses=isFactory
@@ -216,6 +207,7 @@ const ProductList: React.FC<ProductListProps> = ({
 
 
   return (
+    <ListShell label="产品列表">
     <div className="animate-fade-in relative">
        {isAdmin && <p role="note" className="mb-4 rounded border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">
          {T('Product approvals and publishing must go through the Review Center. Approved and published products cannot be directly edited here.',
@@ -258,8 +250,7 @@ const ProductList: React.FC<ProductListProps> = ({
                className="mt-1 block min-w-[160px] rounded border border-stone-300 bg-white px-3 py-2 text-sm">
                <option value="all">{T('All','全部状态')}</option>
                <option value="action">{T('Needs action','待处理')}</option>
-               {Object.entries(statusMap).filter(([key])=>key!=='all').map(([key,v])=>
-                 <option key={key} value={key}>{v.label}</option>)}
+               {statusOptions.map(key=><option key={key} value={key}>{getStatusDefinition(key).label}</option>)}
              </select>
            </label>
            <label className="text-xs font-semibold text-stone-700">
@@ -307,7 +298,6 @@ const ProductList: React.FC<ProductListProps> = ({
                     const isSubmitting = submittingIds.includes(item.id!);
                     const imageUrl = resolveImage(item.images?.[0]);
                     const catalogStatus = item.archived_at ? 'archived' : item.status === 'published' && item.catalog_hidden ? 'unpublished' : item.status;
-                    const statusInfo = statusMap[catalogStatus || 'draft'] || statusMap.draft;
                     
                     const isPublished = item.status === 'published';
                     const hasNoImages = !item.images || item.images.length === 0;
@@ -338,9 +328,7 @@ const ProductList: React.FC<ProductListProps> = ({
                         <div className="flex-grow min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                                 <h4 className="font-bold text-stone-900 text-sm truncate font-serif">{lang === "zh" ? (item.name_cn || item.name) : item.name}</h4>
-                                <span className={`text-xs font-black px-1.5 py-0.5 rounded border-none uppercase tracking-tighter ${statusInfo.color}`}>
-                                    {statusInfo.label}
-                                </span>
+                                <StatusChip status={catalogStatus||'draft'}/>
                                 {isPublished && hasNoImages && (
                                     <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse" title={T("Due to lack of valid assets, this product is automatically suppressed on the public site.","缺少有效图片，该产品不会在公开网站展示。")}>
                                         <AlertTriangle size={10} /> {T("Hidden (Missing Assets)","因缺少图片未公开")}
@@ -460,6 +448,7 @@ const ProductList: React.FC<ProductListProps> = ({
            </div>
        )}
     </div>
+    </ListShell>
   );
 };
 
