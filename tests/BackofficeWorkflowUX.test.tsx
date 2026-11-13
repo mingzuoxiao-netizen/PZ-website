@@ -47,7 +47,9 @@ test('factory enters product catalog directly; new-category and batch actions re
   const factory=read('../pages/CreatorPortal/FactoryWorkspace.tsx');
   assert.match(factory,/aria-label="筛选产品分类"/);
   assert.match(factory,/onClick=\{\(\)=>setIsRequestingCategory\(true\)\}/);
-  assert.match(factory,/onClick=\{\(\)=>setIsBatchCreating\(true\)\}/);
+  assert.match(factory,/onClick=\{\(\)=>setActiveTab\('bulk-import'\)\}/);
+  assert.match(factory,/label: 'ZIP 一键导入草稿'/);
+  assert.match(factory,/<BulkZipImporter role="FACTORY"/);
   assert.match(factory,/onClick=\{\(\)=>setIsCreating\(true\)\}/);
   assert.doesNotMatch(factory,/<CategoryGrid/);
   assert.match(factory,/<ProductList/);
