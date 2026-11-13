@@ -230,7 +230,7 @@ const Home: React.FC = () => {
               { name: 'Kandal, Cambodia', nameZh:'柬埔寨干丹', desc: 'An additional manufacturing location.', descZh:'支持生产业务的另一座工厂。', image: cambodiaImage }
             ].map(item => (
               <Link to="/capacity" key={item.name} className="group">
-                <div className="aspect-[4/3] bg-[#e5ded5] overflow-hidden"><img src={item.image} alt={item.name + ' manufacturing facility'} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/></div>
+                <div className="aspect-[4/3] bg-[#e5ded5] overflow-hidden"><img src={item.image} alt="" loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/></div>
                 <h3 className="font-serif text-[14px] text-[#30221b] text-center mt-3">{language === "zh" ? item.nameZh : item.name}</h3>
                 <p className="text-[#817a72] text-[11px] leading-snug text-center mt-1">{language === "zh" ? item.descZh : item.desc}</p>
               </Link>

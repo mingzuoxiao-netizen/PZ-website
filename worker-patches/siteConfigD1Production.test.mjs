@@ -147,6 +147,27 @@ test('two independent new category approvals preserve both via retry',async()=>{
   assert.equal(JSON.parse(f.db.state.published_json).categories.length,1);
 });
 
+test('D1 category approval retains image alt and caption for both new and five-field legacy requests',async()=>{
+  for(const includeAlt of [true,false]) {
+    const f=fixture();
+    const keys={title:'Sofa',title_cn:'沙发',subtitle:'Old',description:'original',image:''};
+    const base=includeAlt?{...keys,alt_en:'',alt_zh:'',caption:''}:keys;
+    const proposed={...base,title_cn:'新版沙发',...(includeAlt?{alt_en:'Upholstered sofa',alt_zh:'软包沙发',caption:'Front cover'}:{})};
+    f.db.changes.push({id:'c1',category_id:'sofa',status:'pending',base_json:JSON.stringify(base),proposed_json:JSON.stringify(proposed)});
+    const approved=await f.call('/admin/category-change-requests/c1/approve');
+    assert.equal(approved.status,200);
+    const saved=JSON.parse(f.db.state.draft_json).categories[0];
+    assert.equal(saved.title_cn,'新版沙发');
+    if(includeAlt) {
+      assert.equal(saved.alt_en,'Upholstered sofa');
+      assert.equal(saved.alt_zh,'软包沙发');
+      assert.equal(saved.caption,'Front cover');
+    }
+    assert.equal((await f.call('/admin/publish',{revision:2})).status,200);
+    assert.equal(JSON.parse(f.db.state.published_json).categories[0].title_cn,'新版沙发');
+  }
+});
+
 test('stale publish is refused and public data stays unchanged',async()=>{
   const f=fixture();
   const d=JSON.parse(f.db.state.draft_json);

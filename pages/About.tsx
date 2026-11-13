@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Globe, Users, Award, Warehouse, ChevronRight, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePublishedSiteConfig } from '../contexts/SiteConfigContext';
+import { DEFAULT_CONFIG } from '../utils/siteConfig';
+import { resolveImage } from '../utils/imageResolver';
 
 const About: React.FC = () => {
   const [activeImage, setActiveImage] = useState(0);
@@ -20,27 +22,27 @@ const About: React.FC = () => {
 
   const galleryImages = [
     {
-      url: site.about?.gallery?.raw,
+      url: resolveImage(site.about?.gallery?.raw?.trim() || DEFAULT_CONFIG.about.gallery.raw),
       title: t.about.galleryItems.raw.title,
       desc: t.about.galleryItems.raw.desc
     },
     {
-      url: site.about?.gallery?.milling,
+      url: resolveImage(site.about?.gallery?.milling?.trim() || DEFAULT_CONFIG.about.gallery.milling),
       title: t.about.galleryItems.milling.title,
       desc: t.about.galleryItems.milling.desc
     },    
     {
-      url: site.about?.gallery?.automation, 
+      url: resolveImage(site.about?.gallery?.automation?.trim() || DEFAULT_CONFIG.about.gallery.automation),
       title: t.about.galleryItems.automation.title,
       desc: t.about.galleryItems.automation.desc
     },
     {
-      url: site.about?.gallery?.finishing,
+      url: resolveImage(site.about?.gallery?.finishing?.trim() || DEFAULT_CONFIG.about.gallery.finishing),
       title: t.about.galleryItems.finishing.title,
       desc: t.about.galleryItems.finishing.desc
     },
     {
-      url: site.about?.gallery?.qc,
+      url: resolveImage(site.about?.gallery?.qc?.trim() || DEFAULT_CONFIG.about.gallery.qc),
       title: t.about.galleryItems.qc.title,
       desc: t.about.galleryItems.qc.desc
     }
@@ -118,8 +120,8 @@ const About: React.FC = () => {
       <div className="w-full h-[50vh] md:h-[70vh] relative overflow-hidden group">
         <div className="absolute inset-0 bg-stone-900/10 z-10 mix-blend-multiply"></div>
         <img 
-          src={site.about?.banner}
-          alt="Factory Floor" 
+          src={resolveImage(site.about?.banner?.trim() || DEFAULT_CONFIG.about.banner)}
+          alt=""
           className="w-full h-full object-cover transition-all duration-[20s] ease-linear transform scale-100 group-hover:scale-105"
         />
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-16 z-20 bg-gradient-to-t from-stone-900/80 to-transparent">
