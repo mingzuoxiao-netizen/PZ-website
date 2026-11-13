@@ -1,11 +1,11 @@
 import {adminFetch} from './adminFetch';
 
 export type BackofficeListEndpoint = 'admin/reviews'|'admin/revisions'|'admin/release-queue'|
-  'supervisor/reviews'|'supervisor/revisions'|'supervisor/release-queue'|'factory/revisions'|'factory/products';
+  'supervisor/reviews'|'supervisor/revisions'|'supervisor/release-queue'|'factory/revisions'|'factory/products'|'admin/inquiries';
 export interface BackofficeListQuery {
   page?:number;page_size?:number;q?:string;status?:string;category?:string;categories?:string[];
   department?:string;supervisor?:string;submitter?:string;site?:string;
-  import_batch?:string;
+  import_batch?:string;assignee?:string;overdue?:0|1;
   kind?:'product'|'revision';
   sort?:'oldest'|'newest';
 }
