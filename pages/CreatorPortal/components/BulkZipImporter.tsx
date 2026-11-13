@@ -81,9 +81,16 @@ const BulkZipImporter:React.FC<{
   const ready=lookups.filter(row=>row.valid);
   const sourceErrors=lookups.flatMap(row=>row.issues);
   const errors=sourceErrors.filter(x=>x.severity==='error');
+  // Main-image parser notices are resolved once an importable SKU is confirmed.
+  // Skipped/duplicate SKUs do not need an actionable main-image warning.
+  const pendingImageWarnings=(batch?.warnings||[]).filter(message=>{
+    const match=message.match(/^(\S+) (?:未标注主图|有多个疑似主图)/);
+    if(!match)return true;
+    return ready.some(row=>row.code===match[1]&&!confirmed.has(row.code));
+  });
   const toFix:ImportIssue[]=[
     ...sourceErrors.filter(x=>x.severity==='warning'),
-    ...(batch?.warnings||[]).map(message=>({row:0,field:'ZIP',severity:'warning' as const,message})),
+    ...pendingImageWarnings.map(message=>({row:0,field:'ZIP',severity:'warning' as const,message})),
     ...(batch?.orphan||[]).map(message=>({
       row:0,field:'未匹配图片',severity:'warning' as const,message:'没有对应 Excel SKU：'+message
     }))
@@ -341,8 +348,8 @@ const BulkZipImporter:React.FC<{
           </button>}
         </div>
       </div>
-      {batch.warnings.length>0&&<p className="text-xs text-amber-800">
-        图片提示：{batch.warnings.slice(0,8).join('；')}{batch.warnings.length>8?'…':''}
+      {pendingImageWarnings.length>0&&<p className="text-xs text-amber-800">
+        图片提示：{pendingImageWarnings.slice(0,8).join('；')}{pendingImageWarnings.length>8?'…':''}
       </p>}
       {batch.orphan.length>0&&<p className="text-xs text-amber-800">
         {batch.orphan.length} 张图片没有对应 Excel SKU，已排除（例如：{batch.orphan.slice(0,3).join('、')}）
