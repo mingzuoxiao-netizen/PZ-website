@@ -113,7 +113,7 @@ try{
     const cli=parts=>execFileSync('npx',['--yes','wrangler@4.156.0',...parts],{encoding:'utf8',maxBuffer:8*1024*1024,stdio:['ignore','pipe','pipe']});
     const cfg=['--config','worker/wrangler.generated.toml','--env','staging'];
     console.log('Staging D1 recovery checkpoint: '+cli(['d1','time-travel','info','DB',...cfg,'--json']));
-    db(readFileSync(new URL('../../worker-patches/migrations/006_site_config_d1_versioned_REVIEW.sql',import.meta.url),'utf8'));
+    console.log(cli(['d1','execute','DB',...cfg,'--remote','--file','worker-patches/migrations/006_site_config_d1_versioned_REVIEW.sql','--json']));
     const existingState=db('SELECT draft_json,published_json FROM site_config_state WHERE id=1')[0];
     if(existingState){
       assert.deepEqual(JSON.parse(existingState.draft_json),beforeCutover.draft,'Existing D1 draft must match current KV before cutover');
@@ -124,8 +124,7 @@ try{
       assert.equal(seeded.initialSnapshotVerified,true,'R2 backup required before D1 opt in');
     }
     console.log(cli(['deploy',...cfg,'--var','PZ_D1_SITE_CONFIG_ENABLED:true']));
-    const enabled=await call(admin,'/admin/draft/site-config');
-    check(Number.isInteger(enabled.revision),'D1 config authority must be active');
+    await eventually(async()=>Number.isInteger((await call(admin,'/admin/draft/site-config')).revision),'D1 config authority active');
     console.log('ACCEPTANCE: Staging D1 config opted in after verified bootstrap; original KV retained');
   }
   const draftBefore=await call(admin,'/admin/draft/site-config');
