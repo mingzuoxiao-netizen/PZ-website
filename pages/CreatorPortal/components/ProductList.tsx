@@ -4,12 +4,18 @@ import { ProductVariant, Category, ProductionSite } from '../../../types';
 import { resolveImage } from '../../../utils/imageResolver';
 import { AdminRowSkeleton } from '../../../components/common/Skeleton';
 
+export type BulkAction='category'|'submit'|'unpublish';
+export type BulkResult={id:string;code:string;ok:boolean;status?:string;reason?:string;
+  issues?:Array<{field:string;message:string}>};
+export type BulkResponse={success:boolean;requested:number;succeeded:number;failed:number;results:BulkResult[]};
+
 interface ProductListProps {
   items: ProductVariant[];
   categories: Category[];
   categoryTitle?: string;
   onEdit: (item: ProductVariant) => void;
   onDuplicate?: (item: ProductVariant) => void;
+  onBulkAction?:(action:BulkAction,ids:string[],category?:string,reason?:string)=>Promise<BulkResponse>;
   onBusyChange?: (busy:boolean) => void;
   onRefresh?: () => void;
   onSubmit?: (id: string) => Promise<void>;
@@ -28,7 +34,7 @@ interface ProductListProps {
 }
 
 const ProductList: React.FC<ProductListProps> = ({ 
-    items, categories, onEdit, onDuplicate, onBusyChange, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onArchive, serverFiltered = false, onPermanentDelete, forceDeleteEnabled = false, userRole, lang = "en", isLoading = false
+    items, categories, onEdit, onDuplicate, onBulkAction, onBusyChange, onRefresh, onSubmit, onStartRevision, onCatalogVisibility, onArchive, serverFiltered = false, onPermanentDelete, forceDeleteEnabled = false, userRole, lang = "en", isLoading = false
 }) => {
   const T = (en: string, zh: string) => lang === 'zh' ? zh : en;
   const [search, setSearch] = useState('');
@@ -40,6 +46,10 @@ const ProductList: React.FC<ProductListProps> = ({
   const [submittingIds, setSubmittingIds] = useState<string[]>([]);
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [deletingId,setDeletingId] = useState<string | null>(null);
+  const [bulkCategory,setBulkCategory]=useState('');
+  const [bulkReason,setBulkReason]=useState('');
+  const [bulkSummary,setBulkSummary]=useState<BulkResponse|null>(null);
+  const [bulkError,setBulkError]=useState('');
   useEffect(()=>{onBusyChange?.(isBulkProcessing||submittingIds.length>0);return ()=>onBusyChange?.(false);},[isBulkProcessing,submittingIds.length,onBusyChange]);
 
 
@@ -87,6 +97,11 @@ const ProductList: React.FC<ProductListProps> = ({
     ? filteredItems.filter(x=>!!x.id&&eligibleForPermanentDelete(x.status))
     : [];
   const adminSelected=adminDeleteCandidates.filter(x=>selectedIds.includes(x.id!));
+  const selectedRows=filteredItems.filter(item=>item.id&&selectedIds.includes(item.id));
+  const canChangeCategory=selectedRows.length>0&&selectedRows.every(item=>
+    ['draft','rejected'].includes(String(item.status||'')));
+  const canUnpublish=isAdmin&&selectedRows.length>0&&selectedRows.every(item=>
+    item.status==='published'&&!item.catalog_hidden&&!item.archived_at);
   useEffect(()=>{
     setSelectedIds(prev=>prev.filter(id=>items.some(x=>x.id===id&&(!isFactory||['draft','rejected','returned_to_uploader'].includes(x.status||'')))));
   },[items]);
@@ -182,7 +197,33 @@ const ProductList: React.FC<ProductListProps> = ({
       }
   };
 
+  const executeBulk=async(action:BulkAction)=>{
+    if(!onBulkAction||isBulkProcessing||submittingIds.length||!selectedIds.length)return;
+    const ids=selectedRows.map(item=>item.id!).slice(0,50);
+    if(!ids.length||ids.length!==selectedIds.length){setBulkError('只能操作本页有效的 1–50 件产品。');return;}
+    if(action==='category'&&!canChangeCategory){setBulkError('只能批量修改未进入审核流程的草稿。');return;}
+    if(action==='category'&&!bulkCategory){setBulkError('请选择目标品类。');return;}
+    if(action==='unpublish'&&(!canUnpublish||bulkReason.trim().length<5)){
+      setBulkError('下架必须选中在售产品并填写不少于 5 个字的原因。');return;
+    }
+    const title=action==='category'?'修改品类':action==='submit'?'提交审核':'下架';
+    if(!confirm('确认对选中 '+ids.length+' 件产品执行'+title+'？每件都将独立进行后端权限及状态检查。'))return;
+    setIsBulkProcessing(true);setBulkError('');setBulkSummary(null);
+    try{
+      const result=await onBulkAction(action,ids,
+        action==='category'?bulkCategory:undefined,
+        action==='unpublish'?bulkReason.trim():undefined);
+      if(result.success!==true||!Array.isArray(result.results)||result.results.length!==ids.length||
+        result.succeeded+result.failed!==ids.length)
+        throw Error('服务端批量结果不完整，请刷新后核对产品状态。');
+      setBulkSummary(result);setSelectedIds(result.results.filter(item=>!item.ok).map(item=>item.id));
+      try{await onRefresh?.();}
+      catch{setBulkError('部分操作可能已成功，但列表刷新失败。请刷新并核对状态。');}
+    }catch(error:any){setBulkError(error?.message||'操作未完成，请刷新列表核对。');}
+    finally{setIsBulkProcessing(false);}
+  };
   const handleBulkSubmit = async () => {
+      if(onBulkAction){await executeBulk('submit');return;}
       if (selectedIds.length === 0 || !onSubmit || isBulkProcessing || submittingIds.length>0) return;
       if (!confirm(T(`Confirm submission of ${selectedIds.length} items for technical audit?`,`确认将选中的 ${selectedIds.length} 个产品提交审核吗？`))) return;
 
@@ -314,12 +355,19 @@ const ProductList: React.FC<ProductListProps> = ({
 
                     return (
                     <div key={item.id} className={`p-4 transition-colors flex flex-wrap items-center gap-3 sm:gap-6 group ${isSelected ? 'bg-safety-50' : 'hover:bg-stone-50'}`}>
-                        {adminCanDelete&&eligibleForPermanentDelete(item.status)&&!!item.id&&
+                        {adminCanDelete&&!onBulkAction&&eligibleForPermanentDelete(item.status)&&!!item.id&&
                           <button type="button" aria-label={'选择永久删除 '+(item.code||item.name)}
                             disabled={deletionBusy} aria-pressed={isSelected}
                             onClick={()=>toggleSelect(item.id!)}
                             className="text-stone-400 hover:text-red-700 disabled:opacity-40">
                             {isSelected?<CheckSquare size={18} className="text-red-700"/>:<Square size={18}/>}
+                          </button>}
+                        {isAdmin && !!onBulkAction && !!item.id &&
+                          <button type="button" aria-label={'选择批量操作 '+(item.code||item.name)}
+                            disabled={deletionBusy} aria-pressed={isSelected}
+                            onClick={()=>toggleSelect(item.id!)}
+                            className="text-stone-500 hover:text-stone-900 disabled:opacity-40">
+                            {isSelected?<CheckSquare size={18}/>:<Square size={18}/>}
                           </button>}
                         {isFactory && !!onSubmit && ['draft','rejected','returned_to_uploader'].includes(item.status||'') && <button type="button" aria-label={T('Select product for review','选择产品提交审核')}
                             disabled={isBulkProcessing||submittingIds.length>0} onClick={() => item.id && toggleSelect(item.id)} className="text-stone-300 hover:text-safety-700">
@@ -417,6 +465,58 @@ const ProductList: React.FC<ProductListProps> = ({
             </div>
        </div>
 
+       {/* Task18 bulk actions: never allow bulk approval or publication. */}
+       {!!onBulkAction&&<section aria-label="安全批量操作" className="mt-4 space-y-3 rounded border border-stone-200 bg-white p-4">
+         <div className="flex flex-wrap items-center justify-between gap-3">
+           <h3 className="text-sm font-semibold">安全批量操作 · 最多 50 件</h3>
+           <span role="status" className="text-sm text-stone-600">已选择 {selectedIds.length} 件</span>
+           {isAdmin&&<label className="flex items-center gap-2 text-xs">
+             <input type="checkbox" aria-label="全选本页产品用于批量操作"
+               disabled={deletionBusy||!filteredItems.length}
+               checked={!!filteredItems.length&&filteredItems.every(item=>item.id&&selectedIds.includes(item.id))}
+               onChange={e=>setSelectedIds(e.target.checked?filteredItems.filter(item=>item.id).slice(0,50).map(item=>item.id!):[])}/>
+             全选本页</label>}
+         </div>
+         <div className="flex flex-wrap items-end gap-3">
+           <label className="min-w-48 flex-1 text-xs font-semibold">更改品类（仅草稿）
+             <select aria-label="批量目标品类" className="mt-1 w-full rounded border border-stone-300 px-3 py-2.5 text-sm"
+               value={bulkCategory} onChange={e=>setBulkCategory(e.target.value)} disabled={isBulkProcessing}>
+               <option value="">选择目标品类</option>
+               {categories.filter(c=>!c.hidden).map(c=><option key={c.id} value={c.id}>{c.title_cn||c.title}</option>)}
+             </select>
+           </label>
+           <button type="button" className="min-h-11 rounded border border-stone-900 px-4 text-sm font-semibold disabled:opacity-40"
+             disabled={deletionBusy||!canChangeCategory||!bulkCategory} onClick={()=>void executeBulk('category')}>
+             批量更改品类
+           </button>
+           {isFactory&&!!onSubmit&&<button type="button" disabled={deletionBusy||!selectedIds.length}
+             onClick={()=>void executeBulk('submit')}
+             className="min-h-11 rounded bg-stone-900 px-4 text-sm font-semibold text-white disabled:opacity-40">批量提交审核</button>}
+         </div>
+         {isAdmin&&<div className="flex flex-wrap items-end gap-3 border-t pt-3">
+           <label className="min-w-56 flex-1 text-xs font-semibold">下架原因（必填，5–500 字）
+             <textarea aria-label="批量下架原因" rows={2} maxLength={500}
+               value={bulkReason} onChange={e=>setBulkReason(e.target.value)}
+               className="mt-1 w-full rounded border border-stone-300 p-2 text-sm" disabled={deletionBusy}/>
+           </label>
+           <button type="button" disabled={deletionBusy||!canUnpublish||bulkReason.trim().length<5}
+             onClick={()=>void executeBulk('unpublish')}
+             className="min-h-11 rounded bg-red-800 px-4 text-sm font-semibold text-white disabled:opacity-40">
+             批量下架
+           </button>
+         </div>}
+         <p className="text-xs text-stone-500">逐件进行后端权限、状态及预检，允许部分成功；不能批量审核批准或发布。失败项保留选中。</p>
+         {bulkError&&<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-900">{bulkError}</p>}
+         {bulkSummary&&<div role="status" className="rounded border border-stone-200 bg-stone-50 p-3 text-sm">
+           <strong>批量结果：成功 {bulkSummary.succeeded} 件 · 失败 {bulkSummary.failed} 件</strong>
+           <ul aria-label="批量逐项结果" className="mt-2 max-h-72 space-y-1 overflow-y-auto">
+             {bulkSummary.results.map((row,i)=><li key={row.id+'-'+i} className={row.ok?'text-green-800':'text-red-800'}>
+               {row.code||row.id}：{row.ok?'已完成':row.reason||'未完成'}
+               {!row.ok&&!!row.issues?.length&&' · '+row.issues.map(issue=>issue.field+'：'+issue.message).join('；')}
+             </li>)}
+           </ul>
+         </div>}
+       </section>}
        {/* Bulk Action Bar */}
        {adminCanDelete&&adminDeleteCandidates.length>0&&
           <details className="mt-4">
@@ -443,7 +543,7 @@ const ProductList: React.FC<ProductListProps> = ({
                 '当前 Worker 未启用强制移除，只能删除无审核历史且未发布的产品；无需输入 SKU。'}
             </p>
           </div></details>}
-       {isFactory && !!onSubmit && selectedIds.length > 0 && (
+       {isFactory && !!onSubmit && !onBulkAction && selectedIds.length > 0 && (
            <div className="sticky bottom-4 z-[60] mx-auto mt-4 w-full max-w-xl">
                <div className="bg-stone-900 text-white px-4 py-3 rounded-lg shadow-2xl flex flex-wrap items-center gap-3 border border-white/10 backdrop-blur-md">
                    <div className="flex items-center gap-3 pr-8 border-r border-white/10">
