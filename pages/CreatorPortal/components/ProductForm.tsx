@@ -160,7 +160,7 @@ const ProductForm:React.FC<ProductFormProps>=({
     initialUpdatedAt:initialData.updated_at,initialRevision:initialData.edit_revision,
     enabled:!!onAutoSave&&!!formData.id&&['draft','rejected','returned_to_uploader'].includes(formData.status||''),
     dirty,busy:submitting||isPromoting,
-    getDraft,saveDraft:onAutoSave||async()=>{throw Error('自动保存未启用');},
+    getDraft,saveDraft:onAutoSave||(async()=>{throw Error('自动保存未启用');}),
     onSaved:(result,stillDirty)=>{
       setFormData(prev=>({...prev,updated_at:result.updated_at,edit_revision:result.edit_revision}));
       setDirty(stillDirty);
