@@ -45,7 +45,8 @@ test('admin bulk selection sends checked products, requires unpublish reason, sh
     assert.deepEqual(calls,[{action:'unpublish',
       ids:['published1','published2'],category:undefined,reason:'暂停销售，等待内部复核'}]);
     const ui=JSON.stringify(view!.toJSON());
-    assert.match(ui,/成功 1 件/);assert.match(ui,/失败 1 件/);
+    const summary=view!.root.findAllByType('strong').map(x=>x.children.join(' ')).join(' ');
+    assert.match(summary,/成功\s+1\s+件/);assert.match(summary,/失败\s+1\s+件/);
     assert.match(ui,/抽检待完成/);
     assert.doesNotMatch(ui,/批量审核批准|批量发布/);
   }finally{if(view)await act(async()=>view!.unmount());restore();}
@@ -70,9 +71,11 @@ test('factory bulk submit shows 2 successful items + one preflight failure and k
     await act(async()=>button(view!,'批量提交审核')!.props.onClick());
     assert.deepEqual(calls,[{action:'submit',ids:['draft1','draft2','draft3']}]);
     const ui=JSON.stringify(view!.toJSON());
-    assert.match(ui,/成功 2 件/);assert.match(ui,/失败 1 件/);
+    const summary=view!.root.findAllByType('strong').map(x=>x.children.join(' ')).join(' ');
+    assert.match(summary,/成功\s+2\s+件/);assert.match(summary,/失败\s+1\s+件/);
     assert.match(ui,/请填写主要材质/);
-    assert.match(ui,/已选择 1 件/);
+    assert.ok(view!.root.findAllByType('label').some(x=>x.children.filter(
+      (n):n is string=>typeof n==='string').join('').includes('已选 1 件')));
     assert.doesNotMatch(ui,/批量审核批准|批量发布/);
   }finally{if(view)await act(async()=>view!.unmount());restore();}
 });
