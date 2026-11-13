@@ -147,6 +147,27 @@ test('two independent new category approvals preserve both via retry',async()=>{
   assert.equal(JSON.parse(f.db.state.published_json).categories.length,1);
 });
 
+test('D1 category approval retains image alt and caption for both new and five-field legacy requests',async()=>{
+  for(const includeAlt of [true,false]) {
+    const f=fixture();
+    const keys={title:'Sofa',title_cn:'沙发',subtitle:'Old',description:'original',image:''};
+    const base=includeAlt?{...keys,alt_en:'',alt_zh:'',caption:''}:keys;
+    const proposed={...base,title_cn:'新版沙发',...(includeAlt?{alt_en:'Upholstered sofa',alt_zh:'软包沙发',caption:'Front cover'}:{})};
+    f.db.changes.push({id:'c1',category_id:'sofa',status:'pending',base_json:JSON.stringify(base),proposed_json:JSON.stringify(proposed)});
+    const approved=await f.call('/admin/category-change-requests/c1/approve');
+    assert.equal(approved.status,200);
+    const saved=JSON.parse(f.db.state.draft_json).categories[0];
+    assert.equal(saved.title_cn,'新版沙发');
+    if(includeAlt) {
+      assert.equal(saved.alt_en,'Upholstered sofa');
+      assert.equal(saved.alt_zh,'软包沙发');
+      assert.equal(saved.caption,'Front cover');
+    }
+    assert.equal((await f.call('/admin/publish',{revision:2})).status,200);
+    assert.equal(JSON.parse(f.db.state.published_json).categories[0].title_cn,'新版沙发');
+  }
+});
+
 test('stale publish is refused and public data stays unchanged',async()=>{
   const f=fixture();
   const d=JSON.parse(f.db.state.draft_json);
@@ -161,6 +182,22 @@ test('stale publish is refused and public data stays unchanged',async()=>{
   assert.equal(good.status,200);
   assert.equal(JSON.parse(f.db.state.published_json).home.hero.title,'New draft');
   assert.equal(f.history.size,1);
+});
+
+test('admin contact channels survive the D1 draft and published snapshot unchanged',async()=>{
+  const f=fixture();
+  const settings={salesEmail:'sales@example.com',phone:'+1 555 123 4567',
+    whatsapp:'+1 555 123 4567',wechatId:'PZ-Sales'};
+  const edit=structuredClone(f.original);
+  edit.contact=settings;
+  assert.equal((await f.call('/site-config',{revision:1,config:edit},'PUT')).status,200);
+  const draft=await(await f.call('/admin/draft/site-config',null,'GET')).json();
+  assert.deepEqual(draft.draft.contact,settings);
+  assert.equal((await f.call('/admin/publish',{revision:2})).status,200);
+  const publicData=await(await f.call('/api/site-config',null,'GET')).json();
+  assert.deepEqual(publicData.config.contact,settings);
+  assert.deepEqual(JSON.parse(f.db.state.published_json).contact,settings);
+  assert.equal((await f.call('/site-config',{revision:2,config:edit},'PUT','FACTORY')).status,403);
 });
 
 test('legacy requests without revision are rejected (428)',async()=>{

@@ -16,7 +16,15 @@ export interface SiteConfigEnvelope {
   published_at: string | null;
 }
 
+export interface ContactSettings {
+  salesEmail?: string;
+  phone?: string;
+  whatsapp?: string;
+  wechatId?: string;
+}
+
 export interface SiteConfig {
+  contact?: ContactSettings;
   home: {
     hero: {
       title: string;
@@ -86,6 +94,7 @@ export interface SiteConfig {
 }
 
 export const DEFAULT_CONFIG: SiteConfig = {
+  contact: { salesEmail: '', phone: '', whatsapp: '', wechatId: '' },
   home: {
     hero: {
       title: "Engineered for Scalable Manufacturing",
@@ -154,10 +163,14 @@ export const DEFAULT_CONFIG: SiteConfig = {
   categories: staticCategories,
 };
 
-export async function fetchSiteConfig(): Promise<SiteConfigEnvelope | null> {
+export async function fetchSiteConfig(timeoutMs = 8000): Promise<SiteConfigEnvelope | null> {
+  // A hung Pages/Worker response must not keep the public pages on a loader forever.
+  // The provider already falls back to DEFAULT_CONFIG when this function returns null.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // Calling explicit authenticated route as requested to bypass public branch defaults
-    const res = await fetch(`${API_BASE}/site-config`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/site-config`, { cache: 'no-store', signal: controller.signal });
     if (!res.ok) return null;
     const config = await res.json();
     return {
@@ -167,6 +180,8 @@ export async function fetchSiteConfig(): Promise<SiteConfigEnvelope | null> {
     };
   } catch (err) {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

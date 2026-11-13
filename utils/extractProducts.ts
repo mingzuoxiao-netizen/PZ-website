@@ -1,4 +1,5 @@
 import { ProductVariant } from '../types';
+import { productMatchesPublicSearch } from './publicSearch';
 
 /**
  * Advanced product extraction utilities for organizing registry data.
@@ -81,11 +82,7 @@ export function filterRegistry(
   }
 
   if (options.search) {
-    const q = options.search.toLowerCase();
-    filtered = filtered.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      (p.code && p.code.toLowerCase().includes(q))
-    );
+    filtered = filtered.filter(p => productMatchesPublicSearch(p, options.search!));
   }
 
   return filtered;

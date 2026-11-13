@@ -22,6 +22,7 @@ import AuthGuard from './components/AuthGuard';
 import AdminGuard from './components/AdminGuard';
 import PreviewFrame from './pages/CreatorPortal/components/PreviewFrame';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { useLanguage } from './contexts/LanguageContext';
 import { SiteConfigProvider } from './contexts/SiteConfigContext';
 
 // Scroll to top on route change
@@ -32,6 +33,33 @@ const ScrollToTop = () => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
+  return null;
+};
+
+const ROUTE_TITLES: Record<string, [string, string]> = {
+  '/': ['Home', '首页'],
+  '/collections': ['Collections', '产品系列'],
+  '/portfolio': ['Collections', '产品系列'],
+  '/capabilities': ['Capabilities', '定制能力'],
+  '/manufacturing': ['Manufacturing', '生产制造'],
+  '/capacity': ['Global Capacity', '全球产能'],
+  '/materials': ['Materials & Quality', '材质与品质'],
+  '/about': ['About Us', '关于我们'],
+  '/inquire': ['Inquire', '联系我们'],
+  '/search': ['Product Search', '产品搜索'],
+  '/privacy': ['Privacy Policy', '隐私政策'],
+  '/terms': ['Terms of Service', '服务条款'],
+};
+
+const RouteTitle = () => {
+  const { pathname } = useLocation();
+  const { language } = useLanguage();
+  React.useEffect(() => {
+    const item = ROUTE_TITLES[pathname];
+    document.title = item
+      ? `${item[language === 'zh' ? 1 : 0]} | PZ Furniture Studio`
+      : 'PZ Furniture Studio';
+  }, [pathname, language]);
   return null;
 };
 
@@ -54,6 +82,7 @@ return (
       <LanguageProvider>
         <HashRouter>
           <ScrollToTop />
+          <RouteTitle />
 
           <Routes>
             

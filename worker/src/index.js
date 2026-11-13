@@ -4289,6 +4289,17 @@ function pzEscapeLike(value) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 __name(pzEscapeLike, "pzEscapeLike");
+function pzPublicSearchCategoryAlias(term) {
+  const key = term.trim().toLowerCase();
+  const aliases = [
+    ['tables', ['table', 'tables', 'dining table', '餐桌', '桌']],
+    ['seating', ['chair', 'chairs', 'bench', '座椅', '椅', '凳']],
+    ['cabinetry', ['cabinet', 'casegoods', 'storage', '储物柜', '柜']],
+    ['butcher-block', ['butcher block', 'countertop', 'worktop', '台面', '砧板', '岛台']],
+  ];
+  return aliases.find(([, words]) => words.includes(key))?.[0] || null;
+}
+__name(pzPublicSearchCategoryAlias, "pzPublicSearchCategoryAlias");
 async function pzHandlePublicProductsD1(request, env) {
   const params = new URL(request.url).searchParams;
   const category = (params.get("category") || "").toLowerCase().trim();
@@ -4339,9 +4350,15 @@ async function pzHandlePublicProductsD1(request, env) {
     values.push(sub);
   }
   if (search) {
-    predicates.push("(name LIKE ? ESCAPE '\\' OR code LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+    const fields = ['name', 'name_cn', 'code', 'description', 'description_cn',
+      'material', 'category', 'sub_category'];
+    const clauses = fields.map(field => field + " LIKE ? ESCAPE '\\'");
+    const alias = pzPublicSearchCategoryAlias(search);
+    if (alias) clauses.push("category LIKE ? ESCAPE '\\'");
+    predicates.push('(' + clauses.join(' OR ') + ')');
     const pattern = "%" + pzEscapeLike(search) + "%";
-    values.push(pattern, pattern, pattern);
+    values.push(...fields.map(() => pattern));
+    if (alias) values.push('%' + pzEscapeLike(alias) + '%');
   }
   if (cursor) {
     predicates.push("(updated_at < ? OR (updated_at = ? AND id < ?))");
@@ -4374,8 +4391,8 @@ __name(pzHandlePublicProductsD1, "pzHandlePublicProductsD1");
  *
  * Never deploy without Production migration, concurrency review and approval.
  */
-const EDITABLE = ['title','title_cn','subtitle','description','image'];
-const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048 };
+const EDITABLE = ['title','title_cn','subtitle','description','image','alt_en','alt_zh','caption'];
+const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048, alt_en: 300, alt_zh: 300, caption: 500 };
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const serial = (value) => JSON.stringify(value);
 
@@ -4385,6 +4402,11 @@ function fields(category) {
   // Some existing categories use title_zh as the Chinese display name.
   if (!out.title_cn) out.title_cn = String(category?.title_zh ?? '');
   return out;
+}
+
+function fieldsAtSubmission(category, expected) {
+  const current = fields(category);
+  return Object.fromEntries(Object.keys(expected).map(key => [key, current[key]]));
 }
 
 function conflict(message, json) {
@@ -4525,7 +4547,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const draft = parseConfig(await env.SITE_CONFIG_KV.get('draft:site_config'));
       const actual = draft?.categories.find(c => c.id === row.category_id);
       const proposed = JSON.parse(row.proposed_json);
-      if (!actual || serial(fields(actual)) !== serial(proposed)) {
+      if (!actual || serial(fieldsAtSubmission(actual, proposed)) !== serial(proposed)) {
         return json({ error: 'Draft has not confirmed the proposal; keep applying and investigate', status:'applying' }, 409);
       }
       const done = await env.DB.prepare(
@@ -4562,8 +4584,8 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const live = published.categories.find(c => c.id === row.category_id);
       const editable = draft.categories.find(c => c.id === row.category_id);
       const base = JSON.parse(row.base_json);
-      if (!live || !editable || serial(fields(live)) !== serial(base) ||
-          serial(fields(editable)) !== serial(base)) {
+      if (!live || !editable || serial(fieldsAtSubmission(live, base)) !== serial(base) ||
+          serial(fieldsAtSubmission(editable, base)) !== serial(base)) {
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);
@@ -4624,8 +4646,12 @@ const cleanField = value => String(value == null ? '' : value);
 const editableFields = c => ({
   title:cleanField(c?.title), title_cn:cleanField(c?.title_cn || c?.title_zh),
   subtitle:cleanField(c?.subtitle), description:cleanField(c?.description),
-  image:cleanField(c?.image)
+  image:cleanField(c?.image), alt_en:cleanField(c?.alt_en),
+  alt_zh:cleanField(c?.alt_zh), caption:cleanField(c?.caption)
 });
+const matchesEditable = (category, expected) => expected &&
+  Object.keys(expected).every(key => Object.prototype.hasOwnProperty.call(editableFields(category),key) &&
+    editableFields(category)[key] === expected[key]);
 const jsonResponse=(json,obj,status=200)=>json(obj,status);
 const stale=(json,msg='Site configuration changed. Refresh and retry.')=>
   json({error:msg,code:'DRAFT_REVISION_CONFLICT'},409);
@@ -4733,8 +4759,7 @@ async function approveCategoryChange(env,json,id) {
   const current=draft.categories.find(c=>c.id===change.category_id);
   const base=parse(change.base_json),proposed=parse(change.proposed_json);
   if(!old||!current||!base||!proposed||
-     JSON.stringify(editableFields(old))!==JSON.stringify(base)||
-     JSON.stringify(editableFields(current))!==JSON.stringify(base))
+     !matchesEditable(old,base)||!matchesEditable(current,base))
     return stale(json,'Category data changed since factory submitted the request');
   if(draft.categories.some(c=>c.id!==change.category_id &&
     cleanField(c.title).trim().toLowerCase()===cleanField(proposed.title).trim().toLowerCase()))

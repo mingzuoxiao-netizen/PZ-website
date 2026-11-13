@@ -55,7 +55,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
       setError('该分类名称无法生成有效 ID，或分类已存在。');
       return;
     }
-    setDraft(old => [...old, { id, title, title_cn: '', subtitle: '', description: '', image: '', subCategories: [], hidden: true }]);
+    setDraft(old => [...old, { id, title, title_cn: '', subtitle: '', description: '', image: '', alt_en: '', alt_zh: '', caption: '', subCategories: [], hidden: true }]);
     setSelected(id);
     setError('');
     setMessage('新分类已加入草稿，默认隐藏；取消隐藏并发布后才会公开。');
@@ -68,7 +68,7 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
     }
     setDraft(old => [...old, {
       id: base, title: r.title, title_cn: r.title_cn || '', title_zh: r.title_cn || '',
-      subtitle: r.subtitle || '', description: '', image: r.image || '',
+      subtitle: r.subtitle || '', description: '', image: r.image || '', alt_en: '', alt_zh: '', caption: '',
       subCategories: [], source: 'proposal', proposal_id: r.id, hidden: true
     }]);
     setSelected(base);
@@ -167,7 +167,9 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
                 {[
                   { key:'title',label:'英文名称 *' },{ key:'title_cn',label:'中文名称' },
                   { key:'subtitle',label:'英文副标题' },{ key:'subtitle_zh',label:'中文副标题' },
-                  { key:'description',label:'英文说明' },{ key:'description_zh',label:'中文说明' }
+                  { key:'description',label:'英文说明' },{ key:'description_zh',label:'中文说明' },
+                  { key:'alt_en',label:'封面替代文本（英文）' },{ key:'alt_zh',label:'封面替代文本（中文）' },
+                  { key:'caption',label:'封面图片备注（内部）' }
                 ].map(field => <label key={field.key} className="text-xs font-medium text-stone-600">{field.label}
                   <textarea rows={field.key.startsWith('description') ? 3 : 1} value={String(selectedCategory[field.key] || '')}
                     onChange={e => patch(selectedCategory.id,field.key,e.target.value)}
@@ -187,13 +189,13 @@ const CategoryManagement: React.FC<Props> = ({ categories, approvedRequests, onS
               <section className="border-t pt-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">子分类（{selectedCategory.subCategories?.length || 0}）</h4>
-                  <button onClick={()=>patch(selectedCategory.id,'subCategories',[...(selectedCategory.subCategories||[]),{name:'',name_zh:'',description:'',image:''}])}
+                  <button onClick={()=>patch(selectedCategory.id,'subCategories',[...(selectedCategory.subCategories||[]),{name:'',name_zh:'',description:'',image:'',alt_en:'',alt_zh:'',caption:''}])}
                     className="text-xs border px-3 py-2">+ 新增子分类</button>
                 </div>
                 {(selectedCategory.subCategories || []).map((sub:any,i:number)=>(
                   <div key={i} className="border p-4 space-y-3">
                     <div className="grid md:grid-cols-2 gap-3">
-                      {(['name','name_zh','description','description_zh'] as const).map(key=>
+                      {(['name','name_zh','description','description_zh','alt_en','alt_zh','caption'] as const).map(key=>
                         <label key={key} className="text-xs text-stone-600">{key}
                           <input className="block mt-1 border p-2 w-full text-sm" value={String(sub[key]||'')}
                             onChange={e=>updateSub(selectedCategory.id,i,key,e.target.value)}/>

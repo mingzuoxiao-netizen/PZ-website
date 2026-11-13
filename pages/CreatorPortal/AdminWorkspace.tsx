@@ -214,7 +214,7 @@ const AdminWorkspace: React.FC = () => {
   }, [activeTab, loadProducts,loadDeleteCapability]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
-  // Update only the two basic fields against the latest D1 draft.
+  // Update only the website basics/contact fields against the latest D1 draft.
   // Re-read and compare before saving so concurrent category/image edits cannot be overwritten.
   const saveSiteBasics = async (values: SiteBasicsValues, baseline: SiteBasicsValues) => {
     setIsSavingConfig(true);
@@ -226,13 +226,22 @@ const AdminWorkspace: React.FC = () => {
       }
       const liveTitle = String(live.home.hero.title ?? '');
       const liveCatalogUrl = String(live.catalog.url ?? '');
-      if (liveTitle !== baseline.title || liveCatalogUrl !== baseline.catalogUrl) {
+      const currentContact = {
+        salesEmail: String(live.contact?.salesEmail ?? ''),
+        phone: String(live.contact?.phone ?? ''),
+        whatsapp: String(live.contact?.whatsapp ?? ''),
+        wechatId: String(live.contact?.wechatId ?? '')
+      };
+      const contactChanged = (Object.keys(currentContact) as (keyof typeof currentContact)[])
+        .some(key => currentContact[key] !== baseline.contact[key]);
+      if (liveTitle !== baseline.title || liveCatalogUrl !== baseline.catalogUrl || contactChanged) {
         throw new Error('其他管理员已修改网站基础信息，请刷新后重新编辑。');
       }
       const next = {
         ...live,
         home: { ...live.home, hero: { ...live.home.hero, title: values.title } },
-        catalog: { ...live.catalog, url: values.catalogUrl }
+        catalog: { ...live.catalog, url: values.catalogUrl },
+        contact: { ...live.contact, ...values.contact }
       };
       await saveDraftVersioned(next, typeof current.revision === 'number' ? current.revision : null);
       setHasPendingDeploy(true);
