@@ -146,16 +146,22 @@ export function inquiryWorkbenchFetch(upstream,{authorize,json}){
             if(rawStatus===old.status&&assignee===old.assignee_id&&notes===(old.internal_notes||''))
               return json({success:true,unchanged:true,version:old.version});
             const stamp=now();
+            const previous=effectiveStatus(old.status);
+            // A notes-only edit or an old Replied record must not fabricate a first reply.
+            const responseTransition=previous!==status&&
+              !['replied','quoted','won'].includes(previous)&&
+              ['replied','quoted','won'].includes(status);
+            const statusToStamp=responseTransition?status:'new';
             const result=await env.DB.prepare(
               'UPDATE inquiries SET status=?,assignee_id=?,internal_notes=?,'+
               'updated_at=?,last_modified_by=?,version=version+1,'+
               "first_response_at=CASE WHEN first_response_at IS NULL AND ? IN ('replied','quoted','won') "+
               'THEN ? ELSE first_response_at END WHERE id=? AND version=?')
-              .bind(rawStatus,assignee,notes,stamp,auth.user.id,status,stamp,id,body.expected_version).run();
+              .bind(rawStatus,assignee,notes,stamp,auth.user.id,statusToStamp,stamp,id,body.expected_version).run();
             if(Number(result.meta?.changes)<1)
               return json({error:'询盘已被其他管理员更新，请刷新重试。'},409);
             return json({success:true,version:body.expected_version+1,status:effectiveStatus(rawStatus),
-              first_response_at:old.first_response_at||(['replied','quoted','won'].includes(status)?stamp:null)});
+              first_response_at:old.first_response_at||(responseTransition?stamp:null)});
           }
         }
         return json({error:'不支持的询盘操作。'},405);
@@ -184,7 +190,7 @@ export function inquiryWorkbenchFetch(upstream,{authorize,json}){
         if(SKU.test(requested)){
           const found=await env.DB.prepare(
             "SELECT code FROM products WHERE upper(trim(code))=? AND status='published' "+
-            'AND deleted_at IS NULL LIMIT 1').bind(requested).first();
+            'AND deleted_at IS NULL AND COALESCE(catalog_hidden,0)=0 LIMIT 1').bind(requested).first();
           product=found?.code||null;
         }
         if(country||product)await env.DB.prepare(
