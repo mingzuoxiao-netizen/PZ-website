@@ -43,12 +43,12 @@ test('grouped navigation is expandable on desktop and selectable on mobile',asyn
   }finally{if(view)await act(async()=>view!.unmount());}
 });
 
-test('factory enters product catalog directly; new-category and batch actions remain available',()=>{
+test('factory product catalog retains category, batch and clean new-product entry actions',()=>{
   const factory=read('../pages/CreatorPortal/FactoryWorkspace.tsx');
   assert.match(factory,/aria-label="筛选产品分类"/);
   assert.match(factory,/onClick=\{\(\)=>setIsRequestingCategory\(true\)\}/);
   assert.match(factory,/onClick=\{\(\)=>setIsBatchCreating\(true\)\}/);
-  assert.match(factory,/onClick=\{\(\)=>setIsCreating\(true\)\}/);
+  assert.match(factory,/setDuplicateSource\(null\);setCreationTemplate\(\{\}\);setIsCreating\(true\)/);
   assert.doesNotMatch(factory,/<CategoryGrid/);
   assert.match(factory,/<ProductList/);
   assert.match(factory,/<PublishedRevisionQueue role="FACTORY"/);
