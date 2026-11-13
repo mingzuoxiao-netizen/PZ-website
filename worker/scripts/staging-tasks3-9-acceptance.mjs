@@ -163,7 +163,7 @@ try{
   const table=await createProduct('BILINGUAL',{category:'tables',name:'Oak Dining Furniture',name_cn:'实木家具',description:'Solid wood furniture'});
   await normalPublish(table);
   for(const q of ['餐桌','table','tables',table.body.code]){
-    const found=await call(null,'/public/products?v=2&limit=100&q='+encodeURIComponent(q));
+    const found=await call(null,'/public/products?v=2&limit=48&q='+encodeURIComponent(q));
     check(JSON.stringify(found).includes(table.id),'Public search must find fixture: '+q);
   }
   report.push('Published D1 catalog matches Chinese/English category synonyms and SKU');
