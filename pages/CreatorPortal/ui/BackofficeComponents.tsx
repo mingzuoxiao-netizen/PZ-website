@@ -43,7 +43,7 @@ export const FormSkeleton:React.FC=()=><div role="status" aria-label="正在加�
 
 export const Toast:React.FC<{message:string;variant?:'success'|'error';onClose?:()=>void}>=({message,variant='success',onClose})=>
   <div role={variant==='error'?'alert':'status'} className={'flex items-start justify-between gap-3 rounded border px-3 py-2 text-sm '+(variant==='error'?'border-red-300 bg-red-50 text-red-900':'border-green-300 bg-green-50 text-green-900')}>
-    <span>{message}</span>{onClose&&<button type="button" aria-label="关闭提示" onClick={onClose} className="rounded focus-visible:outline focus-visible:outline-2"><X size={16}/></button>}
+    {message}{onClose&&<button type="button" aria-label="关闭提示" onClick={onClose} className="rounded focus-visible:outline focus-visible:outline-2"><X size={16}/></button>}
   </div>;
 
 export const ConfirmDialog:React.FC<{
