@@ -204,6 +204,7 @@ const About: React.FC = () => {
                 <img 
                   src={galleryImages[activeImage].url} 
                   alt={galleryImages[activeImage].title}
+                  loading="lazy"
                   className="w-full h-full object-cover transition-all duration-700 transform group-hover:scale-105 opacity-90 group-hover:opacity-100"
                 />
                 <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black to-transparent p-8">
