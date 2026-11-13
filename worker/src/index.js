@@ -4,6 +4,7 @@ import {bulkImportFetch} from '../bulkImportCore.mjs';
 import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';
 import {roleDashboardFetch} from '../dashboardCore.mjs';
 import {productBulkFetch} from '../productBulkCore.mjs';
+import {productPresenceFetch} from '../productPresenceCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -5627,6 +5628,13 @@ if (
           if (env.PZ_ORG_RBAC_ENABLED === "true" && auth.user.role === "FACTORY" && !(await pzOrgCanManageProduct(env, auth.user.id, id))) return json({error:"Product ownership or assignment required"},403);
           if (!id) return badRequest("Missing product id");
           const body = await request.json();
+          // Required on each save; the SQL WHERE predicate is atomic.
+          const expected=body?.expected_updated_at;
+          const revision=body?.expected_revision;
+          if(typeof expected!=='string'||!expected||expected.length>64||
+             !Number.isSafeInteger(revision)||revision<0)
+            return json({error:'缺少编辑版本信息，请重新打开产品后保存。',
+              code:'PRODUCT_EDIT_VERSION_REQUIRED'},428);
           const db = coerceProductForDb(body);
           if (db.production_sites_error) return badRequest(db.production_sites_error);
         if (db.specs_error) return badRequest(db.specs_error);
@@ -5648,8 +5656,8 @@ if (
           images = ?,
           production_sites = COALESCE(?, production_sites),
            specs_json = COALESCE(?, specs_json),
-          updated_at = ?
-       WHERE id = ? AND (lower(status) IN ('draft','rejected') OR (lower(status) = 'returned_to_uploader' AND ? = 'true'))`
+          updated_at = ?, edit_revision = edit_revision + 1, last_editor_id = ?
+       WHERE id = ? AND edit_revision = ? AND updated_at = ? AND deleted_at IS NULL AND (lower(status) IN ('draft','rejected') OR (lower(status) = 'returned_to_uploader' AND ? = 'true'))`
           ).bind(
             db.name,
             db.name_cn,
@@ -5665,13 +5673,27 @@ if (
             db.production_sites_json,
             db.specs_json,
             now,
+            auth.user.id,
             id,
+            revision,
+            expected,
             String(env.PZ_TWO_STAGE_REVIEW_ENABLED || '')
           ).run();
           if (!result.meta || result.meta.changes <1) {
-            return json({ error: "Only draft or rejected products are editable by factory" }, 409);
+            const latest=await env.DB.prepare(
+              "SELECT p.updated_at,p.edit_revision,p.status,p.last_editor_id,"+
+              "COALESCE(u.username,'其他用户') AS editor_name FROM products p "+
+              "LEFT JOIN users u ON u.id=p.last_editor_id WHERE p.id=? AND p.deleted_at IS NULL"
+            ).bind(id).first();
+            if(!latest)return json({error:'产品已被删除，无法保存',code:'PRODUCT_NOT_FOUND'},404);
+            const actor=latest.last_editor_id?latest.editor_name:'其他用户或审核流程';
+            return json({
+              error:'已被 '+actor+' 在 '+latest.updated_at+' 修改，请查看最新版本后人工合并。',
+              code:'PRODUCT_EDIT_CONFLICT',editor_name:actor,changed_at:latest.updated_at,
+              current_revision:latest.edit_revision,current_status:latest.status
+            },409);
           }
-          return json({ success: true, id });
+          return json({ success: true, id, updated_at:now,edit_revision:revision+1 });
         }
       }
       // Admin-only catalog documents: keep the existing image upload route image-only.
@@ -8021,3 +8043,7 @@ index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,{authorize,j
 // BEGIN TASK 18: duplicate and per-item delegated bulk actions.
 const pzProductBulkOriginalFetch=index_default.fetch;
 index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,{authorize,json});
+
+// BEGIN TASK 20: role-scoped edit presence and latest-version comparison.
+const pzProductEditOriginalFetch=index_default.fetch;
+index_default.fetch=productPresenceFetch(pzProductEditOriginalFetch,{authorize,json});
