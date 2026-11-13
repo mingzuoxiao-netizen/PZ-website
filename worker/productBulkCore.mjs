@@ -33,7 +33,7 @@ const reasonOf=body=>typeof body.reason==='string'&&body.reason.trim().length>=5
 const readProduct=(env,id)=>env.DB.prepare(
   'SELECT id,code,name,name_cn,category,sub_category,material,size,finish,'+
   'description,description_cn,images,production_sites,specs_json,created_by,'+
-  'status,updated_at,deleted_at,catalog_hidden,archived_at FROM products WHERE id=? LIMIT 1')
+  'status,updated_at,edit_revision,deleted_at,catalog_hidden,archived_at FROM products WHERE id=? LIMIT 1')
   .bind(id).first();
 const activeMember=async(env,id)=>{
   const found=await env.DB.prepare(
@@ -211,7 +211,8 @@ export function productBulkFetch(upstream,{authorize,json}){
           const existing=productView(source);
           forwarded=delegatedRequest(request,'/factory/products/'+encodeURIComponent(id),'PUT',{
             ...Object.fromEntries(draftFields.map(field=>[field,existing[field]])),
-            code:existing.code,status:'draft'
+            code:existing.code,status:'draft',
+            expected_updated_at:source.updated_at,expected_revision:Number(source.edit_revision)
           });
           // Set new category last to prevent client-supplied category from winning.
           const payload=await forwarded.json();
