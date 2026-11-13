@@ -16,6 +16,8 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 // Components
 import ProductList from './components/ProductList';
+import type {BulkAction,BulkResponse} from './components/ProductList';
+import {readProductSpecifications} from '../../utils/productSpecifications';
 import ProductForm from './components/ProductForm';
 import BulkCsvImporter from './components/BulkCsvImporter';
 import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
@@ -50,6 +52,9 @@ const AdminWorkspace: React.FC = () => {
   const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes' | 'fast-lane'>('products');
   const [inquiryPreset,setInquiryPreset]=useState<''|'new'|'overdue'>('');
   const [catalogStaleOnly,setCatalogStaleOnly]=useState(false);
+  const [duplicateSource,setDuplicateSource]=useState<{id:string;code:string}|null>(null);
+  const [creationTemplate,setCreationTemplate]=useState<Partial<ProductVariant>>({});
+  const [creationKey,setCreationKey]=useState(0);
 
   const [catalogView, setCatalogView] = useState('action');
   const [catalogPage, setCatalogPage] = useState(1);
@@ -287,22 +292,55 @@ const AdminWorkspace: React.FC = () => {
     if (!['draft', 'rejected'].includes(status)) {
       throw new Error('该产品已进入审核或发布流程，不能直接覆盖。请走产品变更审核流程。');
     }
-    const url = product.id
-      ? `factory/products/${encodeURIComponent(product.id)}`
-      : 'factory/products';
-    const response = await adminFetch<{ success?: boolean }>(url, {
+    const creatingDuplicate=!product.id&&!!duplicateSource;
+    const url = creatingDuplicate
+      ? 'factory/products/'+encodeURIComponent(duplicateSource!.id)+'/duplicate'
+      : product.id ? 'factory/products/'+encodeURIComponent(product.id) : 'factory/products';
+    const payload=creatingDuplicate
+      ?{code:product.code,draft:{
+        name:product.name,name_cn:product.name_cn,category:product.category,
+        sub_category:product.sub_category,material:product.material,size:product.size,
+        finish:product.finish,description:product.description,description_cn:product.description_cn,
+        images:product.images,production_sites:product.production_sites,
+        specifications:product.specifications
+      }}
+      :{...product,status:'draft',is_published:0};
+    const response = await adminFetch<{ success?: boolean;id?:string }>(url, {
       method: product.id ? 'PUT' : 'POST',
-      body: JSON.stringify({ ...product, status: 'draft', is_published: 0 })
+      body: JSON.stringify(payload)
     });
     if (response.success !== true) {
       throw new Error('服务器未确认草稿保存，请刷新列表核对后再试。');
     }
     setEditingProduct(null);
-    setIsCreating(false);
+    setIsCreating(false);setDuplicateSource(null);setCreationTemplate({});
     await loadProducts();
     await loadReviewQueue();
   };
 
+  const duplicateProduct=(product:ProductVariant)=>{
+    if(!product.id)return;
+    const keys=['name','name_cn','category','sub_category','material','size','finish',
+      'description','description_cn','images','production_sites','specifications'] as const;
+    const draft:Record<string,unknown>={};
+    for(const key of keys)draft[key]=product[key]===undefined?undefined:
+      JSON.parse(JSON.stringify(product[key]));
+    const specs=readProductSpecifications(draft.specifications);
+    draft.specifications={...specs,provenance:{...(specs.provenance||{}),
+      inherited_images_from:product.code,inherited_product_id:product.id}};
+    setDuplicateSource({id:product.id,code:product.code});
+    setCreationTemplate({...draft,id:undefined,code:'',status:'draft',
+      image:product.images?.[0]||''});
+    setEditingProduct(null);setCreationKey(k=>k+1);setIsCreating(true);
+  };
+  const handleBulkAction=async(action:BulkAction,ids:string[],category?:string,reason?:string):Promise<BulkResponse>=>{
+    const result=await adminFetch<BulkResponse>('admin/products/bulk',{
+      method:'POST',body:JSON.stringify({action,ids,category,reason})
+    });
+    if(result.success!==true||!Array.isArray(result.results))
+      throw Error('批量结果未确认，请刷新产品列表核对。');
+    return result;
+  };
   const handleCatalogVisibility = async (product: ProductVariant) => {
     const hidden = product.catalog_hidden === true;
     const action = hidden ? 'relist' : 'unpublish';
@@ -456,7 +494,7 @@ const AdminWorkspace: React.FC = () => {
   const openFromHome=(target:DashboardTarget)=>{
     if(busyProduct.current)return;
     if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;
-    setEditingProduct(null);setIsCreating(false);
+    setEditingProduct(null);setIsCreating(false);setDuplicateSource(null);
     if(target.tab==='inventory'){
       setCatalogStaleOnly(target.stale===true);
       setCatalogImportBatch('');setCatalogImportBatchInput('');
@@ -469,7 +507,7 @@ const AdminWorkspace: React.FC = () => {
     setActiveTab(target.tab as AdminTab);
   };
   return (
-    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab);if(id==='inventory')setCatalogStaleOnly(false);if(id==='inquiries')setInquiryPreset('');setEditingProduct(null); setIsCreating(false); }}>
+    <PortalLayout role="ADMIN" userName="系统管理员" navItems={navItems} activeTab={activeTab} onTabChange={(id) => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setActiveTab(id as AdminTab);if(id==='inventory')setCatalogStaleOnly(false);if(id==='inquiries')setInquiryPreset('');setEditingProduct(null); setIsCreating(false);setDuplicateSource(null); }}>
       {hasPendingDeploy && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
           <div className="bg-stone-900 text-white px-8 py-4 rounded-full shadow-2xl border border-white/10 flex items-center gap-8 backdrop-blur-md">
@@ -626,7 +664,8 @@ const AdminWorkspace: React.FC = () => {
 
         {activeTab === 'inventory' && (
           editingProduct || isCreating ? (
-            <ProductForm onDirtyChange={rememberProductDirty} onBusyChange={rememberProductBusy} initialData={editingProduct || {}} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
+            <ProductForm key={editingProduct?.id||creationKey} onDirtyChange={rememberProductDirty} onBusyChange={rememberProductBusy} initialData={editingProduct || creationTemplate}
+              copySkuHint={duplicateSource?duplicateSource.code+'-COPY':undefined} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onSave={handleSaveProduct} onCancel={() => { if(busyProduct.current)return;if(dirtyProduct.current&&!confirm('当前产品资料尚未保存，确认离开吗？'))return;setEditingProduct(null);setIsCreating(false);setDuplicateSource(null);setCreationTemplate({}); }} onUpload={async (f) => { const fd = new FormData(); fd.append('file', f); const r = await adminFetch('upload-image', { method: 'POST', body: fd }); return r.url; }} userRole="ADMIN" lang="zh" />
           ) : (
             <>
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded border border-stone-200 bg-white p-3">
@@ -684,7 +723,8 @@ const AdminWorkspace: React.FC = () => {
                 <button type="button" className="mt-2 rounded border border-amber-700 px-3 py-1 text-xs"
                   onClick={()=>void loadDeleteCapability()}>重新检查删除权限</button>
               </div>}
-            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={setEditingProduct} onCreate={() => setIsCreating(true)} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} forceDeleteEnabled={forceDeleteEnabled} lang="zh" userRole="ADMIN" />
+            <ProductList items={products} isLoading={isProductsLoading} categories={siteConfig?.categories || DEFAULT_CONFIG.categories} onEdit={item=>{setDuplicateSource(null);setCreationTemplate({});setEditingProduct(item);}} onDuplicate={duplicateProduct}
+              onBulkAction={handleBulkAction} onCreate={() => {setDuplicateSource(null);setCreationTemplate({});setIsCreating(true);}} onBack={() => {}} onRefresh={loadProducts} serverFiltered onArchive={item => handleArchive([item], !!item.archived_at)} onCatalogVisibility={handleCatalogVisibility} onPermanentDelete={handlePermanentDelete} forceDeleteEnabled={forceDeleteEnabled} lang="zh" userRole="ADMIN" />
               <nav aria-label="产品分页" className="flex items-center justify-end gap-3">
                 <button type="button" disabled={catalogPage <= 1 || isProductsLoading} onClick={() => setCatalogPage(page => page - 1)}>上一页</button>
                 <span>第 {catalogPage} 页</span>
