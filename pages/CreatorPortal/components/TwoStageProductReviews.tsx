@@ -48,7 +48,7 @@ const fields:[string,string][]=[
   ['size','尺寸'],['finish','表面处理'],['description','英文描述'],
   ['description_cn','中文描述'],['images','产品图片'],['production_sites','生产工厂']
 ];
-const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:string}[]}>=({role,members=[]})=>{
+const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:string}[];initialRecheck?:0|1}>=({role,members=[],initialRecheck})=>{
   const base=role==='ADMIN'?'admin':'supervisor';
   const [reviews,setReviews]=useState<Review[]>([]);
   const [selected,setSelected]=useState<ReviewDetail|null>(null);
@@ -72,6 +72,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const [employee,setEmployee]=useState('');
   const [kind,setKind]=useState<''|'product'|'revision'>('');
   const [status,setStatus]=useState('action');
+  const [recheck,setRecheck]=useState<''|'0'|'1'>(initialRecheck===undefined?'':String(initialRecheck) as '0'|'1');
   const generation=useRef(0);
   const detailGeneration=useRef(0);
   const refresh=useCallback(async()=>{
@@ -79,7 +80,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     setLoading(true);
     try{
       const result=await fetchBackofficePage<Review>(role==='ADMIN'?'admin/release-queue':'supervisor/release-queue',{
-        page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest'
+        page,q:query,submitter:employee,kind:kind||undefined,status,sort:'oldest',
+        recheck:role==='SUPERVISOR'&&recheck!==''?Number(recheck) as 0|1:undefined
       });
       if(request!==generation.current)return [];
       if(page>1&&!result.items.length){setPage(Math.max(1,Math.ceil(result.total/50)));return [];}
@@ -90,7 +92,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
       if(request===generation.current){setError(e?.message||'读取完整审核列表失败');setReviews([]);setTotal(null);setSelected(null);}
       return [];
     }finally{if(request===generation.current)setLoading(false);}
-  },[role,page,query,employee,kind,status]);
+  },[role,page,query,employee,kind,status,recheck]);
   useEffect(()=>{
     setError('');setSelected(null);detailGeneration.current++;void refresh();
     return ()=>{generation.current++;detailGeneration.current++;};
