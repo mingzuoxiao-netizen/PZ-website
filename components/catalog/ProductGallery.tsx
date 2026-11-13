@@ -40,7 +40,7 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images = [], name, lang
         }}
       >
         <img
-          src={resolveImage(sources[index])}
+          src={resolveImage(sources[index], {width: 1200})}
           alt={name + ' — ' + L('image', '图片') + ' ' + (index + 1)}
           loading="eager"
           decoding="async"
@@ -72,7 +72,7 @@ const ProductGallery: React.FC<ProductGalleryProps> = ({ images = [], name, lang
               aria-label={L('Show image', '查看图片') + ' ' + (i + 1)}
               aria-pressed={index === i}
               className={'h-16 w-20 shrink-0 overflow-hidden rounded-sm border-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#754831] ' + (index === i ? 'border-[#754831]' : 'border-transparent hover:border-[#cab7a7]')}>
-              <img src={resolveImage(source)} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img src={resolveImage(source, {width: 200})} alt="" loading="lazy" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>
