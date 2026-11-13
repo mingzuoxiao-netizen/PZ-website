@@ -261,7 +261,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• 50k+ Monthly Capacity</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={config.capacity?.card_cn} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
+                 <img src={config.capacity?.card_cn} loading="lazy" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="China Factory" />
               </div>
             </div>
 
@@ -284,7 +284,7 @@ const GlobalCapacity: React.FC = () => {
                  <li>• Specialized in High-Volume SKU Runs</li>
               </ul>
               <div className="w-full h-48 overflow-hidden mt-6 rounded-sm">
-                 <img src={config.capacity?.card_kh} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
+                 <img src={config.capacity?.card_kh} loading="lazy" className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" alt="Cambodia Factory" />
               </div>
             </div>
          </div>
@@ -347,6 +347,7 @@ const GlobalCapacity: React.FC = () => {
             <div className="relative w-full aspect-[2/1] bg-[#e8e6e3] border border-stone-200 rounded-lg overflow-hidden shadow-inner">
                <img 
                 src={config.capacity?.map_bg}
+                loading="lazy"
                 className="absolute inset-0 w-full h-full object-fill opacity-20 grayscale mix-blend-multiply" 
                 alt="World Map" 
               />
