@@ -6,13 +6,16 @@ import PZImageManager from './PZImageManager';
 import NewCategoryRequestHistory from './NewCategoryRequestHistory';
 import { resolveImage } from '../../../utils/imageResolver';
 
-type Editable = { title: string; title_cn: string; subtitle: string; description: string; image: string };
+type Editable = { title: string; title_cn: string; subtitle: string; description: string; image: string; alt_en: string; alt_zh: string; caption: string };
 const fromCategory = (category: Category): Editable => ({
   title: category.title || '',
   title_cn: category.title_cn || category.title_zh || '',
   subtitle: category.subtitle || '',
   description: category.description || '',
-  image: category.image || ''
+  image: category.image || '',
+  alt_en: category.alt_en || '',
+  alt_zh: category.alt_zh || '',
+  caption: category.caption || ''
 });
 type Item = { id: string; category_id: string; status: string; created_at: string; proposed: Editable; reject_reason?: string | null };
 interface Props {
@@ -70,7 +73,7 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload, newC
     <div className="space-y-6 pb-24">
       <header className="bg-white border border-stone-200 p-6">
         <h2 className="font-serif text-2xl">产品分类 · 修改申请</h2>
-        <p className="text-sm text-stone-500 mt-2">选择已发布分类，修改中英文名称、简介或封面，再提交管理员审核。不能直接修改网站。</p>
+        <p className="text-sm text-stone-500 mt-2">选择已发布分类，修改中英文名称、简介、封面和图片说明，再提交管理员审核。不能直接修改网站。</p>
         <p className="text-xs text-amber-800 mt-2">每个分类同时只允许一条待审核修改申请。已有申请请先等待批准或驳回。</p>
       </header>
       {error && <div role="alert" className="border border-red-300 bg-red-50 text-red-800 p-3 text-sm">{error}</div>}
@@ -94,7 +97,9 @@ const FactoryCategoryManagement: React.FC<Props> = ({ categories, onUpload, newC
               <div className="grid md:grid-cols-2 gap-4">
                 {([
                   {field:'title',label:'英文名称'}, {field:'title_cn',label:'中文名称'},
-                  {field:'subtitle',label:'副标题'}, {field:'description',label:'英文说明'}
+                  {field:'subtitle',label:'副标题'}, {field:'description',label:'英文说明'},
+                  {field:'alt_en',label:'封面替代文本（英文）'}, {field:'alt_zh',label:'封面替代文本（中文）'},
+                  {field:'caption',label:'封面图片备注（内部）'}
                 ] as {field:keyof Editable;label:string}[]).map(({field,label})=>(
                   <label key={field} className="text-xs font-medium text-stone-600">
                     {label}
