@@ -94,7 +94,7 @@ const RoleHome:React.FC<{
           <h2 className="flex items-center gap-2 text-base font-semibold"><Clock size={17}/>超期未更新草稿</h2>
           {data.stale_items.length===0?<p className="mt-3 text-sm text-stone-500">暂无超过 7 天未修改的草稿。</p>:
             <div className="mt-3 space-y-2">
-              {data.stale_items.map(item=><button key={item.id} type="button"
+              {data.stale_items.map(item=><button key={item.id} type="button" aria-label={"打开超期草稿 "+(item.code||item.name)}
                 onClick={()=>onNavigate({tab:'inventory',status:'draft',stale:true,sku:item.code||''})}
                 className="flex w-full flex-wrap items-center justify-between gap-2 rounded border border-stone-200 px-3 py-3 text-left hover:bg-stone-50">
                 <span className="break-all text-sm font-semibold">{item.code||'未编号'} · {item.name||'未命名草稿'}</span>
