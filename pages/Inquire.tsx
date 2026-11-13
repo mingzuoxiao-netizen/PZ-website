@@ -35,6 +35,7 @@ const Inquire: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     company: '',
+    country: '',
     email: '',
     type: 'General',
     message: '',
@@ -139,6 +140,8 @@ const Inquire: React.FC = () => {
           name: formData.name,
           email: formData.email,
           company: formData.company,
+          country: formData.country,
+          product_code: searchParams.get('product_code')||undefined,
           product_type: formData.type,
           message: formData.message,
           website: formData.website,
@@ -169,7 +172,7 @@ const Inquire: React.FC = () => {
           <button
             onClick={() => {
               setSubmitted(false);
-              setFormData({ name: '', company: '', email: '', type: 'General', message: '', website: getSafeCurrentUrl() });
+              setFormData({ name: '', company: '', country: '', email: '', type: 'General', message: '', website: getSafeCurrentUrl() });
               setTurnstileToken('');
             }}
             className="text-stone-500 underline hover:text-stone-900"
@@ -234,6 +237,18 @@ const Inquire: React.FC = () => {
                   <label className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">{t.inquire.form.company}</label>
                   <input required type="text" name="company" value={formData.company} onChange={handleChange} className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3" />
                 </div>
+              </div>
+
+              {/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/i.test(searchParams.get('product_code')||'')&&
+                <p className="text-sm text-stone-600" role="status">咨询产品 SKU：{searchParams.get('product_code')}</p>}
+              <div>
+                <label htmlFor="pz-inquiry-country" className="block text-xs uppercase tracking-wider text-stone-500 font-bold mb-2">
+                  Country / Region · 国家或地区（选填）
+                </label>
+                <input id="pz-inquiry-country" type="text" name="country" maxLength={80}
+                  value={formData.country} onChange={handleChange}
+                  autoComplete="country-name"
+                  className="w-full bg-stone-50 border border-stone-200 text-stone-900 px-4 py-3" />
               </div>
 
               <div>
