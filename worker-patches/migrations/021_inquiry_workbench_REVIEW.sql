@@ -19,7 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_inquiries_workbench_assignee_time ON inquiries(as
 CREATE TABLE IF NOT EXISTS pz_inquiry_history (
   id TEXT PRIMARY KEY,
   inquiry_id TEXT NOT NULL REFERENCES inquiries(id) ON DELETE RESTRICT,
-  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  -- Keep the immutable actor ID even when a login is retired/removed.
+  -- A foreign key ON DELETE SET NULL would conflict with append-only audit triggers.
+  actor_id TEXT,
   field TEXT NOT NULL CHECK(field IN ('status','assignee_id')),
   old_value TEXT,
   new_value TEXT,
