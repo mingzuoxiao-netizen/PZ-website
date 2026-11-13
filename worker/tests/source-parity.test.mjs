@@ -46,10 +46,11 @@ test('baseline parity is strict outside explicitly changed product-review and li
   const inquiryImport="import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';\n";
   const dashImport="import {roleDashboardFetch} from '../dashboardCore.mjs';\n";
   const productBulkImport="import {productBulkFetch} from '../productBulkCore.mjs';\n";
+  const presenceImport="import {productPresenceFetch} from '../productPresenceCore.mjs';\n";
   const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
   const fastLaneImport="import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';\n";
-  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+productBulkImport+fastLaneImport+returnsImport));
-  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+productBulkImport.length+fastLaneImport.length+returnsImport.length);
+  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+productBulkImport+presenceImport+fastLaneImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+productBulkImport.length+presenceImport.length+fastLaneImport.length+returnsImport.length);
   const outerNotice="\n// BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.";
   const wrapperAt=restored.indexOf(outerNotice);
   assert.ok(wrapperAt>0,'notification middleware must be appended after all original route wrappers');
@@ -58,6 +59,7 @@ test('baseline parity is strict outside explicitly changed product-review and li
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,'));
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,'));
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,'));
+  assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=productPresenceFetch(pzProductEditOriginalFetch,'));
   restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
@@ -67,6 +69,17 @@ test('baseline parity is strict outside explicitly changed product-review and li
   // Task 18 extends only two existing guards: the bounded, validated provenance
   // allow-list and the existing audit log's per-item unpublish reason. Normalize
   // these EXACT additive blocks; all other legacy Worker bytes stay protected.
+  // Task20 changes are restricted to the pre-existing factory draft update block
+  // and product list's explicit edit revision column; all other legacy bytes retain parity.
+  restored=restoreLegacyBlock(restored,expected,
+    '        const m = pathname.match(/^\\/factory\\/products\\/([^/]+)$/);',
+    '      // Admin-only catalog documents:');
+  restored=restored.replace(
+    "p.specs_json,p.created_by,p.status,p.created_at,p.updated_at,p.edit_revision'+",
+    "p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+");
+  restored=restored.replace(
+    "      edit_revision: Number(r.edit_revision ?? 0)\\n",
+    "");
   const extendedProvenance="provenance:['provider','reviewer','source_factory','inherited_images_from','inherited_product_id']";
   one(restored,extendedProvenance);
   restored=restored.replace(extendedProvenance,"provenance:['provider','reviewer','source_factory']");
