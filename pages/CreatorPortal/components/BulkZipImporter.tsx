@@ -3,7 +3,7 @@ import {FileArchive,FolderOpen,Images,Download,ShieldCheck,RefreshCw,CheckCircle
 import type {Category} from '../../../types';
 import type {ImportIssue,MappedRow} from '../../../utils/bulkImportCore.mjs';
 import type {ZipProductBatch,ZipProductImage} from '../../../utils/zipXlsxImport.mjs';
-import {normalizeSku,errorReportCsv} from '../../../utils/bulkImportCore.mjs';
+import {normalizeSku,errorReportCsv,guideForColumns,templateColumns} from '../../../utils/bulkImportCore.mjs';
 import {readProductZip,disposePreviews,createZipTemplate} from '../../../utils/zipXlsxImport.mjs';
 import {attributesForCategory} from '../../../utils/productSpecifications';
 import {adminFetch} from '../../../utils/adminFetch';
@@ -57,7 +57,9 @@ const BulkZipImporter:React.FC<{
     return()=>{active=false;};
   },[role]);
   const chosenCategory=categories.find(c=>c.id===category);
-  const attributeKeys=attributesForCategory(chosenCategory?.title||category).map(a=>a.key);
+  const attributeDefinitions=attributesForCategory(chosenCategory?.title||category);
+  const attributeKeys=attributeDefinitions.map(a=>a.key);
+  const columnGuide=guideForColumns(templateColumns(attributeKeys),attributeDefinitions);
   const lookups=useMemo(()=>{
     if(!batch)return [];
     const seen=new Map<string,number>();
@@ -79,9 +81,16 @@ const BulkZipImporter:React.FC<{
   const ready=lookups.filter(row=>row.valid);
   const sourceErrors=lookups.flatMap(row=>row.issues);
   const errors=sourceErrors.filter(x=>x.severity==='error');
+  // Main-image parser notices are resolved once an importable SKU is confirmed.
+  // Skipped/duplicate SKUs do not need an actionable main-image warning.
+  const pendingImageWarnings=(batch?.warnings||[]).filter(message=>{
+    const match=message.match(/^(\S+) (?:未标注主图|有多个疑似主图)/);
+    if(!match)return true;
+    return ready.some(row=>row.code===match[1]&&!confirmed.has(row.code));
+  });
   const toFix:ImportIssue[]=[
     ...sourceErrors.filter(x=>x.severity==='warning'),
-    ...(batch?.warnings||[]).map(message=>({row:0,field:'ZIP',severity:'warning' as const,message})),
+    ...pendingImageWarnings.map(message=>({row:0,field:'ZIP',severity:'warning' as const,message})),
     ...(batch?.orphan||[]).map(message=>({
       row:0,field:'未匹配图片',severity:'warning' as const,message:'没有对应 Excel SKU：'+message
     }))
@@ -101,7 +110,7 @@ const BulkZipImporter:React.FC<{
     if(file.size>180*1024*1024){setError('ZIP 超过 180 MB，建议按 100 个 SKU 一批拆分');return;}
     setBusy(true);setProgress('安全检查 ZIP，并解析产品 Excel 和 SKU 图片文件夹…');
     try{
-      const loaded=await readProductZip(await file.arrayBuffer());
+      const loaded=await readProductZip(await file.arrayBuffer(),{categories});
       current.current=loaded;setBatch(loaded);
       setFilename(file.name);setSelected(loaded.records[0]?.code||'');
       const confirmedNames=new Set<string>();
@@ -228,7 +237,7 @@ const BulkZipImporter:React.FC<{
     finally{setBusy(false);}
   };
   const makeTemplate=()=>download('PZ-批量导入模板.zip',
-    createZipTemplate(category||'dining-table',attributeKeys),'application/zip');
+    createZipTemplate(category||'dining-table',attributeKeys,{attributeDefinitions,categories}),'application/zip');
   return <section className="space-y-5" aria-label="ZIP Excel 批量导入产品草稿">
     <header className="rounded border border-stone-200 bg-white p-5">
       <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
@@ -251,6 +260,20 @@ const BulkZipImporter:React.FC<{
         className="flex items-center gap-2 rounded border px-4 py-2 text-sm">
         <Download size={16}/> 下载示例 ZIP（内含可直接填写的 Excel 模板）
       </button>
+      <details className="rounded border border-stone-200 p-3 text-sm">
+        <summary className="cursor-pointer font-semibold">查看本类中文填写指南（{columnGuide.length} 个字段，含分类 ID）</summary>
+        <p className="mt-2 text-xs text-stone-600">Excel 第1行显示中文表头，第2行隐藏机器识别字段，请勿删除或更改；黄色示例标记 YES 的行不参与导入。需要保留真实的英文产品名称与英文产品描述供官网使用。</p>
+        <p className="mt-2 text-xs">有效分类：{categories.map(c=>(c.title_cn||c.title_zh||c.title)+'（'+c.id+'）').join('、')||'暂无可选分类'}</p>
+        {!!chosenCategory?.subCategories?.length&&<p className="mt-1 text-xs">本类子分类：{chosenCategory.subCategories.map(c=>c.name).join('、')}</p>}
+        <div className="mt-3 max-h-72 overflow-auto">
+          <table className="w-full min-w-[550px] border-collapse text-left text-xs">
+            <thead><tr className="bg-stone-100"><th className="p-2">中文字段</th><th className="p-2">填写要求</th><th className="p-2">单位</th><th className="p-2">系统字段</th></tr></thead>
+            <tbody>{columnGuide.map(g=><tr key={g.key} className="border-t"><td className="p-2">{g.zhLabel}</td>
+              <td className="p-2">{g.tier==='import-required'?'导入必填':g.tier==='publish-required'?'审核前必填（依品类）':'选填'}</td>
+              <td className="p-2">{g.unit||'—'}</td><td className="p-2 font-mono">{g.key}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </details>
       <div className="rounded bg-stone-50 p-3 text-xs text-stone-600">
         <p className="flex items-center gap-2 font-semibold"><FolderOpen size={16}/> ZIP 内容示意</p>
         <pre className="mt-2 overflow-auto whitespace-pre-wrap">{'产品资料.xlsx\nimages/\n  PZ-001/\n    IMG_0001.jpg\n    IMG_0002.jpg\n  PZ-002/\n    相机照片.png'}</pre>
@@ -325,8 +348,8 @@ const BulkZipImporter:React.FC<{
           </button>}
         </div>
       </div>
-      {batch.warnings.length>0&&<p className="text-xs text-amber-800">
-        图片提示：{batch.warnings.slice(0,8).join('；')}{batch.warnings.length>8?'…':''}
+      {pendingImageWarnings.length>0&&<p className="text-xs text-amber-800">
+        图片提示：{pendingImageWarnings.slice(0,8).join('；')}{pendingImageWarnings.length>8?'…':''}
       </p>}
       {batch.orphan.length>0&&<p className="text-xs text-amber-800">
         {batch.orphan.length} 张图片没有对应 Excel SKU，已排除（例如：{batch.orphan.slice(0,3).join('、')}）

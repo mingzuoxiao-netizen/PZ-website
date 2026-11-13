@@ -1,5 +1,5 @@
 import {inspectZip,createStoredZip,ZIP_LIMITS} from './safeZip.mjs';
-import {templateColumns,normalizeSku,mapImportRow} from './bulkImportCore.mjs';
+import {templateColumns,guideForColumns,normalizeSku,mapImportRow} from './bulkImportCore.mjs';
 
 const dec=new TextDecoder('utf-8',{fatal:true});
 const enc=new TextEncoder();
@@ -158,7 +158,7 @@ export function assignInitialImageRoles(items){
   }
   return {images:group,needsConfirmation:group.length>0&&found.length!==1};
 }
-export async function readProductZip(buffer){
+export async function readProductZip(buffer,{categories=[]}={}){
   const zip=inspectZip(buffer);
   const workbooks=zip.entries.filter(e=>{
     const basename=e.name.split('/').at(-1);
@@ -172,7 +172,7 @@ export async function readProductZip(buffer){
     throw Error('Excel 应位于 ZIP 根目录或唯一的顶层文件夹');
   const base=workbookParts.length===2?workbookParts[0]+'/':'';
   const rows=await readWorkbook(await zip.read(workbooks[0],ZIP_LIMITS.workbook));
-  const records=rows.map(mapImportRow),productSku=new Set(records.map(x=>x.code));
+  const records=rows.map(row=>mapImportRow(row,{categories})),productSku=new Set(records.map(x=>x.code));
   const bySku=new Map(records.map(x=>[x.code,[]]));
   const orphan=[],warnings=[],previews=[];
   try{
@@ -221,12 +221,18 @@ const xmlCell=(column,row,value)=>{
   return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+
     xmlEscape(value)+'</t></is></c>';
 };
-const sheetXml=rows=>'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
-  '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+
-  rows.map((cells,i)=>'<row r="'+(i+1)+'">'+cells.map((value,j)=>xmlCell(j,i,value)).join('')+'</row>').join('')+
+const sheetXml=(rows,{hideMachineRow=false,freeze=false}={})=>
+  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+  '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+  (freeze?'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>':'')+
+  '<sheetData>'+rows.map((cells,i)=>'<row r="'+(i+1)+'"'+
+    (hideMachineRow&&i===1?' hidden="1"':'')+'>'+cells.map((value,j)=>xmlCell(j,i,value)).join('')+'</row>').join('')+
   '</sheetData></worksheet>';
-export function createTemplateWorkbook(category,attributeKeys=[]){
+export function createTemplateWorkbook(category,attributeKeys=[],options={}){
   const headers=templateColumns(attributeKeys);
+  const guides=guideForColumns(headers,options.attributeDefinitions||[]);
+  const categoryOptions=options.categories||[];
+  const tiers={'import-required':'导入必填','publish-required':'审核前必填（按产品品类）',optional:'选填'};
   const examples={
     __example:'YES',code:'PZ-EXAMPLE-001',name:'Marlow Oak Dining Table',
     name_cn:'橡木餐桌',category,material:'White Oak',finish:'Matte',
@@ -234,23 +240,34 @@ export function createTemplateWorkbook(category,attributeKeys=[]){
     'dimensions_cm.length':'180','dimensions_cm.width':'90','dimensions_cm.height':'75'
   };
   const instructions=[
-    ['PZ 家具产品 ZIP 导入指南','填写说明'],
+    ['PZ 家具产品 ZIP 导入指南（工厂中文填写版）','填写说明'],
     ['产品资料.xlsx','保留本文件在 ZIP 根目录'],
     ['images/PZ-001/','把该 SKU 的所有照片放入此文件夹；照片可保留相机原名'],
-    ['code','SKU 是唯一匹配键，Excel 和图片文件夹必须一致'],
+    ['SKU 编号','SKU 是唯一匹配键，Excel 和图片文件夹必须一致；编码不得翻译'],
+    ['Excel 表头','产品资料第1行是中文，第2行隐藏技术字段；请勿删除或修改隐藏行'],
+    ['分类编码','从下方有效分类ID中选择，不要自行翻译或编造'],
+    ['导入必填',guides.filter(x=>x.tier==='import-required').map(x=>x.zhLabel).join('、')],
+    ['审核前必填',guides.filter(x=>x.tier==='publish-required').map(x=>x.zhLabel).join('、')],
+    ['证据红线','承重、认证类数值必须附证据文件；没有证据不要填写已验证的结论'],
+    ...categoryOptions.map(c=>['有效分类：'+c.id,c.title_cn||c.title_zh||c.title||c.id]),
     ['图片角色','系统自动选择主图，可以在导入预览调整主图、顺序和用途'],
     ['__example','YES 示例行自动忽略，请从下一行开始录入'],
     ['尺寸和重量','dimensions_cm 为厘米，重量字段为 kg'],
     ['导入行为','仅保存产品草稿，不自动提交审核或发布'],
-    ['数量','单批最多 100 个 SKU，每款最多 12 张图片']
+    ['数量','单批最多 100 个 SKU，每款最多 12 张图片'],
+    ['多箱包装','最多填写第1、2、3箱；只填写实际存在的箱子'],
+    ['多值填写','生产工厂可用中文分号/逗号分隔；实际值仍为 zhaoqing 或 cambodia']
   ];
+  const dictionary=[['中文字段','系统识别代码（勿修改）','填写等级','单位','例子'],
+    ...guides.map(g=>[g.zhLabel,g.key,tiers[g.tier],g.unit||'',g.key==='category'?category:g.key==='production_sites'?'zhaoqing':'' ])];
   const contentTypes='<?xml version="1.0" encoding="UTF-8"?>'+
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
     '<Default Extension="xml" ContentType="application/xml"/>'+
     '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
     '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
-    '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+    '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+ 
+    '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
     '</Types>';
   const files=[
     {name:'[Content_Types].xml',data:contentTypes},
@@ -261,23 +278,27 @@ export function createTemplateWorkbook(category,attributeKeys=[]){
       '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '+
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
       '<sheets><sheet name="Products" sheetId="1" r:id="rId1"/>'+
-      '<sheet name="说明" sheetId="2" r:id="rId2"/></sheets></workbook>'},
+      '<sheet name="说明" sheetId="2" r:id="rId2"/>'+ 
+      '<sheet name="中文字段对照" sheetId="3" r:id="rId3"/></sheets></workbook>'},
     {name:'xl/_rels/workbook.xml.rels',data:'<?xml version="1.0" encoding="UTF-8"?>'+
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
       '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
-      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>'},
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'+ 
+      '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/></Relationships>'},
     {name:'xl/worksheets/sheet1.xml',data:sheetXml([
-      headers,headers.map(key=>examples[key]||'')])},
-    {name:'xl/worksheets/sheet2.xml',data:sheetXml(instructions)}
+      guides.map(g=>g.zhLabel+(g.unit?'（'+g.unit+'）':'')),
+      headers,headers.map(key=>examples[key]||'')],{hideMachineRow:true,freeze:true})},
+    {name:'xl/worksheets/sheet2.xml',data:sheetXml(instructions)},
+    {name:'xl/worksheets/sheet3.xml',data:sheetXml(dictionary,{freeze:true})}
   ];
   return createStoredZip(files);
 }
-export function createZipTemplate(category,attributeKeys=[]){
-  const xlsx=createTemplateWorkbook(category,attributeKeys);
+export function createZipTemplate(category,attributeKeys=[],options={}){
+  const xlsx=createTemplateWorkbook(category,attributeKeys,options);
   return createStoredZip([
     {name:'产品资料.xlsx',data:xlsx},
     {name:'images/',data:new Uint8Array(0)},
-    {name:'README.txt',data:'把产品照片放入 images/<SKU>/ 文件夹；请保留根目录的产品资料.xlsx 文件。'}
+    {name:'README.txt',data:'工厂中文模板：打开产品资料.xlsx，第1行中文名称，第2行隐藏技术字段请勿修改。照片放入 images/<SKU>/ 文件夹，图片可使用相机原名。导入仅保存草稿。'}
   ]);
 }
 export function zipSummary(batch){

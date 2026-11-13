@@ -12,13 +12,17 @@ export const IMPORT_LIMIT:number;
 export const SITE_VALUES:string[];
 export const IMAGE_ROLES:string[];
 export const BASE_COLUMNS:string[];
+export interface ColumnGuide {key:string;zhLabel:string;tier:'import-required'|'publish-required'|'optional';unit?:string;example?:string}
+export const COLUMN_GUIDE:Readonly<Record<string,ColumnGuide>>;
+export const IMPORT_REQUIRED_COLUMNS:readonly string[];
+export function guideForColumns(columns?:string[],attributeDefinitions?:Array<{key:string;labelZh:string;unit?:string}>):ColumnGuide[];
 export function normalizeSku(value:unknown):string;
 export function columnsForAttributes(keys?:string[]):string[];
 export function templateColumns(keys?:string[]):string[];
 export function csvTemplate(columns?:string[],category?:string):string;
 export function csvLine(cells:unknown[]):string;
 export function parseCsv(content:string):{headers:string[];rows:ImportRow[]};
-export function mapImportRow(row:ImportRow):MappedRow;
+export function mapImportRow(row:ImportRow,opts?:{categories?:Array<{id:string;subCategories?:Array<{name:string}>}>}):MappedRow;
 export function attachImageRoles(row:MappedRow, images:{url:string;role:string}[]):MappedRow;
 export function matchImageFilename(fileName:string):{code:string;role:string}|null;
 export function errorReportCsv(issues:ImportIssue[]):string;
