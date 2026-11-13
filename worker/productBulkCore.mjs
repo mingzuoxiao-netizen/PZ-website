@@ -104,7 +104,7 @@ export function productBulkFetch(upstream,{authorize,json}){
       const code=String(body.code||'').trim().toUpperCase();
       if(!ID.test(id)||!SKU.test(code))
         return validation(json,'新产品必须填写有效且不同的 PZ- SKU。');
-      if(Object.keys(body).some(key=>!['code','source_code'].includes(key)))
+      if(Object.keys(body).some(key=>!['code','draft'].includes(key)))
         return validation(json,'复制操作只接受新 SKU，不接受修改审核记录或发布状态。');
       try{
         const source=await readProduct(env,id);
@@ -118,13 +118,30 @@ export function productBulkFetch(upstream,{authorize,json}){
           .bind(code).first();
         if(collision)return validation(json,'该 SKU 已经存在，请换一个新编号。',409);
         const value=productView(source);
-        const sourceSpecs=clone(value.specifications);
+        const overrides=body.draft??{};
+        if(!overrides||typeof overrides!=='object'||Array.isArray(overrides)||
+          Object.keys(overrides).some(key=>!draftFields.includes(key)))
+          return validation(json,'复制草稿包含不允许的字段。');
+        if(Object.hasOwn(overrides,'images')){
+          const next=overrides.images;
+          const original=new Set(value.images);
+          if(!Array.isArray(next)||next.length>40||next.some(url=>
+            typeof url!=='string'||url.length>2048||
+            (!original.has(url)&&!/^https:\/\/cdn\.peng-zhan\.com\//i.test(url))))
+            return validation(json,'图片只能引用源产品已有图片或 PZ 官方 R2 CDN。');
+        }
+        const sourceSpecs=Object.hasOwn(overrides,'specifications')
+          ?clone(overrides.specifications):clone(value.specifications);
+        if(!sourceSpecs||typeof sourceSpecs!=='object'||Array.isArray(sourceSpecs))
+          return validation(json,'复制产品技术资料格式不正确。');
         const sourceProvenance=sourceSpecs.provenance&&
           typeof sourceSpecs.provenance==='object'&&!Array.isArray(sourceSpecs.provenance)
           ?sourceSpecs.provenance:{};
         const proposed={
           ...Object.fromEntries(draftFields.map(field=>[field,
-            field==='specifications'?sourceSpecs:clone(value[field]??(field==='images'||field==='production_sites'?[]:''))])),
+            field==='specifications'?sourceSpecs:clone(
+              Object.hasOwn(overrides,field)?overrides[field]:
+              (value[field]??(field==='images'||field==='production_sites'?[]:'')))])),
           code,status:'draft',is_published:0,id:undefined,created_by:undefined,
           specifications:{...sourceSpecs,provenance:{
             ...sourceProvenance,inherited_images_from:source.code,
