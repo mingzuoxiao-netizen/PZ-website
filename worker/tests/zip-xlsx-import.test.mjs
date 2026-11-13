@@ -58,8 +58,8 @@ async function workbookWithRow(sku='PZ-TABLE-001'){
     category:'dining-table',material:'White Oak',description:'Solid oak dining table',
     production_sites:'zhaoqing','dimensions_cm.length':'180','dimensions_cm.width':'90',
     'dimensions_cm.height':'75'};
-  const row='<row r="3">'+keys.map((key,i)=>values[key]?
-    '<c r="'+col(i)+'3" t="inlineStr"><is><t>'+escape(values[key])+'</t></is></c>':'').join('')+'</row>';
+  const row='<row r="4">'+keys.map((key,i)=>values[key]?
+    '<c r="'+col(i)+'4" t="inlineStr"><is><t>'+escape(values[key])+'</t></is></c>':'').join('')+'</row>';
   const files=[];
   for(const entry of zip.entries){
     const data=await zip.read(entry);
@@ -117,7 +117,7 @@ test('Excel reader skips the built-in example and retains source row numbers',as
   try{
     const rows=await readWorkbook(await workbookWithRow());
     assert.equal(rows.length,1);
-    assert.equal(rows[0].row,3);
+    assert.equal(rows[0].row,4);
     assert.equal(rows[0].cells.code,'PZ-TABLE-001');
     assert.equal(rows[0].cells.name_cn,'橡木餐桌');
     assert.equal(rows[0].cells['dimensions_cm.length'],'180');
@@ -215,7 +215,7 @@ test('a single XLSX with 100 products and five malformed rows previews 95 valid 
       if(i===2)value.name='123456';
       if(i===3)value['dimensions_cm.height']='750cm';
       if(i===4)value.production_sites='invalid-site';
-      const n=i+3;
+      const n=i+4;
       const cells=columns.map((key,j)=>value[key]?
         '<c r="'+col(j)+n+'" t="inlineStr"><is><t>'+escape(value[key])+'</t></is></c>':'').join('');
       return '<row r="'+n+'">'+cells+'</row>';
@@ -251,5 +251,47 @@ test('hidden macros, multiple workbooks and missing workbooks fail closed',async
     for(const e of z.entries)files.push({name:e.name,data:await z.read(e)});
     files.push({name:'xl/vbaProject.bin',data:'unsafe'});
     await assert.rejects(readWorkbook(createStoredZip(files)),/宏|外部链接/);
+  }finally{restoreDom();}
+});
+
+test('Chinese-first workbook keeps the machine row hidden and uses one guide for category attributes',async()=>{
+  const template=createTemplateWorkbook('dining-table',['seating_capacity'],{
+    attributeDefinitions:[{key:'seating_capacity',labelZh:'适用座位数',unit:'人'}],
+    categories:[{id:'dining-table',title_cn:'餐桌'}]
+  });
+  const inner=inspectZip(template);
+  const data=new TextDecoder();
+  const productXml=data.decode(await inner.read('xl/worksheets/sheet1.xml'));
+  const guideXml=data.decode(await inner.read('xl/worksheets/sheet3.xml'));
+  const instructionXml=data.decode(await inner.read('xl/worksheets/sheet2.xml'));
+  assert.match(productXml,/产品英文名称/);
+  assert.match(productXml,/<row r="2" hidden="1">/);
+  assert.match(productXml,/适用座位数（人）/);
+  assert.match(guideXml,/attribute.seating_capacity/);
+  assert.match(guideXml,/适用座位数/);
+  assert.match(instructionXml,/有效分类：dining-table/);
+  assert.match(instructionXml,/餐桌/);
+});
+
+test('XLSX retains a legacy machine-header workbook without the Chinese first row',async()=>{
+  setDom();
+  try{
+    const old=inspectZip(createTemplateWorkbook('dining-table'));
+    const files=[];
+    for(const entry of old.entries){
+      let bytes=await old.read(entry);
+      if(entry.name==='xl/worksheets/sheet1.xml'){
+        let source=new TextDecoder().decode(bytes);
+        source=source.replace(/<row r="1">.*?<\/row>/,'')
+          .replace('r="2" hidden="1"','r="1"')
+          .replace(/<row r="3">/,'<row r="2">')
+          .replace(/([A-Z]+)2\"/g,'$1'+'1"');
+        bytes=new TextEncoder().encode(source);
+      }
+      files.push({name:entry.name,data:bytes});
+    }
+    // The legacy machine columns are still recognized with no Chinese front row.
+    const content=createStoredZip(files);
+    await assert.rejects(readWorkbook(content),/没有可导入的产品/);
   }finally{restoreDom();}
 });
