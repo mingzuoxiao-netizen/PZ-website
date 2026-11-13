@@ -526,7 +526,7 @@ const ProductForm:React.FC<ProductFormProps>=({
             </div>
           </details>
           <div className="flex min-w-0 flex-col gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:flex-wrap sm:items-center">
-            <button type="button" disabled={submitting||isPromoting} onClick={()=>{if(!onDirtyChange&&dirty&&!window.confirm(T('Leave without saving?','当前资料尚未保存，确认离开吗？')))return;onCancel();}}
+            <button type="button" disabled={submitting||isPromoting} onClick={async()=>{if(!onDirtyChange&&dirty&&!await ask({title:'离开产品编辑',description:'当前资料尚未保存，确认离开吗？',danger:true,confirmLabel:'离开'}))return;onCancel();}}
               className="flex min-h-11 items-center justify-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
               <ArrowLeft size={16}/>{T('Back','返回')}
             </button>
