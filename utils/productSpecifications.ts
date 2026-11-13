@@ -19,7 +19,7 @@ export interface ProductSpecifications {
   media_roles?:Record<string,'main'|'lifestyle'|'detail'|'dimension'|'material'|'packaging'>;
   attachments?:Array<{file_name:string;type:'dimension'|'assembly'|'certificate'|'other';visibility:'public'|'internal'}>;
   verification?:Array<{claim:string;evidence_file?:string;status:'unverified'|'verified'|'not_applicable'}>;
-  provenance?:{provider?:string;reviewer?:string;source_factory?:string};
+  provenance?:{provider?:string;reviewer?:string;source_factory?:string;inherited_images_from?:string;inherited_product_id?:string};
 }
 
 export type AttributeDefinition={key:string;labelZh:string;labelEn:string;unit?:string;needsEvidence?:boolean};
