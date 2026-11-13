@@ -9,6 +9,7 @@ on:
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
+      - 'worker-patches/migrations/022_product_edit_presence_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
@@ -26,6 +27,7 @@ on:
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
+      - 'worker-patches/migrations/022_product_edit_presence_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
@@ -84,6 +86,7 @@ jobs:
           node --test worker/tests/inquiry-workbench.test.mjs
           node --test worker/tests/role-dashboard.test.mjs
           node --test worker/tests/product-bulk.test.mjs
+          node --test worker/tests/product-edit.test.mjs
           node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/runtime-target.test.mjs
