@@ -53,7 +53,7 @@ test('baseline parity is strict outside explicitly changed product-review and li
   assert.ok(wrapperAt>0,'notification middleware must be appended after all original route wrappers');
   assert.match(restored.slice(wrapperAt),/index_default.fetch=notificationMiddleware\(pzNotifyOriginalFetch,\{authorize,json\}\);/);
   assert.match(restored.slice(wrapperAt),/index_default.fetch=bulkImportFetch\(pzImportOriginalFetch,/);
-  assert.match(restored.slice(wrapperAt),/index_default.fetch=inquiryWorkbenchFetch\\(pzInquiryOriginalFetch,/);
+  assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,'));
   restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
