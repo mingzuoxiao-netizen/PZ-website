@@ -8,7 +8,7 @@ import { categories as staticCategories } from '../../data/inventory';
 import { publishedSiteCategories } from '../../utils/catalogCategories';
 import PortalLayout from './PortalLayout';
 import RoleHome,{type DashboardTarget} from './components/RoleHome';
-import {House} from 'lucide-react';
+import {Home} from 'lucide-react';
 import { 
     Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, 
     Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database 
@@ -335,7 +335,7 @@ const FactoryWorkspace: React.FC = () => {
   };
 
   const navItems = [
-    {id:'home',label:'我的待办',icon:<House size={18}/>},
+    {id:'home',label:'我的待办',icon:<Home size={18}/>},
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
     { id: 'bulk-import', label: 'CSV 批量导入草稿', icon: <Package size={18} /> },
     { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
