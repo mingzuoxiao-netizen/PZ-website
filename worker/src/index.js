@@ -4195,7 +4195,8 @@ function normalizeProductRows(rows) {
       status: (r.status ?? "draft").toLowerCase(),
       ...(r.catalog_hidden !== undefined ? { catalog_hidden: r.catalog_hidden === 1, archived_at: r.archived_at ?? null } : {}),
       created_at: r.created_at ?? null,
-      updated_at: r.updated_at ?? null
+      updated_at: r.updated_at ?? null,
+      edit_revision: Number(r.edit_revision ?? 0)
     };
   });
 }
@@ -7730,7 +7731,7 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
-      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
+      'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at,p.edit_revision'+
       (env.PZ_BULK_IMPORT_ENABLED==='true'?',p.import_batch_id':',NULL AS import_batch_id')+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
       kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
