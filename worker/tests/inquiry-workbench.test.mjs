@@ -15,7 +15,7 @@ function setup(){
     CREATE TABLE users(id TEXT PRIMARY KEY,username TEXT,role TEXT,is_active INTEGER,deleted_at TEXT);
     CREATE TABLE inquiries(id TEXT PRIMARY KEY,name TEXT,email TEXT,company TEXT,
       product_type TEXT,message TEXT,source TEXT,created_at TEXT,status TEXT,website TEXT);
-    CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT,status TEXT,deleted_at TEXT);
+    CREATE TABLE products(id TEXT PRIMARY KEY,code TEXT,status TEXT,deleted_at TEXT,catalog_hidden INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE pz_notifications(
       id TEXT PRIMARY KEY,recipient_id TEXT,source_event_id TEXT,event_type TEXT,entity_type TEXT,
       entity_id TEXT,title TEXT,message TEXT,created_at TEXT,email_state TEXT,
@@ -25,8 +25,8 @@ function setup(){
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('admin2','Admin乙','admin',1);
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('staff','工厂员工','factory',1);
   sql.prepare('INSERT INTO users VALUES(?,?,?,?,NULL)').run('inactive','已停用','factory',0);
-  sql.prepare("INSERT INTO products VALUES('p1','PZ-TABLE-001','published',NULL)").run();
-  sql.prepare("INSERT INTO products VALUES('p2','PZ-SECRET-001','draft',NULL)").run();
+  sql.prepare("INSERT INTO products(id,code,status,deleted_at) VALUES('p1','PZ-TABLE-001','published',NULL)").run();
+  sql.prepare("INSERT INTO products(id,code,status,deleted_at) VALUES('p2','PZ-SECRET-001','draft',NULL)").run();
   sql.prepare('INSERT INTO inquiries VALUES(?,?,?,?,?,?,?,?,?,?)').run(
     'legacy','Old','legacy@example.test','Old Co','General','Historical contact','website',
     '2026-11-08T01:00:00.000Z','Read','https://example.test/inquire');
@@ -204,5 +204,33 @@ test('internal notes are admin-only; public submission response and notification
       email:'a@b.test',message:'Public'});
     assert.deepEqual(publicResponse.data,{success:true,id:uuid});
     assert.doesNotMatch(JSON.stringify(t.sql.prepare('SELECT title,message FROM pz_notifications').all()),/SECRET-PRICING/);
+  }finally{t.close();}
+});
+
+test('notes-only edit on a legacy replied inquiry does not invent first-response time or transition history',async()=>{
+  const t=setup();try{
+    t.sql.prepare('INSERT INTO inquiries(id,name,email,company,product_type,message,source,created_at,status,website) VALUES(?,?,?,?,?,?,?,?,?,?)')
+      .run('replied-old','Legacy Replied','old@example.test','Legacy','General',
+        'Old reply','website','2026-11-08T01:00:00.000Z','Replied','');
+    const saved=await t.call('admin/inquiries/replied-old','PUT',{
+      expected_version:0,status:'replied',internal_notes:'Add an internal reminder'
+    });
+    assert.equal(saved.status,200);
+    const detail=await t.call('admin/inquiries/replied-old');
+    assert.equal(detail.data.item.first_response_at,null);
+    assert.equal(detail.data.history.length,0);
+    assert.equal(detail.data.item.internal_notes,'Add an internal reminder');
+  }finally{t.close();}
+});
+
+test('hidden published SKU is not linked by an untrusted public product_code field',async()=>{
+  const t=setup();try{
+    t.sql.prepare("UPDATE products SET catalog_hidden=1 WHERE code='PZ-TABLE-001'").run();
+    const sent=await t.call('inquiries','POST',{
+      name:'Buyer',company:'A',email:'a@b.test',message:'Quote',
+      product_code:'PZ-TABLE-001'
+    });
+    assert.equal(sent.status,201);
+    assert.equal(t.sql.prepare('SELECT linked_product_code FROM inquiries WHERE id=?').get(uuid).linked_product_code,null);
   }finally{t.close();}
 });
