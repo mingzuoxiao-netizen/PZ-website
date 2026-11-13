@@ -4,7 +4,7 @@ import TwoStageProductReviews from './components/TwoStageProductReviews';
 import SupervisorCategoryRequests from './components/SupervisorCategoryRequests';
 import PortalLayout from './PortalLayout';
 import RoleHome,{type DashboardTarget} from './components/RoleHome';
-import {House} from 'lucide-react';
+import {Home} from 'lucide-react';
 import { adminFetch } from '../../utils/adminFetch';
 
 type TeamAccount={id:string;username:string;is_active:number;job_type:string};
@@ -51,7 +51,7 @@ const SupervisorWorkspace:React.FC=()=>{
   };
   return <PortalLayout role="SUPERVISOR" userName={sessionStorage.getItem('pz_user_name')||'部门主管'}
     navItems={[
-      {id:'home',label:'我的待办',icon:<House size={18}/>},
+      {id:'home',label:'我的待办',icon:<Home size={18}/>},
       {id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},
       {id:'categories',label:'新品类初审',icon:<ClipboardCheck size={18}/>},
       {id:'team',label:'团队账号管理',icon:<Users size={18}/>}
