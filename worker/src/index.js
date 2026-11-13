@@ -1,6 +1,7 @@
 import { preflightProduct } from '../../utils/productPreflight.js';
 import {notificationMiddleware} from '../notificationCore.mjs';
 import {bulkImportFetch} from '../bulkImportCore.mjs';
+import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -7983,3 +7984,7 @@ index_default.fetch=bulkImportFetch(pzImportOriginalFetch,{
   authorize,json,canManageProduct:pzOrgCanManageProduct,
   validateSpecs:pzValidateTechnicalSpecs,imageBase:pzConfiguredImageBase
 });
+
+// BEGIN TASK 16: additive inquiry workbench. Preserve legacy public submit and legacy reads.
+const pzInquiryOriginalFetch=index_default.fetch;
+index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,{authorize,json});
