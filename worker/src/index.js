@@ -2,6 +2,7 @@ import { preflightProduct } from '../../utils/productPreflight.js';
 import {notificationMiddleware} from '../notificationCore.mjs';
 import {bulkImportFetch} from '../bulkImportCore.mjs';
 import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';
+import {roleDashboardFetch} from '../dashboardCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -7625,10 +7626,11 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const statusColumn=product?'p.status':'r.status';
     const status=params.get('status')||(product?'all':'action');
     if(product){
-      const allowed=['all','action','waiting','draft','rejected','returned_to_uploader','awaiting_review',
+      const allowed=['all','action','waiting','returned','draft','rejected','returned_to_uploader','awaiting_review',
         'pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish','published','unpublished','inactive','archived'];
       if(!allowed.includes(status))return fail('Invalid status');
       if(status==='action')base.push("p.status IN ('draft','rejected','returned_to_uploader')");
+      else if(status==='returned')base.push("p.status IN ('returned_to_uploader','rejected')");
       else if(status==='waiting')base.push("p.status IN ('awaiting_review','pending_supervisor','pending_admin','returned_to_supervisor','approved_pending_publish')");
       else if(status!=='all'){base.push('p.status=?');bindings.push(status);}
     }else{
@@ -7639,6 +7641,19 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
         base.push(statusColumn+' IN ('+actionable.map(()=>'?').join(',')+')');bindings.push(...actionable);
       }else if(allowed.includes(status)){base.push(statusColumn+'=?');bindings.push(status);}
       else return fail('Invalid work queue status');
+    }
+    if(params.has('stale')&&(!product||params.get('stale')!=='1'))return fail('Invalid stale filter');
+    if(params.has('recheck')&&(product||!release||scope!=='supervisor'))return fail('Invalid recheck filter');
+    if(product&&params.get('stale')){
+      if(params.get('stale')!=='1'||status!=='draft')return fail('Invalid stale filter');
+      base.push("datetime(COALESCE(p.updated_at,p.created_at))<datetime(?)");
+      bindings.push(new Date(Date.now()-7*86400000).toISOString());
+    }
+    if(!product&&params.get('recheck')){
+      if(!['0','1'].includes(params.get('recheck'))||!release||scope!=='supervisor')
+        return fail('Invalid recheck filter');
+      const recheck="r.kind='product' AND r.latest_version>1";
+      base.push(params.get('recheck')==='1'?'('+recheck+')':'NOT ('+recheck+')');
     }
     if(q){
       base.push("(instr(lower(coalesce(p.code,'')),lower(?))>0 OR "+
@@ -7988,3 +8003,7 @@ index_default.fetch=bulkImportFetch(pzImportOriginalFetch,{
 // BEGIN TASK 16: additive inquiry workbench. Preserve legacy public submit and legacy reads.
 const pzInquiryOriginalFetch=index_default.fetch;
 index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,{authorize,json});
+
+// BEGIN TASK 17: authenticated, read-only aggregate dashboard and completeness board.
+const pzRoleDashboardOriginalFetch=index_default.fetch;
+index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,{authorize,json});
