@@ -46,9 +46,10 @@ const CompletenessBoard:React.FC<{
     setExporting(true);setError('');
     try{
       const content=await adminFetch<string>('admin/dashboard/completeness?'+params(true));
-      if(typeof content!=='string'||!content.startsWith('\uFEFF'))
+      // Response.text() removes a UTF-8 BOM; add exactly one back for Excel.
+      if(typeof content!=='string'||!content.includes('SKU'))
         throw Error('CSV 文件格式异常，未开始下载。');
-      const blob=new Blob([content],{type:'text/csv;charset=utf-8'});
+      const blob=new Blob(['\uFEFF'+content.replace(/^\uFEFF/,'')],{type:'text/csv;charset=utf-8'});
       const href=URL.createObjectURL(blob),link=document.createElement('a');
       link.href=href;link.download='PZ_产品资料缺口.csv';document.body.append(link);
       link.click();link.remove();URL.revokeObjectURL(href);
