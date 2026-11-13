@@ -186,6 +186,18 @@ test('unauthorized owner overrides, disabled import and forged external image UR
   }finally{t.close();}
 });
 
+test('missing D1 batch schema fails with an environment-neutral actionable error',async()=>{
+  const t=setup();
+  try{
+    t.sql.exec('DROP TABLE pz_product_import_rows; DROP TABLE pz_product_import_batches');
+    const response=await t.run([validRow(12)]);
+    assert.equal(response.status,503);
+    assert.match(response.data.error,/Bulk import D1 schema missing/);
+    assert.doesNotMatch(response.data.error,/Staging D1 migration 020/);
+    assert.equal(t.sql.prepare('SELECT COUNT(*) AS n FROM products').get().n,0);
+  }finally{t.close();}
+});
+
 test('server always inserts DRAFT and ignores untrusted status overrides from caller CSV cells',async()=>{
   const t=setup();
   try{
