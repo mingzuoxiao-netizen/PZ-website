@@ -238,7 +238,7 @@ const AdminReleaseQueue:React.FC<{onQueueChanged?:()=>Promise<void>}>=({onQueueC
       </div>
     </form>
     {loading?<ListSkeleton rows={4}/>:
-      actionable.length===0&&!unknown?<EmptyState message="当前没有需要管理员发布的产品或修订。"/>:
+      actionable.length===0&&!unknown?<EmptyState message="当前没有需要 Admin 发布的产品或修订。"/>:
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-stone-200 bg-stone-50 p-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm">
