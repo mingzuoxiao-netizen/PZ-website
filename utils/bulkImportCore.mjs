@@ -179,7 +179,7 @@ export function mapImportRow(input,{categories=[]}={}){
     else if(text(cells.sub_category)&&Array.isArray(match.subCategories)&&match.subCategories.length){
       const choices=match.subCategories.map(s=>s.name).filter(Boolean);
       if(choices.length&&!choices.includes(text(cells.sub_category)))
-        issues.push(issue(row,'sub_category','未知子分类；有效值：'+choices.join('、'));
+        issues.push(issue(row,'sub_category','未知子分类；有效值：'+choices.join('、')));
     }
   }
   const dimensions={};
