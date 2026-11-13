@@ -12,8 +12,11 @@ export interface ZipProductBatch {
 export function readWorkbook(data:Uint8Array|ArrayBuffer):Promise<ImportRow[]>;
 export function matchSkuFolder(path:string):{sku:string;file:string}|null;
 export function assignInitialImageRoles(items:ZipProductImage[]):{images:ZipProductImage[];needsConfirmation:boolean};
-export function readProductZip(data:Uint8Array|ArrayBuffer):Promise<ZipProductBatch>;
+export interface ImportCategory {id:string;title?:string;title_cn?:string;title_zh?:string;subCategories?:Array<{name:string}>}
+export interface ImportAttribute {key:string;labelZh:string;unit?:string}
+export interface ImportOptions {categories?:ImportCategory[];attributeDefinitions?:ImportAttribute[]}
+export function readProductZip(data:Uint8Array|ArrayBuffer,opts?:ImportOptions):Promise<ZipProductBatch>;
 export function disposePreviews(batch:ZipProductBatch|null|undefined):void;
-export function createTemplateWorkbook(category:string,attributeKeys?:string[]):Uint8Array;
-export function createZipTemplate(category:string,attributeKeys?:string[]):Uint8Array;
+export function createTemplateWorkbook(category:string,attributeKeys?:string[],opts?:ImportOptions):Uint8Array;
+export function createZipTemplate(category:string,attributeKeys?:string[],opts?:ImportOptions):Uint8Array;
 export function zipSummary(batch:ZipProductBatch):Array<MappedRow & {images:ZipProductImage[];needsMainConfirmation:boolean}>;
