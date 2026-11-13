@@ -69,3 +69,19 @@ test('Production migration preserves existing products and adds only draft-impor
     db.close();
   }
 });
+
+test('ZIP operator UI probes the Worker before any R2 photo upload and supports no-write recovery', () => {
+  const source = readFileSync(
+    new URL('../../pages/CreatorPortal/components/BulkZipImporter.tsx', import.meta.url),
+    'utf8'
+  );
+  const confirm = source.slice(source.indexOf('const confirmImport=async()=>'),
+    source.indexOf('const reconcile=async()=>'));
+  assert.ok(confirm.indexOf('batchEndpoint(id)') < confirm.indexOf("'upload-image'"),
+    'Batch-readiness must happen before any image upload');
+  assert.match(confirm, /startedD1Submission=true/);
+  assert.match(confirm, /if\(startedD1Submission\)setUncertain\(true\)/);
+  const reconcile = source.slice(source.indexOf('const reconcile=async()=>'));
+  assert.match(reconcile, /if\(batchNotFound\(e\)\)/);
+  assert.match(reconcile, /setUncertain\(false\)/);
+});
