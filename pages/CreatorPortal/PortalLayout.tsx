@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Shield, Factory, LogOut, Globe, Menu, ChevronDown } from 'lucide-react';
 import NotificationBell from './components/NotificationBell';
 import {ConfirmDialog} from './ui/BackofficeComponents';
-import './backoffice.css';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
