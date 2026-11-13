@@ -1,5 +1,6 @@
 import type { ProductVariant } from '../../types';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import {useLocation} from 'react-router-dom';
 import {fetchBackofficePage} from '../../utils/backofficeLists';
 import { adminFetch } from '../../utils/adminFetch';
 import { normalizeAdminInventoryProducts } from '../../utils/normalizeAdminInventoryProducts';
@@ -32,12 +33,17 @@ import InquiryManager from './components/InquiryManager';
 type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
 
 const AdminWorkspace: React.FC = () => {
+  const location=useLocation();
   const { t } = useLanguage();
   const dirtyProduct=useRef(false);
   const busyProduct=useRef(false);
   const rememberProductDirty=useCallback((dirty:boolean)=>{dirtyProduct.current=dirty;},[]);
   const rememberProductBusy=useCallback((busy:boolean)=>{busyProduct.current=busy;},[]);
-  const [activeTab, setActiveTab] = useState<AdminTab>('review');
+  const [activeTab, setActiveTab] = useState<AdminTab>(()=>
+    new URLSearchParams(location.search).has('inquiryId')?'inquiries':'review');
+  useEffect(()=>{
+    if(new URLSearchParams(location.search).has('inquiryId'))setActiveTab('inquiries');
+  },[location.search]);
   const [reviewSection, setReviewSection] = useState<'products' | 'new-categories' | 'category-changes' | 'fast-lane'>('products');
 
   const [catalogView, setCatalogView] = useState('action');
