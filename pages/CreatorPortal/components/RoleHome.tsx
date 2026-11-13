@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useState} from 'react';
-import {RefreshCw,AlertCircle,ClipboardCheck,Package,Clock,Inbox,ShieldCheck} from 'lucide-react';
+import {RefreshCw,AlertCircle,Clock} from 'lucide-react';
 import {adminFetch} from '../../../utils/adminFetch';
 
 export type DashboardRole='FACTORY'|'SUPERVISOR'|'ADMIN';
@@ -34,16 +34,16 @@ function elapsed(raw:string|null){
   return hours<24?hours+' 小时':Math.floor(hours/24)+' 天';
 }
 const DashboardCard:React.FC<{
-  title:string;value:number;description:string;onClick?:()=>void;urgent?:boolean;
+  title:string;value?:number;description:string;onClick?:()=>void;urgent?:boolean;
 }>=({title,value,description,onClick,urgent=false})=>{
   const className='w-full rounded border p-5 text-left shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#385575] '+
     (urgent&&value>0?'border-amber-300 bg-amber-50':'border-stone-200 bg-white')+
     (onClick?' hover:border-stone-400':'');
   const content=<><p className="text-sm font-semibold text-stone-600">{title}</p>
-    <p className="mt-3 font-serif text-3xl tabular-nums text-stone-900">{value}</p>
+    <p className="mt-3 font-serif text-3xl tabular-nums text-stone-900">{value===undefined?'查看':value}</p>
     <p className="mt-2 text-xs leading-5 text-stone-600">{description}</p></>;
   return onClick?<button type="button" className={className} onClick={onClick}
-    aria-label={title+'：'+value+'，进入相关列表'}>{content}</button>:
+    aria-label={title+'：'+(value===undefined?'查看':value)+'，进入相关列表'}>{content}</button>:
     <div className={className}>{content}</div>;
 };
 const RoleHome:React.FC<{
@@ -139,7 +139,7 @@ const RoleHome:React.FC<{
           <DashboardCard title="全站 7 天未更新草稿" value={data.stale_drafts}
             description="仅显示全站汇总数量，查看草稿状态列表"
             onClick={()=>onNavigate({tab:'inventory',status:'draft',stale:true})}/>
-          <DashboardCard title="产品资料完整度" value={0}
+          <DashboardCard title="产品资料完整度"
             description="打开单独看板，查看缺失材质、图片、尺寸等问题"
             onClick={()=>onNavigate({tab:'completeness'})}/>
         </div>
