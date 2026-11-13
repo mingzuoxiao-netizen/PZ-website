@@ -44,7 +44,8 @@ const getBindings = (target) => {
   if (!/^[a-f0-9]{32}$/i.test(result.KV_ID)) throw Error('Invalid KV namespace ID format');
   if (!/^[a-f0-9]{32}$/i.test(result.ASSETS_KV_ID)) throw Error('Invalid assets KV namespace ID format');
   if (result.ASSETS_KV_ID === dummy.ASSETS_KV_ID) throw Error('Dry-run assets KV ID is forbidden for deploy');
-  for (const key of ['D1_NAME', 'IMAGES_BUCKET', 'HISTORY_BUCKET']) {
+  if (!/^[a-z0-9][a-z0-9_-]{0,80}$/i.test(result.D1_NAME)) throw Error('Invalid binding name: D1_NAME');
+  for (const key of ['IMAGES_BUCKET', 'HISTORY_BUCKET']) {
     if (!/^[a-z0-9][a-z0-9_-]{1,80}$/i.test(result[key])) throw Error('Invalid binding name: ' + key);
   }
   if (result.D1_ID === dummy.D1_ID || result.KV_ID === dummy.KV_ID) throw Error('Dry-run binding ID is forbidden for deploy');
