@@ -162,6 +162,12 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     :JSON.stringify(original[key])!==JSON.stringify(latest[key]));
   const visibleFields=showAllFields?fields:changedFields;
   const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
+  const copiedImagesFrom=typeof (
+    (latest.specifications as {provenance?:{inherited_images_from?:unknown}}|undefined)
+      ?.provenance?.inherited_images_from
+  )==='string'?
+    String((latest.specifications as {provenance?:{inherited_images_from?:string}})
+      .provenance?.inherited_images_from):'';
   const renderValue=(key:string,value:unknown):React.ReactNode=>{
     if(key==='images'&&Array.isArray(value)){
       const images=value.filter((url):url is string=>typeof url==='string'&&!!url);
@@ -247,6 +253,10 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
             </div>
             <span className="rounded bg-stone-100 px-3 py-1.5 text-xs text-stone-600">{isFirstSubmission?'首次提交 V1':`V1 → V${selected.latest_version}`}</span>
           </div>
+          {copiedImagesFrom&&<p role="note" className="rounded border border-blue-300 bg-blue-50 p-3 text-sm text-blue-950">
+            此产品初始图片继承自 <strong>SKU {copiedImagesFrom}</strong>，复制只复用 R2 图片引用。
+            本产品以独立草稿重新提交审核，原产品审核历史不会被继承。
+          </p>}
           {selected.return_reason&&<p className="rounded border-l-2 border-amber-400 bg-amber-50 p-3 text-sm">最近退回原因：{selected.return_reason}</p>}
           {selected.recheck?.is_recheck&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="复检变更字段">
             <strong className="text-sm text-amber-950">复检 V{selected.recheck.from_version} → V{selected.latest_version}</strong>

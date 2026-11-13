@@ -3,6 +3,7 @@ import {notificationMiddleware} from '../notificationCore.mjs';
 import {bulkImportFetch} from '../bulkImportCore.mjs';
 import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';
 import {roleDashboardFetch} from '../dashboardCore.mjs';
+import {productBulkFetch} from '../productBulkCore.mjs';
 import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';
 import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';
 // Deployment provenance: replaced in CI with the verified Git commit SHA.
@@ -4074,7 +4075,7 @@ function pzValidateTechnicalSpecs(input) {
     assembly:['required','minutes','instructions_file'],
     attachment:['file_name','type','visibility'],
     verification:['claim','evidence_file','status'],
-    provenance:['provider','reviewer','source_factory']
+    provenance:['provider','reviewer','source_factory','inherited_images_from','inherited_product_id']
   };
   const fail=msg=>{throw Error(msg);};
   const object=(value,fields,path)=>{
@@ -6281,6 +6282,15 @@ function pzAuditCreateFetch(originalFetch, { authorize, json, runtimeExpected })
       const entityId = event.entity_id || String(success ? (body.id || body.key || "") : "").slice(0, 200);
       const after = success ? await snapshot(env,event.entity_type,entityId) : null;
       const diff = changes(before, after);
+      // Task 18: retain the reason on EACH audited single-item unpublish.
+      // The bulk endpoint delegates each item to this existing audit wrapper;
+      // no audit is inferred from a failed or unconfirmed operation.
+      if(success && event.action === "product.unpublish"){
+        const input=await request.clone().json().catch(()=>null);
+        const reason=typeof input?.reason==="string"?input.reason.trim():"";
+        if(reason.length>=5&&reason.length<=500)
+          diff.push("bulk_unpublish_reason: "+reason);
+      }
       // When an ID comes back in a create response, the INSERT always stores it.
       await env.DB.prepare(
         "UPDATE audit_logs SET entity_id=?,status=?,http_status=?,after_json=?,changes_json=? WHERE id=? AND status='pending'"
@@ -8007,3 +8017,7 @@ index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,{authorize,json
 // BEGIN TASK 17: authenticated, read-only aggregate dashboard and completeness board.
 const pzRoleDashboardOriginalFetch=index_default.fetch;
 index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,{authorize,json});
+
+// BEGIN TASK 18: duplicate and per-item delegated bulk actions.
+const pzProductBulkOriginalFetch=index_default.fetch;
+index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,{authorize,json});

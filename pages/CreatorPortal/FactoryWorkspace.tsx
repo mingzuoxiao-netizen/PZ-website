@@ -3,6 +3,7 @@ import { factoryFetch } from '../../utils/factoryFetch';
 import {fetchBackofficePage} from '../../utils/backofficeLists';
 import { ProductVariant, Category } from '../../types';
 import { normalizeProducts } from '../../utils/normalizeProduct';
+import {readProductSpecifications} from '../../utils/productSpecifications';
 import { categoryMatches } from '../../utils/categoryMatching';
 import { categories as staticCategories } from '../../data/inventory';
 import { publishedSiteCategories } from '../../utils/catalogCategories';
@@ -16,6 +17,7 @@ import {
 
 // Components
 import ProductList from './components/ProductList';
+import type {BulkAction,BulkResponse} from './components/ProductList';
 import ProductForm from './components/ProductForm';
 import BulkCsvImporter from './components/BulkCsvImporter';
 import type {ReviewReturnDetails} from '../../utils/reviewReturn.mjs';
@@ -97,6 +99,7 @@ const FactoryWorkspace: React.FC = () => {
   const rememberBusy=useCallback((busy:boolean)=>{formBusy.current=busy;},[]);
   const [creationKey,setCreationKey]=useState(0);
   const [creationTemplate,setCreationTemplate]=useState<Partial<ProductVariant>>({});
+  const [duplicateSource,setDuplicateSource]=useState<{id:string;code:string}|null>(null);
   const canLeave=()=>!formBusy.current&&(!formDirty.current||window.confirm('当前产品资料尚未保存，确认离开吗？'));
 
 
@@ -221,11 +224,25 @@ const FactoryWorkspace: React.FC = () => {
 
   const persistDraft=async(product:ProductVariant)=>{
     setProductActionError('');
-    const saved=await factoryFetch<{success?:boolean;id?:string}>(product.id?'factory/products/'+encodeURIComponent(product.id):'factory/products',{
-      method:product.id?'PUT':'POST',body:JSON.stringify({...product,status:'draft'})
+    const isDuplicating=!product.id&&!!duplicateSource;
+    const endpoint=isDuplicating
+      ?'factory/products/'+encodeURIComponent(duplicateSource!.id)+'/duplicate'
+      :product.id?'factory/products/'+encodeURIComponent(product.id):'factory/products';
+    const payload=isDuplicating
+      ?{code:product.code,draft:{
+        name:product.name,name_cn:product.name_cn,category:product.category,
+        sub_category:product.sub_category,material:product.material,size:product.size,
+        finish:product.finish,description:product.description,description_cn:product.description_cn,
+        images:product.images,production_sites:product.production_sites,
+        specifications:product.specifications
+      }}
+      :{...product,status:'draft'};
+    const saved=await factoryFetch<{success?:boolean;id?:string}>(endpoint,{
+      method:product.id?'PUT':'POST',body:JSON.stringify(payload)
     });
     const id=product.id||saved.id;
     if(saved.success!==true||!id)throw Error('草稿保存结果未确认，请在产品列表按 SKU 核对，勿重复创建。');
+    if(isDuplicating)setDuplicateSource(null);
     return id;
   };
   const handleSaveDraft=async(product:ProductVariant)=>{
@@ -258,8 +275,20 @@ const FactoryWorkspace: React.FC = () => {
   };
   const duplicateProduct=(product:ProductVariant)=>{
     const fields=['name','name_cn','category','sub_category','material','size','finish','description','description_cn','images','production_sites','specifications'] as const;
-    const draft:Record<string,unknown>={};for(const key of fields)draft[key]=product[key];
-    setCreationTemplate({...draft,code:'',status:'draft'});setCreationKey(key=>key+1);setIsCreating(true);
+    if(!product.id)return;
+    const draft:Record<string,unknown>={};
+    for(const key of fields)draft[key]=product[key]===undefined?undefined:
+      JSON.parse(JSON.stringify(product[key]));
+    const specifications=readProductSpecifications(draft.specifications);
+    draft.specifications={...specifications,provenance:{
+      ...(specifications.provenance||{}),
+      inherited_images_from:product.code,inherited_product_id:product.id
+    }};
+    setDuplicateSource({id:product.id,code:product.code});
+    setEditingItem(null);setRevisionEditing(null);
+    setCreationTemplate({...draft,code:'',id:undefined,status:'draft',image:product.images?.[0]||''});
+    setSelectedCategoryId(null);setCatalogStatus('all');
+    setActiveTab('inventory');setCreationKey(key=>key+1);setIsCreating(true);
   };
 
   // Published SKU revisions are stored in a separate D1 table: never PUT the
@@ -322,7 +351,7 @@ const FactoryWorkspace: React.FC = () => {
 
   const handleBack = () => {
       if(!canLeave())return;
-      setCreationTemplate({});
+      setCreationTemplate({});setDuplicateSource(null);
       if (isBatchCreating && !window.confirm('确认离开批量录入吗？未完成的输入将丢失。')) return;
       if (isCreating || editingItem || isBatchCreating || revisionEditing) {
           setIsCreating(false);
@@ -334,6 +363,14 @@ const FactoryWorkspace: React.FC = () => {
       }
   };
 
+  const handleBulkAction=async(action:BulkAction,ids:string[],category?:string,reason?:string):Promise<BulkResponse>=>{
+    const result=await factoryFetch<BulkResponse>('factory/products/bulk',{
+      method:'POST',body:JSON.stringify({action,ids,category,reason})
+    });
+    if(result.success!==true||!Array.isArray(result.results))
+      throw Error('批量结果未确认，请刷新并核对产品状态。');
+    return result;
+  };
   const navItems = [
     {id:'home',label:'我的待办',icon:<Home size={18}/>},
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
@@ -521,6 +558,7 @@ const FactoryWorkspace: React.FC = () => {
                 onSaveAndSubmit={handleSaveAndSubmit} onSaveNext={handleSaveNext}
                 onCheckSku={async code=>(await checkBatchSkuCodes([code])).includes(code.toUpperCase())}
                 initialData={editingItem || creationTemplate}
+                copySkuHint={duplicateSource?duplicateSource.code+'-COPY':undefined}
                 returnReview={editingItem?.status==='returned_to_uploader'?returnReview:undefined}
                 returnReviewError={editingItem?.status==='returned_to_uploader'?returnReviewError:undefined} 
                 fixedCategoryId={isCreating && selectedCategoryId && selectedCategoryId !== 'all' && categories.some(c => c.id === selectedCategoryId) ? selectedCategoryId : undefined}
@@ -555,7 +593,7 @@ const FactoryWorkspace: React.FC = () => {
                     className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
                     批量录入
                   </button>
-                  <button type="button" onClick={()=>setIsCreating(true)}
+                  <button type="button" onClick={()=>{setDuplicateSource(null);setCreationTemplate({});setIsCreating(true);}}
                     className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800">
                     + 新建产品
                   </button>
@@ -611,10 +649,10 @@ const FactoryWorkspace: React.FC = () => {
                 <button type="button" onClick={()=>void loadData()} className="ml-3 underline">重新读取</button></div>}
               <ProductList
                  lang="zh"
-                 items={products} isLoading={loading} serverFiltered onDuplicate={duplicateProduct} onBusyChange={rememberBusy}
+                 items={products} isLoading={loading} serverFiltered onDuplicate={duplicateProduct} onBulkAction={handleBulkAction} onBusyChange={rememberBusy}
                 categories={categories}
                 onEdit={setEditingItem}
-                onCreate={()=>setIsCreating(true)}
+                onCreate={()=>{setDuplicateSource(null);setCreationTemplate({});setIsCreating(true);}}
                 onRefresh={()=>loadData(true)}
                 onBack={handleBack}
                 onSubmit={id=>handleSubmitForReview(id,false)}

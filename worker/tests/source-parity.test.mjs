@@ -45,10 +45,11 @@ test('baseline parity is strict outside explicitly changed product-review and li
   const bulkImport="import {bulkImportFetch} from '../bulkImportCore.mjs';\n";
   const inquiryImport="import {inquiryWorkbenchFetch} from '../inquiryWorkbenchCore.mjs';\n";
   const dashImport="import {roleDashboardFetch} from '../dashboardCore.mjs';\n";
+  const productBulkImport="import {productBulkFetch} from '../productBulkCore.mjs';\n";
   const returnsImport="import { validateReturnIssues, serializeReturnEvent, readReturnEvent, changedProductFields, isRecheck } from '../../utils/reviewReturn.mjs';\n";
   const fastLaneImport="import {approveFastLane,handleFastLaneAdmin} from '../fastLaneCore.mjs';\n";
-  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+fastLaneImport+returnsImport));
-  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+fastLaneImport.length+returnsImport.length);
+  assert.ok(imported.startsWith(preflightImport+notifyImport+bulkImport+inquiryImport+dashImport+productBulkImport+fastLaneImport+returnsImport));
+  let restored=imported.slice(preflightImport.length+notifyImport.length+bulkImport.length+inquiryImport.length+dashImport.length+productBulkImport.length+fastLaneImport.length+returnsImport.length);
   const outerNotice="\n// BEGIN TASK 14: isolated notification middleware, no audit/approval route rewrites.";
   const wrapperAt=restored.indexOf(outerNotice);
   assert.ok(wrapperAt>0,'notification middleware must be appended after all original route wrappers');
@@ -56,12 +57,31 @@ test('baseline parity is strict outside explicitly changed product-review and li
   assert.match(restored.slice(wrapperAt),/index_default.fetch=bulkImportFetch\(pzImportOriginalFetch,/);
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=inquiryWorkbenchFetch(pzInquiryOriginalFetch,'));
   assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=roleDashboardFetch(pzRoleDashboardOriginalFetch,'));
+  assert.ok(restored.slice(wrapperAt).includes('index_default.fetch=productBulkFetch(pzProductBulkOriginalFetch,'));
   restored=restored.slice(0,wrapperAt);
   for(const [start,end] of [
     ['function pzTwoStageReviewFetch(','function normalizeRole(role)'],
     ['function pzPublishedProductRevisionsFetch(','const pzPublishedRevisionsOriginalFetch'],
     ['function pzBackofficeListsFetch(','index_default.fetch = pzBackofficeListsFetch(']
   ])restored=restoreLegacyBlock(restored,expected,start,end);
+  // Task 18 extends only two existing guards: the bounded, validated provenance
+  // allow-list and the existing audit log's per-item unpublish reason. Normalize
+  // these EXACT additive blocks; all other legacy Worker bytes stay protected.
+  const extendedProvenance="provenance:['provider','reviewer','source_factory','inherited_images_from','inherited_product_id']";
+  one(restored,extendedProvenance);
+  restored=restored.replace(extendedProvenance,"provenance:['provider','reviewer','source_factory']");
+  const auditAddon=`      // Task 18: retain the reason on EACH audited single-item unpublish.
+      // The bulk endpoint delegates each item to this existing audit wrapper;
+      // no audit is inferred from a failed or unconfirmed operation.
+      if(success && event.action === "product.unpublish"){
+        const input=await request.clone().json().catch(()=>null);
+        const reason=typeof input?.reason==="string"?input.reason.trim():"";
+        if(reason.length>=5&&reason.length<=500)
+          diff.push("bulk_unpublish_reason: "+reason);
+      }
+`;
+  one(restored,auditAddon);
+  restored=restored.replace(auditAddon,'');
   assert.equal(normalizedD1Counts(restored).trimEnd(),normalizedD1Counts(expected).trimEnd(),'unexpected changes outside the approved review/list modules');
 });
 test('review changes retain RBAC, status transition guards and immutable version snapshots',()=>{
