@@ -25,6 +25,8 @@ export interface ProductVariant {
   archived_at?: string | null;
   production_sites?: ProductionSite[];
   created_by?: string | null;
+  updated_at?:string|null;
+  edit_revision?:number;
   import_batch_id?: string | null;
   sub_category?: string;
   category?: string;
