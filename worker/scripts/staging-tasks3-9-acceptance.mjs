@@ -123,7 +123,7 @@ try{
       const seeded=await call(admin,'/admin/site-config/bootstrap',{draftSha:ready.draftSha,publishedSha:ready.publishedSha});
       assert.equal(seeded.initialSnapshotVerified,true,'R2 backup required before D1 opt in');
     }
-    console.log(cli(['deploy',...cfg,'--var','PZ_D1_SITE_CONFIG_ENABLED:true']));
+    console.log(cli(['deploy',...cfg,'--var','PZ_D1_SITE_CONFIG_ENABLED:true','--var','PZ_SITE_CONFIG_D1_CUTOVER_ENABLED:true']));
     await eventually(async()=>Number.isInteger((await call(admin,'/admin/draft/site-config')).revision),'D1 config authority active');
     console.log('ACCEPTANCE: Staging D1 config opted in after verified bootstrap; original KV retained');
   }
