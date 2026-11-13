@@ -127,7 +127,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
                 aria-label={L('Request Product Details (preview only)', '咨询此产品（仅预览）')}>
                 {L('Request Product Details', '咨询此产品')} <ArrowUpRight size={16} aria-hidden="true" />
               </div>
-            : <Link to="/inquire" onClick={onClose}
+            : <Link to={product.code?'/inquire?product_code='+encodeURIComponent(product.code):'/inquire'} onClick={onClose}
                 className="mt-10 inline-flex items-center justify-center gap-3 bg-[#754831] px-6 py-4 text-[12px] font-semibold text-white hover:bg-[#573521] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#754831]">
                 {L('Request Product Details', '咨询此产品')} <ArrowUpRight size={16} aria-hidden="true" />
               </Link>}
