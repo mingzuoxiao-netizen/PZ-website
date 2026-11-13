@@ -13,13 +13,61 @@ export const BASE_COLUMNS=[
   'net_weight_kg','selling_points_en','series_id','construction_en','care_en','warnings_en',
   'carton_1.length_cm','carton_1.width_cm','carton_1.height_cm',
   'carton_1.gross_weight_kg','carton_1.net_weight_kg','carton_1.units',
-  'carton_1.packing_method','carton_1.protection_notes'
+  'carton_1.packing_method','carton_1.protection_notes',
+  ...[2,3].flatMap(n=>['length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units','packing_method','protection_notes'].map(key=>'carton_'+n+'.'+key))
 ];
+// The guide is the shared metadata for the legacy CSV and the ZIP/XLSX template.
+// Keep machine column keys stable; factory-facing labels are Chinese.
+const COLUMN_DEFINITIONS={
+  __example:['示例行标记','optional'],code:['SKU 产品编号','import-required'],
+  name:['产品英文名称','import-required'],name_cn:['产品中文名称','optional'],
+  category:['后台分类 ID','import-required'],sub_category:['子分类','optional'],
+  material:['主要材质','import-required'],finish:['表面处理工艺','optional'],
+  color:['颜色 / 色号','optional'],production_sites:['生产工厂','optional'],
+  description:['英文产品描述','import-required'],description_cn:['中文产品描述','optional'],
+  'dimensions_cm.length':['产品长度 / 深度','publish-required','cm'],
+  'dimensions_cm.width':['产品宽度','publish-required','cm'],
+  'dimensions_cm.height':['产品高度（台面类不适用）','publish-required','cm'],
+  'dimensions_cm.thickness':['产品厚度（台面类必填）','publish-required','cm'],
+  net_weight_kg:['产品净重','optional','kg'],
+  selling_points_en:['英文卖点（分号隔开）','optional'],
+  series_id:['产品系列 / 款号','optional'],
+  construction_en:['英文结构工艺','optional'],
+  care_en:['英文保养说明','optional'],
+  warnings_en:['英文使用警示','optional']
+};
+const CARTON_LABELS={length_cm:['包装长','cm'],width_cm:['包装宽','cm'],
+  height_cm:['包装高','cm'],gross_weight_kg:['包装毛重','kg'],
+  net_weight_kg:['包装净重','kg'],units:['每箱件数','件'],
+  packing_method:['包装方式'],protection_notes:['防护说明']};
+for(const n of [1,2,3])for(const [key,[label,unit]] of Object.entries(CARTON_LABELS))
+  COLUMN_DEFINITIONS['carton_'+n+'.'+key]=['第'+n+'箱'+label,'optional',unit];
+export const COLUMN_GUIDE=Object.freeze(Object.fromEntries(
+  BASE_COLUMNS.map(key=>{
+    const def=COLUMN_DEFINITIONS[key];
+    if(!def)throw Error('缺少导入字段中文说明：'+key);
+    return [key,Object.freeze({key,zhLabel:def[0],tier:def[1],...(def[2]?{unit:def[2]}:{})})];
+  })));
+export const IMPORT_REQUIRED_COLUMNS=Object.freeze(
+  BASE_COLUMNS.filter(key=>COLUMN_GUIDE[key].tier==='import-required'));
+export function guideForColumns(columns=BASE_COLUMNS,attributeDefinitions=[]){
+  const byKey=new Map(attributeDefinitions.map(a=>[a.key,a]));
+  return columns.map(key=>{
+    if(COLUMN_GUIDE[key])return COLUMN_GUIDE[key];
+    if(/^attribute\.[a-z][a-z0-9_]{0,59}$/.test(key)){
+      const attribute=byKey.get(key.slice('attribute.'.length));
+      return {key,zhLabel:attribute?.labelZh||'品类参数：'+key.slice(10),
+        tier:'optional',...(attribute?.unit?{unit:attribute.unit}:{})};
+    }
+    throw Error('未知导入字段：'+key);
+  });
+}
 const SKU=/^PZ-[A-Z0-9][A-Z0-9_-]{1,39}$/;
 const NUMERIC=new Set([
   'dimensions_cm.length','dimensions_cm.width','dimensions_cm.height','dimensions_cm.thickness',
   'net_weight_kg','carton_1.length_cm','carton_1.width_cm','carton_1.height_cm',
-  'carton_1.gross_weight_kg','carton_1.net_weight_kg','carton_1.units'
+  'carton_1.gross_weight_kg','carton_1.net_weight_kg','carton_1.units',
+  ...[2,3].flatMap(n=>['length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units'].map(key=>'carton_'+n+'.'+key))
 ]);
 const allowedProduct=new Set(BASE_COLUMNS);
 const text=v=>String(v??'').trim();
@@ -51,7 +99,14 @@ export function csvTemplate(columns=BASE_COLUMNS,category='dining-table'){
     'carton_1.gross_weight_kg':'45','carton_1.units':'1',
     'attribute.seating_capacity':'6'
   };
-  return '\ufeff'+csvLine(['# PZ CSV import. All dimensions in cm; weights in kg. Example row __example=YES is ignored. Export Excel as UTF-8 CSV.'])+'\r\n'+
+  const guides=guideForColumns(columns);
+  const groups=['import-required','publish-required','optional'].map(tier=>
+    '# '+({'import-required':'导入必填','publish-required':'审核前必填（依品类）',optional:'可选'}[tier])+': '+
+    guides.filter(g=>g.tier===tier).map(g=>g.key+'='+g.zhLabel+(g.unit?'（'+g.unit+'）':'')).join('；'));
+  return '\ufeff'+[
+    '# PZ CSV import. All dimensions in cm; weights in kg. Example row __example=YES is ignored. Export Excel as UTF-8 CSV. 承重/认证数字须提供证据文件。',
+    ...groups
+  ].map(line=>csvLine([line])).join('\r\n')+'\r\n'+
     csvLine(columns)+'\r\n'+csvLine(columns.map(c=>sample[c]||''))+'\r\n';
 }
 // RFC 4180 CSV: quoted commas, doubled quotes, embedded newlines, BOM, CRLF.
@@ -81,11 +136,11 @@ export function parseCsv(content){
   }
   if(quoted)throw Error('Unclosed CSV quote at line '+start);
   if(row.length||cell){row.push(cell);if(row.some(v=>v!==''))records.push({line:start,cells:row});}
-  if(records[0]?.cells?.[0]?.startsWith('#'))records.shift();
+  while(records[0]?.cells?.[0]?.startsWith('#'))records.shift();
   if(!records.length)throw Error('CSV header is missing');
   const heading=records.shift(),headers=heading.cells.map(text);
   if(new Set(headers).size!==headers.length)throw Error('Duplicate CSV header column');
-  const missing=['__example','code','name','category','material','description'].filter(key=>!headers.includes(key));
+  const missing=['__example',...IMPORT_REQUIRED_COLUMNS].filter(key=>!headers.includes(key));
   if(missing.length)throw Error('Missing CSV columns: '+missing.join(', '));
   const unknown=headers.filter(key=>!allowedProduct.has(key)&&
     !/^attribute\.[a-z][a-z0-9_]{0,59}$/.test(key));
@@ -105,33 +160,54 @@ const fieldNumber=(raw,key,issues,row)=>{
   if(!s)return undefined;
   const n=Number(s);
   if(!Number.isFinite(n)||n<0||n>100000||
-      (key==='carton_1.units'&&(!Number.isInteger(n)||n<1))){
+      (key.endsWith('.units')&&(!Number.isInteger(n)||n<1))){
     issues.push(issue(row,key,'Must be a valid nonnegative number (cm/kg); carton units must be an integer'));
     return undefined;
   }
   return n;
 };
-export function mapImportRow(input){
+export function mapImportRow(input,{categories=[]}={}){
   const cells=input?.cells||{},row=Number(input?.row||0);
   const code=normalizeSku(cells.code),issues=[];
   if(!SKU.test(code))issues.push(issue(row,'code','SKU must start PZ- and contain 2-40 valid characters'));
-  for(const field of ['name','category','material','description'])
-    if(!text(cells[field]))issues.push(issue(row,field,'Required for catalog import'));
+  for(const field of IMPORT_REQUIRED_COLUMNS.filter(field=>field!=='code'))
+    if(!text(cells[field]))issues.push(issue(row,field,'导入必填：'+COLUMN_GUIDE[field].zhLabel));
+  if(categories.length&&text(cells.category)){
+    const match=categories.find(c=>c.id===text(cells.category));
+    if(!match)issues.push(issue(row,'category',
+      '未知分类ID '+text(cells.category)+'；有效ID：'+categories.map(c=>c.id).join('、')));
+    else if(text(cells.sub_category)&&Array.isArray(match.subCategories)&&match.subCategories.length){
+      const choices=match.subCategories.map(s=>s.name).filter(Boolean);
+      if(choices.length&&!choices.includes(text(cells.sub_category)))
+        issues.push(issue(row,'sub_category','未知子分类；有效值：'+choices.join('、'));
+    }
+  }
   const dimensions={};
   for(const key of ['length','width','height','thickness']){
     const v=fieldNumber(cells['dimensions_cm.'+key],'dimensions_cm.'+key,issues,row);
     if(v!==undefined)dimensions[key]=v;
   }
   const net=fieldNumber(cells.net_weight_kg,'net_weight_kg',issues,row);
-  const carton={carton_no:1};let haveCarton=false;
-  for(const key of ['length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units']){
-    const v=fieldNumber(cells['carton_1.'+key],'carton_1.'+key,issues,row);
-    if(v!==undefined){carton[key]=v;haveCarton=true;}
+  const cartons=[];
+  for(const n of [1,2,3]){
+    const carton={carton_no:n};let haveCarton=false;
+    for(const key of ['length_cm','width_cm','height_cm','gross_weight_kg','net_weight_kg','units']){
+      const field='carton_'+n+'.'+key;
+      const v=fieldNumber(cells[field],field,issues,row);
+      if(v!==undefined){carton[key]=v;haveCarton=true;}
+    }
+    for(const key of ['packing_method','protection_notes']){
+      if(text(cells['carton_'+n+'.'+key])){
+        carton[key]=text(cells['carton_'+n+'.'+key]);haveCarton=true;
+      }
+    }
+    if(haveCarton){
+      if(['length_cm','width_cm','height_cm'].some(key=>carton[key]===undefined))
+        issues.push(issue(row,'carton_'+n,'第'+n+'箱尺寸未填齐，请在提交审核前补充','warning'));
+      cartons.push(carton);
+    }
   }
-  for(const key of ['packing_method','protection_notes']){
-    if(text(cells['carton_1.'+key])){carton[key]=text(cells['carton_1.'+key]);haveCarton=true;}
-  }
-  const sites=text(cells.production_sites)?text(cells.production_sites).split(/[;,]/).map(text).filter(Boolean):[];
+  const sites=text(cells.production_sites)?text(cells.production_sites).split(/[;；,，]/).map(text).filter(Boolean):[];
   if(new Set(sites).size!==sites.length||sites.some(site=>!SITE_VALUES.includes(site)))
     issues.push(issue(row,'production_sites','Use unique zhaoqing and/or cambodia values'));
   const attributes={};
@@ -146,15 +222,17 @@ export function mapImportRow(input){
     ...(text(cells.construction_en)?{construction_en:text(cells.construction_en)}:{}),
     ...(text(cells.care_en)?{care_en:text(cells.care_en)}:{}),
     ...(text(cells.warnings_en)?{warnings_en:text(cells.warnings_en)}:{}),
-    ...(text(cells.selling_points_en)?{selling_points_en:text(cells.selling_points_en).split(';').map(text).filter(Boolean)}:{}),
+    ...(text(cells.selling_points_en)?{selling_points_en:text(cells.selling_points_en).split(/[;；]/).map(text).filter(Boolean)}:{}),
     ...(Object.keys(attributes).length?{attributes}:{}),
-    ...(haveCarton?{packaging:[carton]}:{})
+    ...(cartons.length?{packaging:cartons}:{})
   };
   const product={code,name:text(cells.name),name_cn:text(cells.name_cn),
     category:text(cells.category),sub_category:text(cells.sub_category),
     material:text(cells.material),finish:text(cells.finish),
     description:text(cells.description),description_cn:text(cells.description_cn),
     production_sites:sites,images:[],specifications:spec,status:'draft'};
+  if(['tested_load','shelf_load'].some(key=>attributes[key]))
+    issues.push(issue(row,'attributes','已填写承重/认证类数字：审核时须提供证据文件','warning'));
   const preflight=preflightProduct(product);
   // Missing images or optional image roles may be completed after draft import.
   // Remaining preflight defects are hard import errors.
