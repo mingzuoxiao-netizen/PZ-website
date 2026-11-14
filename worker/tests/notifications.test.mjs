@@ -9,7 +9,9 @@ import {
 
 const migration=readFileSync(
   new URL('../../worker-patches/migrations/019_review_notifications_email_REVIEW.sql',import.meta.url),'utf8');
-const at='2026-11-12T08:00:00Z';
+// Keep fixtures inside the 24-hour notification delivery window in every CI run.
+const at=new Date().toISOString();
+const optInAt=new Date(Date.now()-60_000).toISOString();
 const db=()=>{
   const sql=new DatabaseSync(':memory:');
   sql.exec('PRAGMA foreign_keys=ON;');
@@ -275,7 +277,7 @@ test('verified opt-in notifications send exactly once; disabled or pre-opt-in ev
     sql.prepare("INSERT INTO pz_staff_assignments VALUES('sup','supervisor')").run();
     sql.prepare(
       "INSERT INTO pz_notification_email_settings(user_id,email,verified,email_enabled,updated_at) VALUES(?,?,1,1,?)"
-    ).run('sup','supervisor@example.com','2026-11-11T08:00:00Z');
+    ).run('sup','supervisor@example.com',optInAt);
     event(sql,'email1','submitted','op');
     const env={DB:makeDB(),NOTIFY_RESEND_API_KEY:'resend-test',
       NOTIFY_FROM_EMAIL:'PZ <notify@example.com>',NOTIFY_APP_BASE_URL:'https://staging.peng-zhan.com'};
@@ -311,7 +313,7 @@ test('email provider outage is logged without mutating underlying review event',
   try{
     sql.prepare(
       "INSERT INTO pz_notification_email_settings(user_id,email,verified,email_enabled,updated_at) VALUES(?,?,1,1,?)"
-    ).run('sup','supervisor@example.com','2026-11-11T08:00:00Z');
+    ).run('sup','supervisor@example.com',optInAt);
     event(sql,'failure1','submitted','op');
     const dbApi={prepare(query){const stmt=sql.prepare(query);return{
       bind(...args){return{first:async()=>stmt.get(...args)||null,

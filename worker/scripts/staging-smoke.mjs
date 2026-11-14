@@ -14,8 +14,13 @@ const get = async (path) => {
   if (response.status !== 200) throw Error(path + ': HTTP ' + response.status);
   return response;
 };
-const version = await (await get('/version')).json();
-if (version.git_sha !== expectedSha) throw Error('Staging Worker SHA does not match deployed commit');
+let actualSha;
+for(let attempt=0;attempt<12;attempt++){
+  actualSha=(await (await get('/version')).json()).git_sha;
+  if(actualSha===expectedSha)break;
+  if(attempt<11)await new Promise(resolve=>setTimeout(resolve,5000));
+}
+if(actualSha!==expectedSha)throw Error('Staging Worker SHA mismatch after rollout wait: '+actualSha+' expected '+expectedSha);
 await get('/public/products?v=2&limit=1'); // Direct Worker route (Pages proxies /api/products to /public/products).
 await get('/api/site-config');
 console.log('Staging version, product catalog and site-config smoke checks passed');

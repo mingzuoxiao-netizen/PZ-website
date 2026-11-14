@@ -48,14 +48,14 @@ test('supervisor review prioritizes changed fields and shows return form only af
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
     await act(async()=>{
-      const itemButton=view!.root.findAllByType('button').find(x=>
-        x.findAllByType('strong').some(y=>y.children.includes('橡木餐桌')));
+      const itemButton=view!.root.findByProps({'aria-label':'审核申请列表'}).findAllByType('button')[0];
       assert.ok(itemButton);
       itemButton!.props.onClick();
     });
     assert.ok(getButton(view!,'退回员工'));
     assert.match(JSON.stringify(view!.toJSON()),/本次变更/);
-    assert.equal(view!.root.findAllByType('article').length,1,'only the changed material is shown');
+    const comparison=view!.root.findByProps({'aria-label':'初始与提交版本字段比较'});
+    assert.equal(comparison.findAllByType('article').length,1,'only the changed material is shown');
     assert.equal(view!.root.findAllByType('textarea').length,0,'reason is not an always-visible field');
     await act(async()=>getButton(view!,'查看全部字段')!.props.onClick());
     assert.ok(view!.root.findAllByType('article').length>1,'all fields remain inspectable');

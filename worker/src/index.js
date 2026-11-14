@@ -3843,6 +3843,9 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     if(factoryDetail)return fail('Uploader cannot approve',403);
     const body=await readBody(request);
+    if(body?.expected_version!==undefined&&
+       (!Number.isSafeInteger(body.expected_version)||body.expected_version!==review.latest_version))
+      return fail('Review version changed; refresh before approval',409);
     const note=typeof body?.note==='string'?body.note.trim():'';
     const returning=['return','request-correction'].includes(action);
     if(returning&&note.length>2000)return fail('Overall return note must be at most 2000 characters');
@@ -3853,7 +3856,9 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     }
     if(supervisor){
       if(action==='approve'&&review.status==='pending_supervisor'){
-        if(env.PZ_FAST_LANE_ENABLED==='true'){
+        // A batch triage must never auto-publish through the trusted-operator
+        // fast lane: every batch result must remain pending Admin final review.
+        if(env.PZ_FAST_LANE_ENABLED==='true'&&body?.batch_initial_review!==true){
           const [version,current]=await Promise.all([
             env.DB.prepare(
               'SELECT snapshot_json FROM pz_product_review_versions WHERE review_id=? AND version=? LIMIT 1'
@@ -4290,6 +4295,17 @@ function pzEscapeLike(value) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 __name(pzEscapeLike, "pzEscapeLike");
+function pzPublicSearchCategoryAlias(term) {
+  const key = term.trim().toLowerCase();
+  const aliases = [
+    ['tables', ['table', 'tables', 'dining table', '餐桌', '桌']],
+    ['seating', ['chair', 'chairs', 'bench', '座椅', '椅', '凳']],
+    ['cabinetry', ['cabinet', 'casegoods', 'storage', '储物柜', '柜']],
+    ['butcher-block', ['butcher block', 'countertop', 'worktop', '台面', '砧板', '岛台']],
+  ];
+  return aliases.find(([, words]) => words.includes(key))?.[0] || null;
+}
+__name(pzPublicSearchCategoryAlias, "pzPublicSearchCategoryAlias");
 async function pzHandlePublicProductsD1(request, env) {
   const params = new URL(request.url).searchParams;
   const category = (params.get("category") || "").toLowerCase().trim();
@@ -4340,9 +4356,15 @@ async function pzHandlePublicProductsD1(request, env) {
     values.push(sub);
   }
   if (search) {
-    predicates.push("(name LIKE ? ESCAPE '\\' OR code LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+    const fields = ['name', 'name_cn', 'code', 'description', 'description_cn',
+      'material', 'category', 'sub_category'];
+    const clauses = fields.map(field => field + " LIKE ? ESCAPE '\\'");
+    const alias = pzPublicSearchCategoryAlias(search);
+    if (alias) clauses.push("category LIKE ? ESCAPE '\\'");
+    predicates.push('(' + clauses.join(' OR ') + ')');
     const pattern = "%" + pzEscapeLike(search) + "%";
-    values.push(pattern, pattern, pattern);
+    values.push(...fields.map(() => pattern));
+    if (alias) values.push('%' + pzEscapeLike(alias) + '%');
   }
   if (cursor) {
     predicates.push("(updated_at < ? OR (updated_at = ? AND id < ?))");
@@ -4375,8 +4397,8 @@ __name(pzHandlePublicProductsD1, "pzHandlePublicProductsD1");
  *
  * Never deploy without Production migration, concurrency review and approval.
  */
-const EDITABLE = ['title','title_cn','subtitle','description','image'];
-const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048 };
+const EDITABLE = ['title','title_cn','subtitle','description','image','alt_en','alt_zh','caption'];
+const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048, alt_en: 300, alt_zh: 300, caption: 500 };
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const serial = (value) => JSON.stringify(value);
 
@@ -4386,6 +4408,11 @@ function fields(category) {
   // Some existing categories use title_zh as the Chinese display name.
   if (!out.title_cn) out.title_cn = String(category?.title_zh ?? '');
   return out;
+}
+
+function fieldsAtSubmission(category, expected) {
+  const current = fields(category);
+  return Object.fromEntries(Object.keys(expected).map(key => [key, current[key]]));
 }
 
 function conflict(message, json) {
@@ -4526,7 +4553,7 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const draft = parseConfig(await env.SITE_CONFIG_KV.get('draft:site_config'));
       const actual = draft?.categories.find(c => c.id === row.category_id);
       const proposed = JSON.parse(row.proposed_json);
-      if (!actual || serial(fields(actual)) !== serial(proposed)) {
+      if (!actual || serial(fieldsAtSubmission(actual, proposed)) !== serial(proposed)) {
         return json({ error: 'Draft has not confirmed the proposal; keep applying and investigate', status:'applying' }, 409);
       }
       const done = await env.DB.prepare(
@@ -4563,8 +4590,8 @@ async function handleProductionCategoryChanges({ request, env, pathname, authori
       const live = published.categories.find(c => c.id === row.category_id);
       const editable = draft.categories.find(c => c.id === row.category_id);
       const base = JSON.parse(row.base_json);
-      if (!live || !editable || serial(fields(live)) !== serial(base) ||
-          serial(fields(editable)) !== serial(base)) {
+      if (!live || !editable || serial(fieldsAtSubmission(live, base)) !== serial(base) ||
+          serial(fieldsAtSubmission(editable, base)) !== serial(base)) {
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);
@@ -4625,8 +4652,12 @@ const cleanField = value => String(value == null ? '' : value);
 const editableFields = c => ({
   title:cleanField(c?.title), title_cn:cleanField(c?.title_cn || c?.title_zh),
   subtitle:cleanField(c?.subtitle), description:cleanField(c?.description),
-  image:cleanField(c?.image)
+  image:cleanField(c?.image), alt_en:cleanField(c?.alt_en),
+  alt_zh:cleanField(c?.alt_zh), caption:cleanField(c?.caption)
 });
+const matchesEditable = (category, expected) => expected &&
+  Object.keys(expected).every(key => Object.prototype.hasOwnProperty.call(editableFields(category),key) &&
+    editableFields(category)[key] === expected[key]);
 const jsonResponse=(json,obj,status=200)=>json(obj,status);
 const stale=(json,msg='Site configuration changed. Refresh and retry.')=>
   json({error:msg,code:'DRAFT_REVISION_CONFLICT'},409);
@@ -4734,15 +4765,14 @@ async function approveCategoryChange(env,json,id) {
   const current=draft.categories.find(c=>c.id===change.category_id);
   const base=parse(change.base_json),proposed=parse(change.proposed_json);
   if(!old||!current||!base||!proposed||
-     JSON.stringify(editableFields(old))!==JSON.stringify(base)||
-     JSON.stringify(editableFields(current))!==JSON.stringify(base))
+     !matchesEditable(old,base)||!matchesEditable(current,base))
     return stale(json,'Category data changed since factory submitted the request');
   if(draft.categories.some(c=>c.id!==change.category_id &&
     cleanField(c.title).trim().toLowerCase()===cleanField(proposed.title).trim().toLowerCase()))
     return stale(json,'Proposed category title already exists');
   if(proposed.image && proposed.image!==base.image) {
-    const cdn=String(env.PZ_IMAGE_BASE_URL||'').replace(/\/+$/,'');
-    if(cdn!=='https://cdn.peng-zhan.com'||!env.PRODUCT_IMAGES)
+    const cdn=productionCategoryImageBase(env);
+    if(!cdn||!env.PRODUCT_IMAGES)
       return json({error:'Production image configuration unavailable'},503);
     let key;
     try{
@@ -7418,6 +7448,10 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     const bodyResult=await readJson(request);
     if(bodyResult.error)return fail(bodyResult.error,bodyResult.status);
+    if(bodyResult.body.expected_version!==undefined&&
+       (!Number.isSafeInteger(bodyResult.body.expected_version)||
+        bodyResult.body.expected_version!==revision.latest_version))
+      return fail('Revision version changed; refresh before approval',409);
     const note=typeof bodyResult.body.note==='string'?bodyResult.body.note.trim():'';
     if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
       return fail('Return reason must be 5–2000 characters',400);
@@ -7607,8 +7641,8 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const table=kind==='reviews'?'pz_product_reviews':'pz_published_product_revisions';
     const release=kind==='release-queue';
     const common='id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,approved_version,return_reason,created_at,updated_at';
-    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision FROM pz_product_reviews "+
-      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision FROM pz_published_product_revisions)";
+    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision,NULL AS draft_json FROM pz_product_reviews "+
+      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision,draft_json FROM pz_published_product_revisions)";
     const from=product?' FROM products p':
       ' FROM '+(release?releaseTable:table)+' r JOIN products p ON p.id=r.product_id';
     const base=['p.deleted_at IS NULL'];
@@ -7682,15 +7716,25 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     if(product&&['department','supervisor','submitter'].some(key=>params.get(key)))
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
+    const productSeries="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.series_id') END";
+    const productDimensions="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.dimensions_cm') END";
+    const draftField=key=>"CASE WHEN r.kind='revision' AND json_valid(r.draft_json) THEN json_extract(r.draft_json,'$."+key+"') END";
+    const recheckFlag="CASE WHEN "+(release?"r.kind='product' AND ":"")+
+      "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 1 ELSE 0 END AS is_recheck";
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
       (env.PZ_BULK_IMPORT_ENABLED==='true'?',p.import_batch_id':',NULL AS import_batch_id')+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
-      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images,'+
-        "CASE WHEN "+(release?"r.kind='product' AND ":"")+
-        "r.latest_version>1 AND r.status IN ('pending_supervisor','pending_admin','approved_pending_publish') THEN 1 ELSE 0 END AS is_recheck":
+      release?'r.kind,'+common.split(',').map(key=>'r.'+key).join(',')+',r.draft_revision,'+
+        ['name','name_cn','category','sub_category','images','material','size','finish'].map(key=>
+        'COALESCE('+draftField(key)+',p.'+key+') AS '+key).join(',')+
+        ',p.code,COALESCE('+draftField('specifications.series_id')+','+productSeries+') AS series_id'+
+        ',COALESCE('+draftField('specifications.dimensions_cm')+','+productDimensions+') AS dimensions_cm,'+recheckFlag:
+      kind==='reviews'?'r.*,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+        productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm,'+recheckFlag:
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
-      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
+      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+      productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';

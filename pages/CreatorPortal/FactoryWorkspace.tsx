@@ -9,13 +9,13 @@ import { publishedSiteCategories } from '../../utils/catalogCategories';
 import PortalLayout from './PortalLayout';
 import { 
     Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, 
-    Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database 
+    Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database, HelpCircle
 } from 'lucide-react';
 
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import BulkCsvImporter from './components/BulkCsvImporter';
+import BulkZipImporter from './components/BulkZipImporter';
 import type {ReviewReturnDetails} from '../../utils/reviewReturn.mjs';
 import FactoryCategoryManagement from './components/FactoryCategoryManagement';
 import PZImageManager from './components/PZImageManager';
@@ -31,7 +31,7 @@ interface Notification {
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import' | 'support'>('inventory');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
@@ -329,14 +329,15 @@ const FactoryWorkspace: React.FC = () => {
 
   const navItems = [
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
-    { id: 'bulk-import', label: 'CSV 批量导入草稿', icon: <Package size={18} /> },
-    { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
+    { id: 'bulk-import', label: 'ZIP 一键导入草稿', icon: <Package size={18} /> },
+    { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> },
+    { id: 'support', label: '支持 / Support', icon: <HelpCircle size={18} /> }
   ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import');}}>
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import' | 'support');}}>
       {activeTab === 'bulk-import' ? (
-        <BulkCsvImporter role="FACTORY" categories={categories} onCompleted={id=>{
+        <BulkZipImporter role="FACTORY" categories={categories} onCompleted={id=>{
           setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
           setCatalogPage(1);
         }}/>
@@ -532,9 +533,9 @@ const FactoryWorkspace: React.FC = () => {
                     className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
                     申请新品类
                   </button>
-                  <button type="button" onClick={()=>setIsBatchCreating(true)}
+                  <button type="button" onClick={()=>setActiveTab('bulk-import')}
                     className="rounded border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50">
-                    批量录入
+                    Excel + 图片 ZIP 导入
                   </button>
                   <button type="button" onClick={()=>setIsCreating(true)}
                     className="rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800">

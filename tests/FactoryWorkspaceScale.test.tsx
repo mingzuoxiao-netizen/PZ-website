@@ -5,6 +5,7 @@ import {act,create} from 'react-test-renderer';
 import {MemoryRouter} from 'react-router-dom';
 import FactoryWorkspace from '../pages/CreatorPortal/FactoryWorkspace';
 import ProductForm from '../pages/CreatorPortal/components/ProductForm';
+import BulkZipImporter from '../pages/CreatorPortal/components/BulkZipImporter';
 
 function setup(failSubmit=false){
   const old={fetch:globalThis.fetch,storage:(globalThis as any).sessionStorage,
@@ -108,5 +109,20 @@ test('saved draft survives a failed submission without a second create',async t=
     assert.equal(view!.root.findAllByType(ProductForm).length,0);
     assert.match(JSON.stringify(view!.toJSON()),/PZ-NEW-ONE/);
     assert.match(JSON.stringify(view!.toJSON()),/草稿已保存/,'the saved-draft message survives editor unmount and list refresh');
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
+test('factory bulk button opens ZIP/XLSX workflow instead of the legacy image batch modal',async t=>{
+  t.mock.timers.enable({apis:['setInterval','setTimeout']});
+  const env=setup();let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<MemoryRouter><FactoryWorkspace/></MemoryRouter>);});
+    const bulk=view!.root.findAllByType('button').find(x=>x.children.join('')==='Excel + 图片 ZIP 导入');
+    assert.ok(bulk,'the inventory action should name the ZIP import flow');
+    await act(async()=>bulk!.props.onClick());
+    const importers=view!.root.findAllByType(BulkZipImporter);
+    assert.equal(importers.length,1);
+    assert.equal(importers[0].props.role,'FACTORY');
+    assert.doesNotMatch(JSON.stringify(view!.toJSON()),/每张图片创建一份产品草稿/);
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });

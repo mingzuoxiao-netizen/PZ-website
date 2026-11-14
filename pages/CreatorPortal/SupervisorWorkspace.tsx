@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Users, ClipboardCheck } from 'lucide-react';
+import { Users, ClipboardCheck, HelpCircle } from 'lucide-react';
 import TwoStageProductReviews from './components/TwoStageProductReviews';
 import SupervisorCategoryRequests from './components/SupervisorCategoryRequests';
 import PortalLayout from './PortalLayout';
@@ -9,7 +9,7 @@ type TeamAccount={id:string;username:string;is_active:number;job_type:string};
 type Job='secretary'|'staff'|'data_entry';
 const labels:Record<Job,string>={secretary:'秘书',staff:'业务人员',data_entry:'资料录入员'};
 const SupervisorWorkspace:React.FC=()=>{
-  const [tab,setTab]=useState<'team'|'reviews'|'categories'>('reviews');
+  const [tab,setTab]=useState<'team'|'reviews'|'categories'|'support'>('reviews');
   const [users,setUsers]=useState<TeamAccount[]>([]);
   const [username,setUsername]=useState('');
   const [password,setPassword]=useState('');
@@ -50,9 +50,10 @@ const SupervisorWorkspace:React.FC=()=>{
     navItems={[
       {id:'reviews',label:'产品初审',icon:<ClipboardCheck size={18}/>},
       {id:'categories',label:'新品类初审',icon:<ClipboardCheck size={18}/>},
-      {id:'team',label:'团队账号管理',icon:<Users size={18}/>}
+      {id:'team',label:'团队账号管理',icon:<Users size={18}/>},
+      {id:'support',label:'支持 / Support',icon:<HelpCircle size={18}/>}
     ]}
-    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews'|'categories')}>
+    activeTab={tab} onTabChange={id=>setTab(id as 'team'|'reviews'|'categories'|'support')}>
     {tab==='reviews'?<TwoStageProductReviews role="SUPERVISOR" members={users}/>:
     tab==='categories'?<SupervisorCategoryRequests/>:<div className="space-y-6 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-4 py-3">

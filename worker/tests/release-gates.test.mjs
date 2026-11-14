@@ -51,6 +51,15 @@ test('deploy credentials use unique environment-only secret names', () => {
   assert.match(workflow, /PZ_PRODUCTION_APPROVAL_CONFIRMED: \$\{\{ vars\.PZ_PRODUCTION_APPROVAL_CONFIRMED \}\}/);
 });
 
+test('both deployment jobs pass an explicit runtime target to SHA stamping', () => {
+  const staging = workflow.split('\n  staging:\n')[1]?.split('\n  production:\n')[0] || '';
+  const production = workflow.split('\n  production:\n')[1] || '';
+  assert.match(staging, /node worker\/scripts\/stamp-version\.mjs staging\b/);
+  assert.match(production, /node worker\/scripts\/stamp-version\.mjs production\b/);
+  assert.doesNotMatch(staging, /^\s*node worker\/scripts\/stamp-version\.mjs\s*$/m);
+  assert.doesNotMatch(production, /^\s*node worker\/scripts\/stamp-version\.mjs\s*$/m);
+});
+
 test('staging deploy refuses unconfirmed independent Cloudflare resources', () => {
   const without = dryPreparation('staging', {
     ...stagingEnvironment,

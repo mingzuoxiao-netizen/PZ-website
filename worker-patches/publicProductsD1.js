@@ -70,6 +70,17 @@ function escapeLike(term) {
   return term.replace(/[\\%_]/g, "\\$&");
 }
 
+function publicCategoryAlias(term) {
+  const key = term.trim().toLowerCase();
+  const aliases = [
+    ['tables', ['table', 'tables', 'dining table', '餐桌', '桌']],
+    ['seating', ['chair', 'chairs', 'bench', '座椅', '椅', '凳']],
+    ['cabinetry', ['cabinet', 'casegoods', 'storage', '储物柜', '柜']],
+    ['butcher-block', ['butcher block', 'countertop', 'worktop', '台面', '砧板', '岛台']],
+  ];
+  return aliases.find(([, words]) => words.includes(key))?.[0] || null;
+}
+
 export async function handlePublicProductsD1(request, env) {
   const url = new URL(request.url);
   const sp = url.searchParams;
@@ -134,9 +145,15 @@ export async function handlePublicProductsD1(request, env) {
     binds.push(sub);
   }
   if (q) {
-    predicates.push("(name LIKE ? ESCAPE '\\' OR code LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+    const fields = ['name', 'name_cn', 'code', 'description', 'description_cn',
+      'material', 'category', 'sub_category'];
+    const terms = fields.map(field => field + " LIKE ? ESCAPE '\\'");
+    const alias = publicCategoryAlias(q);
+    if (alias) terms.push("category LIKE ? ESCAPE '\\'");
+    predicates.push('(' + terms.join(' OR ') + ')');
     const like = "%" + escapeLike(q) + "%";
-    binds.push(like, like, like);
+    binds.push(...fields.map(() => like));
+    if (alias) binds.push('%' + escapeLike(alias) + '%');
   }
   if (cursor) {
     predicates.push("(updated_at < ? OR (updated_at = ? AND id < ?))");

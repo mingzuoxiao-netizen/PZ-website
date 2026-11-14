@@ -216,6 +216,11 @@ export function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     if(factoryDetail)return fail('Uploader cannot approve',403);
     const body=await readBody(request);
+    // The client must be able to bind approval to the exact snapshot it
+    // inspected, especially when approving several products in sequence.
+    if(body?.expected_version!==undefined&&
+       (!Number.isSafeInteger(body.expected_version)||body.expected_version!==review.latest_version))
+      return fail('Review version changed; refresh before approval',409);
     const note=typeof body?.note==='string'?body.note.trim():'';
     if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
       return fail('Return reason must be 5–2000 characters');

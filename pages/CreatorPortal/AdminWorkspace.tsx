@@ -10,14 +10,14 @@ import PortalLayout from './PortalLayout';
 import {
   RefreshCw, Package, Inbox,
   LayoutGrid, Settings, Images, Users, Activity,
-  ArrowUpCircle
+  ArrowUpCircle, HelpCircle
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 // Components
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import BulkCsvImporter from './components/BulkCsvImporter';
+import BulkZipImporter from './components/BulkZipImporter';
 import SiteBasicsEditor, { SiteBasicsValues } from './components/SiteBasicsEditor';
 import SiteMediaManager from './components/SiteMediaManager';
 import CategoryManagement from './components/CategoryManagement';
@@ -30,7 +30,7 @@ import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit' | 'support';
 
 const AdminWorkspace: React.FC = () => {
   const location=useLocation();
@@ -220,7 +220,7 @@ const AdminWorkspace: React.FC = () => {
   }, [activeTab, loadProducts,loadDeleteCapability]);
   useEffect(() => { if (activeTab === 'categories') void loadReviewQueue(); }, [activeTab, loadReviewQueue]);
 
-  // Update only the two basic fields against the latest D1 draft.
+  // Update only the website basics/contact fields against the latest D1 draft.
   // Re-read and compare before saving so concurrent category/image edits cannot be overwritten.
   const saveSiteBasics = async (values: SiteBasicsValues, baseline: SiteBasicsValues) => {
     setIsSavingConfig(true);
@@ -232,13 +232,22 @@ const AdminWorkspace: React.FC = () => {
       }
       const liveTitle = String(live.home.hero.title ?? '');
       const liveCatalogUrl = String(live.catalog.url ?? '');
-      if (liveTitle !== baseline.title || liveCatalogUrl !== baseline.catalogUrl) {
+      const currentContact = {
+        salesEmail: String(live.contact?.salesEmail ?? ''),
+        phone: String(live.contact?.phone ?? ''),
+        whatsapp: String(live.contact?.whatsapp ?? ''),
+        wechatId: String(live.contact?.wechatId ?? '')
+      };
+      const contactChanged = (Object.keys(currentContact) as (keyof typeof currentContact)[])
+        .some(key => currentContact[key] !== baseline.contact[key]);
+      if (liveTitle !== baseline.title || liveCatalogUrl !== baseline.catalogUrl || contactChanged) {
         throw new Error('其他管理员已修改网站基础信息，请刷新后重新编辑。');
       }
       const next = {
         ...live,
         home: { ...live.home, hero: { ...live.home.hero, title: values.title } },
-        catalog: { ...live.catalog, url: values.catalogUrl }
+        catalog: { ...live.catalog, url: values.catalogUrl },
+        contact: { ...live.contact, ...values.contact }
       };
       await saveDraftVersioned(next, typeof current.revision === 'number' ? current.revision : null);
       setHasPendingDeploy(true);
@@ -432,7 +441,7 @@ const AdminWorkspace: React.FC = () => {
   const navItems = [
     { id: 'review', label: '审核中心', icon: <Activity size={18} /> },
     { id: 'inventory', label: '产品管理', icon: <Package size={18} /> },
-    { id: 'bulk-import', label: '批量导入草稿', icon: <Package size={18} /> },
+    { id: 'bulk-import', label: 'Excel + 图片一键导入', icon: <Package size={18} /> },
     { id: 'inquiries', label: '询盘管理', icon: <Inbox size={18} /> },
     { id: 'categories', label: '产品分类管理', icon: <LayoutGrid size={18} />, group: '网站内容' },
     { id: 'media', label: '网站图片管理', icon: <Images size={18} />, group: '网站内容' },
@@ -440,6 +449,7 @@ const AdminWorkspace: React.FC = () => {
     { id: 'organization', label: '部门与主管管理', icon: <Users size={18} />, group: '系统管理' },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} />, group: '系统管理' },
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} />, group: '系统管理' },
+    { id: 'support', label: '支持 / Support', icon: <HelpCircle size={18} /> },
   ];
 
   return (
@@ -592,7 +602,7 @@ const AdminWorkspace: React.FC = () => {
         )}
 
         {activeTab === 'bulk-import' && (
-          <BulkCsvImporter role="ADMIN" categories={siteConfig?.categories||DEFAULT_CONFIG.categories}
+          <BulkZipImporter role="ADMIN" categories={siteConfig?.categories||DEFAULT_CONFIG.categories}
             onCompleted={id=>{setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogPage(1);setCatalogView('all');}}/>
         )}
 

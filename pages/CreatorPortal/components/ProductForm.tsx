@@ -12,6 +12,7 @@ import {changedProductFields,normalizeIssueField} from '../../../utils/reviewRet
 import type {ReviewReturnDetails} from '../../../utils/reviewReturn.mjs';
 import {useProductImageActions} from '../../../hooks/useProductImageActions';
 import {Save,ArrowLeft,Info,Send,Loader2,Database,ClipboardList} from 'lucide-react';
+import {Button,FormField,Toast} from '../ui/BackofficeComponents';
 
 interface ProductFormProps {
   initialData:Partial<ProductVariant>;
@@ -322,38 +323,38 @@ const ProductForm:React.FC<ProductFormProps>=({
                   onChange={e=>handleChange('sub_category',e.target.value)}
                   placeholder={T('e.g. Marlow','例如：Marlow 系列')}/>
               </label>
-              <label className="block"><span className={label}>{T('SKU *','SKU 编号 *')}</span>
+              <FormField label={T('SKU *','SKU 编号 *')} htmlFor="pz-product-sku" hint="SKU 必须以 PZ- 开头，同一产品只能使用一个编号。">
                 <div className="flex">
                   <span className="flex items-center border border-r-0 border-stone-300 bg-stone-100 px-3 text-xs font-bold text-stone-600">PZ-</span>
-                  <input name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
+                  <input id="pz-product-sku" name="code" className={field+' rounded-l-none font-mono'} value={(formData.code||'').replace(/^PZ-/,'')}
                     onChange={e=>handleChange('code','PZ-'+e.target.value.toUpperCase())}
                     placeholder="DINING-001"/>
                 </div>
-              </label>
+              </FormField>
               <label className="block"><span className={label}>{T('Color / color code','颜色 / 色号')}</span>
                 <input className={field} value={specs.color||''}
                   onChange={e=>changeSpecs({...specs,color:e.target.value})}
                   placeholder={T('Natural Oak','原木色')}/>
               </label>
-              <label className="block"><span className={label}>{T('English product name *','产品英文名称 *')}</span>
-                <input name="name" className={field+(hasReturnChange('name')?' ring-2 ring-emerald-400':'')} required value={formData.name||''}
+              <FormField label={T('English product name *','产品英文名称 *')} htmlFor="pz-product-name">
+                <input id="pz-product-name" name="name" className={field+(hasReturnChange('name')?' ring-2 ring-emerald-400':'')} required value={formData.name||''}
                   onChange={e=>handleChange('name',e.target.value)}
                   placeholder="Marlow Solid Oak Dining Table"/>
-              </label>
-              <label className="block"><span className={label}>{T('Chinese product name','产品中文名称')}</span>
-                <input name="name_cn" className={field} value={formData.name_cn||''}
+              </FormField>
+              <FormField label={T('Chinese product name','产品中文名称')} htmlFor="pz-product-name-cn">
+                <input id="pz-product-name-cn" name="name_cn" className={field} value={formData.name_cn||''}
                   onChange={e=>handleChange('name_cn',e.target.value)}/>
-              </label>
-              <label className="block"><span className={label}>{T('Primary material','主要材料')}</span>
-                <input name="material" className={field+(hasReturnChange('material')?' ring-2 ring-emerald-400':'')} value={formData.material||''}
+              </FormField>
+              <FormField label={T('Primary material','主要材料')} htmlFor="pz-product-material">
+                <input id="pz-product-material" name="material" className={field+(hasReturnChange('material')?' ring-2 ring-emerald-400':'')} value={formData.material||''}
                   onChange={e=>handleChange('material',e.target.value)}
                   placeholder={T('Solid white oak','白橡木实木')}/>
-              </label>
-              <label className="block"><span className={label}>{T('Surface finish','表面处理')}</span>
-                <input name="finish" className={field+(hasReturnChange('finish')?' ring-2 ring-emerald-400':'')} value={formData.finish||''}
+              </FormField>
+              <FormField label={T('Surface finish','表面处理')} htmlFor="pz-product-finish">
+                <input id="pz-product-finish" name="finish" className={field+(hasReturnChange('finish')?' ring-2 ring-emerald-400':'')} value={formData.finish||''}
                   onChange={e=>handleChange('finish',e.target.value)}
                   placeholder={T('Water-based matte lacquer','水性哑光漆')}/>
-              </label>
+              </FormField>
             </div>
             <fieldset data-preflight-field="production_sites" tabIndex={-1} className="mt-5 rounded border border-stone-200 bg-stone-50 p-4">
               <legend className="px-1 text-xs font-semibold">{T('Available production sites','可生产工厂')}</legend>
@@ -445,19 +446,14 @@ const ProductForm:React.FC<ProductFormProps>=({
               className="flex items-center gap-2 rounded border border-stone-300 px-4 py-3 text-sm">
               <ArrowLeft size={16}/>{T('Back','返回')}
             </button>
-            <button type="submit" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-stone-900 px-5 py-3 font-semibold text-white disabled:opacity-50">
-              {submitting?<Loader2 className="animate-spin" size={16}/>:<Save size={16}/>}
+            <Button type="submit" variant="primary" onClick={()=>{saveIntent.current='draft';}} disabled={submitting||isPromoting} loading={submitting} className="flex-1">
+              {!submitting&&<Save size={16}/>}
               {T('Save draft','保存草稿')}
-            </button>
-            {userRole==='FACTORY'&&onSaveAndSubmit&&<button type="submit" disabled={submitting||isPromoting||preflight.errors.length>0||!warningsAcknowledged}
-              onClick={()=>{saveIntent.current='submit';}} className="rounded bg-amber-800 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">
-              保存并提交审核
-            </button>}
-            {userRole==='FACTORY'&&onSaveNext&&<button type="submit" disabled={submitting||isPromoting}
-              onClick={()=>{saveIntent.current='next';}} className="rounded border border-stone-300 px-5 py-3 text-sm disabled:opacity-40">
-              保存并新建下一款
-            </button>}
+            </Button>
+            {userRole==='FACTORY'&&onSaveAndSubmit&&<Button type="submit" variant="primary" disabled={submitting||isPromoting||preflight.errors.length>0||!warningsAcknowledged}
+              onClick={()=>{saveIntent.current='submit';}}>保存并提交审核</Button>}
+            {userRole==='FACTORY'&&onSaveNext&&<Button type="submit" disabled={submitting||isPromoting}
+              onClick={()=>{saveIntent.current='next';}}>保存并新建下一款</Button>}
             {canPromote&&!onSaveAndSubmit&&<button type="button" disabled={submitting||isPromoting||dirty||preflight.errors.length>0||!warningsAcknowledged}
               onClick={submitReview}
               className="flex flex-1 items-center justify-center gap-2 rounded bg-amber-800 px-5 py-3 font-semibold text-white disabled:opacity-40">

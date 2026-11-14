@@ -10,6 +10,10 @@ on:
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
+      - 'utils/safeZip.mjs'
+      - 'utils/safeZip.d.mts'
+      - 'utils/zipXlsxImport.mjs'
+      - 'utils/zipXlsxImport.d.mts'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
@@ -27,6 +31,10 @@ on:
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
       - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
+      - 'utils/safeZip.mjs'
+      - 'utils/safeZip.d.mts'
+      - 'utils/zipXlsxImport.mjs'
+      - 'utils/zipXlsxImport.d.mts'
       - 'utils/bulkImportCore.d.mts'
       - 'utils/reviewReturn.mjs'
       - 'utils/reviewReturn.d.mts'
@@ -74,8 +82,11 @@ jobs:
       - name: Verify exact source baseline and read-only version endpoint
         run: |
           node --check worker/src/index.js
+          node --check utils/bulkImportCore.mjs
+          node --check utils/zipXlsxImport.mjs
           node --check worker/scripts/staging-migrate.mjs
           node --check worker/scripts/staging-acceptance.mjs
+          node --check worker/scripts/staging-tasks3-9-acceptance.mjs
           node --test worker/tests/source-parity.test.mjs
           node --test worker/tests/preflight.test.mjs
           node --test worker/tests/field-return.test.mjs
@@ -83,18 +94,14 @@ jobs:
           node --test worker/tests/notifications.test.mjs
           node --test worker/tests/inquiry-workbench.test.mjs
           node --test worker/tests/bulk-import.test.mjs
+          node --test worker/tests/zip-xlsx-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
           node --test worker/tests/runtime-target.test.mjs
           node --test worker/tests/production-review.test.mjs
           node --check worker/scripts/verify-production-review.mjs
       - name: Existing Worker regression suites
         run: |
-          node --test worker-patches/productTwoStageReviewCore.test.mjs
-          node --test worker-patches/publishedProductRevisionsCore.test.mjs
-          node --test worker-patches/categoryTwoStageReviewCore.test.mjs
-          node --test worker-patches/backofficeListsCore.test.mjs
-          node --test worker-patches/siteConfigD1Production.test.mjs
-          node --test worker-patches/productionWorkerCutoverSafety.test.mjs
+          node --test worker-patches/*.test.mjs worker/tests/*.test.mjs
       - name: Build frontend and types for shared contract
         run: npm run build && npm run typecheck && npm test
       - name: Safe staging Wrangler dry-run with synthetic binding IDs
@@ -110,7 +117,8 @@ jobs:
        (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')) &&
       (github.ref == 'refs/heads/main' ||
        (github.event_name == 'workflow_dispatch' &&
-        github.ref == 'refs/heads/feat/inquiry-workbench-task16-20261112')) &&
+        (github.ref == 'refs/heads/integration/tasks3-9-combined-20261113' ||
+         github.ref == 'refs/heads/integration/task16-inquiry-staging-20261114'))) &&
       vars.PZ_STAGING_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -165,6 +173,16 @@ jobs:
         run: node worker/scripts/staging-smoke.mjs
 
 
+      - name: PR84 live contact, category and public-search acceptance
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/integration/tasks3-9-combined-20261113'
+        env:
+          PZ_STAGING_RESOURCES_VERIFIED: ${{ vars.PZ_STAGING_RESOURCES_VERIFIED }}
+          PZ_D1_ID: ${{ vars.PZ_D1_ID }}
+          PZ_EXPECTED_PRODUCTION_D1_ID: ${{ vars.PZ_EXPECTED_PRODUCTION_D1_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PZ_STAGING_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PZ_STAGING_CLOUDFLARE_ACCOUNT_ID }}
+        run: node worker/scripts/staging-tasks3-9-acceptance.mjs
+
       - name: Real isolated three-role API acceptance
         if: github.event_name == 'workflow_dispatch' && inputs.migrate_staging
         env:
@@ -211,7 +229,7 @@ jobs:
           PZ_SITE_CONFIG_HISTORY_BUCKET: ${{ vars.PZ_SITE_CONFIG_HISTORY_BUCKET }}
         run: |
           node worker/scripts/prepare-deployment.mjs production deploy
-          node worker/scripts/stamp-version.mjs
+          node worker/scripts/stamp-version.mjs production
       - name: Deploy explicit production Worker name (approval required)
         env:
           # These uniquely named secrets belong ONLY to the 'production' GitHub Environment.

@@ -3739,6 +3739,11 @@ function pzTwoStageReviewFetch(originalFetch,{authorize,json}) {
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     if(factoryDetail)return fail('Uploader cannot approve',403);
     const body=await readBody(request);
+    // The client must be able to bind approval to the exact snapshot it
+    // inspected, especially when approving several products in sequence.
+    if(body?.expected_version!==undefined&&
+       (!Number.isSafeInteger(body.expected_version)||body.expected_version!==review.latest_version))
+      return fail('Review version changed; refresh before approval',409);
     const note=typeof body?.note==='string'?body.note.trim():'';
     if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
       return fail('Return reason must be 5–2000 characters');
@@ -4203,8 +4208,8 @@ async function pzHandlePublicProductsD1(request, env) {
  *
  * No Production deployment. Apply migration 004 to Staging D1 first.
  */
-const EDITABLE = ['title','title_cn','subtitle','description','image'];
-const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048 };
+const EDITABLE = ['title','title_cn','subtitle','description','image','alt_en','alt_zh','caption'];
+const MAX = { title: 120, title_cn: 120, subtitle: 500, description: 2000, image: 2048, alt_en: 300, alt_zh: 300, caption: 500 };
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const serial = (value) => JSON.stringify(value);
 
@@ -4214,6 +4219,11 @@ function fields(category) {
   // Some existing categories use title_zh as the Chinese display name.
   if (!out.title_cn) out.title_cn = String(category?.title_zh ?? '');
   return out;
+}
+
+function fieldsAtSubmission(category, expected) {
+  const current = fields(category);
+  return Object.fromEntries(Object.keys(expected).map(key => [key, current[key]]));
 }
 
 function conflict(message, json) {
@@ -4381,8 +4391,8 @@ async function handleCategoryChanges({ request, env, pathname, authorize, json, 
       const live = published.categories.find(c => c.id === row.category_id);
       const editable = draft.categories.find(c => c.id === row.category_id);
       const base = JSON.parse(row.base_json);
-      if (!live || !editable || serial(fields(live)) !== serial(base) ||
-          serial(fields(editable)) !== serial(base)) {
+      if (!live || !editable || serial(fieldsAtSubmission(live, base)) !== serial(base) ||
+          serial(fieldsAtSubmission(editable, base)) !== serial(base)) {
         return conflict('Category changed since submission; review and resubmit',json);
       }
       const proposed = JSON.parse(row.proposed_json);
@@ -6791,6 +6801,10 @@ function pzPublishedProductRevisionsFetch(originalFetch,{
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     const bodyResult=await readJson(request);
     if(bodyResult.error)return fail(bodyResult.error,bodyResult.status);
+    if(bodyResult.body.expected_version!==undefined&&
+       (!Number.isSafeInteger(bodyResult.body.expected_version)||
+        bodyResult.body.expected_version!==revision.latest_version))
+      return fail('Revision version changed; refresh before approval',409);
     const note=typeof bodyResult.body.note==='string'?bodyResult.body.note.trim():'';
     if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
       return fail('Return reason must be 5–2000 characters',400);
@@ -7009,8 +7023,8 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     const table=kind==='reviews'?'pz_product_reviews':'pz_published_product_revisions';
     const release=kind==='release-queue';
     const common='id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,approved_version,return_reason,created_at,updated_at';
-    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision FROM pz_product_reviews "+
-      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision FROM pz_published_product_revisions)";
+    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision,NULL AS draft_json FROM pz_product_reviews "+
+      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision,draft_json FROM pz_published_product_revisions)";
     const from=product?' FROM products p':
       ' FROM '+(release?releaseTable:table)+' r JOIN products p ON p.id=r.product_id';
     const base=['p.deleted_at IS NULL'];
@@ -7077,12 +7091,22 @@ function pzBackofficeListsFetch(originalFetch, {authorize, json, expectedRuntime
     if(product&&['department','supervisor','submitter'].some(key=>params.get(key)))
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
+    const productSeries="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.series_id') END";
+    const productDimensions="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.dimensions_cm') END";
+    const draftField=key=>"CASE WHEN r.kind='revision' AND json_valid(r.draft_json) THEN json_extract(r.draft_json,'$."+key+"') END";
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
-      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
+      release?'r.kind,'+common.split(',').map(key=>'r.'+key).join(',')+',r.draft_revision,'+
+        ['name','name_cn','category','sub_category','images','material','size','finish'].map(key=>
+        'COALESCE('+draftField(key)+',p.'+key+') AS '+key).join(',')+
+        ',p.code,COALESCE('+draftField('specifications.series_id')+','+productSeries+') AS series_id'+
+        ',COALESCE('+draftField('specifications.dimensions_cm')+','+productDimensions+') AS dimensions_cm':
+      kind==='reviews'?'r.*,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+        productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm':
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
-      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
+      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+      productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';

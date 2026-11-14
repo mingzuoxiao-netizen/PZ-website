@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, X } from 'lucide-react';
 import type { ProductVariant } from '../../types';
 import ProductGallery from './ProductGallery';
+import ContactChannels from '../ContactChannels';
+import { useOptionalPublishedSiteConfig } from '../../contexts/SiteConfigContext';
 
 interface ProductDetailModalProps {
   product: ProductVariant;
@@ -15,6 +17,7 @@ interface ProductDetailModalProps {
 /** Public product details use only the existing approved catalog data. */
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, language, onClose, displayMode = 'modal' }) => {
   const inline = displayMode === 'inline';
+  const config = useOptionalPublishedSiteConfig()?.config;
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -134,6 +137,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, langua
           <p className="mt-3 text-center text-[11px] text-[#94847a]">
             {L('OEM / ODM and bulk manufacturing inquiries welcome', '欢迎 OEM / ODM 与批量采购咨询')}
           </p>
+          <div className="mt-7"><ContactChannels contact={config?.contact} language={language} /></div>
         </div>
       </div>
     </div>

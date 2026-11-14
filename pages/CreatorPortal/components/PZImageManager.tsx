@@ -38,8 +38,8 @@ const PZImageManager: React.FC<PZImageManagerProps> = ({
     try {
         const results = await Promise.all(Array.from(fileList).map(async (originalFile) => {
             let file = originalFile;
-            if (aspectRatio && file.type.startsWith('image/')) {
-                try { file = await processImage(file, aspectRatio); } catch (e) { console.warn("Auto-crop bypass", e); }
+            if (file.type.startsWith('image/')) {
+                try { file = await processImage(file, aspectRatio); } catch (e) { console.warn("Image processing bypass", e); }
             }
             return await onUpload(file);
         }));

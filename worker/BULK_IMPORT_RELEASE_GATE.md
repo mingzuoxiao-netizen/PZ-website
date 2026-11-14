@@ -1,104 +1,111 @@
-# Task 15 — CSV bulk draft-import release and acceptance gate
+# PZ Bulk Import v2 — ONE ZIP with XLSX + SKU image folders
 
-Status: **Draft PR #65. Not merged, not deployed; no D1 migration executed.**
+**Status:** Draft PR #69, based on `main`. This replaces the CSV + manually
+renamed images interface merged through PR #65. No production deployment and no
+new D1 migration are part of this PR.
 
-## Scope and limits
+## What the employee does
 
-This is a **CSV-only** implementation because the repository has no installed
-Excel parser dependency. Excel files must be saved as **CSV UTF-8** before upload.
-Do not add xlsx parsers to production silently. Template uses BOM UTF-8 to
-preserve Chinese text in Excel, shows centimeter/kilogram units and has an
-example row marked `__example=YES` that is ignored at import.
+1. In Admin or Factory backoffice, select **Excel + 图片一键导入**.
+2. Download the sample **ZIP**. It contains `产品资料.xlsx`, an empty `images/`
+   folder and a small README. The Excel has product columns, units and an
+   `__example=YES` sample that is ignored by the importer.
+3. Fill up to **100 SKU** rows in the workbook; place arbitrary JPG/PNG/WebP
+   images under `images/<SKU>/`. The names inside folders can stay exactly
+   as exported by a camera. For example:
+   ```
+   PZ-batch.zip
+     产品资料.xlsx
+     images/
+       PZ-TABLE-001/
+         DSC_2041.jpg
+         DSC_2042.jpg
+       PZ-CHAIR-008/
+         DSC_3041.png
+         cover.jpg
+   ```
+   A ZIP created by compressing the enclosing batch folder is also accepted
+   (one top-level directory with the XLSX and `images/` folder).
+4. Upload **one ZIP**. The browser parses the Excel locally, matches each
+   `images/<SKU>` folder, runs Task-11 preflight and checks known SKUs through
+   the authenticated Worker endpoint. It does not upload any photos until
+   the employee confirms.
+5. Use the thumbnail preview to select the main image, change image roles
+   (default nonmain is lifestyle/product display), and move nonmain photos
+   up or down. An image named `main` or `cover` is selected initially;
+   otherwise the first image is suggested **but must be confirmed**.
+6. Confirm once. At most **three R2 uploads** run concurrently. Successful
+   upload URLs are cached in the browser session, so retrying a failed
+   upload does not upload successful files again. Only after the requested
+   photos are uploaded does the browser submit the authenticated batch to
+   D1 as **Draft**. There is no automatic submit, review or publish action.
+7. Save the batch UUID. Admin and Factory can filter their catalog by this
+   UUID. If the D1 write returns an uncertain network state, the UI requires
+   a batch reconciliation rather than making a second import.
 
-Both Creator Admin and assigned factory employees can import. Admin selects
-an active operator with a valid department and supervisor; that operator owns
-every imported draft. A factory operator can import only to their own account.
+## Security and resource limits
 
-The service can write only `draft` records. It **never** edits or overwrites
-existing SKUs, submits for review, approves, publishes, changes catalog KV or
-updates public product lists. Task 11 preflight still applies in the editor
-and again on submission. A draft without four images/media roles can be saved
-but **cannot enter the review queue** until images are completed.
+- ZIP <= **180 MiB compressed**, <= **360 MiB expanded**, <= **1350 entries**;
+  individual image <= **12 MiB**, inner XLSX <= **8 MiB**.
+- Local ZIP extractor validates central/local file headers, CRC32, lengths,
+  compression ratios, duplicate paths, encrypted entries, symbolic links and
+  path traversal. Only ZIP stored/deflate methods are accepted; ZIP64 and
+  multipart ZIPs are rejected.
+- XLSX reader rejects VBA/macro payloads, external workbook links, formula
+  cells and DTD/entities; it reads a visible `Products` / 产品资料 sheet with
+  canonical column headings. Shared-string and inline-string cells are supported.
+- Images must have matching supported binary signatures, not merely an
+  image extension. The existing Worker `/upload-image` route also re-checks
+  bytes and stores in the environment's R2 bucket.
+- No client-supplied URL or local ZIP path is trusted by the importer. Existing
+  `/factory|admin/products/import-drafts` Worker endpoints still recheck
+  Task-11 product/preflight fields, R2-origin image URLs, owner RBAC and
+  globally normalized SKU uniqueness.
+- Missing photo folders can still produce editable **drafts**, but those
+  drafts do not meet the publish-readiness image requirements and cannot
+  be submitted until images are completed.
+- There is **no new D1 migration**: the existing import-batch tables from
+  migration `020_bulk_draft_import_REVIEW.sql` continue unchanged.
 
-Images use existing authenticated `POST /upload-image`, which verifies
-JPEG/PNG/WebP bytes and writes to the existing environment-bound R2 bucket.
-Import matches local files named `{SKU}__{role}.jpg` (main, lifestyle,
-detail, material, dimension, packaging), and accepts only matching hosted
-`uploads/` URLs from the current environment. Missing main images, unmatched
-files and upload errors are exported as a *separate to-fix report*.
+## Staging acceptance
 
-## Staging migration / rollout
+1. Confirm Staging D1/KV/R2 resources are separate from Production and that
+   existing migration 020 is installed in Staging. Back up D1 before altering
+   any deployment/binding; do not blindly rerun migration 020.
+2. In a separate Staging environment, verify the existing Worker import flag
+   `PZ_BULK_IMPORT_ENABLED` has the intended value. Keep Production disabled
+   unless separately approved.
+3. Download the new ZIP template from both Admin and Factory. Open its Excel
+   workbook in desktop Excel and save it, then zip the workbook with one or
+   more SKU folders. Test that original camera filenames work without any
+   `SKU__main` renaming.
+4. Preview multiple photos for each SKU, select/confirm a main image and
+   reorder role tags. Verify the intended image is first and that the
+   resulting `media_roles` follow the displayed roles.
+5. Upload a workbook with **100 SKUs, 5 deliberately malformed rows**.
+   Expect **95 new Draft products, 5 invalid rows and 0 published**.
+   Repeat in a new UUID batch: expect 0 inserts and existing SKUs skipped.
+6. Test an orphan image folder, missing image folder, duplicate SKU,
+   multiple cover photos, folder-wrapped ZIP, a bad file signature, overly
+   large ZIP, duplicate path names and malformed XLSX formulas. Import must
+   either show a clear reason or safely reject the archive.
+7. Simulate one R2 image upload failure: the D1 draft batch must **not**
+   start. The same browser session may retry only failed images.
+   Simulate a lost D1 response and verify the batch-reconciliation control.
+8. Confirm imported records show under the same `import_batch_id` filter
+   in Admin and the assigned operator's catalog; original review permissions
+   and Task-11 submit gating remain unchanged.
+9. Merge/release only after all CI checks and Staging end-to-end tests; keep
+   protected GitHub Production Environment reviewers and manual approval.
 
-1. Confirm independent Staging D1/KV/R2 and that prior migration 019 is valid.
-2. Audit existing normalized SKU uniqueness. Do not add a duplicate-unsafe
-   uniqueness constraint or run a migration blindly on Production.
-3. Back up **Staging D1** and apply
-   `worker-patches/migrations/020_bulk_draft_import_REVIEW.sql`
-   **exactly once**. It adds `products.import_batch_id`,
-   `pz_product_import_batches`, `pz_product_import_rows`, and indexes.
-4. Deploy code to isolated Staging with `PZ_BULK_IMPORT_ENABLED` unset/false.
-   Verify attempts return 503 instead of invoking the legacy product API.
-5. Explicitly enable `PZ_BULK_IMPORT_ENABLED=true` in Staging Worker
-   environment only, keep `PZ_ORG_RBAC_ENABLED=true` and existing product
-   submission/approval safeguards.
-6. Admin opens **批量导入草稿**, chooses an active employee, downloads a
-   category-specific template, exports a 100-row Excel workbook as UTF-8 CSV,
-   leaves its `__example=YES` row untouched, and uploads real data.
-7. Add five deliberately invalid rows. Verify that exactly 95 are saved as
-   `draft`, five failed CSV rows appear in the **blocking error** report,
-   and no product changes to `pending_supervisor` or `published`.
-8. Select images named `{SKU}__main.jpg`, etc.; test correct `media_roles`,
-   missing main warning, unmatched image report, and regular Task 11 submit
-   rejection until the images are completed.
-9. Re-import the original CSV with a fresh UUID: zero products created,
-   95 global SKU collisions shown as **existing**, five original errors.
-   Re-send the exact original UUID: result reports `already_processed=true`
-   and does not repeat writes. D1 rows are never updated.
-10. Filter both Admin and Factory product catalogs by the returned batch UUID;
-    verify paging, owner scope and status counts still work.
-11. If an import request times out, click **核对批次结果** using that UUID.
-    A half-finished batch deliberately fails closed until a database admin
-    reconciles the import rows. Do not resubmit with a different UUID until
-    actual D1 status is confirmed.
-12. Only after all staging acceptance and required GitHub Environment
-    approvals should a separate production release be considered. Start
-    Production with the bulk-import feature disabled, run the production
-    migration after an audited backup, then explicitly enable it.
+## Rollback
 
-## API
+This PR only changes the browser-side import UI/parser and tests. Existing
+Worker endpoints and D1 migration 020 remain compatible. If the new
+client workflow fails Staging acceptance, revert PR #69's import components.
+Do not delete already-imported draft rows or alter Production D1 as part of
+this rollback.
 
-- `GET /admin/products/import-operators`: active eligible staff options.
-- `POST /admin/products/import-drafts`: Admin, required owner_id and UUID.
-- `POST /factory/products/import-drafts`: assigned factory operator only.
-- `GET /admin|factory/products/import-batches/:uuid`: batch readback.
-- `GET /factory/products?list_version=1&status=all&import_batch=<uuid>`:
-   SQL-level scoped filter, applied before LIMIT/OFFSET.
-
-Each POST accepts 1–100 row entries with CSV source row numbers, parsed cell
-values and optional R2-uploaded image URLs/roles. The Worker ignores any
-client-provided product status and creates `draft` only. SKU existence
-checks are global and case-insensitive; existing SKUs are never overwritten.
-A batch UUID is idempotent, and row outcomes remain in D1 for audit.
-
-## Automated checks
-
-- Worker SQLite integration creates **95 draft rows** for 100 input rows with
-  five malformed rows and **0 published rows**.
-- Repeat import as new batch: 95 existing, zero inserted.
-- Repeat original UUID: returns prior result without creating duplicates.
-- Image file naming, ordering and media_roles, missing-image submit preflight.
-- Owner/organization guards, external-image rejection, feature flag off,
-  server ignoring forged published status.
-- CSV quote/BOM/sample parsing and formula-escaped error CSV output.
-- `npm run build && npm run typecheck && npm test`, Worker parity/regression
-  and Wrangler Staging dry-run in GitHub Actions.
-
-## Limitations
-
-- No native `.xlsx` import; use Excel's UTF-8 CSV export.
-- Images without a matching CSV row are **not** uploaded and are listed in
-  the separate image warning report. A draft without main remains editable,
-  but is not ready to submit.
-- Existing product records are not backfilled with an import_batch_id.
-- The Staging D1 migration and feature flag are deliberately manual/reviewed;
-  the PR does not put API secrets, D1 IDs or R2 bucket credentials in GitHub.
+**Known limits:** No native `.xls`, HEIC or PDF image import. Photos must
+be JPEG, PNG or WebP; ZIP must contain a standard `.xlsx` workbook. Large
+image sets can be split across batches to stay within the size cap.
