@@ -1,0 +1,19 @@
+.pz-backoffice {
+  --pz-ui-primary: #385575;
+  --pz-ui-danger: #b91c1c;
+  --pz-ui-text: #292524;
+  --pz-ui-radius: 0.375rem;
+  --pz-ui-gap: 0.75rem;
+  --pz-ui-row-min-height: 3.5rem;
+  color: var(--pz-ui-text);
+  font-size: 14px;
+}
+.pz-backoffice :is(input, select, textarea, button) {
+  font-size: max(14px, 1em);
+}
+.pz-backoffice :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--pz-ui-primary);
+  outline-offset: 2px;
+}
+.pz-backoffice button:not(:disabled) { cursor: pointer; }
+.pz-backoffice button:disabled { cursor: not-allowed; }
