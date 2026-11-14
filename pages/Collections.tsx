@@ -86,7 +86,7 @@ const Collections: React.FC = () => {
                 <button onClick={closeProduct} className="absolute top-8 right-8 text-stone-400 hover:text-stone-900"><X size={24} /></button>
                  <h2 className="font-serif text-3xl text-stone-900 mb-6">{selectedProduct.name}</h2>
                  <p className="text-stone-600 mb-8">{selectedProduct.description || t.collections.pdp.descExtra}</p>
-                 <Link to="/inquire" className="inline-block bg-stone-900 text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors">{t.collections.pdp.inquireOrder}</Link>
+                 <Link to={selectedProduct.code?'/inquire?product_code='+encodeURIComponent(selectedProduct.code):'/inquire'} className="inline-block bg-stone-900 text-white px-8 py-3 text-xs font-bold uppercase tracking-widest hover:bg-safety-700 transition-colors">{t.collections.pdp.inquireOrder}</Link>
               </div>
            </div>
         </div>
