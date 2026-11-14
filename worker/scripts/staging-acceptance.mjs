@@ -22,12 +22,12 @@ const pass=randomBytes(24).toString('base64url')+'aA9!';
 console.log('::add-mask::'+pass);
 const users=[],products=[],report=[];
 let admin,supervisor,operator,other,department,sampleForSync;
-const call=async(token,path,body,expected=200)=>{
+const call=async(token,path,body,expected=200,timeoutMs=20000)=>{
   const response=await fetch(origin+path,{
     method:body===undefined?'GET':'POST',
     headers:{...(token?{Authorization:'Bearer '+token}:{}),
       ...(body===undefined?{}:{'content-type':'application/json'})},
-    ...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000)});
+    ...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(timeoutMs)});
   const data=await response.json().catch(()=>({}));
   assert.equal(response.status,expected,path+': '+JSON.stringify(data).slice(0,400));
   return data;
@@ -205,11 +205,13 @@ try{
   rows[0].cells.code='invalid';rows[1].cells.material='';rows[2].cells.name='测试';
   rows[3].cells['dimensions_cm.height']='750cm';rows[4].cells.production_sites='unknown';
   const batch=randomUUID();
-  const imported=await call(operator,'/factory/products/import-drafts',{batch_id:batch,rows});
+  // Each 100-row import performs hundreds of serial D1 writes over the network.
+  // Allow these two calls enough wall time without relaxing other API timeouts.
+  const imported=await call(operator,'/factory/products/import-drafts',{batch_id:batch,rows},200,120000);
   assert.equal(imported.inserted,95);assert.equal(imported.failed,5);
   const counts=db('SELECT status,COUNT(*) AS n FROM products WHERE import_batch_id='+quote(batch)+' GROUP BY status');
   assert.deepEqual(counts.map(x=>[x.status,x.n]),[['draft',95]]);
-  const repeated=await call(operator,'/factory/products/import-drafts',{batch_id:randomUUID(),rows});
+  const repeated=await call(operator,'/factory/products/import-drafts',{batch_id:randomUUID(),rows},200,120000);
   assert.equal(repeated.inserted,0);assert.equal(repeated.skipped,95);
   const list=await call(operator,'/factory/products?list_version=1&import_batch='+batch);
   assert.equal(list.total,95);
