@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
 import ProductChangeSummary from './ProductChangeSummary';
+import SupervisorReviewSummary from './SupervisorReviewSummary';
 import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
 import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
@@ -101,7 +102,9 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     try{
       const detail=await adminFetch<ReviewDetail>('/'+base+'/'+(item.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(item.id));
       if(request!==detailGeneration.current)return;
-      setShowAllFields(item.kind!=='revision'&&detail.versions.length===1);
+      // Supervisors start with the focused snapshot; administrators retain
+      // their existing complete first-submission view before final release.
+      setShowAllFields(role==='ADMIN'&&item.kind!=='revision'&&detail.versions.length===1);
       setSelected({...detail,kind:item.kind});
     }catch(e:any){if(request===detailGeneration.current)setError(e?.message||'无法读取审核详情');}
     finally{if(request===detailGeneration.current)setBusy(false);}
@@ -142,9 +145,10 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     }catch(e:any){setError(e?.message||'操作未完成，请刷新检查');await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
+  const previousVersion=selected?.versions?.length&&selected.versions.length>1?
+    selected.versions[selected.versions.length-2]:null;
   const original=selected?.kind==='revision'?selected.base_snapshot||{}:
-    selected?.recheck?.is_recheck?selected.versions?.[selected.versions.length-2]?.snapshot||{}:
-    selected?.versions?.[0]?.snapshot||{};
+    previousVersion?.snapshot||selected?.versions?.[0]?.snapshot||{};
   const latest=selected?.versions?.[selected.versions.length-1]?.snapshot||selected?.draft||{};
   const recheckFields=selected?.recheck?.is_recheck?selected.recheck.changed_fields||[]:[];
   const recheckChanged=(field:string)=>recheckFields.some(change=>change===field||change.startsWith(field+'.'));
@@ -247,7 +251,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           {selected.return_issues?.length>0&&<aside className="rounded border border-stone-200 p-3 text-xs" aria-label="退回问题记录">
             {selected.return_issues.map((issue,i)=><div key={i}>{issue.field}：{issue.message}</div>)}
           </aside>}
-          {confirmedPreflightWarnings.length>0&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="机器预警复核">
+          {role==='SUPERVISOR'&&<SupervisorReviewSummary snapshot={latest} isFirstSubmission={!!isFirstSubmission}/>}
+          {role==='ADMIN'&&confirmedPreflightWarnings.length>0&&<aside className="rounded border border-amber-300 bg-amber-50 p-3" aria-label="机器预警复核">
             <h4 className="text-sm font-semibold text-amber-950">操作员已确认的机器预警 · 请复核</h4>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">
               {confirmedPreflightWarnings.map((warning,i)=><li key={warning.code+'-'+i}>
@@ -257,16 +262,22 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           </aside>}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm font-semibold text-stone-900">
-              {isFirstSubmission?'新品完整资料':`${showAllFields?'全部公开字段':'本次变更'} · ${changedFields.length} 项变化`}
+              {isFirstSubmission?(role==='SUPERVISOR'?'新品关键字段 · 完整资料按需查看':'新品完整资料'):
+                `${showAllFields?'全部公开字段':'本次变更'} · ${changedFields.length} 项变化`}
               {technicalChanged?' · 技术资料有更新':''}
             </h4>
-            {!isFirstSubmission&&<button type="button" aria-pressed={showAllFields}
+            {role==='SUPERVISOR'&&(canApprove||canCorrection)&&<a href="#supervisor-review-actions"
+              className="rounded bg-stone-900 px-3 py-2 text-xs font-semibold text-white hover:bg-stone-800">前往审核操作 ↓</a>}
+            {(role==='SUPERVISOR'||!isFirstSubmission)&&<button type="button" aria-pressed={showAllFields}
               onClick={()=>setShowAllFields(value=>!value)}
               className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-50">
-              {showAllFields?'只看变更':'查看全部字段'}
+              {showAllFields?(isFirstSubmission?'收起完整资料':'只看变更'):
+                isFirstSubmission?'查看完整资料':'查看全部字段'}
             </button>}
           </div>
-          {isFirstSubmission?<ProductChangeSummary original={{}} proposed={latest} isNew/>:visibleFields.length===0?<p className="rounded bg-stone-50 p-4 text-sm text-stone-600">
+          {isFirstSubmission?(role==='SUPERVISOR'&&!showAllFields?
+            <p className="rounded bg-stone-50 p-3 text-xs text-stone-600" role="note">完整的中英文描述、逐张图片与技术资料没有被隐藏或删除；点击「查看完整资料」即可展开核查。</p>:
+            <ProductChangeSummary original={{}} proposed={latest} isNew/>):visibleFields.length===0?<p className="rounded bg-stone-50 p-4 text-sm text-stone-600">
             公开字段没有变化。{technicalChanged?'请展开下方技术资料核对内部信息。':'请核对版本记录后再决定审核。'}
           </p>:<div className="space-y-3" aria-label="初始与提交版本字段比较">
             {visibleFields.map(([field,label])=>{
@@ -276,7 +287,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
                 <h5 className="mb-2 text-xs font-semibold text-stone-800">{label}{changed?' · 已修改':''}</h5>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="min-w-0">
-                    <p className="mb-1 text-[11px] font-semibold text-stone-500">初始版本 V1</p>
+                    <p className="mb-1 text-[11px] font-semibold text-stone-500">{selected.kind==='revision'?'修改前已发布版本':`变更前 V${previousVersion?.version||1}`}</p>
                     <div className="text-xs leading-5 text-stone-700">{renderValue(field,original[field])}</div>
                   </div>
                   <div className="min-w-0 sm:border-l sm:border-stone-200 sm:pl-3">
@@ -315,7 +326,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
               </ul>}
             </li>)}</ol>
           </details>
-          {(canApprove||canCorrection||canPublish)&&<div className="rounded border border-stone-200 bg-stone-50 p-3 sm:p-4" aria-label="当前审核操作">
+          {(canApprove||canCorrection||canPublish)&&<div id={role==='SUPERVISOR'?'supervisor-review-actions':undefined}
+            className="rounded border border-stone-200 bg-stone-50 p-3 sm:p-4" aria-label="当前审核操作">
             <div className="flex flex-wrap items-center gap-2">
               {canApprove&&<button type="button" disabled={busy} onClick={()=>void action('approve')}
                 className="w-full rounded bg-stone-900 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">

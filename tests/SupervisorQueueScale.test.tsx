@@ -35,7 +35,7 @@ test('supervisor sees complete first submission, then reviews the next revision;
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
     const first=view!.root.findAllByType('button').find(x=>x.findAllByType('strong').some(y=>y.children.includes('First Table')))!;
     await act(async()=>first.props.onClick());
-    assert.match(JSON.stringify(view!.toJSON()),/新品完整资料/);
+    assert.match(JSON.stringify(view!.toJSON()),/主管审核摘要|新品关键字段/);
     assert.match(JSON.stringify(view!.toJSON()),/120 cm/);
     assert.match(JSON.stringify(view!.toJSON()),/oak/);
     await act(async()=>button('初审通过并查看下一条').props.onClick());
