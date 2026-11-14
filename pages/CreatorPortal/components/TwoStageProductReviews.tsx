@@ -77,6 +77,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const [reviews,setReviews]=useState<Review[]>([]);
   const [selected,setSelected]=useState<ReviewDetail|null>(null);
   const detailPanel=useRef<HTMLElement>(null);
+  const actionPanel=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(selected&&typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 1023px)').matches)
       detailPanel.current?.scrollIntoView({block:'start'});
@@ -321,8 +322,10 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
                 `${showAllFields?'全部公开字段':'本次变更'} · ${changedFields.length} 项变化`}
               {technicalChanged?' · 技术资料有更新':''}
             </h4>
-            {role==='SUPERVISOR'&&(canApprove||canCorrection)&&<a href="#supervisor-review-actions"
-              className="rounded bg-stone-900 px-3 py-2 text-xs font-semibold text-white hover:bg-stone-800">前往审核操作 ↓</a>}
+            {role==='SUPERVISOR'&&(canApprove||canCorrection)&&<button type="button"
+              onClick={()=>{actionPanel.current?.scrollIntoView({behavior:'smooth',block:'start'});
+                actionPanel.current?.focus({preventScroll:true});}}
+              className="rounded bg-stone-900 px-3 py-2 text-xs font-semibold text-white hover:bg-stone-800">前往审核操作 ↓</button>}
             {(role==='SUPERVISOR'||!isFirstSubmission)&&<button type="button" aria-pressed={showAllFields}
               onClick={()=>setShowAllFields(value=>!value)}
               className="rounded border border-stone-300 px-3 py-2 text-xs text-stone-700 hover:bg-stone-50">
@@ -381,7 +384,9 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
               </ul>}
             </li>)}</ol>
           </details>
-          {(canApprove||canCorrection||canPublish)&&<div id={role==='SUPERVISOR'?'supervisor-review-actions':undefined}
+          {(canApprove||canCorrection||canPublish)&&<div ref={role==='SUPERVISOR'?actionPanel:undefined}
+            id={role==='SUPERVISOR'?'supervisor-review-actions':undefined}
+            tabIndex={role==='SUPERVISOR'?-1:undefined}
             className="rounded border border-stone-200 bg-stone-50 p-3 sm:p-4" aria-label="当前审核操作">
             <div className="flex flex-wrap items-center gap-2">
               {canApprove&&<button type="button" disabled={busy} onClick={()=>void action('approve')}

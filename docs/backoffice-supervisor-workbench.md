@@ -31,7 +31,10 @@ Perform real three-role Staging handoff/return checks before release.
 ## Stage C.1 — lightweight supervisor triage (2026-11-13)
 
 - Default new-product inspection is a compact summary, not 12 expanded fields.
-- **前往审核操作 ↓** scrolls to the unchanged approval/return controls.
+- **前往审核操作 ↓** scrolls to and focuses the unchanged approval/return
+  controls via a button. It must not use `href="#supervisor-review-actions"`:
+  this app uses `HashRouter`, so a hash-only link replaces the route and can
+  show a blank page. Regression coverage exercises the no-navigation shortcut.
 - **查看完整资料** expands full new-product detail; a supervisor may collapse it
   again. Admin approval/publishing flow and endpoint authorization are intact.
 - Existing employee preflight already blocks hard errors on save-and-submit,

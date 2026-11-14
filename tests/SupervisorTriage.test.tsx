@@ -132,6 +132,27 @@ test('supervisor cards expand in place and collapse without changing review stat
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });
 
+test('review action shortcut scrolls and focuses without changing a HashRouter route',async()=>{
+  const env=prepare([{version:1,snapshot:valid}]);
+  const calls:string[]=[];
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>,{
+      createNodeMock:(element:any)=>element.props?.id==='supervisor-review-actions'?{
+        scrollIntoView:()=>calls.push('scroll'),focus:()=>calls.push('focus')
+      }:null
+    });});
+    await clickReview(view!);
+    assert.equal(view!.root.findAllByType('a').some(link=>link.props.href==='#supervisor-review-actions'),false,
+      'a hash-only anchor would overwrite #/creator/supervisor and show an empty page');
+    const shortcut=view!.root.findAllByType('button').find(node=>node.children.join('')==='前往审核操作 ↓');
+    assert.ok(shortcut,'shortcut is a button, not a navigation link');
+    await act(async()=>shortcut!.props.onClick());
+    assert.deepEqual(calls,['scroll','focus']);
+    assert.equal(env.calls.filter(call=>call.startsWith('POST')).length,0);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
 test('legacy snapshot with incomplete data is flagged but does not trigger an automatic mutation',async()=>{
   const env=prepare([{version:1,snapshot:{name:'Old Table',code:'PZ-LEGACY'}}]);
   let view:ReturnType<typeof create>|undefined;
