@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Factory, LogOut, Globe, Menu, ChevronDown } from 'lucide-react';
 import NotificationBell from './components/NotificationBell';
+import SupportCenter from './components/SupportCenter';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -122,7 +123,9 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({
             </nav>}
 
         <main className="min-w-0 flex-1 bg-stone-50 p-4 md:p-8 lg:overflow-y-auto">
-          <div className="mx-auto max-w-[1600px] min-w-0">{children}</div>
+          <div className="mx-auto max-w-[1600px] min-w-0">
+            {activeTab === 'support' ? <SupportCenter role={role} onNavigate={onTabChange} /> : children}
+          </div>
         </main>
       </div>
     </div>

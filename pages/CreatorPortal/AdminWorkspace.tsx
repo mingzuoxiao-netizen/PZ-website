@@ -9,7 +9,7 @@ import PortalLayout from './PortalLayout';
 import {
   RefreshCw, Package, Inbox,
   LayoutGrid, Settings, Images, Users, Activity,
-  ArrowUpCircle
+  ArrowUpCircle, HelpCircle
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -29,7 +29,7 @@ import ReviewQueue from './components/ReviewQueue';
 import AuditTimeline from './components/AuditTimeline';
 import InquiryManager from './components/InquiryManager';
 
-type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit';
+type AdminTab = 'review' | 'inventory' | 'bulk-import' | 'inquiries' | 'categories' | 'media' | 'basics' | 'accounts' | 'organization' | 'audit' | 'support';
 
 const AdminWorkspace: React.FC = () => {
   const { t } = useLanguage();
@@ -443,6 +443,7 @@ const AdminWorkspace: React.FC = () => {
     { id: 'organization', label: '部门与主管管理', icon: <Users size={18} />, group: '系统管理' },
     { id: 'accounts', label: '账号权限管理', icon: <Users size={18} />, group: '系统管理' },
     { id: 'audit', label: '操作日志', icon: <LayoutGrid size={18} />, group: '系统管理' },
+    { id: 'support', label: '支持 / Support', icon: <HelpCircle size={18} /> },
   ];
 
   return (

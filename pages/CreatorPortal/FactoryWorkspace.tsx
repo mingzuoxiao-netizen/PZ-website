@@ -9,7 +9,7 @@ import { publishedSiteCategories } from '../../utils/catalogCategories';
 import PortalLayout from './PortalLayout';
 import { 
     Package, ChevronLeft, LayoutGrid, ClipboardList, AlertCircle, 
-    Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database 
+    Clock, Plus, X, Save, Send, Loader2, Layers, Bell, CheckCircle, Database, HelpCircle
 } from 'lucide-react';
 
 // Components
@@ -31,7 +31,7 @@ interface Notification {
 
 const FactoryWorkspace: React.FC = () => {
   const [products, setProducts] = useState<ProductVariant[]>([]);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'categories' | 'bulk-import' | 'support'>('inventory');
   const [categories, setCategories] = useState<Category[]>(staticCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ProductVariant | null>(null);
@@ -330,11 +330,12 @@ const FactoryWorkspace: React.FC = () => {
   const navItems = [
     { id: 'inventory', label: '工厂产品管理', icon: <Package size={18} /> },
     { id: 'bulk-import', label: 'ZIP 一键导入草稿', icon: <Package size={18} /> },
-    { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> }
+    { id: 'categories', label: '产品分类申请', icon: <LayoutGrid size={18} /> },
+    { id: 'support', label: '支持 / Support', icon: <HelpCircle size={18} /> }
   ];
 
   return (
-    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import');}}>
+    <PortalLayout role="FACTORY" userName={userName} navItems={navItems} activeTab={activeTab} onTabChange={(tab) => {if(!canLeave())return;setCreationTemplate({});setEditingItem(null);setIsCreating(false);setIsBatchCreating(false);setRevisionEditing(null);setActiveTab(tab as 'inventory' | 'categories' | 'bulk-import' | 'support');}}>
       {activeTab === 'bulk-import' ? (
         <BulkZipImporter role="FACTORY" categories={categories} onCompleted={id=>{
           setCatalogImportBatch(id);setCatalogImportBatchInput(id);setCatalogStatus('all');
