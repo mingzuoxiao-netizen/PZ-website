@@ -47,7 +47,7 @@ on:
           - production
 
       migrate_staging:
-        description: 'Apply audited Staging migrations 017-020 with recovery checkpoint'
+        description: 'Apply audited Staging migrations 017-021 with recovery checkpoint'
         type: boolean
         default: false
 
@@ -108,7 +108,9 @@ jobs:
     if: >-
       (github.event_name == 'push' ||
        (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')) &&
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/feat/inquiry-workbench-task16-20261112')) &&
       vars.PZ_STAGING_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
