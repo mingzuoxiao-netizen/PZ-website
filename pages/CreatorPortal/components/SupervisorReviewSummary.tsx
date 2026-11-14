@@ -10,6 +10,17 @@ const parseValue=(value:unknown):unknown=>{
   if(typeof value!=='string')return value;
   try{return JSON.parse(value);}catch{return value;}
 };
+export const reviewSizeLabel=(size:unknown,rawDimensions:unknown):string=>{
+  const value=stringValue(size);
+  if(value)return value;
+  const parsed=parseValue(rawDimensions);
+  const dimensions=parsed&&typeof parsed==='object'&&!Array.isArray(parsed)
+    ?parsed as Record<string,unknown>:{};
+  const parts=['length','width','thickness' in dimensions?'thickness':'height']
+    .map(key=>dimensions[key]);
+  return parts.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>0)
+    ?parts.join(' × ')+' cm':'未填写';
+};
 
 export const supervisorReviewFacts=(snapshot:ProductSnapshot)=>{
   const specifications=parseValue(snapshot.specifications||snapshot.specs_json||{});
@@ -23,9 +34,6 @@ export const supervisorReviewFacts=(snapshot:ProductSnapshot)=>{
   const rawSites=Array.isArray(siteValue)?siteValue:typeof siteValue==='string'&&siteValue?siteValue.split(','):[];
   const sites=rawSites.map(site=>String(site).trim()).filter(Boolean)
     .map(site=>site==='zhaoqing'?'肇庆':site==='cambodia'?'柬埔寨':site);
-  const dimensionParts=['length','width','thickness' in dimensions?'thickness':'height']
-    .map(key=>dimensions[key]).filter(value=>typeof value==='number'&&Number.isFinite(value)&&value>0);
-  const dimensionText=dimensionParts.length===3?dimensionParts.join(' × ')+' cm':'';
   const confirmed=Array.isArray(snapshot.preflight_warnings)?snapshot.preflight_warnings as PreflightWarning[]:[];
   // The same shared rules already run in the editor and the Worker. This is a
   // read-only display of the submitted snapshot, not a second approval gate.
@@ -33,7 +41,7 @@ export const supervisorReviewFacts=(snapshot:ProductSnapshot)=>{
   return {
     category:stringValue(snapshot.category)||'未填写',
     material:stringValue(snapshot.material)||'未填写',
-    size:stringValue(snapshot.size)||dimensionText||'未填写',
+    size:reviewSizeLabel(snapshot.size,dimensions),
     finish:stringValue(snapshot.finish)||'未填写',
     sites:sites.filter(Boolean).join('、')||'未填写',
     images,

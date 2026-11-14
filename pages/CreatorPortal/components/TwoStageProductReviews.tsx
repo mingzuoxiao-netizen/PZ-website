@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
 import {resolveImage} from '../../../utils/imageResolver';
+import {preflightProduct} from '../../../utils/productPreflight.js';
 import ProductChangeSummary from './ProductChangeSummary';
-import SupervisorReviewSummary from './SupervisorReviewSummary';
+import SupervisorReviewSummary,{reviewSizeLabel} from './SupervisorReviewSummary';
 import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
 import type {ReturnIssue} from '../../../utils/reviewReturn.mjs';
 import {fetchBackofficePage} from '../../../utils/backofficeLists';
@@ -17,7 +18,8 @@ export const isActionableProductReview = (role:Role,status:string):boolean =>
     : ['pending_supervisor','returned_to_supervisor'].includes(status);
 type Review = {
   id:string; product_id:string; name:string; name_cn?:string; code:string;category:string;
-  images?:string[]|string;material?:string;size?:string;finish?:string;
+  images?:string[]|string;material?:string;size?:string;finish?:string;sub_category?:string;
+  series_id?:string;dimensions_cm?:string|Record<string,number>;
   kind?:'product'|'revision';status:string;latest_version:number;approved_version:number|null;
   submitter_id:string;supervisor_id:string;department_id:string;return_reason?:string|null;
   is_recheck?:number|boolean;
@@ -55,6 +57,40 @@ export const reviewCardImages=(raw:unknown):string[]=>{
   }
   return Array.isArray(value)?value.filter((url):url is string=>typeof url==='string'&&url.trim().length>0):[];
 };
+const reviewKey=(item:Review):string=>(item.kind||'product')+':'+item.id;
+export const canBatchInitialReview=(item:Review):boolean=>
+  item.kind==='product'&&item.status==='pending_supervisor'&&item.latest_version===1&&!item.is_recheck;
+export const groupSupervisorReviews=(items:Review[]):Array<{name:string;key:string;items:Review[];grouped:boolean}>=>{
+  const groups:Array<{name:string;key:string;items:Review[];grouped:boolean}>=[];
+  const bySeries=new Map<string,number>();
+  for(const item of items){
+    // A subcategory or SKU prefix is not proof of common series ownership.
+    // Only the explicit series_id stored in the product specifications is safe.
+    const series=typeof item.series_id==='string'?item.series_id.trim():'';
+    if(!series){groups.push({name:'',key:reviewKey(item),items:[item],grouped:false});continue;}
+    const key=String(item.category||'').trim().toLocaleLowerCase()+'\u0000'+series.toLocaleLowerCase();
+    const existing=bySeries.get(key);
+    if(existing===undefined){bySeries.set(key,groups.length);
+      groups.push({name:series,key,items:[item],grouped:true});}
+    else groups[existing].items.push(item);
+  }
+  return groups;
+};
+export const cardAnomalies=(item:Review):string[]=>{
+  const alerts:string[]=[];
+  const photos=reviewCardImages(item.images);
+  if(photos.length<4)alerts.push('图片不足 4 张');
+  if(photos.length!==new Set(photos).size)alerts.push('图片链接重复');
+  if(!String(item.material||'').trim())alerts.push('材质未填写');
+  if(!String(item.finish||'').trim())alerts.push('表面处理未填写');
+  if(reviewSizeLabel(item.size,item.dimensions_cm)==='未填写')alerts.push('尺寸未填写');
+  const dims=typeof item.dimensions_cm==='string'?(()=>{
+    try{return JSON.parse(item.dimensions_cm);}catch{return {};}
+  })():item.dimensions_cm;
+  if(dims&&typeof dims==='object'&&Object.values(dims).some(n=>typeof n==='number'&&n>300))
+    alerts.push('部分尺寸超过 300 cm，请核对单位');
+  return alerts;
+};
 const SupervisorCardImage:React.FC<{raw:unknown;name:string;revision:boolean}>=({raw,name,revision})=>{
   const images=reviewCardImages(raw),main=images[0];
   return <div className="min-w-0">
@@ -63,7 +99,7 @@ const SupervisorCardImage:React.FC<{raw:unknown;name:string;revision:boolean}>=(
       className="block aspect-[4/3] w-full overflow-hidden rounded border border-stone-200 bg-stone-50 sm:aspect-square">
       <img src={resolveImage(main)} alt={name+' 产品主图'} loading="lazy" className="h-full w-full object-cover"/>
     </a>:<div className="flex aspect-[4/3] items-center justify-center rounded border border-dashed border-stone-300 bg-stone-50 text-xs text-stone-500 sm:aspect-square">暂无产品图片</div>}
-    <p className="mt-1 text-[11px] text-stone-500">{images.length} 张图片{revision?' · 现有图片':''}</p>
+    <p className="mt-1 text-[11px] text-stone-500">{images.length} 张图片{revision?' · 修订提交图片':''}</p>
   </div>;
 };
 const fields:[string,string][]=[
@@ -97,6 +133,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
   const [employee,setEmployee]=useState('');
   const [kind,setKind]=useState<''|'product'|'revision'>('');
   const [status,setStatus]=useState('action');
+  const [batchSelection,setBatchSelection]=useState<string[]>([]);
   const generation=useRef(0);
   const detailGeneration=useRef(0);
   const refresh=useCallback(async()=>{
@@ -109,6 +146,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
       if(request!==generation.current)return [];
       if(page>1&&!result.items.length){setPage(Math.max(1,Math.ceil(result.total/50)));return [];}
       setReviews(result.items);setTotal(result.total);
+      setBatchSelection(current=>current.filter(key=>result.items.some(item=>
+        reviewKey(item)===key&&canBatchInitialReview(item))));
       setSelected(current=>current&&!result.items.some(item=>item.id===current.id&&item.kind===current.kind)?null:current);
       return result.items;
     }catch(e:any){
@@ -120,6 +159,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     setError('');setSelected(null);detailGeneration.current++;void refresh();
     return ()=>{generation.current++;detailGeneration.current++;};
   },[refresh]);
+  useEffect(()=>{setBatchSelection([]);},[role,page,query,employee,kind,status]);
   const inspect=async(item:Review)=>{
     const request=++detailGeneration.current;
     setBusy(true);setSelected(null);setError('');setReason('');setReturnIssues([defaultReturnIssue()]);setReturnAction(null);
@@ -143,7 +183,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     setBusy(true);setError('');setNotice('');
     try{
       const result=await adminFetch<{success:boolean;status:string}>('/'+base+'/'+(selected.kind==='revision'?'revisions':'reviews')+'/'+encodeURIComponent(selected.id)+'/'+name,{
-        method:'POST',body:JSON.stringify({note:reason.trim(),
+        method:'POST',body:JSON.stringify({note:reason.trim(),expected_version:selected.latest_version,
           ...(selected.kind!=='revision'&&(name==='return'||name==='request-correction')?{issues:returnIssues}:{})})
       });
       if(!result.success)throw Error('审核状态未确认');
@@ -169,6 +209,70 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     }catch(e:any){setError(e?.message||'操作未完成，请刷新检查');await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
+  const groupedReviews=role==='SUPERVISOR'?groupSupervisorReviews(reviews):[];
+  const orderedReviews=role==='SUPERVISOR'?groupedReviews.flatMap(group=>group.items):reviews;
+  const groupStarts=new Map(groupedReviews.filter(group=>group.grouped&&group.items.length>1)
+    .map(group=>[reviewKey(group.items[0]),group] as const));
+  const toggleBatch=(item:Review)=>{
+    const key=reviewKey(item);
+    setBatchSelection(previous=>previous.includes(key)?previous.filter(value=>value!==key):
+      previous.length>=10?previous:[...previous,key]);
+  };
+  const selectGroup=(group:{items:Review[]})=>{
+    const candidates=group.items.filter(canBatchInitialReview).map(reviewKey);
+    setBatchSelection(previous=>{
+      const missing=candidates.filter(key=>!previous.includes(key));
+      return missing.length===0?previous.filter(key=>!candidates.includes(key)):
+        [...previous,...missing].slice(0,10);
+    });
+  };
+  const batchApprove=async()=>{
+    if(role!=='SUPERVISOR'||busy||loading||!batchSelection.length)return;
+    const candidates=orderedReviews.filter(item=>batchSelection.includes(reviewKey(item))&&canBatchInitialReview(item));
+    if(!candidates.length||candidates.length!==batchSelection.length||candidates.length>10){
+      setError('待办已变化，请刷新列表并重新选择。');return;
+    }
+    setBusy(true);setError('');setNotice('');
+    let completed=0;
+    try{
+      // Fetch the submitted version before any write. A batch is blocked in
+      // its entirety if even one candidate has an error, warning, or stale V1.
+      for(const item of candidates){
+        const detail=await adminFetch<ReviewDetail>('/supervisor/reviews/'+encodeURIComponent(item.id));
+        const snapshot=detail.versions?.at(-1)?.snapshot;
+        const validation=snapshot?preflightProduct(snapshot):null;
+        const issues=(validation?.errors.length||0)+(validation?.warnings.length||0);
+        if(!snapshot||detail.status!=='pending_supervisor'||detail.latest_version!==1||
+          detail.supervisor_id!==item.supervisor_id||detail.product_id!==item.product_id||
+          detail.code!==item.code||detail.versions.length!==1||issues>0||
+          (Array.isArray(snapshot.preflight_warnings)&&snapshot.preflight_warnings.length>0)){
+          throw Error('批量预检未通过（'+item.code+'）：可能有字段/图片异常、资料已修改或版本不一致。请单独展开核对。');
+        }
+      }
+      if(typeof confirm!=='function'||!confirm('即将对 '+candidates.length+' 个首次新品逐条初审通过：\n'+
+        candidates.map(item=>'• '+item.code+' · '+(item.name_cn||item.name)).join('\n')+
+        '\n\n请确认已逐项查看卡片规格和图片。系统会再次校验版本并保留每条独立审核日志。')){
+        setNotice('已取消批量初审，未修改任何审核状态。');return;
+      }
+      for(const item of candidates){
+        const result=await adminFetch<{success:boolean;status:string}>(
+          '/supervisor/reviews/'+encodeURIComponent(item.id)+'/approve',{
+            method:'POST',body:JSON.stringify({expected_version:item.latest_version})
+          });
+        if(!result.success||result.status!=='pending_admin')throw Error('审核结果未确认：'+item.code);
+        completed++;
+      }
+      setNotice('批量初审完成：'+completed+' 条已提交管理员终审；每条均有独立审核记录。');
+    }catch(e:any){
+      setError('批量初审已停止：'+(e?.message||'请求失败')+'。本次已通过 '+completed+
+        ' 条，其余未执行；请刷新逐项核实。');
+    }finally{
+      setBatchSelection([]);
+      setSelected(null);
+      await refresh();
+      setBusy(false);
+    }
+  };
   const previousVersion=selected?.versions?.length&&selected.versions.length>1?
     selected.versions[selected.versions.length-2]:null;
   const original=selected?.kind==='revision'?selected.base_snapshot||{}:
@@ -188,7 +292,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     :JSON.stringify(original[key])!==JSON.stringify(latest[key]));
   const visibleFields=showAllFields?fields:changedFields;
   const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
-  const selectedIndex=reviews.findIndex(item=>item.id===selected?.id&&item.kind===selected?.kind);
+  const selectedIndex=orderedReviews.findIndex(item=>item.id===selected?.id&&item.kind===selected?.kind);
   const renderValue=(key:string,value:unknown):React.ReactNode=>{
     if(key==='images'&&Array.isArray(value)){
       const images=value.filter((url):url is string=>typeof url==='string'&&!!url);
@@ -243,10 +347,22 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     </form>
     <div className={role==='SUPERVISOR'?'grid grid-cols-1 gap-y-0':'grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]'}>
       <section className={role==='SUPERVISOR'?'contents':'space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="审核申请列表">
-        <h3 className={role==='SUPERVISOR'?'order-[-1] mb-3 px-2 py-2 text-sm font-semibold':'px-2 py-2 text-sm font-semibold'}>产品申请（{total===null?'未同步':total}）</h3>
+        <h3 className={role==='SUPERVISOR'?'order-[-3] mb-3 px-2 py-2 text-sm font-semibold':'px-2 py-2 text-sm font-semibold'}>产品申请（{total===null?'未同步':total}）</h3>
         {loading&&<p className="p-3 text-sm text-stone-500">加载中…</p>}
         {!loading&&total===0&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
-        {reviews.map((item,index)=>role==='SUPERVISOR'?<article key={(item.kind||'product')+':'+item.id}
+        {orderedReviews.map((item,index)=>role==='SUPERVISOR'?<React.Fragment key={reviewKey(item)}>
+          {groupStarts.has(reviewKey(item))&&<div style={{order:index*2-1}}
+            className="mb-2 mt-2 flex flex-wrap items-center justify-between gap-2 rounded border border-sky-200 bg-sky-50 px-4 py-3" role="group"
+            aria-label={'产品系列 '+groupStarts.get(reviewKey(item))!.name}>
+            <div><strong className="text-sm text-sky-900">同系列：{groupStarts.get(reviewKey(item))!.name}</strong>
+              <span className="ml-2 text-xs text-sky-700">本页 {groupStarts.get(reviewKey(item))!.items.length} 条独立 SKU</span></div>
+            {groupStarts.get(reviewKey(item))!.items.some(canBatchInitialReview)&&<button type="button"
+              disabled={busy||loading} onClick={()=>selectGroup(groupStarts.get(reviewKey(item))!)}
+              className="rounded border border-sky-300 bg-white px-3 py-2 text-xs font-semibold text-sky-900">
+              选择本系列可批量初审的新品（最多 10 条）
+            </button>}
+          </div>}
+          <article
           style={{order:index*2}}
           className={'border border-stone-200 bg-white p-4 sm:p-5 '+
             (selectedIndex===index?'rounded-t border-b-0 bg-stone-50':'mb-3 rounded')}>
@@ -263,17 +379,29 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
                 <div><dt className="text-stone-500">产品分类</dt><dd className="mt-1 break-words font-medium text-stone-900">{item.category||'未填写'}</dd></div>
                 <div><dt className="text-stone-500">提交员工</dt><dd className="mt-1 font-medium text-stone-900">{members.find(member=>member.id===item.submitter_id)?.username||'提交员工'}</dd></div>
                 <div><dt className="text-stone-500">申请类型</dt><dd className="mt-1 font-medium text-stone-900">{item.kind==='revision'?'产品修订':'新品申请'}</dd></div>
+                <div><dt className="text-stone-500">材质</dt><dd className="mt-1 break-words font-medium text-stone-900">{item.material||'未填写'}</dd></div>
+                <div><dt className="text-stone-500">尺寸</dt><dd className="mt-1 break-words font-medium text-stone-900">{reviewSizeLabel(item.size,item.dimensions_cm)}</dd></div>
+                <div><dt className="text-stone-500">表面处理</dt><dd className="mt-1 break-words font-medium text-stone-900">{item.finish||'未填写'}</dd></div>
               </dl>
+              {!!item.series_id&&<p className="mt-2 text-xs text-sky-800">系列编号：{item.series_id}</p>}
+              {cardAnomalies(item).length>0&&<div className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900"
+                aria-label="卡片规则异常提醒">规则提示（需人工确认）：{cardAnomalies(item).join('；')}</div>}
               {!!item.is_recheck&&item.kind!=='revision'&&<span className="mt-3 inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">复检 · 优先</span>}
             </div>
           </div>
+          {canBatchInitialReview(item)&&<label className="mt-3 flex items-center gap-2 text-xs text-stone-700">
+            <input type="checkbox" aria-label={'选择批量初审 '+item.code} checked={batchSelection.includes(reviewKey(item))}
+              disabled={busy||loading||(!batchSelection.includes(reviewKey(item))&&batchSelection.length>=10)}
+              onChange={()=>toggleBatch(item)} className="h-4 w-4 accent-stone-900"/>
+            加入安全批量初审（仅首次新品 · 无预检异常才可通过）
+          </label>}
           <button type="button" disabled={busy||loading} aria-expanded={selectedIndex===index}
             aria-controls="supervisor-inline-review-detail"
             onClick={()=>{if(selectedIndex===index){setSelected(null);setReturnAction(null);}else void inspect(item);}}
             className="mt-4 rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
             {selectedIndex===index?'收起审核详情':'查看审核详情 · 展开核对'}
           </button>
-        </article>:<button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
+        </article></React.Fragment>:<button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
           aria-current={selected?.id===item.id&&selected?.kind===item.kind?'true':undefined}
           className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id&&selected?.kind===item.kind?'border-stone-900 bg-stone-50':'border-stone-100')}>
           <div className="flex justify-between gap-2"><strong className="text-sm">{item.name_cn||item.name}</strong>
@@ -282,6 +410,21 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {item.kind==='revision'?'修订':'新品'}</p>
           <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
         </button>)}
+        {role==='SUPERVISOR'&&<div style={{order:-2}}
+          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded border border-stone-200 bg-white px-4 py-3"
+          aria-label="安全批量初审工具栏">
+          <p className="text-xs leading-5 text-stone-600">已选 <strong>{batchSelection.length}</strong> / 10 条 ·
+            仅首次新品；全量预检与版本校验后，逐条提交并记录日志。</p>
+          <div className="flex gap-2">
+            {batchSelection.length>0&&<button type="button" disabled={busy||loading}
+              onClick={()=>setBatchSelection([])} className="rounded border px-3 py-2 text-xs">清空选择</button>}
+            <button type="button" disabled={busy||loading||!batchSelection.length}
+              onClick={()=>void batchApprove()}
+              className="rounded bg-stone-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">
+              预检并批量初审
+            </button>
+          </div>
+        </div>}
       </section>
       <section ref={detailPanel} id={role==='SUPERVISOR'?'supervisor-inline-review-detail':undefined}
         style={role==='SUPERVISOR'?{order:selectedIndex*2+1}:undefined}
