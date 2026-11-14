@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import {act,create} from 'react-test-renderer';
-import TwoStageProductReviews from '../pages/CreatorPortal/components/TwoStageProductReviews';
+import TwoStageProductReviews,{reviewCardImages} from '../pages/CreatorPortal/components/TwoStageProductReviews';
 import {supervisorReviewFacts} from '../pages/CreatorPortal/components/SupervisorReviewSummary';
 
 const photos=['https://example.com/a.jpg','https://example.com/b.jpg',
@@ -22,7 +22,8 @@ const prepare=(versions:{version:number;snapshot:Record<string,unknown>}[],statu
     const url=String(input);calls.push((init?.method||'GET')+' '+url);
     if(url.includes('/supervisor/release-queue?'))return Response.json({list_version:1,total:1,page:1,page_size:50,
       has_more:false,items:[{id:'rq',product_id:'p1',kind:'product',name:valid.name,name_cn:valid.name_cn,
-        code:valid.code,status,latest_version:versions.at(-1)?.version||1}]});
+        code:valid.code,category:valid.category,images:JSON.stringify(photos),
+        status,latest_version:versions.at(-1)?.version||1}]});
     if(url.endsWith('/supervisor/reviews/rq'))return Response.json({
       id:'rq',product_id:'p1',kind:'product',name:valid.name,name_cn:valid.name_cn,
       code:valid.code,status,latest_version:versions.at(-1)?.version||1,
@@ -54,15 +55,28 @@ test('supervisor summary reads stored JSON and reuses shared preflight without a
   assert.deepEqual(facts.warnings,[]);
 });
 
+test('review card previews parse queue image JSON without loading product detail',()=>{
+  assert.deepEqual(reviewCardImages(JSON.stringify(photos)),photos);
+  assert.deepEqual(reviewCardImages(photos),photos);
+  assert.deepEqual(reviewCardImages('{broken'),[]);
+  assert.deepEqual(reviewCardImages(null),[]);
+  assert.deepEqual(reviewCardImages('[null,"",12,"/uploads/a.jpg"]'),['/uploads/a.jpg']);
+});
+
 test('new product is compact by default; all fields remain available on demand',async()=>{
   const env=prepare([{version:1,snapshot:valid}]);
   let view:ReturnType<typeof create>|undefined;
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
+    assert.equal(view!.root.findByProps({'aria-label':'审核申请列表'}).findAllByType('img').length,1);
+    assert.equal(env.calls.filter(call=>call.includes('/supervisor/reviews/rq')).length,0,
+      'cover preview comes from paged queue, not one extra detail request per card');
     await clickReview(view!);
     const card=view!.root.findByProps({'aria-label':'审核申请列表'}).findByType('article');
     assert.match(JSON.stringify(card.props.className),/rounded-t/);
     assert.ok(card.findAllByType('button').some(node=>node.props['aria-expanded']===true));
+    assert.equal(card.findAllByType('img').length,1,'review card shows the cover before opening detail');
+    assert.match(JSON.stringify(view!.toJSON()),/4 张图片|产品分类/);
     const summary=view!.root.findByProps({'aria-label':'主管审核摘要'});
     assert.match(JSON.stringify(view!.toJSON()),/White Oak|180 × 65 × 3\.8 cm|基础字段规则检查未发现问题/);
     assert.ok(view!.root.findByProps({'aria-label':'审核图片预览'}).findAllByType('img').length===4);

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { adminFetch } from '../../../utils/adminFetch';
+import {resolveImage} from '../../../utils/imageResolver';
 import ProductChangeSummary from './ProductChangeSummary';
 import SupervisorReviewSummary from './SupervisorReviewSummary';
 import ReturnIssueEditor,{defaultReturnIssue,returnIssuesComplete} from './ReturnIssueEditor';
@@ -16,6 +17,7 @@ export const isActionableProductReview = (role:Role,status:string):boolean =>
     : ['pending_supervisor','returned_to_supervisor'].includes(status);
 type Review = {
   id:string; product_id:string; name:string; name_cn?:string; code:string;category:string;
+  images?:string[]|string;material?:string;size?:string;finish?:string;
   kind?:'product'|'revision';status:string;latest_version:number;approved_version:number|null;
   submitter_id:string;supervisor_id:string;department_id:string;return_reason?:string|null;
   is_recheck?:number|boolean;
@@ -42,6 +44,27 @@ const present=(v:unknown):string=>{
   if(v===null||v===undefined)return '—';
   if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:JSON.stringify(x)).join('、')||'—';
   return typeof v==='object'?JSON.stringify(v):String(v);
+};
+// The paged queue already includes product images, but its D1 column can be
+// either JSON text or a parsed array. Do not fetch every full review just to
+// show a preview in each card.
+export const reviewCardImages=(raw:unknown):string[]=>{
+  let value=raw;
+  if(typeof value==='string'){
+    try{value=JSON.parse(value);}catch{return [];}
+  }
+  return Array.isArray(value)?value.filter((url):url is string=>typeof url==='string'&&url.trim().length>0):[];
+};
+const SupervisorCardImage:React.FC<{raw:unknown;name:string;revision:boolean}>=({raw,name,revision})=>{
+  const images=reviewCardImages(raw),main=images[0];
+  return <div className="min-w-0">
+    {main?<a href={resolveImage(main)} target="_blank" rel="noopener noreferrer"
+      title="查看产品主图" aria-label={'查看 '+name+' 的产品主图'}
+      className="block aspect-[4/3] w-full overflow-hidden rounded border border-stone-200 bg-stone-50 sm:aspect-square">
+      <img src={resolveImage(main)} alt={name+' 产品主图'} loading="lazy" className="h-full w-full object-cover"/>
+    </a>:<div className="flex aspect-[4/3] items-center justify-center rounded border border-dashed border-stone-300 bg-stone-50 text-xs text-stone-500 sm:aspect-square">暂无产品图片</div>}
+    <p className="mt-1 text-[11px] text-stone-500">{images.length} 张图片{revision?' · 现有图片':''}</p>
+  </div>;
 };
 const fields:[string,string][]=[
   ['name','英文名称'],['name_cn','中文名称'],['code','SKU'],
@@ -226,15 +249,22 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           style={{order:index*2}}
           className={'border border-stone-200 bg-white p-4 sm:p-5 '+
             (selectedIndex===index?'rounded-t border-b-0 bg-stone-50':'mb-3 rounded')}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0"><h4 className="text-base font-semibold text-stone-900">{item.name_cn||item.name}</h4>
-              <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {members.find(member=>member.id===item.submitter_id)?.username||'提交员工'} · V{item.latest_version}</p>
+          <div className="grid gap-4 sm:grid-cols-[144px_minmax(0,1fr)]">
+            <SupervisorCardImage raw={item.images} name={item.name_cn||item.name} revision={item.kind==='revision'}/>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0"><h4 className="text-base font-semibold text-stone-900">{item.name_cn||item.name}</h4>
+                  <p className="mt-1 break-all text-xs text-stone-500">{item.code||'未设置 SKU'} · V{item.latest_version}</p>
+                </div>
+                <span className="rounded bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">{statusLabels[item.status]||item.status}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+                <div><dt className="text-stone-500">产品分类</dt><dd className="mt-1 break-words font-medium text-stone-900">{item.category||'未填写'}</dd></div>
+                <div><dt className="text-stone-500">提交员工</dt><dd className="mt-1 font-medium text-stone-900">{members.find(member=>member.id===item.submitter_id)?.username||'提交员工'}</dd></div>
+                <div><dt className="text-stone-500">申请类型</dt><dd className="mt-1 font-medium text-stone-900">{item.kind==='revision'?'产品修订':'新品申请'}</dd></div>
+              </dl>
+              {!!item.is_recheck&&item.kind!=='revision'&&<span className="mt-3 inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900">复检 · 优先</span>}
             </div>
-            <span className="rounded bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">{statusLabels[item.status]||item.status}</span>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-600">
-            <span className="rounded bg-stone-100 px-2 py-1">{item.kind==='revision'?'产品修订':'新品申请'}</span>
-            {!!item.is_recheck&&item.kind!=='revision'&&<span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-900">复检 · 优先</span>}
           </div>
           <button type="button" disabled={busy||loading} aria-expanded={selectedIndex===index}
             aria-controls="supervisor-inline-review-detail"

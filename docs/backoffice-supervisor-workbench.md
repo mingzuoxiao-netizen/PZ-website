@@ -45,8 +45,14 @@ Perform real three-role Staging handoff/return checks before release.
 ## Stage C.2 — category-style review cards (2026-11-13)
 
 - The **supervisor-only** product queue now uses one full-width card per request,
-  consistent with the category-initial-review page: product name, SKU, uploader,
-  version, request type and current status appear before any detail is opened.
+  consistent with the category-initial-review page: product cover thumbnail,
+  image count, category, product name, SKU, uploader, version, request type and
+  current status appear before any detail is opened. Missing images use an
+  explicit placeholder instead of silently borrowing another product's image.
+- The paged queue already includes product images as a JSON column; parse it
+  locally and render one preview without making extra per-card detail calls.
+  For published-product revisions the preview is labeled as **existing image**;
+  the submitted revision's images must still be confirmed in expanded detail.
 - **查看审核详情 · 展开核对** expands the selected request directly below its card;
   **收起审核详情** collapses it. The expanded content retains the six-field
   summary, full-detail toggle, version comparison, technical/audit disclosures,
