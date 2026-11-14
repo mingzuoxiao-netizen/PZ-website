@@ -8,6 +8,7 @@ on:
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
+      - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
       - 'utils/safeZip.mjs'
       - 'utils/safeZip.d.mts'
@@ -28,6 +29,7 @@ on:
       - 'worker-patches/migrations/018_trusted_operator_fast_lane_REVIEW.sql'
       - 'worker-patches/migrations/019_review_notifications_email_REVIEW.sql'
       - 'worker-patches/migrations/020_bulk_draft_import_REVIEW.sql'
+      - 'worker-patches/migrations/021_inquiry_workbench_REVIEW.sql'
       - 'utils/bulkImportCore.mjs'
       - 'utils/safeZip.mjs'
       - 'utils/safeZip.d.mts'
@@ -53,7 +55,7 @@ on:
           - production
 
       migrate_staging:
-        description: 'Apply audited Staging migrations 017-020 with recovery checkpoint'
+        description: 'Apply audited Staging migrations 017-021 with recovery checkpoint'
         type: boolean
         default: false
 
@@ -90,6 +92,7 @@ jobs:
           node --test worker/tests/field-return.test.mjs
           node --test worker/tests/fast-lane.test.mjs
           node --test worker/tests/notifications.test.mjs
+          node --test worker/tests/inquiry-workbench.test.mjs
           node --test worker/tests/bulk-import.test.mjs
           node --test worker/tests/zip-xlsx-import.test.mjs
           node --test worker/tests/release-gates.test.mjs
