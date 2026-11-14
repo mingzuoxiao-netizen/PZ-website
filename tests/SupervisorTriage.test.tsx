@@ -60,6 +60,9 @@ test('new product is compact by default; all fields remain available on demand',
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
     await clickReview(view!);
+    const card=view!.root.findByProps({'aria-label':'审核申请列表'}).findByType('article');
+    assert.match(JSON.stringify(card.props.className),/rounded-t/);
+    assert.ok(card.findAllByType('button').some(node=>node.props['aria-expanded']===true));
     const summary=view!.root.findByProps({'aria-label':'主管审核摘要'});
     assert.match(JSON.stringify(view!.toJSON()),/White Oak|180 × 65 × 3\.8 cm|基础字段规则检查未发现问题/);
     assert.ok(view!.root.findByProps({'aria-label':'审核图片预览'}).findAllByType('img').length===4);
@@ -89,8 +92,28 @@ test('latest resubmission compares with prior version and highlights warning wit
     const rendered=JSON.stringify(view!.toJSON());
     assert.match(rendered,/变更前 V2/);
     assert.match(rendered,/辅助预检提示 1 项需人工核对/);
-    assert.equal(view!.root.findAllByType('article').length,1,'only changed finish is shown as a public-field card');
+    const comparison=view!.root.findByProps({'aria-label':'初始与提交版本字段比较'});
+    assert.equal(comparison.findAllByType('article').length,1,'only changed finish is shown as a public-field card');
     assert.ok(view!.root.findAllByType('summary').some(node=>node.children.join('').includes('所有版本')));
+    assert.equal(env.calls.filter(call=>call.startsWith('POST')).length,0);
+  }finally{if(view)await act(async()=>view!.unmount());env.restore();}
+});
+
+test('supervisor cards expand in place and collapse without changing review state',async()=>{
+  const env=prepare([{version:1,snapshot:valid}]);
+  let view:ReturnType<typeof create>|undefined;
+  try{
+    await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR" members={[{id:'staff',username:'PZ03'}]}/>);});
+    const list=view!.root.findByProps({'aria-label':'审核申请列表'});
+    assert.equal(list.findAllByType('article').length,1);
+    assert.equal(view!.root.findAllByProps({'aria-label':'审核详情'})[0].props.className.includes('hidden'),true);
+    await clickReview(view!);
+    const detail=view!.root.findByProps({'aria-label':'审核详情'});
+    assert.equal(detail.props.style.order,1);
+    assert.equal(detail.props.className.includes('hidden'),false);
+    assert.ok(list.findAllByType('button').some(node=>node.children.join('')==='收起审核详情'));
+    await act(async()=>list.findAllByType('button').find(node=>node.children.join('')==='收起审核详情')!.props.onClick());
+    assert.equal(view!.root.findByProps({'aria-label':'审核详情'}).props.className.includes('hidden'),true);
     assert.equal(env.calls.filter(call=>call.startsWith('POST')).length,0);
   }finally{if(view)await act(async()=>view!.unmount());env.restore();}
 });

@@ -20,7 +20,7 @@ account permissions.
   missing fields may show advisory warnings; they remain manually reviewable.
 - Successful handoff opens the next actionable record. Returns still need a
   concrete reason; common explanation shortcuts only fill text, never submit it.
-- Mobile details replace the long list and provide a return-to-list button.
+- Admin retains the master/detail layout and mobile return-to-list behavior.
 - Team management adds account-name and enabled/disabled filters while retaining
   the existing department-scoped account lifecycle.
 
@@ -41,3 +41,20 @@ Perform real three-role Staging handoff/return checks before release.
   Those are separate later phases with risk and permissions review.
 - Verify first-new, revised product, recheck, legacy snapshot, return form and
   complete handoff in Staging before deploying Production.
+
+## Stage C.2 — category-style review cards (2026-11-13)
+
+- The **supervisor-only** product queue now uses one full-width card per request,
+  consistent with the category-initial-review page: product name, SKU, uploader,
+  version, request type and current status appear before any detail is opened.
+- **查看审核详情 · 展开核对** expands the selected request directly below its card;
+  **收起审核详情** collapses it. The expanded content retains the six-field
+  summary, full-detail toggle, version comparison, technical/audit disclosures,
+  and the unchanged approve/return controls.
+- Search, submitter/type/status filters, pagination, read-only waiting states,
+  and automatic next-item handoff remain available.
+- No new approval authority, automatic approval, backend/API mutation, or
+  changes to the Admin two-column final-review layout.
+- Verify the card layout with multiple requests and on mobile in Staging,
+  including opening/closing one card, navigating between cards, recheck,
+  return form and the next actionable request after approval.

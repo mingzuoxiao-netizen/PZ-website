@@ -14,6 +14,8 @@ test('supervisor sees complete first submission, then reviews the next revision;
   ];
   let view:ReturnType<typeof create>|undefined;
   const button=(label:string)=>view!.root.findAllByType('button').find(x=>x.children.join('')===label)!;
+  const reviewCardButton=(name:string)=>view!.root.findAllByType('article')
+    .find(article=>article.findAllByType('h4').some(heading=>heading.children.includes(name)))!.findByType('button');
   globalThis.fetch=(async(input:any,init?:RequestInit)=>{
     const url=new URL(String(input),'https://local.example');requests.push((init?.method||'GET')+' '+url.pathname);
     if(url.pathname==='/api/supervisor/release-queue'){
@@ -33,7 +35,7 @@ test('supervisor sees complete first submission, then reviews the next revision;
   }) as typeof fetch;
   try{
     await act(async()=>{view=create(<TwoStageProductReviews role="SUPERVISOR"/>);});
-    const first=view!.root.findAllByType('button').find(x=>x.findAllByType('strong').some(y=>y.children.includes('First Table')))!;
+    const first=reviewCardButton('First Table');
     await act(async()=>first.props.onClick());
     assert.match(JSON.stringify(view!.toJSON()),/主管审核摘要|新品关键字段/);
     assert.match(JSON.stringify(view!.toJSON()),/120 cm/);
@@ -46,7 +48,7 @@ test('supervisor sees complete first submission, then reviews the next revision;
     assert.ok(requests.includes('POST /api/supervisor/revisions/second/approve'));
     await act(async()=>view!.root.findByProps({'aria-label':'部门待办状态'}).props.onChange({target:{value:'pending_admin'}}));
     assert.match(JSON.stringify(view!.toJSON()),/匹配 2 项/);
-    const pending=view!.root.findAllByType('button').find(x=>x.findAllByType('strong').some(y=>y.children.includes('First Table')))!;
+    const pending=reviewCardButton('First Table');
     await act(async()=>pending.props.onClick());
     assert.equal(button('初审通过并查看下一条'),undefined);
     assert.equal(requests.filter(x=>x.startsWith('POST')).length,2);

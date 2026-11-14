@@ -164,6 +164,7 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
     :JSON.stringify(original[key])!==JSON.stringify(latest[key]));
   const visibleFields=showAllFields?fields:changedFields;
   const technicalChanged=JSON.stringify(original.specifications||{})!==JSON.stringify(latest.specifications||{});
+  const selectedIndex=reviews.findIndex(item=>item.id===selected?.id&&item.kind===selected?.kind);
   const renderValue=(key:string,value:unknown):React.ReactNode=>{
     if(key==='images'&&Array.isArray(value)){
       const images=value.filter((url):url is string=>typeof url==='string'&&!!url);
@@ -216,12 +217,32 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
         <button type="button" disabled={busy} onClick={()=>{setSearch('');setQuery('');setEmployee('');setKind('');setStatus('action');setPage(1);}}
           className="rounded border px-3 py-2 text-sm">清除筛选</button></div>
     </form>
-    <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]">
-      <section className={'space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="审核申请列表">
-        <h3 className="px-2 py-2 text-sm font-semibold">产品申请（{total===null?'未同步':total}）</h3>
+    <div className={role==='SUPERVISOR'?'grid grid-cols-1 gap-y-0':'grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)]'}>
+      <section className={role==='SUPERVISOR'?'contents':'space-y-2 rounded border border-stone-200 bg-white p-3 lg:max-h-[76vh] lg:overflow-y-auto '+(selected?'hidden lg:block':'')} aria-label="审核申请列表">
+        <h3 className={role==='SUPERVISOR'?'order-[-1] mb-3 px-2 py-2 text-sm font-semibold':'px-2 py-2 text-sm font-semibold'}>产品申请（{total===null?'未同步':total}）</h3>
         {loading&&<p className="p-3 text-sm text-stone-500">加载中…</p>}
         {!loading&&total===0&&<p className="p-3 text-sm text-stone-500">暂无产品审核申请。</p>}
-        {reviews.map(item=><button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
+        {reviews.map((item,index)=>role==='SUPERVISOR'?<article key={(item.kind||'product')+':'+item.id}
+          style={{order:index*2}}
+          className={'border border-stone-200 bg-white p-4 sm:p-5 '+
+            (selectedIndex===index?'rounded-t border-b-0 bg-stone-50':'mb-3 rounded')}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0"><h4 className="text-base font-semibold text-stone-900">{item.name_cn||item.name}</h4>
+              <p className="mt-1 text-xs text-stone-500">{item.code||'未设置 SKU'} · {members.find(member=>member.id===item.submitter_id)?.username||'提交员工'} · V{item.latest_version}</p>
+            </div>
+            <span className="rounded bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">{statusLabels[item.status]||item.status}</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-600">
+            <span className="rounded bg-stone-100 px-2 py-1">{item.kind==='revision'?'产品修订':'新品申请'}</span>
+            {!!item.is_recheck&&item.kind!=='revision'&&<span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-900">复检 · 优先</span>}
+          </div>
+          <button type="button" disabled={busy||loading} aria-expanded={selectedIndex===index}
+            aria-controls="supervisor-inline-review-detail"
+            onClick={()=>{if(selectedIndex===index){setSelected(null);setReturnAction(null);}else void inspect(item);}}
+            className="mt-4 rounded bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+            {selectedIndex===index?'收起审核详情':'查看审核详情 · 展开核对'}
+          </button>
+        </article>:<button key={(item.kind||'product')+':'+item.id} type="button" disabled={busy||loading} onClick={()=>void inspect(item)}
           aria-current={selected?.id===item.id&&selected?.kind===item.kind?'true':undefined}
           className={'w-full rounded border p-3 text-left transition-colors hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-stone-900 '+(selected?.id===item.id&&selected?.kind===item.kind?'border-stone-900 bg-stone-50':'border-stone-100')}>
           <div className="flex justify-between gap-2"><strong className="text-sm">{item.name_cn||item.name}</strong>
@@ -231,8 +252,12 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
           <p className="mt-2 text-xs text-amber-700">{statusLabels[item.status]||item.status}</p>
         </button>)}
       </section>
-      <section ref={detailPanel} className="min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5" aria-label="审核详情">
-        {selected&&<button type="button" disabled={busy} onClick={()=>setSelected(null)} className="rounded border px-3 py-2 text-sm lg:hidden">返回申请列表</button>}
+      <section ref={detailPanel} id={role==='SUPERVISOR'?'supervisor-inline-review-detail':undefined}
+        style={role==='SUPERVISOR'?{order:selectedIndex*2+1}:undefined}
+        className={role==='SUPERVISOR'
+          ?'mb-3 min-w-0 space-y-4 rounded-b border border-t-0 border-stone-200 bg-white p-4 sm:p-5 '+(!selected?'hidden':'')
+          :'min-w-0 space-y-4 rounded border border-stone-200 bg-white p-4 sm:p-5'} aria-label="审核详情">
+        {selected&&role==='ADMIN'&&<button type="button" disabled={busy} onClick={()=>setSelected(null)} className="rounded border px-3 py-2 text-sm lg:hidden">返回申请列表</button>}
         {!selected?<p className="py-12 text-center text-sm text-stone-500">选择一条审核申请，先查看变更，再进行操作。</p>:<>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0"><h3 className="font-serif text-lg font-semibold">{selected.name_cn||selected.name}</h3>
