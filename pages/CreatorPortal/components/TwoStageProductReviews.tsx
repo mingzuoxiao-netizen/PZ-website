@@ -257,7 +257,8 @@ const TwoStageProductReviews:React.FC<{role:Role;members?:{id:string;username:st
       for(const item of candidates){
         const result=await adminFetch<{success:boolean;status:string}>(
           '/supervisor/reviews/'+encodeURIComponent(item.id)+'/approve',{
-            method:'POST',body:JSON.stringify({expected_version:item.latest_version})
+            method:'POST',body:JSON.stringify({expected_version:item.latest_version,
+              batch_initial_review:true})
           });
         if(!result.success||result.status!=='pending_admin')throw Error('审核结果未确认：'+item.code);
         completed++;

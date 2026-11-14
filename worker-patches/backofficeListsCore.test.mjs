@@ -249,6 +249,17 @@ test('both copy-ready runtime candidates embed the exact tested implementation',
   }
 });
 
+test('actual deployment entry projects draft review specs without exposing JSON and protects batch approvals from fast lane',()=>{
+  const source=readFileSync(new URL('../worker/src/index.js',import.meta.url),'utf8');
+  assert.match(source,/NULL AS draft_json FROM pz_product_reviews/);
+  assert.match(source,/COALESCE\('\+draftField\(key\)\+',p\.'\+key\+'\) AS '\+key/);
+  assert.match(source,/productSeries\+' AS series_id/);
+  assert.match(source,/productDimensions\+' AS dimensions_cm/);
+  assert.match(source,/batch_initial_review!==true/);
+  assert.match(source,/body\.expected_version!==review\.latest_version/);
+  assert.match(source,/bodyResult\.body\.expected_version!==revision\.latest_version/);
+});
+
 test('optional list indexes apply repeatedly without changing product or review records',()=>{
   const s=setup();
   try{

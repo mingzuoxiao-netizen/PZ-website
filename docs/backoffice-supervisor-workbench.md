@@ -90,7 +90,11 @@ Perform real three-role Staging handoff/return checks before release.
   Existing published-product revisions, rechecks, returns and Admin approvals
   never enter the batch. The supervisor confirms the exact SKU list.
 - After confirmation, the UI submits **separate existing supervisor approve
-  actions sequentially**, with `expected_version` for every request. Both new
+  actions sequentially**, with `expected_version` and `batch_initial_review`
+  for every request. The integrated Worker explicitly excludes these flagged
+  batch approvals from the trusted-operator **fast lane** (which could
+  otherwise publish immediately): each batch approval must reach Admin first.
+  Both new
   product and revision Worker approval routes optionally enforce the provided
   expected version before modifying state. Current RBAC, version transitions,
   assignment checks and individual immutable event logs remain authoritative.
@@ -103,8 +107,9 @@ Perform real three-role Staging handoff/return checks before release.
   they do not inspect actual pixel content and cannot prove whether material or
   photography matches the SKU. Future vision-model checking requires a
   separately reviewed service and image privacy/cost decision.
-- Deployment sequencing: merge the UI and all synchronized Worker source
-  copies; deploy and verify **Staging** first, with 2+ same-series products,
+- Deployment sequencing: merge the UI, all synchronized Worker candidate
+  copies and the actual CI deployment entry `worker/src/index.js`; deploy and
+  verify **Staging** first, with 2+ same-series products,
   a corrected V2, a published-product revision, an anomalous V1 and a normal
   V1. Check no approvals before confirmation, one event per approved V1,
   explicit rejection of stale `expected_version`, supervisor department scope,

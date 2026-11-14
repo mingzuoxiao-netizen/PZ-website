@@ -120,6 +120,7 @@ test('safe batch prechecks every V1 product then confirms, approves separately a
       const row=rows.find(item=>item.id===match[1])!;
       if(post){
         assert.equal(JSON.parse(String(init?.body)).expected_version,1);
+        assert.equal(JSON.parse(String(init?.body)).batch_initial_review,true);
         approvals.push(row.code);row.status='pending_admin';
         return Response.json({success:true,status:'pending_admin'});
       }
