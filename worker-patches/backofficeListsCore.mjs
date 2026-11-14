@@ -59,8 +59,8 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
     const table=kind==='reviews'?'pz_product_reviews':'pz_published_product_revisions';
     const release=kind==='release-queue';
     const common='id,product_id,submitter_id,supervisor_id,department_id,status,latest_version,approved_version,return_reason,created_at,updated_at';
-    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision FROM pz_product_reviews "+
-      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision FROM pz_published_product_revisions)";
+    const releaseTable="(SELECT 'product' AS kind,"+common+",NULL AS draft_revision,NULL AS draft_json FROM pz_product_reviews "+
+      "UNION ALL SELECT 'revision' AS kind,"+common+",draft_revision,draft_json FROM pz_published_product_revisions)";
     const from=product?' FROM products p':
       ' FROM '+(release?releaseTable:table)+' r JOIN products p ON p.id=r.product_id';
     const base=['p.deleted_at IS NULL'];
@@ -127,12 +127,22 @@ export function pzBackofficeListsFetch(originalFetch, {authorize, json, expected
     if(product&&['department','supervisor','submitter'].some(key=>params.get(key)))
       return fail('Unsupported product filter');
     if(!product&&params.get('site'))return fail('Unsupported review filter');
+    const productSeries="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.series_id') END";
+    const productDimensions="CASE WHEN json_valid(p.specs_json) THEN json_extract(p.specs_json,'$.dimensions_cm') END";
+    const draftField=key=>"CASE WHEN r.kind='revision' AND json_valid(r.draft_json) THEN json_extract(r.draft_json,'$."+key+"') END";
     const columns=product?'p.id,p.name,p.name_cn,p.category,p.sub_category,p.material,p.size,p.finish,p.code,'+
       'p.description,p.description_cn,p.images,p.production_sites,p.specs_json,p.created_by,p.status,p.created_at,p.updated_at'+
       (env.PZ_TWO_STAGE_REVIEW_ENABLED==='true'?",(SELECT return_reason FROM pz_product_reviews WHERE product_id=p.id AND submitter_id=p.created_by ORDER BY updated_at DESC,id DESC LIMIT 1) AS return_reason":''):
-      kind==='reviews'||release?'r.*,p.name,p.name_cn,p.code,p.category,p.images':
+      release?'r.kind,'+common.split(',').map(key=>'r.'+key).join(',')+',r.draft_revision,'+
+        ['name','name_cn','category','sub_category','images','material','size','finish'].map(key=>
+        'COALESCE('+draftField(key)+',p.'+key+') AS '+key).join(',')+
+        ',p.code,COALESCE('+draftField('specifications.series_id')+','+productSeries+') AS series_id'+
+        ',COALESCE('+draftField('specifications.dimensions_cm')+','+productDimensions+') AS dimensions_cm':
+      kind==='reviews'?'r.*,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+        productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm':
       'r.id,r.product_id,r.submitter_id,r.supervisor_id,r.department_id,r.status,r.draft_revision,'+
-      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images';
+      'r.latest_version,r.approved_version,r.return_reason,r.created_at,r.updated_at,p.name,p.name_cn,p.code,p.category,p.images,p.material,p.size,p.finish,p.sub_category,'+
+      productSeries+' AS series_id,'+productDimensions+' AS dimensions_cm';
     const order=(params.get('sort')||'newest');
     if(!['oldest','newest'].includes(order))return fail('Invalid sort');
     const alias=product?'p':'r';

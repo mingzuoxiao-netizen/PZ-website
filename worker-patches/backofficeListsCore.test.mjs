@@ -21,7 +21,7 @@ function setup(){
       created_at TEXT,updated_at TEXT);
     CREATE TABLE pz_published_product_revisions(id TEXT PRIMARY KEY,product_id TEXT,submitter_id TEXT,
       supervisor_id TEXT,department_id TEXT,status TEXT,draft_revision INTEGER,latest_version INTEGER,
-      approved_version INTEGER,return_reason TEXT,created_at TEXT,updated_at TEXT);
+      approved_version INTEGER,return_reason TEXT,created_at TEXT,updated_at TEXT,draft_json TEXT);
   `);
   const product=(id,owner='staff',status='draft',category='tables',deleted=null)=>db.prepare(
     `INSERT INTO products(id,name,name_cn,code,category,created_by,status,images,production_sites,
@@ -31,8 +31,8 @@ function setup(){
   const review=(id,productId,status='pending_supervisor',lead='lead',dept='d1',staff='staff',time='2026-01-01')=>{
     db.prepare('INSERT INTO pz_product_reviews VALUES(?,?,?,?,?,?,1,NULL,NULL,?,?)')
       .run(id,productId,staff,lead,dept,status,time,time);
-    db.prepare('INSERT INTO pz_published_product_revisions VALUES(?,?,?,?,?,?,1,1,NULL,NULL,?,?)')
-      .run(id,productId,staff,lead,dept,status,time,time);
+    db.prepare('INSERT INTO pz_published_product_revisions VALUES(?,?,?,?,?,?,1,1,NULL,NULL,?,?,?)')
+      .run(id,productId,staff,lead,dept,status,time,time,'{}');
   };
   const env={PZ_RUNTIME_ENV:'production',PZ_ORG_RBAC_ENABLED:'true',
     PZ_TWO_STAGE_REVIEW_ENABLED:'true',PZ_PRODUCT_REVISIONS_ENABLED:'true',DB:{
@@ -111,6 +111,30 @@ test('unified Admin release queue paginates both types together with a stable ti
     assert.equal(revisions.data.total,1);assert.equal(revisions.data.items[0].kind,'revision');
     assert.equal((await s.call('/admin/release-queue?list_version=1','lead')).status,403);
     assert.equal((await s.call('/admin/release-queue?list_version=1&kind=invalid')).status,400);
+  }finally{s.db.close();}
+});
+
+test('supervisor cards receive submitted material, finish, dimensions and explicit series without returning the whole draft',async()=>{
+  const s=setup();
+  try{
+    s.product('chair');s.review('same','chair');
+    s.db.prepare('UPDATE products SET material=?,size=?,finish=?,specs_json=? WHERE id=?')
+      .run('White Oak','', 'Water Based',JSON.stringify({series_id:'Marlow',dimensions_cm:{length:120,width:50,height:75}}),'chair');
+    s.db.prepare('UPDATE pz_published_product_revisions SET draft_json=? WHERE id=?')
+      .run(JSON.stringify({name:'Marlow Chair Revised',material:'Walnut',finish:'PU',size:'45 × 50',
+        images:['https://cdn.example/new.jpg'],specifications:{series_id:'Marlow',dimensions_cm:{length:45,width:50,height:80}}}),'same');
+    const result=await s.call('/supervisor/release-queue?list_version=1','lead');
+    assert.equal(result.status,200);assert.equal(result.data.total,2);
+    const product=result.data.items.find(item=>item.kind==='product');
+    const revision=result.data.items.find(item=>item.kind==='revision');
+    assert.equal(product.material,'White Oak');assert.equal(product.finish,'Water Based');
+    assert.equal(product.series_id,'Marlow');
+    assert.deepEqual(JSON.parse(product.dimensions_cm),{length:120,width:50,height:75});
+    assert.equal(revision.name,'Marlow Chair Revised');assert.equal(revision.material,'Walnut');
+    assert.equal(revision.finish,'PU');assert.equal(revision.size,'45 × 50');
+    assert.deepEqual(JSON.parse(revision.images),['https://cdn.example/new.jpg']);
+    assert.deepEqual(JSON.parse(revision.dimensions_cm),{length:45,width:50,height:80});
+    assert.equal(revision.draft_json,undefined,'never ship complete mutable revision data in queue');
   }finally{s.db.close();}
 });
 
@@ -223,6 +247,17 @@ test('both copy-ready runtime candidates embed the exact tested implementation',
     assert.ok(source.includes('// BEGIN PAGINATED BACKOFFICE LISTS V1\n'+module));
     assert.ok(source.includes("pzBackofficeListsFetch(index_default.fetch, {authorize,json,expectedRuntime:'"+runtime+"'})"));
   }
+});
+
+test('actual deployment entry projects draft review specs without exposing JSON and protects batch approvals from fast lane',()=>{
+  const source=readFileSync(new URL('../worker/src/index.js',import.meta.url),'utf8');
+  assert.match(source,/NULL AS draft_json FROM pz_product_reviews/);
+  assert.match(source,/COALESCE\('\+draftField\(key\)\+',p\.'\+key\+'\) AS '\+key/);
+  assert.match(source,/productSeries\+' AS series_id/);
+  assert.match(source,/productDimensions\+' AS dimensions_cm/);
+  assert.match(source,/batch_initial_review!==true/);
+  assert.match(source,/body\.expected_version!==review\.latest_version/);
+  assert.match(source,/bodyResult\.body\.expected_version!==revision\.latest_version/);
 });
 
 test('optional list indexes apply repeatedly without changing product or review records',()=>{

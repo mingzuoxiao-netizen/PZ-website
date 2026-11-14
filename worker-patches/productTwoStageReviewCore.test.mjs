@@ -127,6 +127,18 @@ test('supervisor return prevents admin final review and reasons are mandatory',a
  assert.equal((await call('/admin/reviews/'+rid+'/approve','admin','POST')).status,409);
 });
 
+test('supervisor approval rejects a stale or invalid expected review version without writing events',async()=>{
+ const {sql,call}=setup();
+ const submitted=await call('/factory/products/p1/submit','worker','POST');
+ const url='/supervisor/reviews/'+submitted.data.id+'/approve';
+ assert.equal((await call(url,'lead','POST',{expected_version:0})).status,409);
+ assert.equal((await call(url,'lead','POST',{expected_version:'1'})).status,409);
+ assert.equal(sql.prepare('SELECT status FROM pz_product_reviews WHERE id=?').get(submitted.data.id).status,'pending_supervisor');
+ assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_review_events WHERE action='supervisor_approved'").get().n,0);
+ assert.equal((await call(url,'lead','POST',{expected_version:1})).data.status,'pending_admin');
+ assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_product_review_events WHERE action='supervisor_approved'").get().n,1);
+});
+
 test('unknown and cross-team users cannot read private review history',async()=>{
  const {call}=setup();
  const s=await call('/factory/products/p1/submit','worker','POST');

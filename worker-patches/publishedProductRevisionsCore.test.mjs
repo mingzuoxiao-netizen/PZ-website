@@ -139,6 +139,20 @@ test('published revision leaves original live SKU untouched until admin explicit
   assert.throws(()=>sql.prepare("DELETE FROM pz_published_revision_events WHERE revision_id=?").run(rid),/immutable/i);
 });
 
+test('revision approval rejects expected_version mismatch before any audit mutation',async()=>{
+  const {sql,call}=setup();
+  const created=await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Revised Oak Table'}});
+  assert.equal(created.status,201);
+  const rid=created.data.id;
+  assert.equal((await call('/factory/revisions/'+rid+'/submit','worker','POST',{})).status,200);
+  const path='/supervisor/revisions/'+rid+'/approve';
+  assert.equal((await call(path,'lead','POST',{expected_version:2})).status,409);
+  assert.equal((await call(path,'lead','POST',{expected_version:'1'})).status,409);
+  assert.equal(sql.prepare('SELECT status FROM pz_published_product_revisions WHERE id=?').get(rid).status,'pending_supervisor');
+  assert.equal((await call(path,'lead','POST',{expected_version:1})).data.status,'pending_admin');
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM pz_published_revision_events WHERE revision_id=? AND action='supervisor_approved'").get(rid).n,1);
+});
+
 test('admin return routes to supervisor, correction draft stays isolated, immutable version 1 survives version 2',async()=>{
   const {call,product}=setup();
   const c=await call('/factory/products/p1/revisions','worker','POST',{draft:{name:'Revision A'}});

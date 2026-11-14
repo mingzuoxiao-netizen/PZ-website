@@ -286,6 +286,10 @@ export function pzPublishedProductRevisionsFetch(originalFetch,{
     if(method!=='POST'||!action)return fail('Method not allowed',405);
     const bodyResult=await readJson(request);
     if(bodyResult.error)return fail(bodyResult.error,bodyResult.status);
+    if(bodyResult.body.expected_version!==undefined&&
+       (!Number.isSafeInteger(bodyResult.body.expected_version)||
+        bodyResult.body.expected_version!==revision.latest_version))
+      return fail('Revision version changed; refresh before approval',409);
     const note=typeof bodyResult.body.note==='string'?bodyResult.body.note.trim():'';
     if(['return','request-correction'].includes(action)&&(note.length<5||note.length>2000))
       return fail('Return reason must be 5–2000 characters',400);
